@@ -35,8 +35,13 @@ configure(
             it.getBooleanPropertyOrFalse("libp2p.gradle.custom")
         }
 ) {
-    group = "io.libp2p"
-    version = "develop"
+    // CodexCoder21 fork: published under an unambiguously non-upstream Maven coordinate.
+    // The group id (community.kotlin.libp2p) is owned by CodexCoder21 — we deliberately do NOT
+    // publish under io.libp2p because that namespace belongs to upstream libp2p. When the next
+    // upstream release containing PR #412 (https://github.com/libp2p/jvm-libp2p/pull/412) is cut,
+    // downstream projects should migrate back to io.libp2p and this fork will be retired.
+    group = "community.kotlin.libp2p"
+    version = "1.3.0-codexcoder21-snapshot-1"
 
     apply(plugin = "kotlin")
     apply(plugin = "idea")
@@ -186,7 +191,10 @@ configure(
                     }
                     artifact(sourcesJar.get())
                     artifact(dokkaJar.get())
-                    groupId = "io.libp2p"
+                    // CodexCoder21 fork: group id is set above (community.kotlin.libp2p).
+                    // We deliberately do NOT override with "io.libp2p" here because that
+                    // namespace belongs to upstream libp2p.
+                    groupId = project.group.toString()
                     artifactId = project.property("mavenArtifactId") as String
                 }
             }

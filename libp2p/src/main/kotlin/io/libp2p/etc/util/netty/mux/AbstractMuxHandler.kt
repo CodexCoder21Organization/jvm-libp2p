@@ -14,8 +14,27 @@ typealias MuxChannelInitializer<TData> = (MuxChannel<TData>) -> Unit
 
 private val log = LoggerFactory.getLogger(AbstractMuxHandler::class.java)
 
-abstract class AbstractMuxHandler<TData>() :
-    ChannelInboundHandlerAdapter() {
+const val UNBOUNDED_INBOUND_STREAMS = Int.MAX_VALUE
+
+abstract class AbstractMuxHandler<TData>(
+    /**
+     * Maximum number of concurrently-open *inbound* (remote-initiated) substreams the
+     * muxer will keep registered. Once reached, further OPEN frames are RESET back at
+     * the peer instead of allocating a new child pipeline.
+     *
+     * Default is unbounded for backward compatibility; concrete muxers (mplex, yamux)
+     * pass a sane production default.
+     *
+     * Why this exists: each accepted substream allocates a Netty `DefaultChannelPipeline`
+     * with multistream-select handlers and pins a slice of a Netty `PoolChunk` (16 MB
+     * native direct memory each). A misbehaving peer that opens streams faster than it
+     * closes them — or that opens streams and never finishes multistream-select — will
+     * exhaust the JVM's default direct buffer pool (which equals `-Xmx` when not set
+     * explicitly) and cause `OutOfMemoryError: Cannot reserve N bytes of direct buffer
+     * memory`. Bounding the per-connection inbound substream count caps the bleed.
+     */
+    private val maxOpenInboundStreams: Int = UNBOUNDED_INBOUND_STREAMS
+) : ChannelInboundHandlerAdapter() {
 
     private val streamMap: MutableMap<MuxId, MuxChannel<TData>> = mutableMapOf()
     var ctx: ChannelHandlerContext? = null
@@ -42,6 +61,16 @@ abstract class AbstractMuxHandler<TData>() :
 
     override fun exceptionCaught(ctx: ChannelHandlerContext, cause: Throwable) {
         when {
+            // JVM `Error`s (OutOfMemoryError, StackOverflowError, etc.) leave the muxer
+            // pipeline in an unrecoverable state — buffer pools may be exhausted, half
+            // of the open child streams may be malformed. Swallowing them lets the
+            // parent connection linger and accumulate more dead substreams (this is
+            // exactly the OOM-leak loop diagnosed in the heap dump). Propagate so the
+            // pipeline closes and `parentCloseFuture` cascade-closes children.
+            cause is Error -> {
+                log.warn("Fatal error in muxer pipeline; propagating to close parent connection", cause)
+                ctx.fireExceptionCaught(cause)
+            }
             cause.hasCauseOfType(InternalErrorException::class) -> log.warn("Muxer internal error", cause)
             cause.hasCauseOfType(Libp2pException::class) -> log.debug("Muxer exception", cause)
             else -> log.warn("Unexpected exception", cause)
@@ -92,6 +121,20 @@ abstract class AbstractMuxHandler<TData>() :
             getChannelHandlerContext().close()
             throw Libp2pException("Remote party attempts to open a stream with existing id: $id")
         }
+        val openInboundStreams = streamMap.values.count { !it.initiator }
+        if (openInboundStreams >= maxOpenInboundStreams) {
+            // Cap reached. RESET the new stream back at the peer and drop it on the
+            // floor: do NOT allocate a child pipeline. Keeping the parent connection
+            // open is intentional — bursts of stream-open are normal during peer
+            // (re)connection and shouldn't tear down well-behaved peers.
+            log.debug(
+                "Refusing inbound stream id={}: per-connection cap of {} reached",
+                id,
+                maxOpenInboundStreams
+            )
+            resetRemoteStream(id)
+            return
+        }
         val child = createChild(
             id,
             initializer,
@@ -99,6 +142,14 @@ abstract class AbstractMuxHandler<TData>() :
         )
         onRemoteCreated(child)
     }
+
+    /**
+     * Send a RESET (mplex `RESET` frame / yamux `RST` flag) for a remote-initiated
+     * stream that we are refusing to accept (e.g. because [maxOpenInboundStreams] has
+     * been reached). The default is a no-op for backward compatibility; concrete
+     * muxers should override.
+     */
+    protected open fun resetRemoteStream(id: MuxId) {}
 
     protected fun onRemoteDisconnect(id: MuxId) {
         // the channel could be RESET locally, so ignore remote CLOSE

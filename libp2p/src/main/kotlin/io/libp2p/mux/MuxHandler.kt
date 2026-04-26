@@ -20,8 +20,9 @@ import java.util.concurrent.CompletableFuture
 
 abstract class MuxHandler(
     private val ready: CompletableFuture<StreamMuxer.Session>?,
-    inboundStreamHandler: StreamHandler<*>
-) : AbstractMuxHandler<ByteBuf>(), StreamMuxer.Session {
+    inboundStreamHandler: StreamHandler<*>,
+    maxOpenInboundStreams: Int = io.libp2p.etc.util.netty.mux.UNBOUNDED_INBOUND_STREAMS
+) : AbstractMuxHandler<ByteBuf>(maxOpenInboundStreams), StreamMuxer.Session {
 
     protected abstract val multistreamProtocol: MultistreamProtocol
     protected abstract val maxFrameDataLength: Int

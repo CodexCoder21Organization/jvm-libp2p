@@ -12,7 +12,8 @@ import java.util.concurrent.CompletableFuture
 
 class MplexStreamMuxer(
     val inboundStreamHandler: StreamHandler<*>,
-    private val multistreamProtocol: MultistreamProtocol
+    private val multistreamProtocol: MultistreamProtocol,
+    private val maxOpenInboundStreams: Int = DEFAULT_MAX_OPEN_INBOUND_STREAMS
 ) : StreamMuxer, StreamMuxerDebug {
 
     override val protocolDescriptor = ProtocolDescriptor("/mplex/6.7.0")
@@ -29,7 +30,8 @@ class MplexStreamMuxer(
                 multistreamProtocol,
                 mplexFrameCodec.maxFrameDataLength,
                 muxSessionReady,
-                inboundStreamHandler
+                inboundStreamHandler,
+                maxOpenInboundStreams
             )
         )
 

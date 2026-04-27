@@ -70,9 +70,32 @@ abstract class AbstractChildChannel(parent: Channel, id: ChannelId?) : AbstractC
     override fun doClose() {
         if (!closeImplicitly) onClientClosed()
         deactivate()
-        pipeline().deregister()
-        parentCloseFuture.removeListener(parentCloseListener)
         state = State.CLOSED
+        parentCloseFuture.removeListener(parentCloseListener)
+
+        // Synchronously fire channelUnregistered through the pipeline. This
+        // invokes channelUnregistered on every handler (in order) and then,
+        // because `state == CLOSED` so `isOpen()` is false, `destroy()` runs
+        // — which removes every user handler and fires `handlerRemoved` on
+        // each. For [io.libp2p.multistream.Negotiator]'s pipeline this is
+        // what cancels [TotalTimeoutHandler]'s scheduled task (whose lambda
+        // captures this channel's ChannelHandlerContext, pinning the closed
+        // channel in `NioEventLoop.scheduledTaskQueue` until cancelled).
+        //
+        // Why is this needed? `doDeregister()` is a no-op for child channels,
+        // and the standard close flow's pipeline.destroy() fires from a
+        // deferred `fireChannelUnregistered` invokeLater'd by
+        // `AbstractUnsafe.deregister`. Under sustained high open/close rates
+        // the event loop's task queue grows faster than it drains, leaving
+        // thousands of closed-but-not-yet-deregistered child channels alive
+        // simultaneously — exhausting the JVM's direct buffer pool (the
+        // production OOM observed 2026-04-26: 18,506 retained MuxChannels
+        // pinned by 18,773 still-queued TotalTimeoutHandler tasks).
+        //
+        // The standard deferred path will still run after this, but its
+        // second `fireChannelUnregistered` is a no-op because all user
+        // handlers are already removed.
+        pipeline().fireChannelUnregistered()
     }
 
     protected open fun onClientClosed() {}

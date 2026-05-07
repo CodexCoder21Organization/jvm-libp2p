@@ -27,6 +27,7 @@ import java.net.InetSocketAddress
 import java.net.SocketAddress
 import java.time.Duration
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.TimeUnit
 
 /**
  * A plain `NettyTransport` without embedded security and muxer
@@ -91,12 +92,21 @@ abstract class PlainNettyTransport(
         val allClosed = CompletableFuture.allOf(*everythingThatNeedsToClose.toTypedArray())
 
         return allClosed.thenCompose {
+            // Pass quietPeriod = 0 explicitly. Netty's no-arg shutdownGracefully() defaults
+            // to a 2-second quietPeriod — the returned future cannot complete until 2
+            // seconds elapse with no new tasks submitted, even on an idle event loop. Awaiting
+            // that future from a transport close() means every tear-down blocks for >= 2s,
+            // which compounds quickly for callers that create many transports per JVM.
             CompletableFuture.allOf(
-                workerGroup.shutdownGracefully().toVoidCompletableFuture(),
-                bossGroup.shutdownGracefully().toVoidCompletableFuture()
+                workerGroup.shutdownGracefully(0, SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS).toVoidCompletableFuture(),
+                bossGroup.shutdownGracefully(0, SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS).toVoidCompletableFuture()
             ).thenApply { }
         }
     } // close
+
+    companion object {
+        private const val SHUTDOWN_TIMEOUT_SECONDS = 5L
+    }
 
     override fun listen(
         addr: Multiaddr,

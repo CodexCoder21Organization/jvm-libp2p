@@ -27,6 +27,7 @@ import java.net.InetSocketAddress
 import java.net.SocketAddress
 import java.time.Duration
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.TimeUnit
 
 /**
  * A plain `NettyTransport` without embedded security and muxer
@@ -91,9 +92,24 @@ abstract class PlainNettyTransport(
         val allClosed = CompletableFuture.allOf(*everythingThatNeedsToClose.toTypedArray())
 
         return allClosed.thenCompose {
+            // Pass quietPeriod=0 instead of the Netty default (2s). With the default,
+            // every host shutdown waits at least 2s of "no new tasks" before the event
+            // loop terminates — observable downstream as a 2s/host latency floor in
+            // any consumer that creates and tears down many short-lived hosts under
+            // active traffic (e.g. UrlResolver's stress tests on a contended droplet,
+            // where gossip/relay coroutines keep the event loop busy and reset the
+            // quietPeriod timer indefinitely up to the 15s default timeout). Use a
+            // 5s outer timeout instead of the default 15s — long enough to drain
+            // any in-flight Netty work but bounded so a stuck shutdown doesn't pin
+            // the JVM. PR #412 (which made this method await the shutdownGracefully
+            // futures rather than fire-and-forget) made this latency newly visible
+            // to downstream consumers; before #412 the wait happened in the
+            // background. The fix completes #412's contract: await — but don't wait
+            // pointlessly for a quiet period that's already well-defined by the
+            // listener/channel close work above.
             CompletableFuture.allOf(
-                workerGroup.shutdownGracefully().toVoidCompletableFuture(),
-                bossGroup.shutdownGracefully().toVoidCompletableFuture()
+                workerGroup.shutdownGracefully(0, 5, TimeUnit.SECONDS).toVoidCompletableFuture(),
+                bossGroup.shutdownGracefully(0, 5, TimeUnit.SECONDS).toVoidCompletableFuture()
             ).thenApply { }
         }
     } // close

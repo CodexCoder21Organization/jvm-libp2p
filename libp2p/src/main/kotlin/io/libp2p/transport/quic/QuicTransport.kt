@@ -42,6 +42,7 @@ import java.net.SocketAddress
 import java.time.Duration
 import java.util.*
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.TimeUnit
 
 class QuicTransport(
     private val localKey: PrivKey,
@@ -135,7 +136,9 @@ class QuicTransport(
         val allClosed = CompletableFuture.allOf(*everythingThatNeedsToClose.toTypedArray())
 
         return allClosed.thenCompose {
-            workerGroup.shutdownGracefully().toVoidCompletableFuture()
+            // See PlainNettyTransport.close() for rationale on the (0, 5, SECONDS)
+            // arguments — same anti-pattern at the QUIC site.
+            workerGroup.shutdownGracefully(0, 5, TimeUnit.SECONDS).toVoidCompletableFuture()
         }
     }
 

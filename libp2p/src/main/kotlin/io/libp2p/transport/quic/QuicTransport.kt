@@ -42,6 +42,7 @@ import java.net.SocketAddress
 import java.time.Duration
 import java.util.*
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.TimeUnit
 
 class QuicTransport(
     private val localKey: PrivKey,
@@ -135,7 +136,13 @@ class QuicTransport(
         val allClosed = CompletableFuture.allOf(*everythingThatNeedsToClose.toTypedArray())
 
         return allClosed.thenCompose {
-            workerGroup.shutdownGracefully().toVoidCompletableFuture()
+            // See PlainNettyTransport.close() for the full rationale: the no-arg
+            // shutdownGracefully() falls through to Netty's default 2-second
+            // quietPeriod, which adds 2 s of pure latency to every close() once
+            // the chained future is awaited. quietPeriod=0 makes the loop exit
+            // as soon as it notices the shutdown flag; the 5-second timeout caps
+            // how long shutdownGracefully will wait for that exit.
+            workerGroup.shutdownGracefully(0, 5, TimeUnit.SECONDS).toVoidCompletableFuture()
         }
     }
 

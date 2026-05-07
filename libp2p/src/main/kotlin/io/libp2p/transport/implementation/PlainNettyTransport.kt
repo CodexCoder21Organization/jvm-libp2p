@@ -27,6 +27,7 @@ import java.net.InetSocketAddress
 import java.net.SocketAddress
 import java.time.Duration
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.TimeUnit
 
 /**
  * A plain `NettyTransport` without embedded security and muxer
@@ -91,9 +92,36 @@ abstract class PlainNettyTransport(
         val allClosed = CompletableFuture.allOf(*everythingThatNeedsToClose.toTypedArray())
 
         return allClosed.thenCompose {
+            // Use an explicit quietPeriod = 0 instead of relying on Netty's default
+            // (DefaultEventExecutor.DEFAULT_SHUTDOWN_QUIET_PERIOD = 2 SECONDS).
+            //
+            // The quiet period is the time `shutdownGracefully` keeps the event loop
+            // alive AFTER its last task finished, in case more work is submitted. Once
+            // we have called close() on this transport every existing channel has been
+            // closed, the transport is marked closed (so listen()/dial() throw), and
+            // there is by construction no path that submits new work to either group.
+            // Waiting 2 seconds for "more work that isn't coming" is pure latency.
+            //
+            // For callers that drive many short-lived host lifecycles back-to-back —
+            // for example test fixtures that create-and-tear-down a host per iteration —
+            // the default 2-second quiet period serializes into a per-iteration cost
+            // and any @Timeout-bounded test in the consumer fails after only a handful
+            // of iterations even though every individual close() is correct.
+            //
+            // The 5-second timeout caps how long shutdownGracefully will wait for the
+            // event loop to actually exit (vs. how long it will idle waiting for more
+            // work). That's the meaningful upper bound on close() latency. The future
+            // returned by shutdownGracefully resolves either when the loop exits or
+            // when the timeout elapses, so callers that need to wait for full Netty
+            // termination still get that signal — just without the artificial 2-second
+            // quiet floor.
+            //
+            // See PlainNettyTransportShutdownTimingTest for the regression coverage,
+            // and the discussion in the original CodexCoder21Organization/UrlResolver
+            // run 7f19e875 that surfaced the cumulative latency.
             CompletableFuture.allOf(
-                workerGroup.shutdownGracefully().toVoidCompletableFuture(),
-                bossGroup.shutdownGracefully().toVoidCompletableFuture()
+                workerGroup.shutdownGracefully(0, 5, TimeUnit.SECONDS).toVoidCompletableFuture(),
+                bossGroup.shutdownGracefully(0, 5, TimeUnit.SECONDS).toVoidCompletableFuture()
             ).thenApply { }
         }
     } // close

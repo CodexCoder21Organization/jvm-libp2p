@@ -41,7 +41,7 @@ configure(
     // upstream release containing PR #412 (https://github.com/libp2p/jvm-libp2p/pull/412) is cut,
     // downstream projects should migrate back to io.libp2p and this fork will be retired.
     group = "community.kotlin.libp2p"
-    version = "1.3.0-codexcoder21-snapshot-3"
+    version = "1.3.0-codexcoder21-snapshot-4"
 
     apply(plugin = "kotlin")
     apply(plugin = "idea")

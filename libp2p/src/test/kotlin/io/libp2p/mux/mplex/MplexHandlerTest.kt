@@ -10,8 +10,36 @@ import io.libp2p.mux.MuxHandlerAbstractTest.AbstractTestMuxFrame.Flag.*
 import io.libp2p.tools.readAllBytesAndRelease
 import io.netty.buffer.Unpooled
 import io.netty.channel.ChannelHandlerContext
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.Test
 
 class MplexHandlerTest : MuxHandlerAbstractTest() {
+
+    @Test
+    fun `inbound streams beyond the per-connection limit are reset, not accumulated`() {
+        val limit = MplexHandler.DEFAULT_MAX_INBOUND_STREAMS
+        // Open exactly the cap's worth of inbound streams — all accepted.
+        repeat(limit) { openStreamRemote() }
+        assertThat(childHandlers).hasSize(limit)
+        // Drain any frames the responder emitted so the next observed outbound
+        // frame is the reset for the over-limit stream.
+        while (readFrame() != null) { /* drain */ }
+        // One more inbound OPEN exceeds the cap: it must be RESET and never tracked.
+        val overflowId = remoteMuxIdGenerator.next()
+        openStreamRemote(overflowId)
+        assertThat(childHandlers)
+            .withFailMessage(
+                "An inbound stream opened beyond the per-connection cap (%d) must be reset, " +
+                    "not accepted; childHandlers grew to %d. Unbounded inbound-stream " +
+                    "accumulation is the 2026-06-14 ContainerNursery OOM.",
+                limit,
+                childHandlers.size
+            )
+            .hasSize(limit)
+        val frame = readFrameOrThrow()
+        assertThat(frame.flag).isEqualTo(Reset)
+        assertThat(frame.streamId).isEqualTo(overflowId)
+    }
 
     override val maxFrameDataLength = 256
 

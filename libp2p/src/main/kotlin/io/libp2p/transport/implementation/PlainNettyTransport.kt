@@ -21,6 +21,7 @@ import io.netty.channel.ChannelHandler
 import io.netty.channel.ChannelOption
 import io.netty.channel.MultiThreadIoEventLoopGroup
 import io.netty.channel.nio.NioIoHandler
+import io.netty.util.concurrent.DefaultThreadFactory
 import io.netty.channel.socket.nio.NioServerSocketChannel
 import io.netty.channel.socket.nio.NioSocketChannel
 import java.net.InetSocketAddress
@@ -50,11 +51,20 @@ abstract class PlainNettyTransport(
     private val listeners = mutableMapOf<Multiaddr, Channel>()
     private val channels = mutableListOf<Channel>()
 
+    // DAEMON event-loop threads. Netty's MultiThreadIoEventLoopGroup, when constructed without a
+    // ThreadFactory, uses DefaultThreadFactory with daemon=false, so every NIO worker is a NON-DAEMON
+    // thread. Under load, shutdownGracefully() occasionally does not get one of these workers fully
+    // terminated before close() returns (the shutdown task does not get scheduled in time), and a single
+    // surviving non-daemon thread parked in epoll_wait blocks JVM exit indefinitely — the consumer-side
+    // symptom is a test/process that finishes its work but then "Process timed out after 30s" with the
+    // event loop never having exited. Marking the workers daemon makes that failure mode impossible: a
+    // missed/slow shutdown can no longer hold the JVM open. (GossipRouter's event thread is already
+    // daemon for the same reason — see GossipRouterBuilder.)
     private var workerGroup by lazyVar {
-        MultiThreadIoEventLoopGroup(NioIoHandler.newFactory())
+        MultiThreadIoEventLoopGroup(DefaultThreadFactory("libp2p-nio-worker", true), NioIoHandler.newFactory())
     }
     private var bossGroup by lazyVar {
-        MultiThreadIoEventLoopGroup(1, NioIoHandler.newFactory())
+        MultiThreadIoEventLoopGroup(1, DefaultThreadFactory("libp2p-nio-boss", true), NioIoHandler.newFactory())
     }
 
     private var client by lazyVar {

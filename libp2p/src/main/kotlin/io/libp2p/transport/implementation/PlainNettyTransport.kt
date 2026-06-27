@@ -19,11 +19,12 @@ import io.netty.bootstrap.ServerBootstrap
 import io.netty.channel.Channel
 import io.netty.channel.ChannelHandler
 import io.netty.channel.ChannelOption
+import io.netty.channel.EventLoopGroup
 import io.netty.channel.MultiThreadIoEventLoopGroup
 import io.netty.channel.nio.NioIoHandler
-import io.netty.util.concurrent.DefaultThreadFactory
 import io.netty.channel.socket.nio.NioServerSocketChannel
 import io.netty.channel.socket.nio.NioSocketChannel
+import io.netty.util.concurrent.DefaultThreadFactory
 import java.net.InetSocketAddress
 import java.net.SocketAddress
 import java.time.Duration
@@ -51,18 +52,27 @@ abstract class PlainNettyTransport(
     private val listeners = mutableMapOf<Multiaddr, Channel>()
     private val channels = mutableListOf<Channel>()
 
-    // DAEMON event-loop threads. Netty's MultiThreadIoEventLoopGroup, when constructed without a
-    // ThreadFactory, uses DefaultThreadFactory with daemon=false, so every NIO worker is a NON-DAEMON
-    // thread. Under load, shutdownGracefully() occasionally does not get one of these workers fully
-    // terminated before close() returns (the shutdown task does not get scheduled in time), and a single
-    // surviving non-daemon thread parked in epoll_wait blocks JVM exit indefinitely — the consumer-side
-    // symptom is a test/process that finishes its work but then "Process timed out after 30s" with the
-    // event loop never having exited. Marking the workers daemon makes that failure mode impossible: a
-    // missed/slow shutdown can no longer hold the JVM open. (GossipRouter's event thread is already
-    // daemon for the same reason — see GossipRouterBuilder.)
-    private var workerGroup by lazyVar {
-        MultiThreadIoEventLoopGroup(DefaultThreadFactory("libp2p-nio-worker", true), NioIoHandler.newFactory())
-    }
+    // The WORKER group is SHARED across every transport instance in the JVM — see the companion object.
+    // It used to be per-instance, so each host created its OWN cores*2-thread worker group. A process
+    // running many hosts in one JVM — test fixtures that spin up dozens of hosts, or a server hosting
+    // multiple services — then spawned O(cores * hosts) worker threads (e.g. 40 hosts on a 2-core box
+    // produced hundreds of worker threads). The OS run queue grew so deep that each connection's
+    // handshake/IO task waited milliseconds-to-seconds to be scheduled, and under a concurrent-join storm
+    // that latency stalled peer-exchange / service discovery (UrlResolver
+    // stressTestConcurrentLateJoinersDiscoverServicePromptly: late joiners never discovering within 10s).
+    // Sharing one worker group bounds worker threads to O(cores) regardless of how many hosts the process
+    // runs; in the common single-host process it is exactly one group — identical to the old per-instance
+    // code. The shared worker group is never shut down (see close()); its threads are DAEMON so it can
+    // never hold the JVM open.
+    private val workerGroup: EventLoopGroup get() = sharedWorkerGroup
+
+    // The BOSS group (accept loop) stays PER-INSTANCE and is shut down by close(): terminating it drains
+    // this host's queued bind task and closes its server (listen) channel, which is how close() releases
+    // the listen port without leaking it (the concurrent listen/close race). It is a single daemon thread.
+    // DAEMON matters here too: Netty's MultiThreadIoEventLoopGroup constructed without a ThreadFactory
+    // uses DefaultThreadFactory with daemon=false, so a worker slow to exit after shutdownGracefully could
+    // park in epoll_wait and block JVM exit ("Process timed out after 30s"); the explicit daemon factory
+    // makes that impossible. (GossipRouter's event thread is daemon for the same reason.)
     private var bossGroup by lazyVar {
         MultiThreadIoEventLoopGroup(1, DefaultThreadFactory("libp2p-nio-boss", true), NioIoHandler.newFactory())
     }
@@ -167,10 +177,14 @@ abstract class PlainNettyTransport(
             // See PlainNettyTransportShutdownTimingTest for the regression coverage,
             // and the discussion in the original CodexCoder21Organization/UrlResolver
             // run 7f19e875 that surfaced the cumulative latency.
-            CompletableFuture.allOf(
-                workerGroup.shutdownGracefully(0, 5, TimeUnit.SECONDS).toVoidCompletableFuture(),
-                bossGroup.shutdownGracefully(0, 5, TimeUnit.SECONDS).toVoidCompletableFuture()
-            ).thenApply { }
+            //
+            // Shut down ONLY the per-instance boss group. Terminating it drains this host's queued bind
+            // task and closes its server (listen) channel, which is what releases the listen port (the
+            // concurrent listen/close race coverage). The WORKER group is SHARED across every transport
+            // (see workerGroup) — shutting it down here would tear the event loops out from under every
+            // other live host — so it is deliberately NOT shut down. It is daemon and lives for the JVM
+            // lifetime; this host's own connections were already closed above (channelsClosed).
+            bossGroup.shutdownGracefully(0, 5, TimeUnit.SECONDS).toVoidCompletableFuture().thenApply { }
         }
     } // close
 
@@ -319,4 +333,15 @@ abstract class PlainNettyTransport(
     override fun remoteAddress(nettyChannel: Channel): Multiaddr = toMultiaddr(nettyChannel.remoteAddress())
 
     abstract fun toMultiaddr(addr: SocketAddress): Multiaddr
+
+    companion object {
+        // ONE worker group shared by every transport (= every host) in the JVM. See the workerGroup field
+        // for why this is shared rather than per-instance. Created lazily on first transport use and kept
+        // for the JVM lifetime — never shut down (close() shuts down only the per-instance boss group).
+        // Its threads are DAEMON, so a never-shut-down shared group can never hold the JVM open. The group
+        // takes Netty's default size (io.netty.eventLoopThreads, default = 2 * available processors).
+        private val sharedWorkerGroup: EventLoopGroup by lazy {
+            MultiThreadIoEventLoopGroup(DefaultThreadFactory("libp2p-nio-worker", true), NioIoHandler.newFactory())
+        }
+    }
 }

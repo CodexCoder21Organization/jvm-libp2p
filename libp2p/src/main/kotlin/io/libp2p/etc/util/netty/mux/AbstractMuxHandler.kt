@@ -53,6 +53,9 @@ abstract class AbstractMuxHandler<TData>() :
             ?: throw InternalErrorException("Internal error: handler context should be initialized at this stage")
     }
 
+    /** Number of streams (both directions) currently open on this connection. */
+    protected fun getStreamCount(): Int = streamMap.size
+
     protected fun childRead(id: MuxId, msg: TData) {
         val child = streamMap[id]
         when {

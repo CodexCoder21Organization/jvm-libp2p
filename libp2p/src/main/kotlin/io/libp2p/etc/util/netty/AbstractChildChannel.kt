@@ -70,9 +70,27 @@ abstract class AbstractChildChannel(parent: Channel, id: ChannelId?) : AbstractC
     override fun doClose() {
         if (!closeImplicitly) onClientClosed()
         deactivate()
-        pipeline().deregister()
-        parentCloseFuture.removeListener(parentCloseListener)
         state = State.CLOSED
+        parentCloseFuture.removeListener(parentCloseListener)
+
+        // Synchronously fire channelUnregistered through the pipeline. Because
+        // `state == CLOSED` now makes `isOpen()` false, the pipeline's
+        // `fireChannelUnregistered` runs `destroy()` synchronously — removing every
+        // handler and firing `handlerRemoved` on each — before close() returns.
+        //
+        // Why this is needed (ContainerNursery / kotlin.directory OOM, UrlProtocol #294):
+        // `doDeregister()` is a no-op for child channels, so the standard close flow tears
+        // the pipeline down only via the DEFERRED `fireChannelInactiveAndDeregister` that
+        // `AbstractUnsafe.close()` posts with `invokeLater`. Under sustained inbound-stream
+        // churn the event loop drains those deferred close tasks slower than new frames
+        // arrive, so thousands of CLOSED MuxChannels keep their full multistream-negotiation
+        // pipelines (handlers + decoders + direct buffers) queued in the loop's
+        // MpscUnboundedArrayQueue until the heap is exhausted. The 2026-06-29 production
+        // dump showed ~30K such closed channels retaining ~68 MB / 53% of a 128 MB heap.
+        //
+        // The standard deferred path still runs afterwards, but its second
+        // `fireChannelUnregistered` is a no-op because the pipeline is already empty.
+        pipeline().fireChannelUnregistered()
     }
 
     protected open fun onClientClosed() {}

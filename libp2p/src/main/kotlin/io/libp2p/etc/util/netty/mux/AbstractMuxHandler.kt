@@ -14,8 +14,38 @@ typealias MuxChannelInitializer<TData> = (MuxChannel<TData>) -> Unit
 
 private val log = LoggerFactory.getLogger(AbstractMuxHandler::class.java)
 
-abstract class AbstractMuxHandler<TData>() :
-    ChannelInboundHandlerAdapter() {
+/**
+ * Default ceiling on the number of concurrently-open INBOUND (remote-initiated) substreams a
+ * single connection may hold. See [AbstractMuxHandler.maxInboundStreams] for why this bound
+ * exists; the value is a generous per-connection anti-monopoly limit (a healthy peer multiplexes
+ * only a handful of substreams at once) chosen to keep the inbound-substream scaffolding heap
+ * bounded to a few MB even on a small (e.g. 128 MB) consumer heap.
+ */
+const val DEFAULT_MAX_INBOUND_STREAMS: Int = 512
+
+abstract class AbstractMuxHandler<TData>(
+    /**
+     * Maximum number of concurrently-open INBOUND (remote-initiated) substreams permitted on this
+     * connection. When a remote peer opens a new inbound substream while this many are already open,
+     * the new substream is refused (reset) by [onRemoteOpen] **before** the heavy
+     * [MuxChannel] + multistream `Negotiator` + negotiation-timeout scaffolding is built, rather than
+     * accepted and torn down afterwards.
+     *
+     * Why a hard bound here is necessary: jvm-libp2p builds that full per-substream scaffolding the
+     * moment a NEW_STREAM frame is read, and the per-substream negotiation timeout that would
+     * otherwise reclaim a never-completing inbound substream is a *scheduled task on this channel's
+     * event loop*. Under a sustained inbound-substream flood (a reconnect / negotiation-abort herd,
+     * or simply a peer opening substreams faster than they are handled) on a CPU-constrained host the
+     * event loop spends its cycles creating new substreams and never drains those scheduled
+     * reclamation tasks, so the scaffolding accumulates without bound until the heap is exhausted.
+     * This was observed in production as tens of thousands of live MuxChannel /
+     * Negotiator$ResponderHandler pipelines pinned by pending TotalTimeoutHandler tasks OOMing a
+     * 128 MB ContainerNursery (UrlProtocol #294). Refusing excess inbound substreams at this layer
+     * — synchronously, on the event loop, before any scaffolding exists — is the only thing that
+     * bounds the heap regardless of how saturated the loop is.
+     */
+    private val maxInboundStreams: Int = DEFAULT_MAX_INBOUND_STREAMS
+) : ChannelInboundHandlerAdapter() {
 
     private val streamMap: MutableMap<MuxId, MuxChannel<TData>> = mutableMapOf()
     var ctx: ChannelHandlerContext? = null
@@ -23,6 +53,17 @@ abstract class AbstractMuxHandler<TData>() :
     private var closed = false
     protected abstract val inboundInitializer: MuxChannelInitializer<TData>
     private val pendingReadComplete = mutableSetOf<MuxId>()
+
+    // Accessed only on this channel's single event-loop thread (same as streamMap), so plain vars
+    // are sufficient — no synchronization needed.
+    private var openInboundStreams: Int = 0
+    private var rejectedInboundStreams: Long = 0
+
+    /** Number of currently-open inbound (remote-initiated) substreams on this connection. */
+    fun openInboundStreamCount(): Int = openInboundStreams
+
+    /** Total inbound substreams refused for exceeding [maxInboundStreams] since this handler started. */
+    fun rejectedInboundStreamCount(): Long = rejectedInboundStreams
 
     override fun handlerAdded(ctx: ChannelHandlerContext) {
         super.handlerAdded(ctx)
@@ -92,6 +133,21 @@ abstract class AbstractMuxHandler<TData>() :
             getChannelHandlerContext().close()
             throw Libp2pException("Remote party attempts to open a stream with existing id: $id")
         }
+        if (openInboundStreams >= maxInboundStreams) {
+            // Refuse the inbound substream BEFORE building the heavy MuxChannel + multistream
+            // Negotiator + negotiation-timeout scaffolding (see [maxInboundStreams]). Resetting it
+            // at the mux layer keeps the inbound-substream heap bounded even when the event loop is
+            // saturated, which neither the per-substream negotiation timeout (a scheduled task that
+            // starves under load) nor connection-level autoRead backpressure (which strands the
+            // already-admitted, mid-negotiation substreams) can guarantee.
+            rejectedInboundStreams++
+            resetRemoteSubstream(id)
+            return
+        }
+        // Reserve the slot before createChild: registration runs the inbound initializer
+        // synchronously and could close the child immediately, firing onClosed (which decrements)
+        // before we get here — incrementing first keeps the count symmetric in that race.
+        openInboundStreams++
         val child = createChild(
             id,
             initializer,
@@ -99,6 +155,14 @@ abstract class AbstractMuxHandler<TData>() :
         )
         onRemoteCreated(child)
     }
+
+    /**
+     * Refuses an inbound substream that would exceed [maxInboundStreams], sending a mux-level reset
+     * for [id] so the remote stops and the substream's scaffolding is never built on our side.
+     * The default is a no-op (the heap is already protected by not creating the child); muxers that
+     * can cheaply signal a reset for a bare id (e.g. mplex's RESET frame) override this.
+     */
+    protected open fun resetRemoteSubstream(id: MuxId) {}
 
     protected fun onRemoteDisconnect(id: MuxId) {
         // the channel could be RESET locally, so ignore remote CLOSE
@@ -119,7 +183,11 @@ abstract class AbstractMuxHandler<TData>() :
     }
 
     fun onClosed(child: MuxChannel<TData>) {
-        streamMap.remove(child.id)
+        if (streamMap.remove(child.id) != null && !child.initiator) {
+            // An inbound (remote-initiated) substream closed (handled, reset, or negotiation
+            // timed out): release its admission slot so a fresh inbound substream can take it.
+            openInboundStreams--
+        }
         onChildClosed(child)
     }
 

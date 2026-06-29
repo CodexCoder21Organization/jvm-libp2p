@@ -41,7 +41,11 @@ configure(
     // upstream release containing PR #412 (https://github.com/libp2p/jvm-libp2p/pull/412) is cut,
     // downstream projects should migrate back to io.libp2p and this fork will be retired.
     group = "community.kotlin.libp2p"
-    // snapshot-6: two complementary inbound-substream OOM guards (UrlProtocol #294, the
+    // NOTE on versioning: snapshot-6 and snapshot-7 were already published to kotlin.directory by
+    // other in-flight branches with DIFFERENT content (the publish API refuses to overwrite an
+    // existing version), so the OOM-fix release that landed on develop in #15 is published as
+    // snapshot-8. Always confirm the next version is unpublished before reusing a number — see FORK.md.
+    // snapshot-8: two complementary inbound-substream OOM guards (UrlProtocol #294, the
     // ContainerNursery / kotlin.directory outages). (1) CREATE path — bound concurrent inbound
     // substreams per connection at the mux layer (AbstractMuxHandler.maxInboundStreams) and reset
     // the excess before scaffolding is built, so a sustained inbound flood can't accumulate
@@ -49,7 +53,7 @@ configure(
     // now destroys the pipeline synchronously, so closed substreams are reclaimed immediately
     // instead of piling up behind a deferred event-loop deregister backlog. Together with
     // snapshot-5's close-future timeout cancel, the inbound-substream heap is bounded on both paths.
-    version = "1.3.0-codexcoder21-snapshot-6"
+    version = "1.3.0-codexcoder21-snapshot-8"
 
     apply(plugin = "kotlin")
     apply(plugin = "idea")

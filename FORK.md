@@ -4,32 +4,32 @@
 
 ## Why this fork exists
 
-The current upstream release (`io.libp2p:jvm-libp2p:1.2.2-RELEASE`, December 2024) contains a bug in `NettyTransport.close()`: the `EventLoopGroup.shutdownGracefully()` futures are discarded rather than awaited, so `Host.stop()` resolves before Netty's non-daemon worker threads actually exit. The orphaned non-daemon threads keep the JVM alive past process shutdown and cause flaky test timeouts in downstream projects.
+CodexCoder21 production depends on a set of jvm-libp2p fixes that are **not yet available in any upstream release**. Rather than carry per-project workarounds (e.g. reflection-based hacks to force Netty thread shutdown), we publish a single patched build under our own Maven coordinate and have every downstream project depend on that. The divergence from the latest upstream release has two layers:
 
-## The upstream fix
+1. **The Netty 4.2 migration — the original reason.** The latest upstream *release*, `io.libp2p:jvm-libp2p:1.2.2-RELEASE` (December 2024), predates the Netty 4.2 migration and has a bug in `NettyTransport.close()`: the `EventLoopGroup.shutdownGracefully()` futures are discarded rather than awaited, so `Host.stop()` resolves before Netty's non-daemon worker threads exit, keeping the JVM alive past shutdown and causing flaky test timeouts downstream. This is **already fixed on upstream `develop`** via the Netty 4.2 migration — [libp2p/jvm-libp2p#412](https://github.com/libp2p/jvm-libp2p/pull/412) (merged 2025-08-28, commit [`33ffc1ac03`](https://github.com/libp2p/jvm-libp2p/commit/33ffc1ac03b7c69df995a7316b1bf0d116f4c8eb)), where `PlainNettyTransport.close()` / `QuicTransport.close()` chain and await the shutdown futures — but **no upstream release containing it has been cut** (`1.2.2-RELEASE` is still the latest tagged release as of April 2026). This fork is built from a **snapshot of upstream `develop`**, so it includes #412.
 
-The bug is already **fixed on upstream `develop`** as part of the Netty 4.2 migration:
+2. **Additional narrowly-scoped fixes we need ahead of upstream.** Layered on top of the `develop` snapshot is a small, growing set of connection-lifecycle and resource-exhaustion fixes that CodexCoder21 production has hit in the field — see [What this fork carries](#what-this-fork-carries). They are not feature work and each is intended to be proposed upstream.
 
-- Upstream PR: [libp2p/jvm-libp2p#412 "Use netty core instead of incubator artifact for QUIC"](https://github.com/libp2p/jvm-libp2p/pull/412) (merged 2025-08-28, commit [`33ffc1ac03`](https://github.com/libp2p/jvm-libp2p/commit/33ffc1ac03b7c69df995a7316b1bf0d116f4c8eb))
-- In the new layout (`PlainNettyTransport.close()` and `QuicTransport.close()`), the `shutdownGracefully()` futures are properly chained via `toVoidCompletableFuture()` and awaited, so worker threads exit before the close future resolves.
+## What this fork carries
 
-However, **no upstream release has been cut yet that contains this fix** — `1.2.2-RELEASE` (Dec 2024) is still the latest tagged release as of April 2026.
+On top of the upstream `develop` snapshot (which already provides the #412 thread-shutdown fix), this fork adds the following fixes. Each is meant to go upstream; nothing here is a long-term divergence.
 
-## What this fork does
+- **Fast graceful shutdown** — `PlainNettyTransport.close()` and `QuicTransport.close()` pass `quietPeriod = 0` to `shutdownGracefully()`, so `Host.stop()` returns promptly instead of waiting out Netty's default (~2s) quiet period.
+- **Listener-port leak fix** — repairs a close/listen race in `PlainNettyTransport` where a closing listener could still hold its port as a new bind raced in, leaking listener ports.
+- **Inbound-substream OOM guards** ([UrlProtocol #294](https://github.com/CodexCoder21Organization/UrlProtocol/issues/294)) — three complementary fixes that bound the inbound-substream heap which repeatedly OOM-crash-looped ContainerNursery / kotlin.directory on a 128 MB heap:
+  - cancel the multistream negotiation timeout (`TotalTimeoutHandler`) on **channel close**, not only on handler removal, so a substream that closes mid-negotiation does not pin its pipeline until the timeout elapses;
+  - cap concurrently-open **inbound** substreams per connection in `AbstractMuxHandler` and reset the excess **before** any `MuxChannel` / negotiation scaffolding is built (in the shared handler, so it guards both Mplex and Yamux);
+  - destroy a closed `AbstractChildChannel`'s pipeline **synchronously** in `doClose()` instead of via a deferred event-loop task, so closed substreams are reclaimed immediately rather than accumulating behind a starved event loop.
 
-To unblock CodexCoder21 downstream projects (e.g. [UrlResolver](https://github.com/CodexCoder21Organization/UrlResolver)) that were relying on reflection-based workarounds to force Netty thread shutdown, this fork publishes a snapshot of upstream `develop` (which contains PR #412) to [kotlin.directory](https://kotlin.directory) under an **unambiguously non-upstream** Maven coordinate:
+The patched build is published to [kotlin.directory](https://kotlin.directory) under an **unambiguously non-upstream** Maven coordinate (the `community.kotlin.libp2p` group is owned by CodexCoder21 — we deliberately do **not** publish under `io.libp2p`, which belongs to upstream):
 
 ```
 community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-8
 ```
 
-The group id (`community.kotlin.libp2p`) is owned by CodexCoder21 — we deliberately did **not** publish under `io.libp2p` because that namespace belongs to upstream.
-
-Beyond the Netty thread-shutdown fix, the fork has since accumulated a small number of **critical resource-exhaustion fixes** that CodexCoder21 production needs ahead of upstream (and that should also be proposed upstream). As of `snapshot-8` these are the two complementary inbound-substream OOM guards from [UrlProtocol #294](https://github.com/CodexCoder21Organization/UrlProtocol/issues/294) — a per-connection inbound-substream cap in `AbstractMuxHandler` (the *create* path, guarding both Mplex and Yamux) and synchronous pipeline destroy in `AbstractChildChannel.doClose()` (the *close* path) — which together bound the inbound-substream heap that repeatedly OOM-crashed ContainerNursery / kotlin.directory.
-
 ## When this fork goes away
 
-**We intend to switch back to the upstream `io.libp2p:jvm-libp2p` artifact the moment the next upstream release containing [PR #412](https://github.com/libp2p/jvm-libp2p/pull/412) is published** (likely `1.2.3` or `2.0.0`). This fork is a short-term bridge — not a long-term divergent branch. No feature work should land here; only the bridge fix plus narrowly-scoped, upstream-bound resource-exhaustion fixes.
+This is a short-term bridge, not a long-term divergent branch — **no feature work lands here, only the `develop` snapshot plus narrowly-scoped, upstream-bound fixes.** Each fix in [What this fork carries](#what-this-fork-carries) should be proposed to upstream libp2p. The fork is retired — downstream projects move back to `io.libp2p:jvm-libp2p` — once an upstream **release** carries the Netty 4.2 work (#412) *and* equivalents of the fixes listed above.
 
 ## Building and releasing this fork
 

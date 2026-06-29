@@ -1,6 +1,6 @@
 > ## CodexCoder21 Temporary Fork Notice
 >
-> **This is a temporary fork of [libp2p/jvm-libp2p](https://github.com/libp2p/jvm-libp2p) maintained by [CodexCoder21](https://github.com/CodexCoder21Organization).** It publishes a snapshot of upstream `develop` to [kotlin.directory](https://kotlin.directory) as `community.kotlin.libp2p:jvm-libp2p` to unblock downstream projects until the upstream fix ships — see **[FORK.md](FORK.md)** for why this fork exists, what it changes, when it goes away, and how to build and release it.
+> **This is a temporary fork of [libp2p/jvm-libp2p](https://github.com/libp2p/jvm-libp2p) maintained by [CodexCoder21](https://github.com/CodexCoder21Organization).** It publishes a snapshot of upstream `develop` to [kotlin.directory](https://kotlin.directory) as `community.kotlin.libp2p:jvm-libp2p` to unblock downstream projects until upstream catches up — it carries the Netty 4.2 thread-shutdown fix plus several narrowly-scoped connection-lifecycle and resource-exhaustion fixes. See **[FORK.md](FORK.md)** for why this fork exists, what it carries, when it goes away, and how to build and release it.
 >
 > ---
 

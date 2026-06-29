@@ -11,6 +11,7 @@ import io.libp2p.etc.STREAM
 import io.libp2p.etc.types.forward
 import io.libp2p.etc.types.forwardException
 import io.libp2p.etc.util.netty.mux.AbstractMuxHandler
+import io.libp2p.etc.util.netty.mux.DEFAULT_MAX_INBOUND_STREAMS
 import io.libp2p.etc.util.netty.mux.MuxChannel
 import io.libp2p.etc.util.netty.mux.MuxChannelInitializer
 import io.libp2p.transport.implementation.StreamOverNetty
@@ -20,8 +21,9 @@ import java.util.concurrent.CompletableFuture
 
 abstract class MuxHandler(
     private val ready: CompletableFuture<StreamMuxer.Session>?,
-    inboundStreamHandler: StreamHandler<*>
-) : AbstractMuxHandler<ByteBuf>(), StreamMuxer.Session {
+    inboundStreamHandler: StreamHandler<*>,
+    maxInboundStreams: Int = DEFAULT_MAX_INBOUND_STREAMS
+) : AbstractMuxHandler<ByteBuf>(maxInboundStreams), StreamMuxer.Session {
 
     protected abstract val multistreamProtocol: MultistreamProtocol
     protected abstract val maxFrameDataLength: Int

@@ -4,7 +4,9 @@ import io.libp2p.core.StreamHandler
 import io.libp2p.core.multistream.MultistreamProtocol
 import io.libp2p.core.mux.StreamMuxer
 import io.libp2p.etc.types.sliceMaxSize
+import io.libp2p.etc.util.netty.mux.DEFAULT_MAX_INBOUND_STREAMS
 import io.libp2p.etc.util.netty.mux.MuxChannel
+import io.libp2p.etc.util.netty.mux.MuxId
 import io.libp2p.mux.MuxHandler
 import io.netty.buffer.ByteBuf
 import io.netty.channel.ChannelHandlerContext
@@ -15,8 +17,9 @@ open class MplexHandler(
     override val multistreamProtocol: MultistreamProtocol,
     override val maxFrameDataLength: Int,
     ready: CompletableFuture<StreamMuxer.Session>?,
-    inboundStreamHandler: StreamHandler<*>
-) : MuxHandler(ready, inboundStreamHandler) {
+    inboundStreamHandler: StreamHandler<*>,
+    maxInboundStreams: Int = DEFAULT_MAX_INBOUND_STREAMS
+) : MuxHandler(ready, inboundStreamHandler, maxInboundStreams) {
 
     private val idGenerator = AtomicLong(0xF)
 
@@ -57,4 +60,10 @@ open class MplexHandler(
     }
 
     override fun onChildClosed(child: MuxChannel<ByteBuf>) {}
+
+    override fun resetRemoteSubstream(id: MuxId) {
+        // Tell the peer to abandon the inbound substream we refused (over the inbound cap) without
+        // ever building its MuxChannel/Negotiator scaffolding. Mirrors onLocalClose's reset frame.
+        getChannelHandlerContext().writeAndFlush(MplexFrame.createResetFrame(id))
+    }
 }

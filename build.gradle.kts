@@ -41,7 +41,12 @@ configure(
     // upstream release containing PR #412 (https://github.com/libp2p/jvm-libp2p/pull/412) is cut,
     // downstream projects should migrate back to io.libp2p and this fork will be retired.
     group = "community.kotlin.libp2p"
-    version = "1.3.0-codexcoder21-snapshot-5"
+    // snapshot-6: bound concurrent INBOUND substreams per connection at the mux layer
+    // (AbstractMuxHandler.maxInboundStreams) and reset the excess before building scaffolding,
+    // so a sustained inbound-substream flood can no longer accumulate unbounded MuxChannel /
+    // Negotiator / TotalTimeoutHandler pipelines and OOM a small consumer heap (UrlProtocol #294,
+    // ContainerNursery kotlin.directory outage). Complements snapshot-5's close-future timeout cancel.
+    version = "1.3.0-codexcoder21-snapshot-6"
 
     apply(plugin = "kotlin")
     apply(plugin = "idea")

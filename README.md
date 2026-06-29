@@ -1,33 +1,6 @@
 > ## CodexCoder21 Temporary Fork Notice
 >
-> **This is a temporary fork of [libp2p/jvm-libp2p](https://github.com/libp2p/jvm-libp2p) maintained by [CodexCoder21](https://github.com/CodexCoder21Organization).**
->
-> ### Why this fork exists
->
-> The current upstream release (`io.libp2p:jvm-libp2p:1.2.2-RELEASE`, December 2024) contains a bug in `NettyTransport.close()`: the `EventLoopGroup.shutdownGracefully()` futures are discarded rather than awaited, so `Host.stop()` resolves before Netty's non-daemon worker threads actually exit. The orphaned non-daemon threads keep the JVM alive past process shutdown and cause flaky test timeouts in downstream projects.
->
-> ### The upstream fix
->
-> The bug is already **fixed on upstream `develop`** as part of the Netty 4.2 migration:
->
-> - Upstream PR: [libp2p/jvm-libp2p#412 "Use netty core instead of incubator artifact for QUIC"](https://github.com/libp2p/jvm-libp2p/pull/412) (merged 2025-08-28, commit [`33ffc1ac03`](https://github.com/libp2p/jvm-libp2p/commit/33ffc1ac03b7c69df995a7316b1bf0d116f4c8eb))
-> - In the new layout (`PlainNettyTransport.close()` and `QuicTransport.close()`), the `shutdownGracefully()` futures are properly chained via `toVoidCompletableFuture()` and awaited, so worker threads exit before the close future resolves.
->
-> However, **no upstream release has been cut yet that contains this fix** — `1.2.2-RELEASE` (Dec 2024) is still the latest tagged release as of April 2026.
->
-> ### What this fork does
->
-> To unblock CodexCoder21 downstream projects (e.g. [UrlResolver](https://github.com/CodexCoder21Organization/UrlResolver)) that were relying on reflection-based workarounds to force Netty thread shutdown, this fork publishes a snapshot of upstream `develop` (which contains PR #412) to [kotlin.directory](https://kotlin.directory) under an **unambiguously non-upstream** Maven coordinate:
->
-> ```
-> community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-1
-> ```
->
-> The group id (`community.kotlin.libp2p`) is owned by CodexCoder21 — we deliberately did **not** publish under `io.libp2p` because that namespace belongs to upstream.
->
-> ### When this fork goes away
->
-> **We intend to switch back to the upstream `io.libp2p:jvm-libp2p` artifact the moment the next upstream release containing [PR #412](https://github.com/libp2p/jvm-libp2p/pull/412) is published** (likely `1.2.3` or `2.0.0`). This fork is a short-term bridge — not a long-term divergent branch. No feature work should land here.
+> **This is a temporary fork of [libp2p/jvm-libp2p](https://github.com/libp2p/jvm-libp2p) maintained by [CodexCoder21](https://github.com/CodexCoder21Organization).** It publishes a snapshot of upstream `develop` to [kotlin.directory](https://kotlin.directory) as `community.kotlin.libp2p:jvm-libp2p` to unblock downstream projects until the upstream fix ships — see **[FORK.md](FORK.md)** for why this fork exists, what it changes, when it goes away, and how to build and release it.
 >
 > ---
 

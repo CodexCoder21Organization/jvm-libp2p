@@ -53,7 +53,18 @@ configure(
     // now destroys the pipeline synchronously, so closed substreams are reclaimed immediately
     // instead of piling up behind a deferred event-loop deregister backlog. Together with
     // snapshot-5's close-future timeout cancel, the inbound-substream heap is bounded on both paths.
-    version = "1.3.0-codexcoder21-snapshot-8"
+    // snapshot-9: restore the DAEMON event-loop ThreadFactory + shared NIO worker group that an
+    // earlier published snapshot-7 carried but which never landed on develop (develop jumped
+    // snapshot-6 -> snapshot-8 for the #294 OOM release, dropping them). PlainNettyTransport built its
+    // MultiThreadIoEventLoopGroups with no ThreadFactory, so Netty's default NON-daemon threads were
+    // used again: a worker slow to exit under CI starvation held the forked test JVM open past the
+    // 30s runner kill (the "test body done, Process timed out, JVM pid gone" flake caught downstream
+    // by UrlResolver.testLibp2pEventLoopThreadsAreDaemon), and a per-instance worker group spawned
+    // O(hosts x cores) threads that starved the run queue on the 2-core CI droplet. Now: TCP/WS
+    // (PlainNettyTransport) uses a single process-wide SHARED daemon worker group (bounds threads to
+    // O(cores)) plus a per-instance daemon boss group; QuicTransport's per-instance worker group is
+    // also daemon. Regression guard: PlainNettyTransportDaemonThreadTest.
+    version = "1.3.0-codexcoder21-snapshot-9"
 
     apply(plugin = "kotlin")
     apply(plugin = "idea")

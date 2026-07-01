@@ -19,10 +19,12 @@ import io.netty.bootstrap.ServerBootstrap
 import io.netty.channel.Channel
 import io.netty.channel.ChannelHandler
 import io.netty.channel.ChannelOption
+import io.netty.channel.EventLoopGroup
 import io.netty.channel.MultiThreadIoEventLoopGroup
 import io.netty.channel.nio.NioIoHandler
 import io.netty.channel.socket.nio.NioServerSocketChannel
 import io.netty.channel.socket.nio.NioSocketChannel
+import io.netty.util.concurrent.DefaultThreadFactory
 import java.net.InetSocketAddress
 import java.net.SocketAddress
 import java.time.Duration
@@ -50,11 +52,23 @@ abstract class PlainNettyTransport(
     private val listeners = mutableMapOf<Multiaddr, Channel>()
     private val channels = mutableListOf<Channel>()
 
-    private var workerGroup by lazyVar {
-        MultiThreadIoEventLoopGroup(NioIoHandler.newFactory())
-    }
+    // The NIO worker group is a PROCESS-WIDE SHARED singleton (see the companion
+    // object). Sharing bounds the total worker-thread count to O(cores) no matter how
+    // many hosts a single JVM creates: a per-instance worker group spawned
+    // O(hosts x cores) NioEventLoop threads, and under many-host stress on the 2-core
+    // CI droplet the run queue grew so deep that Noise-handshake / IO tasks starved and
+    // peer discovery timed out. The shared group is built with a DAEMON ThreadFactory
+    // and is intentionally NEVER shut down per-instance — a daemon group cannot hold
+    // the JVM open, and shutting it down would break every other host that shares it.
+    // close() therefore only shuts down the per-instance bossGroup.
+    private val workerGroup: EventLoopGroup get() = sharedWorkerGroup
+
+    // Per-instance boss (accept) group. DAEMON so a boss thread that is slow to exit
+    // its run loop after shutdownGracefully under CI starvation cannot hold the forked
+    // test JVM open past the runner's 30s kill (the "test body done, Process timed out,
+    // JVM pid gone" flake). Shut down in close().
     private var bossGroup by lazyVar {
-        MultiThreadIoEventLoopGroup(1, NioIoHandler.newFactory())
+        MultiThreadIoEventLoopGroup(1, DefaultThreadFactory("libp2p-nio-boss", true), NioIoHandler.newFactory())
     }
 
     private var client by lazyVar {
@@ -157,8 +171,12 @@ abstract class PlainNettyTransport(
             // See PlainNettyTransportShutdownTimingTest for the regression coverage,
             // and the discussion in the original CodexCoder21Organization/UrlResolver
             // run 7f19e875 that surfaced the cumulative latency.
+            // Shut down ONLY the per-instance bossGroup. workerGroup is the shared,
+            // daemon, process-wide singleton (see its declaration) and must outlive any
+            // single transport — a daemon group cannot hold the JVM open, so leaving it
+            // running is safe, and shutting it down here would tear the worker loop out
+            // from under every other live host in the JVM.
             CompletableFuture.allOf(
-                workerGroup.shutdownGracefully(0, 5, TimeUnit.SECONDS).toVoidCompletableFuture(),
                 bossGroup.shutdownGracefully(0, 5, TimeUnit.SECONDS).toVoidCompletableFuture()
             ).thenApply { }
         }
@@ -309,4 +327,15 @@ abstract class PlainNettyTransport(
     override fun remoteAddress(nettyChannel: Channel): Multiaddr = toMultiaddr(nettyChannel.remoteAddress())
 
     abstract fun toMultiaddr(addr: SocketAddress): Multiaddr
+
+    companion object {
+        // Single NIO worker group shared by every PlainNettyTransport instance in the
+        // JVM. Lazy so it is only created when the first transport actually needs a
+        // worker loop; DAEMON so it never keeps the JVM alive; never shut down (see the
+        // workerGroup property and close()). Sharing caps total worker threads at
+        // O(cores) regardless of how many hosts the process spins up.
+        private val sharedWorkerGroup: EventLoopGroup by lazy {
+            MultiThreadIoEventLoopGroup(DefaultThreadFactory("libp2p-nio-worker", true), NioIoHandler.newFactory())
+        }
+    }
 }

@@ -36,6 +36,7 @@ import io.netty.channel.nio.NioIoHandler
 import io.netty.channel.socket.nio.NioDatagramChannel
 import io.netty.handler.codec.quic.*
 import io.netty.handler.ssl.ClientAuth
+import io.netty.util.concurrent.DefaultThreadFactory
 import org.slf4j.LoggerFactory
 import java.net.InetSocketAddress
 import java.net.SocketAddress
@@ -59,8 +60,13 @@ class QuicTransport(
     private val listeners = mutableMapOf<Multiaddr, Channel>()
     private val channels = mutableListOf<Channel>()
 
+    // DAEMON event-loop threads (via an explicit DefaultThreadFactory) so a worker
+    // that is slow to exit its run loop under CI starvation cannot hold the forked
+    // JVM open past the runner's kill — matching PlainNettyTransport. Kept per-instance
+    // (shut down in close()) because QUIC is not on the high-fan-out host path that
+    // motivated PlainNettyTransport's shared worker group.
     private var workerGroup by lazyVar {
-        MultiThreadIoEventLoopGroup(NioIoHandler.newFactory())
+        MultiThreadIoEventLoopGroup(DefaultThreadFactory("libp2p-quic-worker", true), NioIoHandler.newFactory())
     }
     private var allocator by lazyVar { AdaptiveByteBufAllocator(true) }
     private var multistreamProtocol: MultistreamProtocol = MultistreamProtocolV1

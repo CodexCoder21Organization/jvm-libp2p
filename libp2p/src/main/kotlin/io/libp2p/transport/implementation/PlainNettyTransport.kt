@@ -19,6 +19,7 @@ import io.netty.bootstrap.ServerBootstrap
 import io.netty.channel.Channel
 import io.netty.channel.ChannelHandler
 import io.netty.channel.ChannelOption
+import io.netty.channel.EventLoopGroup
 import io.netty.channel.MultiThreadIoEventLoopGroup
 import io.netty.channel.nio.NioIoHandler
 import io.netty.channel.socket.nio.NioServerSocketChannel
@@ -50,12 +51,37 @@ abstract class PlainNettyTransport(
     private val listeners = mutableMapOf<Multiaddr, Channel>()
     private val channels = mutableListOf<Channel>()
 
-    private var workerGroup by lazyVar {
-        MultiThreadIoEventLoopGroup(NioIoHandler.newFactory())
+    // Worker/boss event-loop groups are SHARED across all live PlainNettyTransport
+    // instances (see the companion object). Historically each transport — hence each
+    // libp2p Host — created its OWN worker group of 2×availableProcessors threads. A JVM
+    // running N concurrent hosts (a test swarm, a relay serving many peers, a netlab
+    // worker) then spawned N×2×cores event-loop threads that oversubscribed the CPU and
+    // starved the CPU-bound Noise handshake past its deadline — observed downstream as
+    // "still-handshaking>1s" / "Timed out waiting for 1000 ms" peer-exchange failures in
+    // UrlResolver's stress and netlab tests on the constrained 4-shard build droplet.
+    // Event-loop groups are designed to be shared across channels/bootstraps, so all
+    // transports now share ONE bounded worker group and one boss group, reference-counted
+    // so the groups are shut down only when the LAST live transport closes. That preserves
+    // the previous "close() ⇒ event-loop threads gone" contract for a JVM that tears every
+    // host down: sequential create/close (as in PlainNettyTransportShutdownTimingTest) sees
+    // the group created and destroyed each cycle exactly as before, while N *concurrent*
+    // hosts now share a single bounded pool instead of allocating N×2×cores threads.
+    private val workerGroup: EventLoopGroup
+    private val bossGroup: EventLoopGroup
+
+    init {
+        val groups = acquireSharedGroups()
+        workerGroup = groups.first
+        bossGroup = groups.second
     }
-    private var bossGroup by lazyVar {
-        MultiThreadIoEventLoopGroup(1, NioIoHandler.newFactory())
-    }
+
+    // This transport takes exactly ONE shared-group reference in init and must release
+    // exactly one — even though close() may be called more than once (tests routinely
+    // close explicitly AND again in teardown, and close() is defensively idempotent).
+    // Without this guard a double close() double-decrements the shared reference count,
+    // driving it negative so a later acquire skips group creation and dereferences a null
+    // group. Only the first close() releases.
+    private val groupsReleased = java.util.concurrent.atomic.AtomicBoolean(false)
 
     private var client by lazyVar {
         Bootstrap().apply {
@@ -157,12 +183,84 @@ abstract class PlainNettyTransport(
             // See PlainNettyTransportShutdownTimingTest for the regression coverage,
             // and the discussion in the original CodexCoder21Organization/UrlResolver
             // run 7f19e875 that surfaced the cumulative latency.
-            CompletableFuture.allOf(
-                workerGroup.shutdownGracefully(0, 5, TimeUnit.SECONDS).toVoidCompletableFuture(),
-                bossGroup.shutdownGracefully(0, 5, TimeUnit.SECONDS).toVoidCompletableFuture()
-            ).thenApply { }
+            // Release this transport's reference to the shared groups. The groups are
+            // shut down (with the same explicit quietPeriod = 0 as before, so a torn-down
+            // JVM's event-loop threads still exit in milliseconds rather than after the
+            // default 2-second quiet period) ONLY when the last live transport releases —
+            // so a JVM running concurrent hosts keeps the shared pool alive while any host
+            // is up, and a JVM doing sequential create/close destroys and recreates it each
+            // cycle exactly as the per-transport groups used to. Guarded so a repeated close()
+            // releases this transport's single reference at most once.
+            if (groupsReleased.compareAndSet(false, true)) {
+                releaseSharedGroups()
+            } else {
+                CompletableFuture.completedFuture(Unit)
+            }
         }
     } // close
+
+    companion object {
+        // Reference-counted, process-wide shared Netty event-loop groups. See the field
+        // comment on [workerGroup]/[bossGroup] for the rationale (removing the N×2×cores
+        // event-loop-thread oversubscription that starved handshakes under concurrent
+        // hosts). All access is serialized on [sharedGroupLock].
+        private val sharedGroupLock = Any()
+        private var sharedWorkerGroup: EventLoopGroup? = null
+        private var sharedBossGroup: EventLoopGroup? = null
+        private var sharedGroupRefCount = 0
+
+        /**
+         * Acquire a reference to the shared worker/boss groups, creating them on the first
+         * live transport. Returns (worker, boss).
+         */
+        private fun acquireSharedGroups(): Pair<EventLoopGroup, EventLoopGroup> =
+            synchronized(sharedGroupLock) {
+                if (sharedGroupRefCount == 0) {
+                    sharedWorkerGroup = MultiThreadIoEventLoopGroup(NioIoHandler.newFactory())
+                    sharedBossGroup = MultiThreadIoEventLoopGroup(1, NioIoHandler.newFactory())
+                }
+                sharedGroupRefCount++
+                Pair(sharedWorkerGroup!!, sharedBossGroup!!)
+            }
+
+        /**
+         * Release one reference. When the last live transport releases, the shared groups
+         * are shut down (quietPeriod = 0) and the returned future resolves when the
+         * event-loop threads have exited; while other transports are still live it resolves
+         * immediately. A subsequent [acquireSharedGroups] recreates fresh groups.
+         */
+        private fun releaseSharedGroups(): CompletableFuture<Unit> {
+            val toShutDown: Pair<EventLoopGroup, EventLoopGroup>? = synchronized(sharedGroupLock) {
+                sharedGroupRefCount--
+                if (sharedGroupRefCount == 0) {
+                    val w = sharedWorkerGroup
+                    val b = sharedBossGroup
+                    sharedWorkerGroup = null
+                    sharedBossGroup = null
+                    if (w != null && b != null) Pair(w, b) else null
+                } else {
+                    null
+                }
+            }
+            return if (toShutDown != null) {
+                CompletableFuture.allOf(
+                    toShutDown.first.shutdownGracefully(0, 5, TimeUnit.SECONDS).toVoidCompletableFuture(),
+                    toShutDown.second.shutdownGracefully(0, 5, TimeUnit.SECONDS).toVoidCompletableFuture()
+                ).thenApply { }
+            } else {
+                CompletableFuture.completedFuture(Unit)
+            }
+        }
+
+        /**
+         * Test-only (module-internal): the number of live transports currently sharing the
+         * event-loop groups. Used by PlainNettyTransportSharedEventLoopTest to assert that N
+         * concurrent transports hold N references to ONE shared group rather than allocating a
+         * group each. Not part of the public API.
+         */
+        internal fun sharedGroupRefCountForTest(): Int =
+            synchronized(sharedGroupLock) { sharedGroupRefCount }
+    }
 
     override fun listen(
         addr: Multiaddr,

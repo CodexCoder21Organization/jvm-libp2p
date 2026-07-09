@@ -314,3 +314,7 @@ Formatting and static analysis:
 BUILD SUCCESSFUL in 1m 50s
 58 actionable tasks: 3 executed, 55 up-to-date
 ```
+
+### Delta Re-review Follow-up
+
+During the final delta re-review, the full-suite run exposed an assertion-ordering race in `YamuxOutboundBufferBudgetRefCountTest.budget rejection releases retained outbound slices that were not written`: the test could assert the aggregate buffer's refcount before the budget-triggered parent channel close had released slices already handed to Netty. The test now waits for the client channel close before asserting `data.refCnt() == 0`, preserving the original leak check for rejected/not-yet-written slices without racing Netty's accepted-write cleanup. The blocker tests were rerun after this adjustment and passed.

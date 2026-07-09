@@ -92,6 +92,7 @@ class YamuxOutboundBufferBudgetRefCountTest {
                 }
 
                 assertThat(failure).isInstanceOf(YamuxOutboundBufferExceededException::class.java)
+                harness.awaitClientClose()
                 assertThat(data.refCnt()).isZero()
             }
         }
@@ -240,6 +241,10 @@ class YamuxOutboundBufferBudgetRefCountTest {
 
         fun <T> onClientEventLoop(block: () -> T): T =
             client.eventLoop().submit<T> { block() }.get(5, TimeUnit.SECONDS)
+
+        fun awaitClientClose() {
+            assertThat(client.closeFuture().await(5, TimeUnit.SECONDS)).isTrue()
+        }
 
         override fun close() {
             closeChannel(client)

@@ -5,6 +5,8 @@ import io.libp2p.core.Libp2pException
 import io.libp2p.core.StreamHandler
 import io.libp2p.core.multistream.MultistreamProtocol
 import io.libp2p.core.mux.StreamMuxer
+import io.libp2p.etc.CONNECTION
+import io.libp2p.etc.WRITE_FAILURE
 import io.libp2p.etc.types.sliceMaxSize
 import io.libp2p.etc.types.writeOnce
 import io.libp2p.etc.util.netty.ByteBufQueue
@@ -12,7 +14,10 @@ import io.libp2p.etc.util.netty.mux.MuxChannel
 import io.libp2p.etc.util.netty.mux.MuxId
 import io.libp2p.mux.*
 import io.netty.buffer.ByteBuf
+import io.netty.channel.ChannelFuture
 import io.netty.channel.ChannelHandlerContext
+import io.netty.util.ReferenceCountUtil
+import io.netty.util.concurrent.PromiseCombiner
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
@@ -24,6 +29,7 @@ const val DEFAULT_MAX_BUFFERED_CONNECTION_WRITES = 10 * 1024 * 1024 // 10 MiB
 const val DEFAULT_ACK_BACKLOG_LIMIT = 256
 
 const val INITIAL_WINDOW_SIZE = 256 * 1024
+private const val YAMUX_HEADER_BYTES = 12L
 
 open class YamuxHandler(
     override val multistreamProtocol: MultistreamProtocol,
@@ -123,28 +129,40 @@ open class YamuxHandler(
             }
         }
 
-        private fun drainBufferAndMaybeClose() {
+        private fun drainBufferAndMaybeClose(): ChannelFuture {
+            val ctx = getChannelHandlerContext()
+            val aggregate = ctx.newPromise()
+            val combiner = PromiseCombiner(ctx.executor())
+            var futures = 0
             val maxSendLength = max(0, sendWindowSize.get())
             val data = sendBuffer.take(maxSendLength)
             sendWindowSize.addAndGet(-data.readableBytes())
             data.sliceMaxSize(maxFrameDataLength)
                 .forEach { slicedData ->
                     val length = slicedData.readableBytes()
-                    writeAndFlushFrame(YamuxFrame(id, YamuxType.DATA, YamuxFlag.NONE, length.toLong(), slicedData))
+                    combiner.add(writeAndFlushFrame(YamuxFrame(id, YamuxType.DATA, YamuxFlag.NONE, length.toLong(), slicedData)))
+                    futures++
                 }
 
             if (closedForWriting && sendBuffer.readableBytes() == 0) {
-                writeAndFlushFrame(YamuxFrame(id, YamuxType.DATA, YamuxFlag.FIN.asSet, 0))
+                combiner.add(writeAndFlushFrame(YamuxFrame(id, YamuxType.DATA, YamuxFlag.FIN.asSet, 0)))
+                futures++
             }
+            if (futures == 0) {
+                aggregate.setSuccess(null)
+            } else {
+                combiner.finish(aggregate)
+            }
+            return aggregate
         }
 
-        fun sendData(data: ByteBuf) {
+        fun sendData(data: ByteBuf): ChannelFuture {
             if (closedForWriting) {
                 throw ClosedForWritingMuxerException(id)
             }
             acknowledgeInboundStreamIfNeeded()
             fillBuffer(data)
-            drainBufferAndMaybeClose()
+            return drainBufferAndMaybeClose()
         }
 
         fun onLocalOpen() {
@@ -170,6 +188,8 @@ open class YamuxHandler(
     private val idGenerator = YamuxStreamIdGenerator(connectionInitiator)
 
     private val streamHandlers: MutableMap<MuxId, YamuxStreamHandler> = ConcurrentHashMap()
+    private var firstUnwritableNanos: Long? = null
+    private var terminalWriteFailure: YamuxOutboundBufferExceededException? = null
 
     /**
      * Would contain GoAway error code when received, or would be completed with [ConnectionClosedException]
@@ -214,8 +234,61 @@ open class YamuxHandler(
         }
     }
 
-    private fun writeAndFlushFrame(yamuxFrame: YamuxFrame) {
-        getChannelHandlerContext().writeAndFlush(yamuxFrame)
+    private fun writeAndFlushFrame(yamuxFrame: YamuxFrame): ChannelFuture {
+        val existingFailure = terminalWriteFailure
+        if (existingFailure != null) {
+            ReferenceCountUtil.release(yamuxFrame.data)
+            throw existingFailure
+        }
+
+        val ctx = getChannelHandlerContext()
+        val channel = ctx.channel()
+        val outboundBuffer = channel.unsafe().outboundBuffer()
+        val pendingBytes = outboundBuffer?.totalPendingWriteBytes() ?: 0L
+        val frameBytes = YAMUX_HEADER_BYTES + (yamuxFrame.data?.readableBytes()?.toLong() ?: 0L)
+        val projectedPendingBytes = pendingBytes + frameBytes
+        updateUnwritableStart(pendingBytes)
+
+        if (projectedPendingBytes > maxBufferedConnectionWrites) {
+            val cause = YamuxOutboundBufferExceededException(
+                "Yamux parent outbound buffer exceeded configured budget; " +
+                    "peer=${describeRemotePeer(ctx)}, pendingBytes=$pendingBytes, " +
+                    "attemptedFrameBytes=$frameBytes, projectedPendingBytes=$projectedPendingBytes, " +
+                    "budgetBytes=$maxBufferedConnectionWrites, " +
+                    "overBudgetDurationMillis=${currentUnwritableDurationMillis()}, " +
+                    "channel=$channel. Closing stalled connection."
+            )
+            terminalWriteFailure = cause
+            channel.attr(WRITE_FAILURE).set(cause)
+            ReferenceCountUtil.release(yamuxFrame.data)
+            ctx.fireExceptionCaught(cause)
+            ctx.close()
+            throw cause
+        }
+
+        return ctx.writeAndFlush(yamuxFrame)
+    }
+
+    private fun updateUnwritableStart(pendingBytes: Long) {
+        val channel = getChannelHandlerContext().channel()
+        if (!channel.isWritable || pendingBytes > maxBufferedConnectionWrites) {
+            if (firstUnwritableNanos == null) {
+                firstUnwritableNanos = System.nanoTime()
+            }
+        } else {
+            firstUnwritableNanos = null
+        }
+    }
+
+    private fun currentUnwritableDurationMillis(): Long {
+        return firstUnwritableNanos?.let { (System.nanoTime() - it) / 1_000_000L } ?: 0L
+    }
+
+    private fun describeRemotePeer(ctx: ChannelHandlerContext): String {
+        val connection = ctx.channel().attr(CONNECTION).get()
+        return connection?.secureSession()?.remoteId?.toString()
+            ?: ctx.channel().remoteAddress()?.toString()
+            ?: "unknown"
     }
 
     private fun abruptlyCloseConnection() {
@@ -230,8 +303,8 @@ open class YamuxHandler(
         }
     }
 
-    override fun onChildWrite(child: MuxChannel<ByteBuf>, data: ByteBuf) {
-        getStreamHandlerOrReleaseAndThrow(child.id, data).sendData(data)
+    override fun onChildWrite(child: MuxChannel<ByteBuf>, data: ByteBuf): ChannelFuture {
+        return getStreamHandlerOrReleaseAndThrow(child.id, data).sendData(data)
     }
 
     override fun onLocalOpen(child: MuxChannel<ByteBuf>) {

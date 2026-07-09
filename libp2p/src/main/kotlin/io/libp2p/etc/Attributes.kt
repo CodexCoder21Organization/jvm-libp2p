@@ -12,5 +12,6 @@ val STREAM = AttributeKey.newInstance<Stream>("LIBP2P_STREAM")!!
 val CONNECTION = AttributeKey.newInstance<Connection>("LIBP2P_CONNECTION")!!
 val PROTOCOL = AttributeKey.newInstance<CompletableFuture<String>>("LIBP2P_PROTOCOL")!!
 val REMOTE_PEER_ID = AttributeKey.newInstance<PeerId>("LIBP2P_REMOTE_PEER_ID")!!
+val WRITE_FAILURE = AttributeKey.newInstance<Throwable>("LIBP2P_WRITE_FAILURE")!!
 
 fun Channel.getP2PChannel(): P2PChannel = if (hasAttr(CONNECTION)) attr(CONNECTION).get() else attr(STREAM).get()

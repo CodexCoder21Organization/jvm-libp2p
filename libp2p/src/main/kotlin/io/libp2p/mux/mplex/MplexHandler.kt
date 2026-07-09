@@ -9,7 +9,9 @@ import io.libp2p.etc.util.netty.mux.MuxChannel
 import io.libp2p.etc.util.netty.mux.MuxId
 import io.libp2p.mux.MuxHandler
 import io.netty.buffer.ByteBuf
+import io.netty.channel.ChannelFuture
 import io.netty.channel.ChannelHandlerContext
+import io.netty.util.concurrent.PromiseCombiner
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.atomic.AtomicLong
 
@@ -36,15 +38,19 @@ open class MplexHandler(
         }
     }
 
-    override fun onChildWrite(child: MuxChannel<ByteBuf>, data: ByteBuf) {
+    override fun onChildWrite(child: MuxChannel<ByteBuf>, data: ByteBuf): ChannelFuture {
         val ctx = getChannelHandlerContext()
+        val aggregate = ctx.newPromise()
+        val combiner = PromiseCombiner(ctx.executor())
         data.sliceMaxSize(maxFrameDataLength)
             .map { frameSliceBuf ->
                 MplexFrame.createDataFrame(child.id, frameSliceBuf)
             }.forEach { muxFrame ->
-                ctx.write(muxFrame)
+                combiner.add(ctx.write(muxFrame))
             }
+        combiner.finish(aggregate)
         ctx.flush()
+        return aggregate
     }
 
     override fun onLocalOpen(child: MuxChannel<ByteBuf>) {

@@ -50,8 +50,12 @@ class MuxChannel<TData>(
                 // however it is still to be confirmed that no buf leaks happen here TODO
                 ReferenceCountUtil.retain(msg)
                 @Suppress("UNCHECKED_CAST")
-                parent.onChildWrite(this, msg as TData)
-                buf.remove()
+                val parentFuture = parent.onChildWrite(this, msg as TData)
+                if (parentFuture.isDone && !parentFuture.isSuccess) {
+                    buf.remove(parentFuture.cause() ?: ConnectionClosedException("Parent write failed without a cause: $id"))
+                } else {
+                    buf.remove()
+                }
             } catch (cause: Throwable) {
                 buf.remove(cause)
             }

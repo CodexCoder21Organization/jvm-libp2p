@@ -27,6 +27,11 @@ interface Stream : P2PChannel {
 
     fun writeAndFlush(msg: Any)
 
+    fun writeAndFlushWithFuture(msg: Any): CompletableFuture<Unit> {
+        writeAndFlush(msg)
+        return CompletableFuture.completedFuture(Unit)
+    }
+
     /**
      * Resets the [Stream]. That means the stream is to be abruptly terminated.
      * This method is basically used when any error occurs while communicating

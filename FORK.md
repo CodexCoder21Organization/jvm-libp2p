@@ -21,11 +21,12 @@ On top of the upstream `develop` snapshot (which already provides the #412 threa
   - cancel the multistream negotiation timeout (`TotalTimeoutHandler`) on **channel close**, not only on handler removal, so a substream that closes mid-negotiation does not pin its pipeline until the timeout elapses;
   - cap concurrently-open **inbound** substreams per connection in `AbstractMuxHandler` and reset the excess **before** any `MuxChannel` / negotiation scaffolding is built (in the shared handler, so it guards both Mplex and Yamux);
   - destroy a closed `AbstractChildChannel`'s pipeline **synchronously** in `doClose()` instead of via a deferred event-loop task, so closed substreams are reclaimed immediately rather than accumulating behind a starved event loop.
+- **Yamux parent outbound-buffer backpressure** (snapshot-10) — Yamux now enforces `maxBufferedConnectionWrites` against the parent Netty connection's outbound buffer. When a stalled peer would push the parent `ChannelOutboundBuffer` past the configured budget, jvm-libp2p fails affected writes with a descriptive `YamuxOutboundBufferExceededException` and deliberately closes the connection, preventing unbounded retained `ByteBuf`s and `DefaultChannelPromise`s. This hard budget is Yamux-only; mplex remains outside this release's gate.
 
 The patched build is published to [kotlin.directory](https://kotlin.directory) under an **unambiguously non-upstream** Maven coordinate (the `community.kotlin.libp2p` group is owned by CodexCoder21 — we deliberately do **not** publish under `io.libp2p`, which belongs to upstream):
 
 ```
-community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-8
+community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-10
 ```
 
 ## When this fork goes away

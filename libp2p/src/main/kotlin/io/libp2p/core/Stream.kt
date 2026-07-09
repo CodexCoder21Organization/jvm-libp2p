@@ -27,6 +27,17 @@ interface Stream : P2PChannel {
 
     fun writeAndFlush(msg: Any)
 
+    /**
+     * Writes [msg], flushes the stream, and returns a future that should complete when the write
+     * outcome is known to the stream implementation.
+     *
+     * Implementations backed by a multiplexed Netty transport should complete the future from the
+     * parent transport write, so callers can observe asynchronous connection failures such as
+     * backpressure-triggered closes. This default implementation exists for source compatibility
+     * with non-Netty [Stream] implementations; it delegates to [writeAndFlush] and returns an
+     * already-successful future, so those implementations must override this method if they can
+     * report real asynchronous write success or failure.
+     */
     fun writeAndFlushWithFuture(msg: Any): CompletableFuture<Unit> {
         writeAndFlush(msg)
         return CompletableFuture.completedFuture(Unit)

@@ -46,6 +46,7 @@ class NettyOutboundBufferBackpressureTest {
         val clientHost = createHost(protocol, listen = false)
         val serverHost = createHost(protocol, listen = true)
 
+        var primaryFailure: Throwable? = null
         try {
             clientHost.start().get(5, TimeUnit.SECONDS)
             serverHost.start().get(5, TimeUnit.SECONDS)
@@ -119,9 +120,11 @@ class NettyOutboundBufferBackpressureTest {
             writtenBuffers.forEachIndexed { index, buffer ->
                 assertEquals(0, buffer.refCnt(), "write buffer $index was not released after forced close")
             }
+        } catch (cause: Throwable) {
+            primaryFailure = cause
+            throw cause
         } finally {
-            clientHost.stop().get(5, TimeUnit.SECONDS)
-            serverHost.stop().get(5, TimeUnit.SECONDS)
+            stopHostsPreservingFailure(primaryFailure, clientHost, serverHost)
         }
     }
 
@@ -131,6 +134,7 @@ class NettyOutboundBufferBackpressureTest {
         val clientHost = createHost(protocol, listen = false)
         val serverHost = createHost(protocol, listen = true)
 
+        var primaryFailure: Throwable? = null
         try {
             clientHost.start().get(5, TimeUnit.SECONDS)
             serverHost.start().get(5, TimeUnit.SECONDS)
@@ -157,7 +161,6 @@ class NettyOutboundBufferBackpressureTest {
                 it.message?.startsWith("Yamux parent outbound buffer exceeded configured budget;") == true
             }
             assertYamuxBudgetFailureMessage(budgetFailure.message!!, serverHost.peerId.toString())
-
             val subsequentFailureFuture = streams.first().writeAndFlushWithFuture(Unpooled.wrappedBuffer(chunk.copyOf()))
             val subsequentFailure = awaitFailure(subsequentFailureFuture)
             assertTrue(
@@ -165,9 +168,11 @@ class NettyOutboundBufferBackpressureTest {
                 "Expected subsequent write to fail after the budget-triggered close. " +
                     "First failure='${budgetFailure.message}', subsequent failure='${subsequentFailure.message}'."
             )
+        } catch (cause: Throwable) {
+            primaryFailure = cause
+            throw cause
         } finally {
-            clientHost.stop().get(5, TimeUnit.SECONDS)
-            serverHost.stop().get(5, TimeUnit.SECONDS)
+            stopHostsPreservingFailure(primaryFailure, clientHost, serverHost)
         }
     }
 
@@ -178,6 +183,7 @@ class NettyOutboundBufferBackpressureTest {
         val clientHost = createHost(protocol, listen = false)
         val serverHost = createHost(protocol, listen = true)
 
+        var primaryFailure: Throwable? = null
         try {
             clientHost.start().get(5, TimeUnit.SECONDS)
             serverHost.start().get(5, TimeUnit.SECONDS)
@@ -191,22 +197,26 @@ class NettyOutboundBufferBackpressureTest {
 
             val expectedCrc = CRC32()
             var writtenBytes = 0
-            stream.writeAndFlushWithFuture(Unpooled.wrappedBuffer(PAYLOAD_PREAMBLE.copyOf())).get(10, TimeUnit.SECONDS)
+            val writeFutures = mutableListOf<CompletableFuture<Unit>>()
+            writeFutures += stream.writeAndFlushWithFuture(Unpooled.wrappedBuffer(PAYLOAD_PREAMBLE.copyOf()))
             while (writtenBytes < DRAINING_TOTAL_BYTES) {
                 val size = minOf(DRAINING_CHUNK_BYTES, DRAINING_TOTAL_BYTES - writtenBytes)
                 val chunk = ByteArray(size) { ((writtenBytes + it) and 0xff).toByte() }
                 expectedCrc.update(chunk)
                 val buffer = Unpooled.wrappedBuffer(chunk)
-                stream.writeAndFlushWithFuture(buffer).get(10, TimeUnit.SECONDS)
+                writeFutures += stream.writeAndFlushWithFuture(buffer)
                 writtenBytes += size
             }
 
+            CompletableFuture.allOf(*writeFutures.toTypedArray()).get(10, TimeUnit.SECONDS)
             val actual = received.get(10, TimeUnit.SECONDS)
             assertEquals(DRAINING_TOTAL_BYTES.toLong(), actual.bytes)
             assertEquals(expectedCrc.value, actual.crc)
+        } catch (cause: Throwable) {
+            primaryFailure = cause
+            throw cause
         } finally {
-            clientHost.stop().get(5, TimeUnit.SECONDS)
-            serverHost.stop().get(5, TimeUnit.SECONDS)
+            stopHostsPreservingFailure(primaryFailure, clientHost, serverHost)
         }
     }
 
@@ -218,6 +228,7 @@ class NettyOutboundBufferBackpressureTest {
         val clientHost = createHost(protocol, listen = false)
         val serverHost = createHost(protocol, listen = true)
 
+        var primaryFailure: Throwable? = null
         try {
             clientHost.start().get(5, TimeUnit.SECONDS)
             serverHost.start().get(5, TimeUnit.SECONDS)
@@ -258,9 +269,11 @@ class NettyOutboundBufferBackpressureTest {
             assertEquals(expectedBytes, actual.bytes)
             assertEquals(expectedCrc, actual.crc)
             assertTrue(clientParent.isActive, "Connection should remain active after the peer resumes draining")
+        } catch (cause: Throwable) {
+            primaryFailure = cause
+            throw cause
         } finally {
-            clientHost.stop().get(5, TimeUnit.SECONDS)
-            serverHost.stop().get(5, TimeUnit.SECONDS)
+            stopHostsPreservingFailure(primaryFailure, clientHost, serverHost)
         }
     }
 
@@ -413,6 +426,29 @@ class NettyOutboundBufferBackpressureTest {
             Thread.sleep(25)
         }
         assertTrue(predicate(), "Timed out waiting for $description")
+    }
+
+    private fun stopHostsPreservingFailure(primaryFailure: Throwable?, vararg hosts: Host) {
+        var cleanupFailure: Throwable? = null
+        hosts.forEach { host ->
+            try {
+                host.stop().get(5, TimeUnit.SECONDS)
+            } catch (cause: Throwable) {
+                if (cleanupFailure == null) {
+                    cleanupFailure = cause
+                } else {
+                    cleanupFailure!!.addSuppressed(cause)
+                }
+            }
+        }
+        val failureToReport = cleanupFailure
+        if (failureToReport != null) {
+            if (primaryFailure != null) {
+                primaryFailure.addSuppressed(failureToReport)
+            } else {
+                throw failureToReport
+            }
+        }
     }
 }
 

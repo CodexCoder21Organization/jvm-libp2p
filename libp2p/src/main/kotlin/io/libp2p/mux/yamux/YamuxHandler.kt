@@ -78,7 +78,12 @@ open class YamuxHandler(
             if (newWindow < initialWindowSize / 2) {
                 val delta = initialWindowSize - newWindow
                 receiveWindowSize.addAndGet(delta)
-                writeAndFlushFrame(YamuxFrame(msg.id, YamuxType.WINDOW_UPDATE, YamuxFlag.NONE, delta.toLong()))
+                try {
+                    writeAndFlushFrame(YamuxFrame(msg.id, YamuxType.WINDOW_UPDATE, YamuxFlag.NONE, delta.toLong()))
+                } catch (cause: Throwable) {
+                    ReferenceCountUtil.release(msg.data)
+                    throw cause
+                }
             }
             childRead(msg.id, msg.data!!)
         }
@@ -137,12 +142,25 @@ open class YamuxHandler(
             val maxSendLength = max(0, sendWindowSize.get())
             val data = sendBuffer.take(maxSendLength)
             sendWindowSize.addAndGet(-data.readableBytes())
-            data.sliceMaxSize(maxFrameDataLength)
-                .forEach { slicedData ->
+            val slices = data.sliceMaxSize(maxFrameDataLength)
+            var nextSliceIndex = 0
+            try {
+                slices.forEachIndexed { index, slicedData ->
+                    nextSliceIndex = index + 1
                     val length = slicedData.readableBytes()
-                    combiner.add(writeAndFlushFrame(YamuxFrame(id, YamuxType.DATA, YamuxFlag.NONE, length.toLong(), slicedData)))
+                    combiner.add(
+                        writeAndFlushFrame(
+                            YamuxFrame(id, YamuxType.DATA, YamuxFlag.NONE, length.toLong(), slicedData)
+                        )
+                    )
                     futures++
                 }
+            } catch (cause: Throwable) {
+                for (index in nextSliceIndex until slices.size) {
+                    ReferenceCountUtil.release(slices[index])
+                }
+                throw cause
+            }
 
             if (closedForWriting && sendBuffer.readableBytes() == 0) {
                 combiner.add(writeAndFlushFrame(YamuxFrame(id, YamuxType.DATA, YamuxFlag.FIN.asSet, 0)))

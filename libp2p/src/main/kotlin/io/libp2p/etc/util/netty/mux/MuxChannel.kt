@@ -19,6 +19,7 @@ class MuxChannel<TData>(
 
     var remoteDisconnected = false
     var localDisconnected = false
+    private var waitingForParentWrite = false
 
     override fun metadata(): ChannelMetadata = ChannelMetadata(true)
     override fun localAddress0() =
@@ -34,6 +35,8 @@ class MuxChannel<TData>(
 
     @Suppress("SwallowedException")
     override fun doWrite(buf: ChannelOutboundBuffer) {
+        if (waitingForParentWrite) return
+
         while (true) {
             val msg = buf.current() ?: break
             if (localDisconnected) {
@@ -51,14 +54,38 @@ class MuxChannel<TData>(
                 ReferenceCountUtil.retain(msg)
                 @Suppress("UNCHECKED_CAST")
                 val parentFuture = parent.onChildWrite(this, msg as TData)
-                if (parentFuture.isDone && !parentFuture.isSuccess) {
-                    buf.remove(parentFuture.cause() ?: ConnectionClosedException("Parent write failed without a cause: $id"))
+                if (parentFuture.isDone) {
+                    removeParentWrite(buf, parentFuture.causeOrNull())
                 } else {
-                    buf.remove()
+                    waitingForParentWrite = true
+                    parentFuture.addListener {
+                        eventLoop().execute {
+                            waitingForParentWrite = false
+                            removeParentWrite(buf, parentFuture.causeOrNull())
+                            doWrite(buf)
+                        }
+                    }
+                    break
                 }
             } catch (cause: Throwable) {
                 buf.remove(cause)
             }
+        }
+    }
+
+    private fun removeParentWrite(buf: ChannelOutboundBuffer, cause: Throwable?) {
+        if (cause == null) {
+            buf.remove()
+        } else {
+            buf.remove(cause)
+        }
+    }
+
+    private fun io.netty.util.concurrent.Future<*>.causeOrNull(): Throwable? {
+        return if (isSuccess) {
+            null
+        } else {
+            cause() ?: ConnectionClosedException("Parent write failed without a cause: $id")
         }
     }
 

@@ -54,6 +54,14 @@ Legend:
 - :lemon: - prototype or beta, not tested in production
 - :tomato: - in progress 
 
+## Stream muxer write buffering
+
+Yamux enforces the `maxBufferedConnectionWrites` setting on the parent Netty connection write buffer. The default is `10 * 1024 * 1024` bytes (10 MiB), configured with `StreamMuxerProtocol.getYamux(maxBufferedConnectionWrites = ...)`.
+
+When a Yamux connection would enqueue a frame past that budget, jvm-libp2p deliberately closes the connection and fails affected writes with a descriptive `YamuxOutboundBufferExceededException` that includes the peer, pending bytes, attempted frame bytes, projected bytes, budget, duration, and channel. This prevents a stalled peer from retaining unbounded outbound `ByteBuf`s in the parent transport.
+
+This budget gate is Yamux-only. Mplex does not currently enforce an equivalent parent outbound-buffer budget, so applications that need this hard stalled-peer protection should configure Yamux rather than assuming the setting applies to every muxer.
+
 ## Gossip simulator
 
 Deterministic Gossip simulator which may simulate networks as large as 10000 of peers

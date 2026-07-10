@@ -64,7 +64,11 @@ configure(
     // (PlainNettyTransport) uses a single process-wide SHARED daemon worker group (bounds threads to
     // O(cores)) plus a per-instance daemon boss group; QuicTransport's per-instance worker group is
     // also daemon. Regression guard: PlainNettyTransportDaemonThreadTest.
-    version = "1.3.0-codexcoder21-snapshot-9"
+    // snapshot-10: enforce Yamux maxBufferedConnectionWrites against the parent Netty channel's
+    // outbound buffer. A stalled peer now receives a descriptive YamuxOutboundBufferExceededException
+    // and the connection is deliberately closed before ChannelOutboundBuffer entries can grow without
+    // bound; mplex is intentionally not gated by this release.
+    version = "1.3.0-codexcoder21-snapshot-10"
 
     apply(plugin = "kotlin")
     apply(plugin = "idea")

@@ -2,38 +2,32 @@ package io.libp2p.etc.util.netty
 
 import io.netty.buffer.ByteBuf
 import io.netty.buffer.Unpooled
+import java.util.ArrayDeque
 
 class ByteBufQueue {
-    private val data: MutableList<ByteBuf> = mutableListOf()
+    private val data = ArrayDeque<ByteBuf>()
 
     fun push(buf: ByteBuf) {
-        data += buf
+        data.addLast(buf)
     }
 
     fun take(maxLength: Int): ByteBuf {
-        val wholeBuffers = mutableListOf<ByteBuf>()
+        val buffers = mutableListOf<ByteBuf>()
         var size = 0
         while (data.isNotEmpty()) {
             val bufLen = data.first().readableBytes()
             if (size + bufLen > maxLength) break
             size += bufLen
-            wholeBuffers += data.removeAt(0)
+            buffers.add(data.removeFirst())
             if (size == maxLength) break
         }
 
-        val partialBufferSlice =
-            when {
-                data.isEmpty() -> null
-                size == maxLength -> null
-                else -> data.first()
-            }
-                ?.let { buf ->
-                    val remainingBytes = maxLength - size
-                    buf.readRetainedSlice(remainingBytes)
-                }
+        if (data.isNotEmpty() && size < maxLength) {
+            val remainingBytes = maxLength - size
+            buffers.add(data.first().readRetainedSlice(remainingBytes))
+        }
 
-        val allBuffers = wholeBuffers + listOfNotNull(partialBufferSlice)
-        return Unpooled.wrappedBuffer(*allBuffers.toTypedArray())
+        return Unpooled.wrappedBuffer(*buffers.toTypedArray())
     }
 
     fun dispose() {

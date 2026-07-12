@@ -3,6 +3,7 @@ package io.libp2p.etc.util.netty
 import io.netty.buffer.ByteBuf
 import io.netty.buffer.Unpooled
 import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTimeout
 import org.junit.jupiter.api.Test
 import java.time.Duration
@@ -79,6 +80,26 @@ class ByteBufQueueRegressionTest {
         assertThat(takeBytes(queue, 1024)).isEmpty()
         assertThat(queue.readableBytes()).isZero()
         queue.dispose()
+    }
+
+    @Test
+    fun `negative max length leaves queued bytes and reference counts unchanged`() {
+        val queue = ByteBufQueue()
+        val inputs = listOf(retainedInput("abc"), retainedInput("def"))
+        inputs.forEach(queue::push)
+
+        try {
+            val refCountsBefore = inputs.map(ByteBuf::refCnt)
+
+            val exception = assertThrows(IllegalArgumentException::class.java) { queue.take(-1) }
+
+            assertThat(exception).hasMessage("maxLength must be non-negative, was -1")
+            assertThat(queue.readableBytes()).isEqualTo(6)
+            assertThat(inputs.map(ByteBuf::refCnt)).isEqualTo(refCountsBefore)
+            assertThat(takeBytes(queue, 6)).containsExactly(*bytes("abcdef"))
+        } finally {
+            releaseExternalReferences(queue, inputs)
+        }
     }
 
     @Test

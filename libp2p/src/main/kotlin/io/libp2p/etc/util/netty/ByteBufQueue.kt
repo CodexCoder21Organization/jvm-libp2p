@@ -11,11 +11,18 @@ class ByteBufQueue {
         data.addLast(buf)
     }
 
+    /**
+     * Removes and returns up to [maxLength] bytes.
+     *
+     * @throws IllegalArgumentException if [maxLength] is negative.
+     */
     fun take(maxLength: Int): ByteBuf {
+        require(maxLength >= 0) { "maxLength must be non-negative, was $maxLength" }
+
         val buffers = mutableListOf<ByteBuf>()
         var size = 0
         while (data.isNotEmpty()) {
-            val bufLen = data.first().readableBytes()
+            val bufLen = data.getFirst().readableBytes()
             if (size + bufLen > maxLength) break
             size += bufLen
             buffers.add(data.removeFirst())
@@ -24,7 +31,7 @@ class ByteBufQueue {
 
         if (data.isNotEmpty() && size < maxLength) {
             val remainingBytes = maxLength - size
-            buffers.add(data.first().readRetainedSlice(remainingBytes))
+            buffers.add(data.getFirst().readRetainedSlice(remainingBytes))
         }
 
         return Unpooled.wrappedBuffer(*buffers.toTypedArray())

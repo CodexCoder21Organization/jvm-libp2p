@@ -31,6 +31,11 @@ import io.netty.handler.timeout.ReadTimeoutHandler
 import org.slf4j.LoggerFactory
 import spipe.pb.Spipe
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CompletionException
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 
 enum class Role(val intVal: Int) { INIT(HandshakeState.INITIATOR), RESP(HandshakeState.RESPONDER) }
 
@@ -91,8 +96,14 @@ class NoiseIoHandshake(
     private val role: Role
 ) : SimpleChannelInboundHandler<ByteBuf>() {
     private val handshakeState = HandshakeState(NoiseXXSecureChannel.protocolName, role.intVal)
-
     private val localNoiseState = Noise.createDH("25519")
+    private val localStaticPrivateKey = NoiseXXSecureChannel.localStaticPrivateKey25519.copyOf()
+    private var tail: CompletableFuture<Void> = CompletableFuture.completedFuture(null)
+    private val terminal = AtomicBoolean()
+    private val pendingFrames = mutableListOf<ByteArray>()
+    private val expectedHandshakeFrames = if (role == Role.INIT) 1 else 2
+    private var receivedHandshakeFrames = 0
+    private var initialized = false
 
     private var sentNoiseKeyPayload = false
     private var instancePayload: ByteArray? = null
@@ -103,14 +114,19 @@ class NoiseIoHandshake(
 
     init {
         log.debug("Starting handshake")
+    } // init
+
+    private fun initializeHandshake() {
+        if (initialized) return
 
         // configure the localDHState with the private
         // which will automatically generate the corresponding public key
-        localNoiseState.setPrivateKey(NoiseXXSecureChannel.localStaticPrivateKey25519, 0)
+        localNoiseState.setPrivateKey(localStaticPrivateKey, 0)
 
         handshakeState.localKeyPair.copyFrom(localNoiseState)
         handshakeState.start()
-    } // init
+        initialized = true
+    }
 
     override fun channelActive(ctx: ChannelHandlerContext) {
         if (activated) return
@@ -119,28 +135,46 @@ class NoiseIoHandshake(
         // even though both the alice and bob parties can have the payload ready
         // the Noise protocol only permits alice to send a packet first
         if (role == Role.INIT) {
-            sendNoiseMessage(ctx)
             if (!ctx.channel().hasAttr(REMOTE_PEER_ID)) {
                 throw SecureHandshakeError("Remote Peer ID missing for initiating party")
             }
             expectedRemotePeerId = ctx.channel().attr(REMOTE_PEER_ID).get()
+            enqueueCrypto(ctx) {
+                sendNoiseMessage(ctx)
+            }
         }
     } // channelActive
 
     override fun channelRead0(ctx: ChannelHandlerContext, msg: ByteBuf) {
         channelActive(ctx)
+        if (terminal.get()) return
 
-        // we always read from the wire when it's the next action to take
-        // capture any payloads
-        if (handshakeState.action == HandshakeState.READ_MESSAGE) {
-            readNoiseMessage(msg.toByteArray())
+        val frame = msg.toByteArray()
+        receivedHandshakeFrames++
+        if (receivedHandshakeFrames <= expectedHandshakeFrames) {
+            enqueueCrypto(ctx) {
+                processHandshakeFrame(ctx, frame)
+            }
+        } else {
+            // The final handshake task may still be waiting for a crypto-pool thread while
+            // encrypted mux/application frames are already readable. Keep those frames on
+            // the event loop until the Noise codec has been installed, then replay them in
+            // the same event-loop task that rewires the pipeline.
+            pendingFrames += frame
         }
+    } // channelRead0
+
+    private fun processHandshakeFrame(ctx: ChannelHandlerContext, frame: ByteArray) {
+        if (handshakeState.action != HandshakeState.READ_MESSAGE) {
+            throw SecureHandshakeError("Noise handshake received a frame while action was ${handshakeState.action}")
+        }
+        readNoiseMessage(frame)
 
         // verify the signature of the remote's noise static public key once
         // the remote public key has been provided by the XX protocol
         val derivedRemotePublicKey = handshakeState.remotePublicKey
         if (derivedRemotePublicKey.hasPublicKey()) {
-            remotePubKey = verifyPayload(ctx, instancePayload!!, derivedRemotePublicKey)
+            remotePubKey = verifyPayload(instancePayload!!, derivedRemotePublicKey)
             if (role == Role.INIT && expectedRemotePeerId != remotePeerId) {
                 throw InvalidRemotePubKey()
             }
@@ -154,7 +188,7 @@ class NoiseIoHandshake(
         if (handshakeState.action == HandshakeState.SPLIT) {
             splitHandshake(ctx)
         }
-    } // channelRead0
+    }
 
     override fun exceptionCaught(ctx: ChannelHandlerContext, cause: Throwable) {
         handshakeFailed(ctx, cause)
@@ -246,7 +280,6 @@ class NoiseIoHandshake(
     } // sendNoiseMessage
 
     private fun verifyPayload(
-        ctx: ChannelHandlerContext,
         payload: ByteArray,
         remotePublicKeyState: DHState
     ): PubKey {
@@ -262,7 +295,7 @@ class NoiseIoHandshake(
         log.debug("Remote verification is $verified")
 
         if (!verified) {
-            handshakeFailed(ctx, InvalidRemotePubKey())
+            throw InvalidRemotePubKey()
         }
 
         return pubKeyFromMessage
@@ -293,41 +326,117 @@ class NoiseIoHandshake(
             bobSplit
         )
 
-        handshakeSucceeded(ctx, secureSession)
+        ctx.executor().execute {
+            handshakeSucceeded(ctx, secureSession)
+        }
     } // splitHandshake
 
     private fun handshakeSucceeded(ctx: ChannelHandlerContext, session: NoiseSecureChannelSession) {
-        handshakeComplete.complete(session)
-        ctx.pipeline()
-            .addBefore(
+        if (!terminal.compareAndSet(false, true)) return
+
+        try {
+            val pipeline = ctx.pipeline()
+            val lengthCodecContext = pipeline.context(UShortLengthCodec::class.java)
+                ?: throw SecureHandshakeError("Noise handshake length codec missing from ${ctx.channel()}")
+
+            pipeline.addBefore(
                 HandshakeNettyHandlerName,
                 NoiseCodeNettyHandlerName,
                 NoiseXXCodec(session.aliceCipher, session.bobCipher)
             )
-        // according to Libp2p spec transport payload should also be length-prefixed
-        // though Rust Libp2p implementation doesn't do it
-        // https://github.com/libp2p/specs/tree/master/noise#wire-format
+            // according to Libp2p spec transport payload should also be length-prefixed
+            // though Rust Libp2p implementation doesn't do it
+            // https://github.com/libp2p/specs/tree/master/noise#wire-format
 //        ctx.pipeline()
 //            .addBefore(HandshakeNettyHandlerName, "NoiseXXPayloadLenCodec", UShortLengthCodec())
-        ctx.pipeline().addAfter(
-            NoiseCodeNettyHandlerName,
-            "NoisePacketSplitter",
-            SplitEncoder(MaxCipheredPacketLength - session.aliceCipher.macLength)
-        )
-        ctx.pipeline().remove(HandshakeReadTimeoutNettyHandlerName)
-        ctx.pipeline().remove(this)
-        ctx.fireChannelActive()
+            pipeline.addAfter(
+                NoiseCodeNettyHandlerName,
+                "NoisePacketSplitter",
+                SplitEncoder(MaxCipheredPacketLength - session.aliceCipher.macLength)
+            )
+            removeHandshakeHandlers(ctx)
+
+            // Completing the future synchronously installs the mux negotiator through
+            // ConnectionUpgrader.thenCompose. It must exist before pending encrypted
+            // mux frames are replayed or those frames reach the pipeline tail and are lost.
+            handshakeComplete.complete(session)
+            pendingFrames.forEach {
+                lengthCodecContext.fireChannelRead(it.toByteBuf())
+            }
+            pendingFrames.clear()
+
+            lengthCodecContext.fireChannelActive()
+        } catch (cause: Throwable) {
+            failAfterTerminalClaim(ctx, cause)
+            ctx.channel().close()
+        }
     } // handshakeSucceeded
 
     private fun handshakeFailed(ctx: ChannelHandlerContext, cause: String) {
         handshakeFailed(ctx, Exception(cause))
     }
     private fun handshakeFailed(ctx: ChannelHandlerContext, cause: Throwable) {
+        if (!terminal.compareAndSet(false, true)) return
+        failAfterTerminalClaim(ctx, cause)
+    }
+
+    private fun failAfterTerminalClaim(ctx: ChannelHandlerContext, cause: Throwable) {
         log.debug("Noise handshake failed", cause)
 
         handshakeComplete.completeExceptionally(cause)
-        ctx.pipeline().remove(HandshakeReadTimeoutNettyHandlerName)
-        ctx.pipeline().remove(this)
+        removeHandshakeHandlers(ctx)
+    }
+
+    private fun removeHandshakeHandlers(ctx: ChannelHandlerContext) {
+        val pipeline = ctx.pipeline()
+        if (pipeline.context(HandshakeReadTimeoutNettyHandlerName) != null) {
+            pipeline.remove(HandshakeReadTimeoutNettyHandlerName)
+        }
+        if (pipeline.context(this) != null) {
+            pipeline.remove(this)
+        }
+    }
+
+    private fun enqueueCrypto(ctx: ChannelHandlerContext, task: () -> Unit) {
+        if (terminal.get()) return
+
+        val next = tail.thenRunAsync(
+            {
+                if (!terminal.get()) {
+                    initializeHandshake()
+                    task()
+                }
+            },
+            cryptoExecutor
+        )
+        tail = next
+        next.whenComplete { _, failure ->
+            if (failure != null) {
+                val cause = if (failure is CompletionException && failure.cause != null) {
+                    failure.cause!!
+                } else {
+                    failure
+                }
+                ctx.executor().execute {
+                    if (!terminal.get()) {
+                        handshakeFailed(ctx, cause)
+                        ctx.channel().close()
+                    }
+                }
+            }
+        }
+    }
+
+    private companion object {
+        private val cryptoThreadNumber = AtomicInteger()
+        private val cryptoExecutor: ExecutorService by lazy {
+            val threadCount = maxOf(2, Runtime.getRuntime().availableProcessors() / 2)
+            Executors.newFixedThreadPool(threadCount) { runnable ->
+                Thread(runnable, "noise-handshake-crypto-${cryptoThreadNumber.incrementAndGet()}").apply {
+                    isDaemon = true
+                }
+            }
+        }
     }
 } // class NoiseIoHandshake
 

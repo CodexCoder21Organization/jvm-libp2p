@@ -68,7 +68,7 @@ configure(
     // outbound buffer. A stalled peer now receives a descriptive YamuxOutboundBufferExceededException
     // and the connection is deliberately closed before ChannelOutboundBuffer entries can grow without
     // bound; mplex is intentionally not gated by this release.
-    version = "1.3.0-codexcoder21-snapshot-12"
+    version = "1.3.0-codexcoder21-snapshot-13"
 
     apply(plugin = "kotlin")
     apply(plugin = "idea")

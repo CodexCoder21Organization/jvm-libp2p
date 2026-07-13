@@ -1,5 +1,6 @@
 package io.libp2p.security.noise
 
+import com.google.common.annotations.VisibleForTesting
 import com.google.protobuf.ByteString
 import com.southernstorm.noise.protocol.DHState
 import com.southernstorm.noise.protocol.HandshakeState
@@ -104,6 +105,7 @@ class NoiseIoHandshake(
     private val expectedHandshakeFrames = if (role == Role.INIT) 1 else 2
     private var receivedHandshakeFrames = 0
     private var initialized = false
+    private val offloadCrypto = inFlightHandshakes.incrementAndGet() > INLINE_CONCURRENCY_THRESHOLD
 
     private var sentNoiseKeyPayload = false
     private var instancePayload: ByteArray? = null
@@ -114,6 +116,7 @@ class NoiseIoHandshake(
 
     init {
         log.debug("Starting handshake")
+        NoiseHandshakeExecutionTestHook.handshakeObserver?.invoke(offloadCrypto)
     } // init
 
     private fun initializeHandshake() {
@@ -326,13 +329,17 @@ class NoiseIoHandshake(
             bobSplit
         )
 
-        ctx.executor().execute {
+        if (offloadCrypto) {
+            ctx.executor().execute {
+                handshakeSucceeded(ctx, secureSession)
+            }
+        } else {
             handshakeSucceeded(ctx, secureSession)
         }
     } // splitHandshake
 
     private fun handshakeSucceeded(ctx: ChannelHandlerContext, session: NoiseSecureChannelSession) {
-        if (!terminal.compareAndSet(false, true)) return
+        if (!claimTerminal()) return
 
         try {
             val pipeline = ctx.pipeline()
@@ -376,8 +383,14 @@ class NoiseIoHandshake(
         handshakeFailed(ctx, Exception(cause))
     }
     private fun handshakeFailed(ctx: ChannelHandlerContext, cause: Throwable) {
-        if (!terminal.compareAndSet(false, true)) return
+        if (!claimTerminal()) return
         failAfterTerminalClaim(ctx, cause)
+    }
+
+    private fun claimTerminal(): Boolean {
+        if (!terminal.compareAndSet(false, true)) return false
+        inFlightHandshakes.decrementAndGet()
+        return true
     }
 
     private fun failAfterTerminalClaim(ctx: ChannelHandlerContext, cause: Throwable) {
@@ -400,9 +413,17 @@ class NoiseIoHandshake(
     private fun enqueueCrypto(ctx: ChannelHandlerContext, task: () -> Unit) {
         if (terminal.get()) return
 
+        if (!offloadCrypto) {
+            NoiseHandshakeExecutionTestHook.cryptoTaskObserver?.invoke(false, ctx.executor().inEventLoop())
+            initializeHandshake()
+            task()
+            return
+        }
+
         val next = tail.thenRunAsync(
             {
                 if (!terminal.get()) {
+                    NoiseHandshakeExecutionTestHook.cryptoTaskObserver?.invoke(true, ctx.executor().inEventLoop())
                     initializeHandshake()
                     task()
                 }
@@ -428,6 +449,8 @@ class NoiseIoHandshake(
     }
 
     private companion object {
+        private const val INLINE_CONCURRENCY_THRESHOLD = 4
+        private val inFlightHandshakes = AtomicInteger()
         private val cryptoThreadNumber = AtomicInteger()
         private val cryptoExecutor: ExecutorService by lazy {
             val threadCount = maxOf(2, Runtime.getRuntime().availableProcessors() / 2)
@@ -439,6 +462,15 @@ class NoiseIoHandshake(
         }
     }
 } // class NoiseIoHandshake
+
+@VisibleForTesting
+internal object NoiseHandshakeExecutionTestHook {
+    @Volatile
+    var handshakeObserver: ((offloaded: Boolean) -> Unit)? = null
+
+    @Volatile
+    var cryptoTaskObserver: ((offloaded: Boolean, onEventLoop: Boolean) -> Unit)? = null
+}
 
 private fun noiseSignaturePhrase(dhState: DHState) =
     "noise-libp2p-static-key:".toByteArray() + dhState.publicKey

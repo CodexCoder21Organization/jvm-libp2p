@@ -24,6 +24,7 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import org.slf4j.LoggerFactory
 import java.nio.charset.StandardCharsets
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 
@@ -68,8 +69,7 @@ abstract class SecureChannelTestBase(
         interConnect(eCh1, eCh2)
 
         logger.info("Waiting for negotiation to complete...")
-        protocolSelect1.selectedFuture.get(10, TimeUnit.SECONDS)
-        protocolSelect2.selectedFuture.get(10, TimeUnit.SECONDS)
+        awaitChannelFutures(eCh1, eCh2, protocolSelect1.selectedFuture, protocolSelect2.selectedFuture)
         logger.info("Secured!")
 
         val data1: String
@@ -131,6 +131,26 @@ abstract class SecureChannelTestBase(
         name: String,
         selector: ChannelInboundHandlerAdapter,
     ) = makeChannel(name, false, selector, null)
+
+    protected fun awaitChannelFutures(
+        channel1: TestChannel,
+        channel2: TestChannel,
+        vararg futures: CompletableFuture<*>
+    ) {
+        val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10)
+        while (futures.any { !it.isDone } && System.nanoTime() < deadline) {
+            // EmbeddedChannel does not own a continuously-running event loop. Production
+            // NIO channels execute these tasks themselves; embedded tests must explicitly
+            // pump tasks queued by asynchronous handlers.
+            channel1.runPendingTasks()
+            channel2.runPendingTasks()
+            Thread.yield()
+        }
+        futures.forEach {
+            val remainingNanos = maxOf(0, deadline - System.nanoTime())
+            it.get(remainingNanos, TimeUnit.NANOSECONDS)
+        }
+    }
 
     private fun makeChannel(
         name: String,

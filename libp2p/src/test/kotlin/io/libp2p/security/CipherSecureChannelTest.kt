@@ -11,7 +11,6 @@ import org.assertj.core.api.Assertions
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
-import java.util.concurrent.TimeUnit.SECONDS
 
 abstract class CipherSecureChannelTest(secureChannelCtor: SecureChannelCtor, muxers: List<StreamMuxer>, announce: String) :
     SecureChannelTestBase(secureChannelCtor, muxers, announce) {
@@ -29,6 +28,7 @@ abstract class CipherSecureChannelTest(secureChannelCtor: SecureChannelCtor, mux
 
         logger.debug("Connecting channels...")
         val connection = TestChannel.interConnect(eCh1, eCh2)
+        awaitChannelFutures(eCh1, eCh2, protocolSelect1.selectedFuture, protocolSelect2.selectedFuture)
 
         val secSession1 = protocolSelect1.selectedFuture.join()
         assertThat(secSession1.localId).isEqualTo(PeerId.fromPubKey(pubKey1))
@@ -58,7 +58,7 @@ abstract class CipherSecureChannelTest(secureChannelCtor: SecureChannelCtor, mux
         logger.debug("Connecting channels...")
         TestChannel.interConnect(eCh1, eCh2)
 
-        assertThatThrownBy { protocolSelect1.selectedFuture.get(10, SECONDS) }
+        assertThatThrownBy { awaitChannelFutures(eCh1, eCh2, protocolSelect1.selectedFuture) }
             .hasCauseInstanceOf(InvalidRemotePubKey::class.java)
     }
 
@@ -77,8 +77,7 @@ abstract class CipherSecureChannelTest(secureChannelCtor: SecureChannelCtor, mux
         TestChannel.interConnect(eCh1, eCh2)
 
         logger.debug("Waiting for negotiation to complete...")
-        protocolSelect1.selectedFuture.get(10, SECONDS)
-        protocolSelect2.selectedFuture.get(10, SECONDS)
+        awaitChannelFutures(eCh1, eCh2, protocolSelect1.selectedFuture, protocolSelect2.selectedFuture)
         logger.debug("Secured!")
 
         TestLogAppender().install().use { testLogAppender ->

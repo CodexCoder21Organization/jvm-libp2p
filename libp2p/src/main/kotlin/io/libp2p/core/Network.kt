@@ -83,6 +83,8 @@ interface Network {
      * If the connection is established it is handled by [connectionHandler]
      *
      * @param preHandler is invoked prior to any other handlers (including security negotiation) on a newly created raw Channel
+     * Concurrent calls may share an in-progress transport dial only when their peer, address, and [preHandler] are equal.
+     * Calls with distinct pre-handlers use distinct dials so that neither handler is discarded.
      * @throws TransportNotSupportedException if any of [addrs] represents the transport which is not supported
      */
     fun connect(id: PeerId, preHandler: ChannelVisitor<P2PChannel>?, vararg addrs: Multiaddr): CompletableFuture<Connection>

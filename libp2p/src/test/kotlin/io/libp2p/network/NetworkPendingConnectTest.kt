@@ -130,6 +130,29 @@ class NetworkPendingConnectTest {
     }
 
     @Test
+    fun `failed dial is removed before a failure callback retries`() {
+        val server = createServer()
+        val failedDial = CompletableFuture<Unit>()
+        val (client, transport) = createClient(failedDial)
+        val serverAddress = server.listenAddresses().single()
+        val retryStarted = CountDownLatch(1)
+        val retry = AtomicReference<CompletableFuture<Connection>>()
+
+        client.network.connect(server.peerId, serverAddress).whenComplete { _, _ ->
+            transport.dialGate.set(CompletableFuture.completedFuture(Unit))
+            retry.set(client.network.connect(server.peerId, serverAddress))
+            retryStarted.countDown()
+        }
+
+        failedDial.completeExceptionally(IllegalStateException("Deliberate first dial failure"))
+        assertThat(retryStarted.await(5, TimeUnit.SECONDS)).isTrue()
+
+        assertThat(retry.get().get(10, TimeUnit.SECONDS).secureSession().remoteId)
+            .isEqualTo(server.peerId)
+        assertThat(transport.dialCount.get()).isEqualTo(2)
+    }
+
+    @Test
     fun `cancelled shared dial is removed before a later connect`() {
         val server = createServer()
         val blockedDial = CompletableFuture<Unit>()

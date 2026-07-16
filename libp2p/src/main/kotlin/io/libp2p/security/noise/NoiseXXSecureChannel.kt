@@ -34,6 +34,7 @@ import org.slf4j.LoggerFactory
 import spipe.pb.Spipe
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
+import java.util.concurrent.Executor
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledFuture
@@ -56,7 +57,9 @@ class UShortLengthCodec : CombinedChannelDuplexHandler<LengthFieldBasedFrameDeco
     LengthFieldPrepender(2)
 )
 
-private class NoiseHandshakeReadTimeoutHandler : ChannelInboundHandlerAdapter() {
+private class NoiseHandshakeReadTimeoutHandler(
+    private val armInitialReadWhenAdded: Boolean
+) : ChannelInboundHandlerAdapter() {
     private val generation = AtomicLong()
     private val waitingForRemote = AtomicBoolean()
     private var timeoutFuture: ScheduledFuture<*>? = null
@@ -64,8 +67,8 @@ private class NoiseHandshakeReadTimeoutHandler : ChannelInboundHandlerAdapter() 
     fun arm(ctx: ChannelHandlerContext) {
         val armedGeneration = generation.incrementAndGet()
         waitingForRemote.set(true)
-        ctx.executor().execute {
-            if (!waitingForRemote.get() || generation.get() != armedGeneration) return@execute
+        val scheduleTimeout = Runnable {
+            if (!waitingForRemote.get() || generation.get() != armedGeneration) return@Runnable
             timeoutFuture?.cancel(false)
             timeoutFuture = ctx.executor().schedule(
                 {
@@ -76,6 +79,11 @@ private class NoiseHandshakeReadTimeoutHandler : ChannelInboundHandlerAdapter() 
                 HandshakeTimeoutSec.toLong(),
                 TimeUnit.SECONDS
             )
+        }
+        if (ctx.executor().inEventLoop()) {
+            scheduleTimeout.run()
+        } else {
+            ctx.executor().execute(scheduleTimeout)
         }
     }
 
@@ -88,6 +96,13 @@ private class NoiseHandshakeReadTimeoutHandler : ChannelInboundHandlerAdapter() 
 
     override fun handlerRemoved(ctx: ChannelHandlerContext) {
         disarm()
+    }
+
+    override fun handlerAdded(ctx: ChannelHandlerContext) {
+        // A responder waits for message 1 before it has any outbound write whose
+        // completion could arm the next phase. Arm while this handler is being added,
+        // before the handshake handler can receive an already-buffered message 1.
+        if (armInitialReadWhenAdded) arm(ctx)
     }
 }
 
@@ -132,7 +147,7 @@ class NoiseIoHandshake(
     private val handshakeComplete: CompletableFuture<SecureChannel.Session>,
     private val role: Role
 ) : SimpleChannelInboundHandler<ByteBuf>() {
-    private val readTimeout = NoiseHandshakeReadTimeoutHandler()
+    private val readTimeout = NoiseHandshakeReadTimeoutHandler(armInitialReadWhenAdded = role == Role.RESP)
     private val handshakeState = HandshakeState(NoiseXXSecureChannel.protocolName, role.intVal)
     private val localNoiseState = Noise.createDH("25519")
     private val localStaticPrivateKey = NoiseXXSecureChannel.localStaticPrivateKey25519.copyOf()
@@ -471,6 +486,9 @@ class NoiseIoHandshake(
             return
         }
 
+        val taskExecutor =
+            NoiseHandshakeExecutionTestHook.cryptoExecutorSelector?.invoke(role, receivedHandshakeFrames)
+                ?: cryptoExecutor
         val next = tail.thenRunAsync(
             {
                 if (!terminal.get()) {
@@ -479,7 +497,7 @@ class NoiseIoHandshake(
                     task()
                 }
             },
-            cryptoExecutor
+            taskExecutor
         )
         tail = next
         next.whenComplete { _, failure ->
@@ -524,6 +542,9 @@ internal object NoiseHandshakeExecutionTestHook {
 
     @Volatile
     var failureObserver: ((cause: Throwable) -> Unit)? = null
+
+    @Volatile
+    var cryptoExecutorSelector: ((role: Role, receivedHandshakeFrames: Int) -> Executor?)? = null
 }
 
 private fun noiseSignaturePhrase(dhState: DHState) =

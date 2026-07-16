@@ -76,15 +76,11 @@ class NetworkImpl(
         pendingConnections.putIfAbsent(id, newPendingConnection)
             ?.apply { return subscriberFuture(this) }
 
-        newPendingConnection.whenComplete { _, _ ->
-            pendingConnections.remove(id, newPendingConnection)
-        }
-
         // An inbound connection may have completed between the established-connection check and
         // installing our pending future.
         connections.find { it.secureSession().remoteId == id }
             ?.also {
-                newPendingConnection.complete(it)
+                completePendingConnection(id, newPendingConnection, it, null)
                 return subscriberFuture(newPendingConnection)
             }
 
@@ -102,14 +98,10 @@ class NetworkImpl(
                 transport.dial(addr, createHookedConnHandler(connectionHandler), preHandler)
             }
             anyComplete(connectionFuts).whenComplete { connection, error ->
-                if (error == null) {
-                    newPendingConnection.complete(connection)
-                } else {
-                    newPendingConnection.completeExceptionally(error)
-                }
+                completePendingConnection(id, newPendingConnection, connection, error)
             }
         } catch (error: Exception) {
-            newPendingConnection.completeExceptionally(error)
+            completePendingConnection(id, newPendingConnection, null, error)
         }
 
         return subscriberFuture(newPendingConnection)
@@ -117,4 +109,18 @@ class NetworkImpl(
 
     private fun subscriberFuture(pendingConnection: CompletableFuture<Connection>): CompletableFuture<Connection> =
         pendingConnection.thenApply { it }
+
+    private fun completePendingConnection(
+        id: PeerId,
+        pendingConnection: CompletableFuture<Connection>,
+        connection: Connection?,
+        error: Throwable?
+    ) {
+        pendingConnections.remove(id, pendingConnection)
+        if (error == null) {
+            pendingConnection.complete(connection!!)
+        } else {
+            pendingConnection.completeExceptionally(error)
+        }
+    }
 }

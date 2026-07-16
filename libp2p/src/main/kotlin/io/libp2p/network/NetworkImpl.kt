@@ -24,7 +24,7 @@ class NetworkImpl(
      */
     override val connections = CopyOnWriteArrayList<Connection>()
 
-    private val pendingConnections = ConcurrentHashMap<PeerId, CompletableFuture<Connection>>()
+    private val pendingDials = ConcurrentHashMap<PendingDialKey, CompletableFuture<Connection>>()
 
     init {
         transports.forEach(Transport::initialize)
@@ -72,55 +72,70 @@ class NetworkImpl(
         connections.find { it.secureSession().remoteId == id }
             ?.apply { return CompletableFuture.completedFuture(this) }
 
-        val newPendingConnection = CompletableFuture<Connection>()
-        pendingConnections.putIfAbsent(id, newPendingConnection)
+        val connectionFuts = addrs.map { it.withP2P(id) }
+            .mapNotNull { addr ->
+                transports.firstOrNull { transport -> transport.handles(addr) }
+                    ?.let { transport -> pendingDial(id, addr, transport, preHandler) }
+            }
+        return anyComplete(connectionFuts)
+    }
+
+    private fun pendingDial(
+        id: PeerId,
+        addr: Multiaddr,
+        transport: Transport,
+        preHandler: ChannelVisitor<P2PChannel>?
+    ): CompletableFuture<Connection> {
+        val key = PendingDialKey(id, addr, preHandler)
+        val newPendingDial = CompletableFuture<Connection>()
+        pendingDials.putIfAbsent(key, newPendingDial)
             ?.apply { return subscriberFuture(this) }
 
-        // An inbound connection may have completed between the established-connection check and
-        // installing our pending future.
+        // An inbound or differently-addressed outbound connection may have completed between the
+        // caller's established-connection check and installing this address-level pending dial.
         connections.find { it.secureSession().remoteId == id }
             ?.also {
-                completePendingConnection(id, newPendingConnection, it, null)
-                return subscriberFuture(newPendingConnection)
+                completePendingDial(key, newPendingDial, it, null)
+                return subscriberFuture(newPendingDial)
             }
 
         try {
-            val addrsWithP2P = addrs.map { it.withP2P(id) }
-
-            // 1. check that some transport can dial at least one addr.
-            // 2. trigger dials in parallel via all transports.
-            // 3. when the first dial succeeds, cancel all pending dials and return the connection. // TODO cancel
-            // 4. if no emitted dial succeeds, or if we time out, fail the future. make sure to cancel
-            //    pending dials to avoid leaking.
-            val connectionFuts = addrsWithP2P.mapNotNull { addr ->
-                transports.firstOrNull { tpt -> tpt.handles(addr) }?.let { addr to it }
-            }.map { (addr, transport) ->
-                transport.dial(addr, createHookedConnHandler(connectionHandler), preHandler)
-            }
-            anyComplete(connectionFuts).whenComplete { connection, error ->
-                completePendingConnection(id, newPendingConnection, connection, error)
-            }
+            transport.dial(addr, createHookedConnHandler(connectionHandler), preHandler)
+                .whenComplete { connection, error ->
+                    completePendingDial(key, newPendingDial, connection, error)
+                }
         } catch (error: Exception) {
-            completePendingConnection(id, newPendingConnection, null, error)
+            completePendingDial(key, newPendingDial, null, error)
         }
 
-        return subscriberFuture(newPendingConnection)
+        return subscriberFuture(newPendingDial)
     }
 
-    private fun subscriberFuture(pendingConnection: CompletableFuture<Connection>): CompletableFuture<Connection> =
-        pendingConnection.thenApply { it }
+    private fun subscriberFuture(pendingDial: CompletableFuture<Connection>): CompletableFuture<Connection> =
+        pendingDial.thenApply { it }
 
-    private fun completePendingConnection(
-        id: PeerId,
-        pendingConnection: CompletableFuture<Connection>,
+    private fun completePendingDial(
+        key: PendingDialKey,
+        pendingDial: CompletableFuture<Connection>,
         connection: Connection?,
         error: Throwable?
     ) {
-        pendingConnections.remove(id, pendingConnection)
+        pendingDials.remove(key, pendingDial)
         if (error == null) {
-            pendingConnection.complete(connection!!)
+            pendingDial.complete(connection!!)
         } else {
-            pendingConnection.completeExceptionally(error)
+            pendingDial.completeExceptionally(error)
         }
     }
+
+    /**
+     * [preHandler] is part of the key because a raw transport channel can invoke only the handler
+     * supplied to its own dial. Distinct handler instances therefore never silently share a dial;
+     * null, the same instance, or an explicitly equal implementation may share safely.
+     */
+    private data class PendingDialKey(
+        val peerId: PeerId,
+        val address: Multiaddr,
+        val preHandler: ChannelVisitor<P2PChannel>?
+    )
 }

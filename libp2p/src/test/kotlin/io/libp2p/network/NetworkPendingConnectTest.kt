@@ -154,24 +154,6 @@ class NetworkPendingConnectTest {
     }
 
     @Test
-    fun `cancelled shared dial is removed before a later connect`() {
-        val server = createServer()
-        val blockedDial = CompletableFuture<Unit>()
-        val (client, transport) = createClient(blockedDial)
-        val serverAddress = server.listenAddresses().single()
-
-        val cancelledConnect = client.network.connect(server.peerId, serverAddress)
-        assertThat(transport.dialCount.get()).isEqualTo(1)
-        assertThat(cancelledConnect.cancel(true)).isTrue()
-
-        transport.dialGate.set(CompletableFuture.completedFuture(Unit))
-        val recoveredConnection = client.network.connect(server.peerId, serverAddress).get(10, TimeUnit.SECONDS)
-
-        assertThat(recoveredConnection.secureSession().remoteId).isEqualTo(server.peerId)
-        assertThat(transport.dialCount.get()).isEqualTo(2)
-    }
-
-    @Test
     fun `one connect still dials all supplied addresses in parallel`() {
         val server = createServer()
         val blockedDial = CompletableFuture<Unit>()

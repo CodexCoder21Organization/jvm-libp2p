@@ -24,19 +24,24 @@ import io.libp2p.security.InvalidRemotePubKey
 import io.libp2p.security.SecureHandshakeError
 import io.netty.buffer.ByteBuf
 import io.netty.channel.ChannelHandlerContext
+import io.netty.channel.ChannelInboundHandlerAdapter
 import io.netty.channel.CombinedChannelDuplexHandler
 import io.netty.channel.SimpleChannelInboundHandler
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder
 import io.netty.handler.codec.LengthFieldPrepender
-import io.netty.handler.timeout.ReadTimeoutHandler
+import io.netty.handler.timeout.ReadTimeoutException
 import org.slf4j.LoggerFactory
 import spipe.pb.Spipe
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
+import java.util.concurrent.Executor
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import java.util.concurrent.ScheduledFuture
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicLong
 
 enum class Role(val intVal: Int) { INIT(HandshakeState.INITIATOR), RESP(HandshakeState.RESPONDER) }
 
@@ -51,6 +56,61 @@ class UShortLengthCodec : CombinedChannelDuplexHandler<LengthFieldBasedFrameDeco
     LengthFieldBasedFrameDecoder(MaxCipheredPacketLength + 2, 0, 2, 0, 2),
     LengthFieldPrepender(2)
 )
+
+private class NoiseHandshakeReadTimeoutHandler(
+    private val armInitialReadWhenAdded: Boolean
+) : ChannelInboundHandlerAdapter() {
+    private val generation = AtomicLong()
+    private val waitingForRemote = AtomicBoolean()
+
+    @Volatile
+    private var handlerContext: ChannelHandlerContext? = null
+    private var timeoutFuture: ScheduledFuture<*>? = null
+
+    fun arm() {
+        val ctx = handlerContext ?: return
+        val armedGeneration = generation.incrementAndGet()
+        waitingForRemote.set(true)
+        val scheduleTimeout = Runnable {
+            if (!waitingForRemote.get() || generation.get() != armedGeneration) return@Runnable
+            timeoutFuture?.cancel(false)
+            timeoutFuture = ctx.executor().schedule(
+                {
+                    if (waitingForRemote.get() && generation.get() == armedGeneration) {
+                        ctx.fireExceptionCaught(ReadTimeoutException.INSTANCE)
+                    }
+                },
+                HandshakeTimeoutSec.toLong(),
+                TimeUnit.SECONDS
+            )
+        }
+        if (ctx.executor().inEventLoop()) {
+            scheduleTimeout.run()
+        } else {
+            ctx.executor().execute(scheduleTimeout)
+        }
+    }
+
+    fun disarm() {
+        waitingForRemote.set(false)
+        generation.incrementAndGet()
+        timeoutFuture?.cancel(false)
+        timeoutFuture = null
+    }
+
+    override fun handlerRemoved(ctx: ChannelHandlerContext) {
+        disarm()
+        handlerContext = null
+    }
+
+    override fun handlerAdded(ctx: ChannelHandlerContext) {
+        handlerContext = ctx
+        // A responder waits for message 1 before it has any outbound write whose
+        // completion could arm the next phase. Arm while this handler is being added,
+        // before the handshake handler can receive an already-buffered message 1.
+        if (armInitialReadWhenAdded) arm()
+    }
+}
 
 class NoiseXXSecureChannel(private val localKey: PrivKey) :
     SecureChannel {
@@ -81,11 +141,8 @@ class NoiseXXSecureChannel(private val localKey: PrivKey) :
         // Packet length codec should stay forever.
         ch.pushHandler(UShortLengthCodec())
         // Handshake and ReadTimeout handlers are to be removed when handshake is complete
-        ch.pushHandler(HandshakeReadTimeoutNettyHandlerName, ReadTimeoutHandler(HandshakeTimeoutSec))
-        ch.pushHandler(
-            HandshakeNettyHandlerName,
-            NoiseIoHandshake(localKey, handshakeComplete, if (ch.isInitiator) Role.INIT else Role.RESP)
-        )
+        NoiseIoHandshake(localKey, handshakeComplete, if (ch.isInitiator) Role.INIT else Role.RESP)
+            .install(ch)
 
         return handshakeComplete
     } // initChannel
@@ -96,6 +153,7 @@ class NoiseIoHandshake(
     private val handshakeComplete: CompletableFuture<SecureChannel.Session>,
     private val role: Role
 ) : SimpleChannelInboundHandler<ByteBuf>() {
+    private val readTimeout = NoiseHandshakeReadTimeoutHandler(armInitialReadWhenAdded = role == Role.RESP)
     private val handshakeState = HandshakeState(NoiseXXSecureChannel.protocolName, role.intVal)
     private val localNoiseState = Noise.createDH("25519")
     private val localStaticPrivateKey = NoiseXXSecureChannel.localStaticPrivateKey25519.copyOf()
@@ -118,6 +176,11 @@ class NoiseIoHandshake(
         log.debug("Starting handshake")
         NoiseHandshakeExecutionTestHook.handshakeObserver?.invoke(offloadCrypto)
     } // init
+
+    internal fun install(ch: P2PChannel) {
+        ch.pushHandler(HandshakeReadTimeoutNettyHandlerName, readTimeout)
+        ch.pushHandler(HandshakeNettyHandlerName, this)
+    }
 
     private fun initializeHandshake() {
         if (initialized) return
@@ -151,6 +214,7 @@ class NoiseIoHandshake(
     override fun channelRead0(ctx: ChannelHandlerContext, msg: ByteBuf) {
         channelActive(ctx)
         if (terminal.get()) return
+        readTimeout.disarm()
 
         val frame = msg.toByteArray()
         receivedHandshakeFrames++
@@ -279,7 +343,14 @@ class NoiseIoHandshake(
         log.debug("Noise handshake WRITE_MESSAGE")
         log.trace("Sent message length:$outputLength")
 
-        ctx.writeAndFlush(outputBuffer.copyOfRange(0, outputLength).toByteBuf())
+        val expectsRemoteResponse = handshakeState.action == HandshakeState.READ_MESSAGE
+        ctx.writeAndFlush(outputBuffer.copyOfRange(0, outputLength).toByteBuf()).addListener { write ->
+            if (write.isSuccess && expectsRemoteResponse && !terminal.get()) {
+                readTimeout.arm()
+            } else if (!write.isSuccess && write.cause() != null) {
+                ctx.fireExceptionCaught(write.cause())
+            }
+        }
     } // sendNoiseMessage
 
     private fun verifyPayload(
@@ -395,6 +466,7 @@ class NoiseIoHandshake(
 
     private fun failAfterTerminalClaim(ctx: ChannelHandlerContext, cause: Throwable) {
         log.debug("Noise handshake failed", cause)
+        NoiseHandshakeExecutionTestHook.failureObserver?.invoke(cause)
 
         handshakeComplete.completeExceptionally(cause)
         removeHandshakeHandlers(ctx)
@@ -420,6 +492,9 @@ class NoiseIoHandshake(
             return
         }
 
+        val taskExecutor =
+            NoiseHandshakeExecutionTestHook.cryptoExecutorSelector?.invoke(role, receivedHandshakeFrames)
+                ?: cryptoExecutor
         val next = tail.thenRunAsync(
             {
                 if (!terminal.get()) {
@@ -428,7 +503,7 @@ class NoiseIoHandshake(
                     task()
                 }
             },
-            cryptoExecutor
+            taskExecutor
         )
         tail = next
         next.whenComplete { _, failure ->
@@ -470,6 +545,12 @@ internal object NoiseHandshakeExecutionTestHook {
 
     @Volatile
     var cryptoTaskObserver: ((offloaded: Boolean, onEventLoop: Boolean) -> Unit)? = null
+
+    @Volatile
+    var failureObserver: ((cause: Throwable) -> Unit)? = null
+
+    @Volatile
+    var cryptoExecutorSelector: ((role: Role, receivedHandshakeFrames: Int) -> Executor?)? = null
 }
 
 private fun noiseSignaturePhrase(dhState: DHState) =

@@ -62,9 +62,13 @@ private class NoiseHandshakeReadTimeoutHandler(
 ) : ChannelInboundHandlerAdapter() {
     private val generation = AtomicLong()
     private val waitingForRemote = AtomicBoolean()
+
+    @Volatile
+    private var handlerContext: ChannelHandlerContext? = null
     private var timeoutFuture: ScheduledFuture<*>? = null
 
-    fun arm(ctx: ChannelHandlerContext) {
+    fun arm() {
+        val ctx = handlerContext ?: return
         val armedGeneration = generation.incrementAndGet()
         waitingForRemote.set(true)
         val scheduleTimeout = Runnable {
@@ -96,13 +100,15 @@ private class NoiseHandshakeReadTimeoutHandler(
 
     override fun handlerRemoved(ctx: ChannelHandlerContext) {
         disarm()
+        handlerContext = null
     }
 
     override fun handlerAdded(ctx: ChannelHandlerContext) {
+        handlerContext = ctx
         // A responder waits for message 1 before it has any outbound write whose
         // completion could arm the next phase. Arm while this handler is being added,
         // before the handshake handler can receive an already-buffered message 1.
-        if (armInitialReadWhenAdded) arm(ctx)
+        if (armInitialReadWhenAdded) arm()
     }
 }
 
@@ -340,7 +346,7 @@ class NoiseIoHandshake(
         val expectsRemoteResponse = handshakeState.action == HandshakeState.READ_MESSAGE
         ctx.writeAndFlush(outputBuffer.copyOfRange(0, outputLength).toByteBuf()).addListener { write ->
             if (write.isSuccess && expectsRemoteResponse && !terminal.get()) {
-                readTimeout.arm(ctx)
+                readTimeout.arm()
             } else if (!write.isSuccess && write.cause() != null) {
                 ctx.fireExceptionCaught(write.cause())
             }

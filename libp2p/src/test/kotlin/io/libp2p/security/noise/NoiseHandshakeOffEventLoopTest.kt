@@ -1,5 +1,6 @@
 package io.libp2p.security.noise
 
+import io.libp2p.core.ConnectionClosedException
 import io.libp2p.core.Host
 import io.libp2p.core.P2PChannel
 import io.libp2p.core.crypto.KeyType
@@ -10,6 +11,8 @@ import io.netty.buffer.ByteBuf
 import io.netty.channel.ChannelHandlerContext
 import io.netty.channel.ChannelOutboundHandlerAdapter
 import io.netty.channel.ChannelPromise
+import io.netty.handler.timeout.ReadTimeoutException
+import io.netty.util.ReferenceCountUtil
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.catchThrowable
 import org.junit.jupiter.api.Test
@@ -76,7 +79,7 @@ class NoiseHandshakeOffEventLoopTest {
     }
 
     @Test
-    fun `queued local crypto does not consume the remote read timeout`() {
+    fun `remote read timeout fails saturated handshakes while responder crypto is queued`() {
         val processOutput = runNoiseHandshakeHarness(
             mode = "saturated",
             timeoutSeconds = 30
@@ -116,6 +119,97 @@ class NoiseHandshakeOffEventLoopTest {
             }
         } finally {
             stopNoiseHosts(listOf(relay))
+        }
+    }
+
+    @Test
+    fun `initiator times out silent responder while waiting for message 2`() {
+        val hosts = mutableListOf<Host>()
+        val relayChannel = CompletableFuture<P2PChannel>()
+        val silenceResponder = DropOutboundNoiseFromFrame(firstNoiseFrameToDrop = 1)
+        try {
+            val relay = host {
+                identity {
+                    random(KeyType.ED25519)
+                }
+                network {
+                    listen("/ip4/127.0.0.1/tcp/0")
+                }
+                protocols {
+                    +Ping()
+                }
+                debug {
+                    beforeSecureHandler.addHandler {
+                        relayChannel.complete(it)
+                        it.pushHandler(silenceResponder)
+                    }
+                }
+            }.also { hosts += it }
+            val dialer = newNoiseHost().also { hosts += it }
+            startNoiseHosts(hosts)
+
+            val connection = dialer.network.connect(relay.peerId, relay.listenAddresses().single())
+            val phaseStartedAt = silenceResponder.firstDroppedAt.get(5, TimeUnit.SECONDS)
+
+            val failure = catchThrowable {
+                connection.get(HandshakeTimeoutSec + 3L, TimeUnit.SECONDS)
+            }
+            val elapsedMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - phaseStartedAt)
+            println("Silent Noise responder message 2 timed out after ${elapsedMillis}ms")
+
+            assertThat(failure).isInstanceOf(ExecutionException::class.java)
+            assertThat(failure).hasRootCauseInstanceOf(ReadTimeoutException::class.java)
+            assertThat(elapsedMillis).isBetween(
+                TimeUnit.SECONDS.toMillis(HandshakeTimeoutSec - 1L),
+                TimeUnit.SECONDS.toMillis(HandshakeTimeoutSec + 2L)
+            )
+            relayChannel.get(5, TimeUnit.SECONDS).closeFuture().get(5, TimeUnit.SECONDS)
+        } finally {
+            stopNoiseHosts(hosts)
+        }
+    }
+
+    @Test
+    fun `responder times out silent initiator while waiting for message 3`() {
+        val hosts = mutableListOf<Host>()
+        val dialerChannel = CompletableFuture<P2PChannel>()
+        val silenceInitiator = DropOutboundNoiseFromFrame(firstNoiseFrameToDrop = 2)
+        try {
+            val relay = newNoiseHost(listen = true).also { hosts += it }
+            val dialer = host {
+                identity {
+                    random(KeyType.ED25519)
+                }
+                protocols {
+                    +Ping()
+                }
+                debug {
+                    beforeSecureHandler.addHandler {
+                        dialerChannel.complete(it)
+                        it.pushHandler(silenceInitiator)
+                    }
+                }
+            }.also { hosts += it }
+            startNoiseHosts(hosts)
+
+            val connection = dialer.network.connect(relay.peerId, relay.listenAddresses().single())
+            val phaseStartedAt = silenceInitiator.firstDroppedAt.get(5, TimeUnit.SECONDS)
+
+            val failure = catchThrowable {
+                connection.get(HandshakeTimeoutSec + 3L, TimeUnit.SECONDS)
+            }
+            val elapsedMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - phaseStartedAt)
+            println("Silent Noise initiator message 3 timed out after ${elapsedMillis}ms")
+
+            assertThat(failure).isInstanceOf(ExecutionException::class.java)
+            assertThat(failure).hasRootCauseInstanceOf(ConnectionClosedException::class.java)
+            assertThat(elapsedMillis).isBetween(
+                TimeUnit.SECONDS.toMillis(HandshakeTimeoutSec - 1L),
+                TimeUnit.SECONDS.toMillis(HandshakeTimeoutSec + 2L)
+            )
+            dialerChannel.get(5, TimeUnit.SECONDS).closeFuture().get(5, TimeUnit.SECONDS)
+        } finally {
+            stopNoiseHosts(hosts)
         }
     }
 
@@ -197,6 +291,29 @@ class NoiseHandshakeOffEventLoopTest {
                     msg.setZero(msg.readerIndex(), msg.readableBytes())
                     corrupted.set(true)
                 }
+            }
+            ctx.write(msg, promise)
+        }
+    }
+
+    private class DropOutboundNoiseFromFrame(
+        private val firstNoiseFrameToDrop: Int
+    ) : ChannelOutboundHandlerAdapter() {
+        val firstDroppedAt = CompletableFuture<Long>()
+        private val noiseFrames = AtomicInteger()
+        private val dropping = AtomicBoolean()
+
+        override fun write(ctx: ChannelHandlerContext, msg: Any, promise: ChannelPromise) {
+            val shouldStartDropping =
+                msg is ByteBuf &&
+                    msg.readableBytes() >= 32 &&
+                    noiseFrames.incrementAndGet() == firstNoiseFrameToDrop
+            if (dropping.get() || shouldStartDropping) {
+                dropping.set(true)
+                firstDroppedAt.complete(System.nanoTime())
+                ReferenceCountUtil.release(msg)
+                promise.setSuccess()
+                return
             }
             ctx.write(msg, promise)
         }
@@ -305,7 +422,7 @@ object NoiseHandshakePathHarness {
         when (args.singleOrNull()) {
             "inline" -> verifySingleInlineHandshake()
             "sequential" -> verifySequentialInlineHandshakes()
-            "saturated" -> verifySaturatedHandshakesDoNotSelfTimeout()
+            "saturated" -> verifySaturatedRemoteWaitsTimeOut()
             else -> error(
                 "Expected exactly one harness mode: 'inline', 'sequential', or 'saturated'; " +
                     "received ${args.toList()}"
@@ -376,7 +493,7 @@ object NoiseHandshakePathHarness {
         }
     }
 
-    private fun verifySaturatedHandshakesDoNotSelfTimeout() {
+    private fun verifySaturatedRemoteWaitsTimeOut() {
         val executionRecorder = NoiseHandshakeExecutionRecorder().also { it.install() }
         val releaseSaturatedWorkers = CountDownLatch(1)
         val saturatedWorkersStarted = CountDownLatch(SATURATION_EXECUTOR_THREADS)
@@ -424,30 +541,52 @@ object NoiseHandshakePathHarness {
                 Thread.yield()
             }
             Thread.sleep(TimeUnit.SECONDS.toMillis(HandshakeTimeoutSec + 1L))
-            releaseSaturatedWorkers.countDown()
 
-            CompletableFuture.allOf(*connections.toTypedArray())
-                .handle { _, _ -> Unit }
-                .get(20, TimeUnit.SECONDS)
+            val connectionStates = connections.groupingBy { connection ->
+                when {
+                    !connection.isDone -> "pending"
+                    connection.isCompletedExceptionally -> "failed"
+                    else -> "succeeded"
+                }
+            }.eachCount()
+            check(connectionStates.getOrDefault("pending", 0) == 0) {
+                "Expected every initiator still waiting for responder message 2 to fail while responder crypto " +
+                    "stayed saturated past the remote read timeout, but states were $connectionStates"
+            }
 
             val failures = connections.mapIndexedNotNull { index, connection ->
                 connection.handle { _, failure -> failure }.getNow(null)?.let { index to it }
             }
-            check(failures.isEmpty()) {
-                "Local Noise crypto queueing caused ${failures.size}/$SATURATED_DIALERS real dials to fail " +
-                    "under CPU saturation even though both peers remained healthy: " +
+            check(failures.isNotEmpty()) {
+                "Expected queued responder crypto to leave initiators waiting long enough to exercise the remote " +
+                    "read timeout, but all $SATURATED_DIALERS dials succeeded"
+            }
+            val queuedResponderTasks = saturatedExecutor.queue.size
+            check(failures.size == queuedResponderTasks) {
+                "Expected every one of the $queuedResponderTasks queued responder message-1 crypto tasks to leave " +
+                    "exactly one initiator waiting until timeout, but ${failures.size} dials failed"
+            }
+            val readTimeoutFailures = executionRecorder.failuresOfType(ReadTimeoutException::class.java)
+            check(readTimeoutFailures.size == failures.size) {
+                "Expected exactly one observable read-timeout failure for each of ${failures.size} initiators " +
+                    "that failed while waiting for responder message 2, but observed ${readTimeoutFailures.size}; " +
+                    "dial failures=" +
                     failures.joinToString { (index, failure) -> "dialer-$index=${formatCauseChain(failure)}" } +
-                    "; Noise endpoint failures=" + executionRecorder.failureCauseChains()
+                    "; Noise endpoint failures=${executionRecorder.failureCauseChains()}"
             }
             println(
-                "Saturated Noise handshakes: connected=${connections.size} failures=0 " +
-                    "executorThreads=$SATURATION_EXECUTOR_THREADS queuedResponderTasks=true"
+                "Saturated Noise handshakes: succeeded=${SATURATED_DIALERS - failures.size} timedOut=${failures.size} " +
+                    "readTimeoutFailures=${readTimeoutFailures.size} executorThreads=$SATURATION_EXECUTOR_THREADS " +
+                    "queuedResponderTasks=$queuedResponderTasks"
             )
         } finally {
             NoiseHandshakeExecutionTestHook.cryptoExecutorSelector = null
             releaseSaturatedWorkers.countDown()
-            saturatedExecutor.shutdownNow()
-            saturatedExecutor.awaitTermination(5, TimeUnit.SECONDS)
+            saturatedExecutor.shutdown()
+            if (!saturatedExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
+                saturatedExecutor.shutdownNow()
+                saturatedExecutor.awaitTermination(5, TimeUnit.SECONDS)
+            }
             stopNoiseHosts(hosts)
         }
     }
@@ -520,6 +659,11 @@ private class NoiseHandshakeExecutionRecorder {
             .joinToString(" <- ") { cause ->
                 cause.message?.let { "${cause.javaClass.name}: $it" } ?: cause.javaClass.name
             }
+    }
+
+    fun failuresOfType(type: Class<out Throwable>): List<Throwable> = failures.filter { failure ->
+        generateSequence(failure) { current -> current.cause?.takeUnless { it === current } }
+            .any(type::isInstance)
     }
 }
 

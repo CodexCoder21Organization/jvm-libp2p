@@ -180,9 +180,15 @@ class MultistreamTest {
             .writeUvarint(protocol.size)
             .writeBytes(protocol)
 
-        Assertions.assertDoesNotThrow {
-            channel.writeInbound(input)
+        try {
+            Assertions.assertDoesNotThrow {
+                channel.writeInbound(input)
+            }
+            Assertions.assertFalse(channel.isOpen)
+        } finally {
+            // Release any queued/undrained outbound negotiation buffers so the test does not
+            // retain reference-counted ByteBufs or trip Netty's leak detector.
+            channel.finishAndReleaseAll()
         }
-        Assertions.assertFalse(channel.isOpen)
     }
 }

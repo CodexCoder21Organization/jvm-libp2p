@@ -8,6 +8,7 @@ import io.libp2p.core.P2PChannel
 import io.libp2p.core.PeerId
 import io.libp2p.core.TransportNotSupportedException
 import io.libp2p.core.multiformats.Multiaddr
+import io.libp2p.core.multiformats.Protocol
 import io.libp2p.core.transport.Transport
 import io.libp2p.etc.types.anyComplete
 import java.util.concurrent.CompletableFuture
@@ -86,7 +87,8 @@ class NetworkImpl(
         transport: Transport,
         preHandler: ChannelVisitor<P2PChannel>?
     ): CompletableFuture<Connection> {
-        val key = PendingDialKey(id, addr, preHandler)
+        val transportAddress = Multiaddr(addr.components.filterNot { it.protocol in Protocol.PEER_ID_PROTOCOLS })
+        val key = PendingDialKey(id, transportAddress, preHandler)
         val newPendingDial = CompletableFuture<Connection>()
         pendingDials.putIfAbsent(key, newPendingDial)
             ?.apply { return subscriberFuture(this) }
@@ -129,6 +131,9 @@ class NetworkImpl(
     }
 
     /**
+     * [address] contains transport components only: [peerId] represents peer identity independently,
+     * so equivalent `/ipfs/` and `/p2p/` spellings share a pending dial.
+     *
      * [preHandler] is part of the key because a raw transport channel can invoke only the handler
      * supplied to its own dial. Distinct handler instances therefore never silently share a dial;
      * null, the same instance, or an explicitly equal implementation may share safely.

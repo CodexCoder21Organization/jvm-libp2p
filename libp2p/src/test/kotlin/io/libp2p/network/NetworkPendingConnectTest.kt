@@ -7,6 +7,7 @@ import io.libp2p.core.Host
 import io.libp2p.core.P2PChannel
 import io.libp2p.core.dsl.host
 import io.libp2p.core.multiformats.Multiaddr
+import io.libp2p.core.multiformats.Protocol
 import io.libp2p.protocol.Ping
 import io.libp2p.protocol.PingController
 import io.libp2p.transport.ConnectionUpgrader
@@ -72,6 +73,47 @@ class NetworkPendingConnectTest {
 
             assertThat(client.network.connections).hasSize(1)
             assertThat(server.network.connections).hasSize(1)
+        } finally {
+            if (!dialReleased) {
+                blockedDial.completeExceptionally(IllegalStateException("Releasing a blocked test dial after assertion failure"))
+            }
+            executor.shutdownNow()
+        }
+    }
+
+    @Test
+    fun `ipfs and p2p spellings share one pending transport dial`() {
+        val server = createServer()
+        val blockedDial = CompletableFuture<Unit>()
+        val (client, transport) = createClient(blockedDial)
+        val transportAddress = server.listenAddresses().single()
+        val ipfsAddress = transportAddress.withComponent(Protocol.IPFS, server.peerId.bytes)
+        val p2pAddress = transportAddress.withP2P(server.peerId)
+        val executor = Executors.newFixedThreadPool(2)
+        val start = CountDownLatch(1)
+        var dialReleased = false
+
+        try {
+            val invocations = listOf(ipfsAddress, p2pAddress).map { address ->
+                CompletableFuture.supplyAsync(
+                    {
+                        start.await()
+                        client.network.connect(server.peerId, address)
+                    },
+                    executor
+                )
+            }
+
+            start.countDown()
+            val pendingConnects = invocations.map { it.get(5, TimeUnit.SECONDS) }
+
+            assertThat(transport.dialCount.get())
+                .describedAs("transport dials for equivalent /ipfs/ and /p2p/ peer address spellings")
+                .isEqualTo(1)
+
+            blockedDial.complete(Unit)
+            dialReleased = true
+            CompletableFuture.allOf(*pendingConnects.toTypedArray()).get(10, TimeUnit.SECONDS)
         } finally {
             if (!dialReleased) {
                 blockedDial.completeExceptionally(IllegalStateException("Releasing a blocked test dial after assertion failure"))

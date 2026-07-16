@@ -13,11 +13,13 @@ import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.catchThrowable
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.concurrent.thread
 
 class NoiseHandshakeOffEventLoopTest {
     @Test
@@ -65,6 +67,20 @@ class NoiseHandshakeOffEventLoopTest {
             .withFailMessage("Noise handshake starvation child JVM failed:\n%s", processOutput)
             .isZero()
         assertThat(processOutput).contains("Noise handshake storm:")
+    }
+
+    @Test
+    fun `queued local crypto does not consume the remote read timeout`() {
+        val processOutput = runNoiseHandshakeHarness(
+            mode = "saturated",
+            timeoutSeconds = 30,
+            jvmArgs = listOf(
+                "-XX:ActiveProcessorCount=2",
+                "-Dio.netty.eventLoopThreads=2"
+            )
+        )
+
+        assertThat(processOutput).contains("Saturated Noise handshakes:")
     }
 
     @Test
@@ -233,7 +249,11 @@ object NoiseHandshakePathHarness {
         when (args.singleOrNull()) {
             "inline" -> verifySingleInlineHandshake()
             "sequential" -> verifySequentialInlineHandshakes()
-            else -> error("Expected exactly one harness mode, either 'inline' or 'sequential', but received ${args.toList()}")
+            "saturated" -> verifySaturatedHandshakesDoNotSelfTimeout()
+            else -> error(
+                "Expected exactly one harness mode: 'inline', 'sequential', or 'saturated'; " +
+                    "received ${args.toList()}"
+            )
         }
     }
 
@@ -300,6 +320,55 @@ object NoiseHandshakePathHarness {
         }
     }
 
+    private fun verifySaturatedHandshakesDoNotSelfTimeout() {
+        val executionRecorder = NoiseHandshakeExecutionRecorder().also { it.install() }
+        val stopSpinners = AtomicBoolean()
+        val spinners = List(SATURATION_SPINNERS) { index ->
+            thread(name = "noise-cpu-spinner-$index", isDaemon = true, start = false) {
+                var value = index.toDouble()
+                while (!stopSpinners.get()) {
+                    value += Math.sin(value)
+                    if (value.isNaN()) value = index.toDouble()
+                }
+            }.apply { priority = Thread.MAX_PRIORITY }
+        }
+        val hosts = mutableListOf<Host>()
+        try {
+            val relay = newNoiseHost(listen = true).also { hosts += it }
+            val dialers = List(SATURATED_DIALERS) { newNoiseHost().also { host -> hosts += host } }
+            startNoiseHosts(hosts)
+            val relayAddress = relay.listenAddresses().single()
+
+            spinners.forEach { it.start() }
+            val connections = dialers.map { it.network.connect(relay.peerId, relayAddress) }
+            CompletableFuture.allOf(*connections.toTypedArray())
+                .handle { _, _ -> Unit }
+                .get(20, TimeUnit.SECONDS)
+
+            val failures = connections.mapIndexedNotNull { index, connection ->
+                connection.handle { _, failure -> failure }.getNow(null)?.let { index to it }
+            }
+            check(failures.isEmpty()) {
+                "Local Noise crypto queueing caused ${failures.size}/$SATURATED_DIALERS real dials to fail " +
+                    "under CPU saturation even though both peers remained healthy: " +
+                    failures.joinToString { (index, failure) -> "dialer-$index=${formatCauseChain(failure)}" } +
+                    "; Noise endpoint failures=" + executionRecorder.failureCauseChains()
+            }
+            println("Saturated Noise handshakes: connected=${connections.size} failures=0")
+        } finally {
+            stopSpinners.set(true)
+            spinners.forEach { it.join(2_000) }
+            stopNoiseHosts(hosts)
+        }
+    }
+
+    private fun formatCauseChain(failure: Throwable): String =
+        generateSequence(failure) { current -> current.cause?.takeUnless { it === current } }
+            .take(8)
+            .joinToString(" <- ") { cause ->
+                cause.message?.let { "${cause.javaClass.name}: $it" } ?: cause.javaClass.name
+            }
+
     private fun waitForConnectionsToClose(vararg hosts: Host) {
         val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
         while (hosts.any { it.network.connections.isNotEmpty() }) {
@@ -328,6 +397,7 @@ private class NoiseHandshakeExecutionRecorder {
     private val inlineCryptoTasksOffEventLoop = AtomicInteger()
     private val offloadedCryptoTasks = AtomicInteger()
     private val offloadedCryptoTasksOnEventLoop = AtomicInteger()
+    private val failures = ConcurrentLinkedQueue<Throwable>()
 
     fun install() {
         NoiseHandshakeExecutionTestHook.handshakeObserver = { offloaded ->
@@ -342,6 +412,7 @@ private class NoiseHandshakeExecutionRecorder {
                 if (!onEventLoop) inlineCryptoTasksOffEventLoop.incrementAndGet()
             }
         }
+        NoiseHandshakeExecutionTestHook.failureObserver = { failures += it }
     }
 
     fun snapshot() = NoiseHandshakeExecutionSnapshot(
@@ -352,6 +423,14 @@ private class NoiseHandshakeExecutionRecorder {
         offloadedCryptoTasks = offloadedCryptoTasks.get(),
         offloadedCryptoTasksOnEventLoop = offloadedCryptoTasksOnEventLoop.get()
     )
+
+    fun failureCauseChains(): List<String> = failures.map { failure ->
+        generateSequence(failure) { current -> current.cause?.takeUnless { it === current } }
+            .take(8)
+            .joinToString(" <- ") { cause ->
+                cause.message?.let { "${cause.javaClass.name}: $it" } ?: cause.javaClass.name
+            }
+    }
 }
 
 private fun newNoiseHost(listen: Boolean = false): Host = host {
@@ -378,15 +457,20 @@ private fun stopNoiseHosts(hosts: List<Host>) {
         .get(20, TimeUnit.SECONDS)
 }
 
-private fun runNoiseHandshakeHarness(mode: String, timeoutSeconds: Long): String {
+private fun runNoiseHandshakeHarness(
+    mode: String,
+    timeoutSeconds: Long,
+    jvmArgs: List<String> = emptyList()
+): String {
     val javaExecutable = java.nio.file.Paths.get(System.getProperty("java.home"), "bin", "java").toString()
-    val process = ProcessBuilder(
-        javaExecutable,
+    val commandPrefix = if (mode == "saturated") twoCpuAffinityPrefix() else emptyList()
+    val command = commandPrefix + listOf(javaExecutable) + jvmArgs + listOf(
         "-cp",
         System.getProperty("java.class.path"),
         NoiseHandshakePathHarness::class.java.name,
         mode
-    ).redirectErrorStream(true).start()
+    )
+    val process = ProcessBuilder(command).redirectErrorStream(true).start()
     val output = CompletableFuture.supplyAsync {
         process.inputStream.bufferedReader().use { it.readText() }
     }
@@ -412,8 +496,34 @@ private fun runNoiseHandshakeHarness(mode: String, timeoutSeconds: Long): String
     return processOutput
 }
 
+private fun twoCpuAffinityPrefix(): List<String> {
+    if (System.getProperty("os.name") != "Linux") return emptyList()
+    val taskset = listOf("/usr/bin/taskset", "/bin/taskset")
+        .map(java.nio.file.Paths::get)
+        .firstOrNull { java.nio.file.Files.isExecutable(it) }
+        ?: error(
+            "The saturated Noise handshake test requires an executable taskset at " +
+                "/usr/bin/taskset or /bin/taskset on Linux"
+        )
+    val allowedList = java.nio.file.Files.readAllLines(java.nio.file.Paths.get("/proc/self/status"))
+        .first { it.startsWith("Cpus_allowed_list:") }
+        .substringAfter(':')
+        .trim()
+    val allowedCpus = allowedList.split(',').flatMap { segment ->
+        val bounds = segment.split('-').map(String::toInt)
+        if (bounds.size == 1) bounds else (bounds[0]..bounds[1]).toList()
+    }
+    check(allowedCpus.size >= 2) {
+        "The saturated Noise handshake test requires at least two allowed CPUs, but /proc/self/status reported " +
+            "Cpus_allowed_list: $allowedList"
+    }
+    return listOf(taskset.toString(), "--cpu-list", allowedCpus.take(2).joinToString(","))
+}
+
 private const val STORM_PEERS = 160
 private const val PING_SAMPLES = 20
 private const val MAX_P95_MILLIS = 500
 private const val SEQUENTIAL_HANDSHAKES = 20
 private const val MAX_SEQUENTIAL_HANDSHAKE_MILLIS = 20_000
+private const val SATURATED_DIALERS = 120
+private const val SATURATION_SPINNERS = 32

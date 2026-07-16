@@ -72,7 +72,9 @@ configure(
     // crypto pool only above the process-wide contention threshold.
     // snapshot-15: make multistream negotiation cleanup idempotent when selected-protocol setup
     // synchronously closes and destroys the child channel pipeline.
-    version = "1.3.0-codexcoder21-snapshot-15"
+    // snapshot-17: measure the Noise read timeout only while an outbound handshake frame is awaiting
+    // its remote response, excluding local crypto-pool queueing from the remote-read budget.
+    version = "1.3.0-codexcoder21-snapshot-17"
 
     apply(plugin = "kotlin")
     apply(plugin = "idea")

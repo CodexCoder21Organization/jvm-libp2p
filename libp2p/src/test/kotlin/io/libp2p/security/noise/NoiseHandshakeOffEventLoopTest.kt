@@ -29,6 +29,7 @@ import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.concurrent.thread
 
 class NoiseHandshakeOffEventLoopTest {
     @Test
@@ -86,6 +87,25 @@ class NoiseHandshakeOffEventLoopTest {
         )
 
         assertThat(processOutput).contains("Saturated Noise handshakes:")
+    }
+
+    @Test
+    fun `stress saturated Noise handshakes do not self-timeout during local work`() {
+        // Unfixed develop c05e211b failed 6/10 runs with Noise ReadTimeoutException failures
+        // under this same 120-dialer, 32-spinner, two-CPU, 256 MiB Serial-GC workload.
+        val processOutput = runNoiseHandshakeHarness(
+            mode = "cpu-saturated",
+            timeoutSeconds = 30,
+            jvmArgs = listOf(
+                "-Xms256m",
+                "-Xmx256m",
+                "-XX:+UseSerialGC",
+                "-XX:ActiveProcessorCount=2",
+                "-Dio.netty.eventLoopThreads=2"
+            )
+        )
+
+        assertThat(processOutput).contains("CPU-saturated Noise handshakes:")
     }
 
     @Test
@@ -423,8 +443,9 @@ object NoiseHandshakePathHarness {
             "inline" -> verifySingleInlineHandshake()
             "sequential" -> verifySequentialInlineHandshakes()
             "saturated" -> verifySaturatedRemoteWaitsTimeOut()
+            "cpu-saturated" -> verifyCpuSaturatedHandshakesDoNotSelfTimeout()
             else -> error(
-                "Expected exactly one harness mode: 'inline', 'sequential', or 'saturated'; " +
+                "Expected exactly one harness mode: 'inline', 'sequential', 'saturated', or 'cpu-saturated'; " +
                     "received ${args.toList()}"
             )
         }
@@ -591,6 +612,46 @@ object NoiseHandshakePathHarness {
         }
     }
 
+    private fun verifyCpuSaturatedHandshakesDoNotSelfTimeout() {
+        val stopSpinners = AtomicBoolean()
+        val spinners = List(SATURATION_SPINNERS) { index ->
+            thread(name = "noise-cpu-spinner-$index", isDaemon = true, start = false) {
+                var value = index.toDouble()
+                while (!stopSpinners.get()) {
+                    value += Math.sin(value)
+                    if (value.isNaN()) value = index.toDouble()
+                }
+            }.apply { priority = Thread.MAX_PRIORITY }
+        }
+        val hosts = mutableListOf<Host>()
+        try {
+            val relay = newNoiseHost(listen = true).also { hosts += it }
+            val dialers = List(SATURATED_DIALERS) { newNoiseHost().also { host -> hosts += host } }
+            startNoiseHosts(hosts)
+            val relayAddress = relay.listenAddresses().single()
+
+            spinners.forEach { it.start() }
+            val connections = dialers.map { it.network.connect(relay.peerId, relayAddress) }
+            CompletableFuture.allOf(*connections.toTypedArray())
+                .handle { _, _ -> Unit }
+                .get(20, TimeUnit.SECONDS)
+
+            val failures = connections.mapIndexedNotNull { index, connection ->
+                connection.handle { _, failure -> failure }.getNow(null)?.let { index to it }
+            }
+            check(failures.isEmpty()) {
+                "Local Noise crypto queueing caused ${failures.size}/$SATURATED_DIALERS real dials to fail " +
+                    "under CPU saturation even though both peers remained healthy: " +
+                    failures.joinToString { (index, failure) -> "dialer-$index=${formatCauseChain(failure)}" }
+            }
+            println("CPU-saturated Noise handshakes: connected=${connections.size} failures=0")
+        } finally {
+            stopSpinners.set(true)
+            spinners.forEach { it.join(2_000) }
+            stopNoiseHosts(hosts)
+        }
+    }
+
     private fun formatCauseChain(failure: Throwable): String =
         generateSequence(failure) { current -> current.cause?.takeUnless { it === current } }
             .take(8)
@@ -693,10 +754,12 @@ private fun stopNoiseHosts(hosts: List<Host>) {
 
 private fun runNoiseHandshakeHarness(
     mode: String,
-    timeoutSeconds: Long
+    timeoutSeconds: Long,
+    jvmArgs: List<String> = emptyList()
 ): String {
     val javaExecutable = java.nio.file.Paths.get(System.getProperty("java.home"), "bin", "java").toString()
-    val command = listOf(javaExecutable) + listOf(
+    val commandPrefix = if (mode == "cpu-saturated") twoCpuAffinityPrefix() else emptyList()
+    val command = commandPrefix + listOf(javaExecutable) + jvmArgs + listOf(
         "-cp",
         System.getProperty("java.class.path"),
         NoiseHandshakePathHarness::class.java.name,
@@ -728,6 +791,22 @@ private fun runNoiseHandshakeHarness(
     return processOutput
 }
 
+private fun twoCpuAffinityPrefix(): List<String> {
+    if (System.getProperty("os.name") != "Linux") return emptyList()
+    val allowedList = java.nio.file.Files.readAllLines(java.nio.file.Paths.get("/proc/self/status"))
+        .first { it.startsWith("Cpus_allowed_list:") }
+        .substringAfter(':')
+        .trim()
+    val allowedCpus = allowedList.split(',').flatMap { segment ->
+        val bounds = segment.split('-').map(String::toInt)
+        if (bounds.size == 1) bounds else (bounds[0]..bounds[1]).toList()
+    }
+    check(allowedCpus.size >= 2) {
+        "CPU-saturated Noise test needs two CPUs, but the process is allowed only $allowedList"
+    }
+    return listOf("taskset", "--cpu-list", allowedCpus.take(2).joinToString(","))
+}
+
 private const val STORM_PEERS = 160
 private const val PING_SAMPLES = 20
 private const val MAX_P95_MILLIS = 500
@@ -736,3 +815,4 @@ private const val MAX_SEQUENTIAL_HANDSHAKE_MILLIS = 20_000
 private const val SATURATED_DIALERS = 120
 private const val SATURATION_EXECUTOR_THREADS = 2
 private const val SATURATION_QUEUE_CAPACITY = 256
+private const val SATURATION_SPINNERS = 32

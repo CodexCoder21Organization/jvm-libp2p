@@ -103,12 +103,22 @@ object Negotiator {
                 processMsg(ctx, msg)?.also { completeEvent ->
                     // first fire event to setup a handler for selected protocol
                     ctx.fireUserEventTriggered(completeEvent)
-                    ctx.pipeline().remove(this@GenericHandler)
+                    // Protocol setup is allowed to close the stream synchronously. In particular,
+                    // AbstractChildChannel tears a closed stream's pipeline down before close()
+                    // returns, so every negotiation handler may already be gone when the event
+                    // callback above returns. Treat removal as idempotent instead of throwing from
+                    // a negotiation that has already reached its terminal close state.
+                    val pipeline = ctx.pipeline()
+                    if (pipeline.context(this@GenericHandler) != null) {
+                        pipeline.remove(this@GenericHandler)
+                    }
                     // DelimiterBasedFrameDecoder should be removed last since it
                     // propagates unhandled bytes on removal
-                    prehandlers.asReversed().forEach { ctx.pipeline().remove(it) }
+                    prehandlers.asReversed().forEach {
+                        if (pipeline.context(it) != null) pipeline.remove(it)
+                    }
                     // activate a handler for selected protocol
-                    ctx.fireChannelActive()
+                    if (ctx.channel().isActive) ctx.fireChannelActive()
                 }
             }
         }

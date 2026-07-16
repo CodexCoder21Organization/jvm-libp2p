@@ -70,7 +70,9 @@ configure(
     // bound; mplex is intentionally not gated by this release.
     // snapshot-14: keep Noise handshake crypto inline at low concurrency, and offload it to the shared
     // crypto pool only above the process-wide contention threshold.
-    version = "1.3.0-codexcoder21-snapshot-14"
+    // snapshot-15: make multistream negotiation cleanup idempotent when selected-protocol setup
+    // synchronously closes and destroys the child channel pipeline.
+    version = "1.3.0-codexcoder21-snapshot-15"
 
     apply(plugin = "kotlin")
     apply(plugin = "idea")

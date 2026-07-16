@@ -1,5 +1,6 @@
 package io.libp2p.multistream
 
+import io.libp2p.core.multistream.ProtocolMatcher
 import io.libp2p.etc.types.millis
 import io.libp2p.etc.types.seconds
 import io.libp2p.etc.types.writeUvarint
@@ -8,6 +9,9 @@ import io.libp2p.tools.Echo
 import io.libp2p.tools.TestStreamChannel
 import io.netty.buffer.ByteBuf
 import io.netty.buffer.Unpooled
+import io.netty.channel.ChannelHandlerContext
+import io.netty.channel.ChannelInboundHandlerAdapter
+import io.netty.channel.embedded.EmbeddedChannel
 import io.netty.handler.logging.LogLevel
 import io.netty.handler.logging.LoggingHandler
 import org.junit.jupiter.api.Assertions
@@ -16,6 +20,7 @@ import org.junit.jupiter.api.Timeout
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
 import java.nio.charset.StandardCharsets
+import java.time.Duration
 
 class MultistreamTest {
 
@@ -146,5 +151,38 @@ class MultistreamTest {
             allOutbound.slice(allOutbound.readableBytes() - 6, 6).toString(StandardCharsets.UTF_8)
 
         )
+    }
+
+    @Test
+    fun `responder negotiation tolerates synchronous pipeline teardown by the selected protocol`() {
+        val selectedProtocol = "/test/close-on-select"
+        val channel = EmbeddedChannel(
+            Negotiator.createResponderInitializer(
+                Duration.ofSeconds(1),
+                listOf(ProtocolMatcher.strict(selectedProtocol))
+            ),
+            object : ChannelInboundHandlerAdapter() {
+                override fun userEventTriggered(ctx: ChannelHandlerContext, evt: Any) {
+                    if (evt is io.libp2p.etc.events.ProtocolNegotiationSucceeded) {
+                        ctx.close().syncUninterruptibly()
+                        ctx.pipeline().fireChannelUnregistered()
+                    } else {
+                        ctx.fireUserEventTriggered(evt)
+                    }
+                }
+            }
+        )
+        val header = "/multistream/1.0.0\n".toByteArray(StandardCharsets.UTF_8)
+        val protocol = "$selectedProtocol\n".toByteArray(StandardCharsets.UTF_8)
+        val input = Unpooled.buffer()
+            .writeUvarint(header.size)
+            .writeBytes(header)
+            .writeUvarint(protocol.size)
+            .writeBytes(protocol)
+
+        Assertions.assertDoesNotThrow {
+            channel.writeInbound(input)
+        }
+        Assertions.assertFalse(channel.isOpen)
     }
 }

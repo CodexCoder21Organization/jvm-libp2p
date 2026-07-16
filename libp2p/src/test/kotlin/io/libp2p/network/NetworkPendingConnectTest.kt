@@ -80,6 +80,32 @@ class NetworkPendingConnectTest {
     }
 
     @Test
+    fun `cancelling one caller does not cancel subscribers or start a duplicate dial`() {
+        val server = createServer()
+        val blockedDial = CompletableFuture<Unit>()
+        val (client, transport) = createClient(blockedDial)
+        val serverAddress = server.listenAddresses().single()
+
+        val cancelledConnect = client.network.connect(server.peerId, serverAddress)
+        val survivingConnect = client.network.connect(server.peerId, serverAddress)
+
+        assertThat(cancelledConnect.cancel(true)).isTrue()
+        assertThat(survivingConnect.isCancelled).isFalse()
+        assertThat(survivingConnect.isDone).isFalse()
+
+        val laterSubscriber = client.network.connect(server.peerId, serverAddress)
+        assertThat(transport.dialCount.get())
+            .describedAs("transport dials after one subscriber cancels")
+            .isEqualTo(1)
+
+        blockedDial.complete(Unit)
+        assertThat(survivingConnect.get(10, TimeUnit.SECONDS).secureSession().remoteId)
+            .isEqualTo(server.peerId)
+        assertThat(laterSubscriber.get(10, TimeUnit.SECONDS).secureSession().remoteId)
+            .isEqualTo(server.peerId)
+    }
+
+    @Test
     fun `failed shared dial is removed before a later connect`() {
         val server = createServer()
         val failedDial = CompletableFuture<Unit>()

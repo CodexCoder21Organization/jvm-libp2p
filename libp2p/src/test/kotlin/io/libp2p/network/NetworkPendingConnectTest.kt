@@ -15,6 +15,7 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -191,6 +192,77 @@ class NetworkPendingConnectTest {
     }
 
     @Test
+    fun `caller with a live address is not blocked by another caller's dead address`() {
+        val server = createServer()
+        val deadDial = CompletableFuture<Unit>()
+        val (client, transport) = createClient(CompletableFuture.completedFuture(Unit))
+        val liveServerAddress = server.listenAddresses().single()
+        val unavailableLocalAddress = Multiaddr("/ip4/127.0.0.1/tcp/0")
+        transport.dialGates[unavailableLocalAddress.withP2P(server.peerId)] = deadDial
+
+        client.network.connect(server.peerId, unavailableLocalAddress)
+        assertThat(transport.dialCount.get()).isEqualTo(1)
+
+        try {
+            val liveConnection = client.network.connect(server.peerId, liveServerAddress).get(5, TimeUnit.SECONDS)
+
+            assertThat(liveConnection.secureSession().remoteId).isEqualTo(server.peerId)
+            assertThat(transport.dialCount.get()).isEqualTo(2)
+        } finally {
+            deadDial.completeExceptionally(IllegalStateException("Releasing the deliberately blocked dead-address dial"))
+        }
+    }
+
+    @Test
+    fun `sixteen callers with the same address share one transport dial`() {
+        val server = createServer()
+        val blockedDial = CompletableFuture<Unit>()
+        val (client, transport) = createClient(blockedDial)
+        val serverAddress = server.listenAddresses().single()
+        val pendingConnects = List(CALLER_COUNT) {
+            client.network.connect(server.peerId, serverAddress)
+        }
+
+        assertThat(transport.dialCount.get()).isEqualTo(1)
+
+        blockedDial.complete(Unit)
+        CompletableFuture.allOf(*pendingConnects.toTypedArray()).get(10, TimeUnit.SECONDS)
+        assertThat(pendingConnects.map { it.get().secureSession().remoteId })
+            .containsOnly(server.peerId)
+    }
+
+    @Test
+    fun `different preHandlers do not share a transport dial`() {
+        val server = createServer()
+        val blockedDial = CompletableFuture<Unit>()
+        val (client, transport) = createClient(blockedDial)
+        val serverAddress = server.listenAddresses().single()
+        val firstPreHandlerVisits = AtomicInteger()
+        val secondPreHandlerVisits = AtomicInteger()
+
+        val firstConnect = client.network.connect(
+            server.peerId,
+            ChannelVisitor { firstPreHandlerVisits.incrementAndGet() },
+            serverAddress
+        )
+        val secondConnect = client.network.connect(
+            server.peerId,
+            ChannelVisitor { secondPreHandlerVisits.incrementAndGet() },
+            serverAddress
+        )
+
+        try {
+            assertThat(transport.dialCount.get()).isEqualTo(2)
+        } finally {
+            blockedDial.complete(Unit)
+        }
+
+        CompletableFuture.allOf(firstConnect, secondConnect).get(10, TimeUnit.SECONDS)
+        assertThat(firstPreHandlerVisits.get()).isEqualTo(1)
+        assertThat(secondPreHandlerVisits.get()).isEqualTo(1)
+    }
+
+    @Test
     fun `connects to different peers start independent transport dials`() {
         val firstServer = createServer()
         val secondServer = createServer()
@@ -254,6 +326,7 @@ class NetworkPendingConnectTest {
     ) : TcpTransport(upgrader) {
         val dialCount = AtomicInteger()
         val dialGate = AtomicReference(initialDialGate)
+        val dialGates = ConcurrentHashMap<Multiaddr, CompletableFuture<Unit>>()
 
         override fun dial(
             addr: Multiaddr,
@@ -261,7 +334,7 @@ class NetworkPendingConnectTest {
             preHandler: ChannelVisitor<P2PChannel>?
         ): CompletableFuture<Connection> {
             dialCount.incrementAndGet()
-            val gateForThisDial = dialGate.get()
+            val gateForThisDial = dialGates[addr] ?: dialGate.get()
             return gateForThisDial.thenCompose {
                 super.dial(addr, connHandler, preHandler)
             }

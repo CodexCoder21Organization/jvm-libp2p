@@ -74,7 +74,7 @@ class NetworkImpl(
 
         val newPendingConnection = CompletableFuture<Connection>()
         pendingConnections.putIfAbsent(id, newPendingConnection)
-            ?.apply { return this }
+            ?.apply { return subscriberFuture(this) }
 
         newPendingConnection.whenComplete { _, _ ->
             pendingConnections.remove(id, newPendingConnection)
@@ -85,7 +85,7 @@ class NetworkImpl(
         connections.find { it.secureSession().remoteId == id }
             ?.also {
                 newPendingConnection.complete(it)
-                return newPendingConnection
+                return subscriberFuture(newPendingConnection)
             }
 
         try {
@@ -112,6 +112,9 @@ class NetworkImpl(
             newPendingConnection.completeExceptionally(error)
         }
 
-        return newPendingConnection
+        return subscriberFuture(newPendingConnection)
     }
+
+    private fun subscriberFuture(pendingConnection: CompletableFuture<Connection>): CompletableFuture<Connection> =
+        pendingConnection.thenApply { it }
 }

@@ -11,6 +11,7 @@ import io.libp2p.core.multiformats.Multiaddr
 import io.libp2p.core.transport.Transport
 import io.libp2p.etc.types.anyComplete
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 
 class NetworkImpl(
@@ -22,6 +23,8 @@ class NetworkImpl(
      * The connection table.
      */
     override val connections = CopyOnWriteArrayList<Connection>()
+
+    private val pendingConnections = ConcurrentHashMap<PeerId, CompletableFuture<Connection>>()
 
     init {
         transports.forEach(Transport::initialize)
@@ -69,18 +72,46 @@ class NetworkImpl(
         connections.find { it.secureSession().remoteId == id }
             ?.apply { return CompletableFuture.completedFuture(this) }
 
-        val addrsWithP2P = addrs.map { it.withP2P(id) }
+        val newPendingConnection = CompletableFuture<Connection>()
+        pendingConnections.putIfAbsent(id, newPendingConnection)
+            ?.apply { return this }
 
-        // 1. check that some transport can dial at least one addr.
-        // 2. trigger dials in parallel via all transports.
-        // 3. when the first dial succeeds, cancel all pending dials and return the connection. // TODO cancel
-        // 4. if no emitted dial succeeds, or if we time out, fail the future. make sure to cancel
-        //    pending dials to avoid leaking.
-        val connectionFuts = addrsWithP2P.mapNotNull { addr ->
-            transports.firstOrNull { tpt -> tpt.handles(addr) }?.let { addr to it }
-        }.map { (addr, transport) ->
-            transport.dial(addr, createHookedConnHandler(connectionHandler), preHandler)
+        newPendingConnection.whenComplete { _, _ ->
+            pendingConnections.remove(id, newPendingConnection)
         }
-        return anyComplete(connectionFuts)
+
+        // An inbound connection may have completed between the established-connection check and
+        // installing our pending future.
+        connections.find { it.secureSession().remoteId == id }
+            ?.also {
+                newPendingConnection.complete(it)
+                return newPendingConnection
+            }
+
+        try {
+            val addrsWithP2P = addrs.map { it.withP2P(id) }
+
+            // 1. check that some transport can dial at least one addr.
+            // 2. trigger dials in parallel via all transports.
+            // 3. when the first dial succeeds, cancel all pending dials and return the connection. // TODO cancel
+            // 4. if no emitted dial succeeds, or if we time out, fail the future. make sure to cancel
+            //    pending dials to avoid leaking.
+            val connectionFuts = addrsWithP2P.mapNotNull { addr ->
+                transports.firstOrNull { tpt -> tpt.handles(addr) }?.let { addr to it }
+            }.map { (addr, transport) ->
+                transport.dial(addr, createHookedConnHandler(connectionHandler), preHandler)
+            }
+            anyComplete(connectionFuts).whenComplete { connection, error ->
+                if (error == null) {
+                    newPendingConnection.complete(connection)
+                } else {
+                    newPendingConnection.completeExceptionally(error)
+                }
+            }
+        } catch (error: Exception) {
+            newPendingConnection.completeExceptionally(error)
+        }
+
+        return newPendingConnection
     }
 }

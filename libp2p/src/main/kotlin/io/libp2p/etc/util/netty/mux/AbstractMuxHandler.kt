@@ -126,6 +126,25 @@ abstract class AbstractMuxHandler<TData>(
      */
     abstract fun releaseMessage(msg: TData)
 
+    /** Returns retained payload bytes, or `null` when this muxer does not account child writes. */
+    internal open fun pendingChildWriteSize(data: TData): Int? = null
+
+    /**
+     * Reserves connection-wide capacity before [data] enters the child channel's outbound buffer.
+     * Returning a failure rejects that write without enqueueing it.
+     */
+    internal open fun onPendingChildWrite(
+        child: MuxChannel<TData>,
+        dataSize: Int
+    ): Throwable? = null
+
+    /** Releases a reservation made by [onPendingChildWrite] when the child promise completes. */
+    internal open fun onPendingChildWriteComplete(
+        child: MuxChannel<TData>,
+        data: TData,
+        dataSize: Int
+    ) = Unit
+
     abstract fun onChildWrite(child: MuxChannel<TData>, data: TData): ChannelFuture
 
     protected fun onRemoteOpen(id: MuxId) {

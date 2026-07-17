@@ -2,8 +2,11 @@ package io.libp2p.etc.util.netty.mux
 
 import io.libp2p.core.ConnectionClosedException
 import io.libp2p.etc.util.netty.AbstractChildChannel
+import io.netty.channel.ChannelHandlerContext
 import io.netty.channel.ChannelMetadata
 import io.netty.channel.ChannelOutboundBuffer
+import io.netty.channel.ChannelOutboundHandlerAdapter
+import io.netty.channel.ChannelPromise
 import io.netty.util.ReferenceCountUtil
 import java.net.SocketAddress
 
@@ -30,7 +33,31 @@ class MuxChannel<TData>(
 
     override fun doRegister() {
         super.doRegister()
+        pipeline().addFirst(PendingWriteAccountingHandler())
         initializer(this)
+    }
+
+    private inner class PendingWriteAccountingHandler : ChannelOutboundHandlerAdapter() {
+        override fun write(ctx: ChannelHandlerContext, msg: Any, promise: ChannelPromise) {
+            @Suppress("UNCHECKED_CAST")
+            val data = msg as TData
+            val dataSize = parent.pendingChildWriteSize(data)
+            if (dataSize == null) {
+                ctx.write(msg, promise)
+                return
+            }
+            val failure = parent.onPendingChildWrite(this@MuxChannel, dataSize)
+            if (failure != null) {
+                ReferenceCountUtil.release(msg)
+                promise.tryFailure(failure)
+                return
+            }
+
+            promise.addListener {
+                parent.onPendingChildWriteComplete(this@MuxChannel, data, dataSize)
+            }
+            ctx.write(msg, promise)
+        }
     }
 
     @Suppress("SwallowedException")

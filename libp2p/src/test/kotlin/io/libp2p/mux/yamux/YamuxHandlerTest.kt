@@ -235,17 +235,27 @@ class YamuxHandlerTest : MuxHandlerAbstractTest() {
             )
         )
 
-        // A flow-control-buffered write remains pending until it drains, so use one write that
-        // directly crosses the configured budget rather than relying on earlier buffered writes
-        // being reported successful before their bytes reach the parent transport.
-        val messageBytes = maxBufferedConnectionWrites + 1
+        val messageBytes = maxBufferedConnectionWrites / 5
+        val pendingWrites = (1..5).map {
+            handler.ctx.writeAndFlush(
+                "42".repeat(messageBytes).fromHex().toByteBuf(allocateBuf())
+            )
+        }
+        assertThat(pendingWrites).allMatch { !it.isDone }
+
+        // The first write is stalled in Yamux's send buffer, while these later writes are queued
+        // in the child channel. The connection-wide budget must include both retention points.
         val writeResult = handler.ctx.writeAndFlush(
             "42".repeat(messageBytes).fromHex().toByteBuf(allocateBuf())
         )
+        ech.runPendingTasks()
+
+        assertThat(writeResult.isDone).isTrue()
         assertThat(writeResult.isSuccess).isFalse()
         assertThat(writeResult.cause())
             .isInstanceOf(Libp2pException::class.java)
-            .hasMessage("Overflowed send buffer ($messageBytes/512). Last stream attempting to write: $muxId")
+            .hasMessage("Overflowed send buffer (${messageBytes * 6}/512). Last stream attempting to write: $muxId")
+        assertThat(pendingWrites).allMatch { it.isDone && !it.isSuccess }
 
         val frame = readYamuxFrameOrThrow()
         assertThat(frame.flags).containsExactly(YamuxFlag.RST)

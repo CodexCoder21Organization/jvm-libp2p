@@ -56,9 +56,9 @@ Legend:
 
 ## Stream muxer write buffering
 
-Yamux enforces the `maxBufferedConnectionWrites` setting on the parent Netty connection write buffer. The default is `10 * 1024 * 1024` bytes (10 MiB), configured with `StreamMuxerProtocol.getYamux(maxBufferedConnectionWrites = ...)`.
+Yamux enforces the `maxBufferedConnectionWrites` setting across the complete connection write path: application payloads queued in child stream channels, flow-control-buffered payloads, and frames queued on the parent Netty connection. The default is `10 * 1024 * 1024` bytes (10 MiB), configured with `StreamMuxerProtocol.getYamux(maxBufferedConnectionWrites = ...)`.
 
-When a Yamux connection would enqueue a frame past that budget, jvm-libp2p deliberately closes the connection and fails affected writes with a descriptive `YamuxOutboundBufferExceededException` that includes the peer, pending bytes, attempted frame bytes, projected bytes, budget, duration, and channel. This prevents a stalled peer from retaining unbounded outbound `ByteBuf`s in the parent transport.
+When child-stream payloads would cross that connection-wide budget, Yamux resets the offending stream and fails its retained writes. When a Yamux frame would push the parent transport past the budget, jvm-libp2p deliberately closes the connection and fails affected writes with a descriptive `YamuxOutboundBufferExceededException` that includes the peer, pending bytes, attempted frame bytes, projected bytes, budget, duration, and channel. Together these gates prevent a stalled peer from retaining unbounded outbound `ByteBuf`s before or after Yamux framing.
 
 This budget gate is Yamux-only. Mplex does not currently enforce an equivalent parent outbound-buffer budget, so applications that need this hard stalled-peer protection should configure Yamux rather than assuming the setting applies to every muxer.
 

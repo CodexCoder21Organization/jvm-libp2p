@@ -235,20 +235,17 @@ class YamuxHandlerTest : MuxHandlerAbstractTest() {
             )
         )
 
-        val createMessage: () -> ByteBuf =
-            { "42".repeat(maxBufferedConnectionWrites / 5).fromHex().toByteBuf(allocateBuf()) }
-
-        for (i in 1..5) {
-            val writeResult = handler.ctx.writeAndFlush(createMessage())
-            assertThat(writeResult.isSuccess).isTrue()
-        }
-
-        // next message will overflow the configured buffer
-        val writeResult = handler.ctx.writeAndFlush(createMessage())
+        // A flow-control-buffered write remains pending until it drains, so use one write that
+        // directly crosses the configured budget rather than relying on earlier buffered writes
+        // being reported successful before their bytes reach the parent transport.
+        val messageBytes = maxBufferedConnectionWrites + 1
+        val writeResult = handler.ctx.writeAndFlush(
+            "42".repeat(messageBytes).fromHex().toByteBuf(allocateBuf())
+        )
         assertThat(writeResult.isSuccess).isFalse()
         assertThat(writeResult.cause())
             .isInstanceOf(Libp2pException::class.java)
-            .hasMessage("Overflowed send buffer (612/512). Last stream attempting to write: $muxId")
+            .hasMessage("Overflowed send buffer ($messageBytes/512). Last stream attempting to write: $muxId")
 
         val frame = readYamuxFrameOrThrow()
         assertThat(frame.flags).containsExactly(YamuxFlag.RST)

@@ -16,6 +16,7 @@ import io.libp2p.mux.*
 import io.netty.buffer.ByteBuf
 import io.netty.channel.ChannelFuture
 import io.netty.channel.ChannelHandlerContext
+import io.netty.channel.ChannelPromise
 import io.netty.util.ReferenceCountUtil
 import io.netty.util.concurrent.PromiseCombiner
 import java.util.concurrent.CompletableFuture
@@ -51,9 +52,37 @@ open class YamuxHandler(
         val receiveWindowSize = AtomicInteger(initialWindowSize)
         val sendBuffer = ByteBufQueue()
         var closedForWriting by Delegates.writeOnce(false)
+        private var pendingWrite: PendingWrite? = null
 
-        fun dispose() {
+        private inner class PendingWrite(private val context: ChannelHandlerContext) {
+            val promise: ChannelPromise = context.newPromise()
+            private val frameFutures = mutableListOf<ChannelFuture>()
+
+            fun add(frameFuture: ChannelFuture) {
+                frameFutures += frameFuture
+            }
+
+            fun finish() {
+                if (frameFutures.isEmpty()) {
+                    promise.trySuccess()
+                } else {
+                    val combiner = PromiseCombiner(context.executor())
+                    frameFutures.forEach(combiner::add)
+                    frameFutures.clear()
+                    combiner.finish(promise)
+                }
+            }
+
+            fun fail(cause: Throwable) {
+                frameFutures.clear()
+                promise.tryFailure(cause)
+            }
+        }
+
+        fun dispose(cause: Throwable = ConnectionClosedException("Yamux connection closed with buffered data: $id")) {
             sendBuffer.dispose()
+            pendingWrite?.fail(cause)
+            pendingWrite = null
         }
 
         fun handleFrameRead(msg: YamuxFrame) {
@@ -127,18 +156,29 @@ open class YamuxHandler(
             sendBuffer.push(data)
             val totalBufferedWrites = calculateTotalBufferedWrites()
             if (totalBufferedWrites > maxBufferedConnectionWrites + sendWindowSize.get()) {
-                onLocalClose()
-                throw WriteBufferOverflowMuxerException(
+                val cause = WriteBufferOverflowMuxerException(
                     "Overflowed send buffer ($totalBufferedWrites/$maxBufferedConnectionWrites). Last stream attempting to write: $id"
                 )
+                onLocalClose(cause)
+                throw cause
             }
         }
 
         private fun drainBufferAndMaybeClose(): ChannelFuture {
             val ctx = getChannelHandlerContext()
-            val aggregate = ctx.newPromise()
-            val combiner = PromiseCombiner(ctx.executor())
-            var futures = 0
+            val applicationWrite = pendingWrite
+            val aggregate = applicationWrite?.promise ?: ctx.newPromise()
+            val localCombiner = if (applicationWrite == null) PromiseCombiner(ctx.executor()) else null
+            var localFrameCount = 0
+            fun add(frameFuture: ChannelFuture) {
+                if (applicationWrite == null) {
+                    localCombiner!!.add(frameFuture)
+                    localFrameCount++
+                } else {
+                    applicationWrite.add(frameFuture)
+                }
+            }
+
             val maxSendLength = max(0, sendWindowSize.get())
             val data = sendBuffer.take(maxSendLength)
             sendWindowSize.addAndGet(-data.readableBytes())
@@ -148,12 +188,11 @@ open class YamuxHandler(
                 slices.forEachIndexed { index, slicedData ->
                     nextSliceIndex = index + 1
                     val length = slicedData.readableBytes()
-                    combiner.add(
+                    add(
                         writeAndFlushFrame(
                             YamuxFrame(id, YamuxType.DATA, YamuxFlag.NONE, length.toLong(), slicedData)
                         )
                     )
-                    futures++
                 }
             } catch (cause: Throwable) {
                 for (index in nextSliceIndex until slices.size) {
@@ -163,13 +202,18 @@ open class YamuxHandler(
             }
 
             if (closedForWriting && sendBuffer.readableBytes() == 0) {
-                combiner.add(writeAndFlushFrame(YamuxFrame(id, YamuxType.DATA, YamuxFlag.FIN.asSet, 0)))
-                futures++
+                add(writeAndFlushFrame(YamuxFrame(id, YamuxType.DATA, YamuxFlag.FIN.asSet, 0)))
             }
-            if (futures == 0) {
-                aggregate.setSuccess(null)
+
+            if (applicationWrite != null) {
+                if (sendBuffer.readableBytes() == 0) {
+                    pendingWrite = null
+                    applicationWrite.finish()
+                }
+            } else if (localFrameCount == 0) {
+                aggregate.trySuccess()
             } else {
-                combiner.finish(aggregate)
+                localCombiner!!.finish(aggregate)
             }
             return aggregate
         }
@@ -179,8 +223,20 @@ open class YamuxHandler(
                 throw ClosedForWritingMuxerException(id)
             }
             acknowledgeInboundStreamIfNeeded()
-            fillBuffer(data)
-            return drainBufferAndMaybeClose()
+            check(pendingWrite == null) { "A Yamux stream may have only one child write in flight: $id" }
+            val write = PendingWrite(getChannelHandlerContext())
+            pendingWrite = write
+            try {
+                fillBuffer(data)
+                drainBufferAndMaybeClose()
+                return write.promise
+            } catch (cause: Throwable) {
+                if (pendingWrite === write) {
+                    pendingWrite = null
+                    write.fail(cause)
+                }
+                throw cause
+            }
         }
 
         fun onLocalOpen() {
@@ -196,9 +252,11 @@ open class YamuxHandler(
             drainBufferAndMaybeClose()
         }
 
-        fun onLocalClose() {
+        fun onLocalClose(
+            cause: Throwable = ConnectionClosedException("Yamux stream was reset with buffered data: $id")
+        ) {
             // close stream immediately so not transferring buffered data
-            sendBuffer.dispose()
+            dispose(cause)
             writeAndFlushFrame(YamuxFrame(id, YamuxType.DATA, YamuxFlag.RST.asSet, 0))
         }
     }

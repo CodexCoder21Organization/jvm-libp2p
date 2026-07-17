@@ -38,7 +38,9 @@ class ByteBufQueue {
     }
 
     fun dispose() {
-        data.forEach { it.release() }
+        while (data.isNotEmpty()) {
+            data.removeFirst().release()
+        }
     }
 
     fun readableBytes(): Int = data.sumOf { it.readableBytes() }

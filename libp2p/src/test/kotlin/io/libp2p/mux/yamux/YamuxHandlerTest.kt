@@ -14,6 +14,7 @@ import io.netty.buffer.ByteBuf
 import io.netty.channel.ChannelHandlerContext
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Assertions
+import org.junit.jupiter.api.RepeatedTest
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.params.ParameterizedTest
@@ -259,6 +260,43 @@ class YamuxHandlerTest : MuxHandlerAbstractTest() {
 
         val frame = readYamuxFrameOrThrow()
         assertThat(frame.flags).containsExactly(YamuxFlag.RST)
+    }
+
+    @RepeatedTest(8)
+    fun `completed void promise writes do not consume the connection write budget`() {
+        val handler = openStreamLocal()
+        val muxId = readFrameOrThrow().streamId.toMuxId()
+
+        val voidWriteBytes = 100
+        // These are deliberately sequential: each completed write must return its reservation
+        // before the next write exercises the same connection-wide budget.
+        repeat(4) {
+            handler.ctx.writeAndFlush(
+                "42".repeat(voidWriteBytes).fromHex().toByteBuf(allocateBuf()),
+                handler.ctx.voidPromise()
+            )
+            ech.writeInbound(
+                YamuxFrame(
+                    muxId,
+                    YamuxType.WINDOW_UPDATE,
+                    YamuxFlag.ACK.asSet,
+                    voidWriteBytes.toLong()
+                )
+            )
+        }
+
+        val normalWriteBytes = 113
+        val normalWrite = handler.ctx.writeAndFlush(
+            "43".repeat(normalWriteBytes).fromHex().toByteBuf(allocateBuf())
+        )
+        ech.runPendingTasks()
+
+        assertThat(normalWrite.isSuccess).isTrue()
+        repeat(4) {
+            assertThat(readFrameOrThrow().data).isEqualTo("42".repeat(voidWriteBytes))
+        }
+        assertThat(readFrameOrThrow().data).isEqualTo("43".repeat(normalWriteBytes))
+        assertThat(readFrame()).isNull()
     }
 
     @Test

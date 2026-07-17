@@ -46,17 +46,18 @@ class MuxChannel<TData>(
                 ctx.write(msg, promise)
                 return
             }
+            val writePromise = promise.unvoid()
             val failure = parent.onPendingChildWrite(this@MuxChannel, dataSize)
             if (failure != null) {
                 ReferenceCountUtil.release(msg)
-                promise.tryFailure(failure)
+                writePromise.tryFailure(failure)
                 return
             }
 
-            promise.addListener {
+            writePromise.addListener {
                 parent.onPendingChildWriteComplete(this@MuxChannel, data, dataSize)
             }
-            ctx.write(msg, promise)
+            ctx.write(msg, writePromise)
         }
     }
 

@@ -83,7 +83,7 @@ class YamuxOutboundBufferBudgetRefCountTest {
                 harness.onClientEventLoop {
                     harness.client.write(harness.client.alloc().buffer(300).writeZero(300))
                 }
-                val data = harness.client.alloc().buffer(700).writeZero(700)
+                val data = harness.client.alloc().buffer(600).writeZero(600)
                 val failure = try {
                     stream.writeAndFlushWithFuture(data).join()
                     throw AssertionError("Expected multi-slice Yamux write to fail on the parent outbound budget")

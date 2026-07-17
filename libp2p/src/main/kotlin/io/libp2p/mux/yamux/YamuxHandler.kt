@@ -16,8 +16,10 @@ import io.libp2p.mux.*
 import io.netty.buffer.ByteBuf
 import io.netty.channel.ChannelFuture
 import io.netty.channel.ChannelHandlerContext
+import io.netty.channel.ChannelPromise
 import io.netty.util.ReferenceCountUtil
 import io.netty.util.concurrent.PromiseCombiner
+import java.util.IdentityHashMap
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
@@ -51,9 +53,64 @@ open class YamuxHandler(
         val receiveWindowSize = AtomicInteger(initialWindowSize)
         val sendBuffer = ByteBufQueue()
         var closedForWriting by Delegates.writeOnce(false)
+        private var pendingWrite: PendingWrite? = null
+        private var resetCause: Throwable? = null
+        private var resetSent = false
 
-        fun dispose() {
+        private inner class PendingWrite(
+            private val context: ChannelHandlerContext,
+            val child: MuxChannel<ByteBuf>
+        ) {
+            val promise: ChannelPromise = context.newPromise()
+            private val frameFutures = mutableListOf<ChannelFuture>()
+
+            fun add(frameFuture: ChannelFuture) {
+                frameFutures += frameFuture
+                frameFuture.addListener {
+                    if (!it.isSuccess) {
+                        val cause = it.cause()
+                            ?: ConnectionClosedException("Yamux frame write failed without a cause: $id")
+                        onFrameWriteFailure(this, cause)
+                    }
+                }
+            }
+
+            fun finish() {
+                if (frameFutures.isEmpty()) {
+                    promise.trySuccess()
+                } else {
+                    val combiner = PromiseCombiner(context.executor())
+                    frameFutures.forEach(combiner::add)
+                    frameFutures.clear()
+                    combiner.finish(promise)
+                }
+            }
+
+            fun fail(cause: Throwable): Boolean {
+                frameFutures.clear()
+                return promise.tryFailure(cause)
+            }
+        }
+
+        private fun onFrameWriteFailure(write: PendingWrite, cause: Throwable) {
+            if (!write.fail(cause)) return
+
+            if (pendingWrite === write) {
+                pendingWrite = null
+            }
+            try {
+                onLocalClose(cause)
+            } catch (resetFailure: Throwable) {
+                if (resetFailure !== cause) cause.addSuppressed(resetFailure)
+            } finally {
+                write.child.close()
+            }
+        }
+
+        fun dispose(cause: Throwable = ConnectionClosedException("Yamux connection closed with buffered data: $id")) {
             sendBuffer.dispose()
+            pendingWrite?.fail(cause)
+            pendingWrite = null
         }
 
         fun handleFrameRead(msg: YamuxFrame) {
@@ -127,18 +184,29 @@ open class YamuxHandler(
             sendBuffer.push(data)
             val totalBufferedWrites = calculateTotalBufferedWrites()
             if (totalBufferedWrites > maxBufferedConnectionWrites + sendWindowSize.get()) {
-                onLocalClose()
-                throw WriteBufferOverflowMuxerException(
+                val cause = WriteBufferOverflowMuxerException(
                     "Overflowed send buffer ($totalBufferedWrites/$maxBufferedConnectionWrites). Last stream attempting to write: $id"
                 )
+                onLocalClose(cause)
+                throw cause
             }
         }
 
         private fun drainBufferAndMaybeClose(): ChannelFuture {
             val ctx = getChannelHandlerContext()
-            val aggregate = ctx.newPromise()
-            val combiner = PromiseCombiner(ctx.executor())
-            var futures = 0
+            val applicationWrite = pendingWrite
+            val aggregate = applicationWrite?.promise ?: ctx.newPromise()
+            val localCombiner = if (applicationWrite == null) PromiseCombiner(ctx.executor()) else null
+            var localFrameCount = 0
+            fun add(frameFuture: ChannelFuture) {
+                if (applicationWrite == null) {
+                    localCombiner!!.add(frameFuture)
+                    localFrameCount++
+                } else {
+                    applicationWrite.add(frameFuture)
+                }
+            }
+
             val maxSendLength = max(0, sendWindowSize.get())
             val data = sendBuffer.take(maxSendLength)
             sendWindowSize.addAndGet(-data.readableBytes())
@@ -148,12 +216,17 @@ open class YamuxHandler(
                 slices.forEachIndexed { index, slicedData ->
                     nextSliceIndex = index + 1
                     val length = slicedData.readableBytes()
-                    combiner.add(
+                    add(
                         writeAndFlushFrame(
                             YamuxFrame(id, YamuxType.DATA, YamuxFlag.NONE, length.toLong(), slicedData)
                         )
                     )
-                    futures++
+                    if (applicationWrite?.promise?.isDone == true && !applicationWrite.promise.isSuccess) {
+                        for (remainingIndex in nextSliceIndex until slices.size) {
+                            ReferenceCountUtil.release(slices[remainingIndex])
+                        }
+                        return aggregate
+                    }
                 }
             } catch (cause: Throwable) {
                 for (index in nextSliceIndex until slices.size) {
@@ -163,24 +236,51 @@ open class YamuxHandler(
             }
 
             if (closedForWriting && sendBuffer.readableBytes() == 0) {
-                combiner.add(writeAndFlushFrame(YamuxFrame(id, YamuxType.DATA, YamuxFlag.FIN.asSet, 0)))
-                futures++
+                add(writeAndFlushFrame(YamuxFrame(id, YamuxType.DATA, YamuxFlag.FIN.asSet, 0)))
             }
-            if (futures == 0) {
-                aggregate.setSuccess(null)
+
+            if (applicationWrite != null) {
+                if (sendBuffer.readableBytes() == 0) {
+                    pendingWrite = null
+                    applicationWrite.finish()
+                }
+            } else if (localFrameCount == 0) {
+                aggregate.trySuccess()
             } else {
-                combiner.finish(aggregate)
+                localCombiner!!.finish(aggregate)
             }
             return aggregate
         }
 
-        fun sendData(data: ByteBuf): ChannelFuture {
+        fun sendData(child: MuxChannel<ByteBuf>, data: ByteBuf): ChannelFuture {
+            resetCause?.let { cause ->
+                ReferenceCountUtil.release(data)
+                throw cause
+            }
             if (closedForWriting) {
+                ReferenceCountUtil.release(data)
                 throw ClosedForWritingMuxerException(id)
             }
             acknowledgeInboundStreamIfNeeded()
-            fillBuffer(data)
-            return drainBufferAndMaybeClose()
+            check(pendingWrite == null) { "A Yamux stream may have only one child write in flight: $id" }
+            val dataSize = data.readableBytes()
+            check(activeChildWrites.put(data, dataSize) == null) {
+                "Yamux child write became active more than once: $id"
+            }
+            activeChildWriteBytes += dataSize
+            val write = PendingWrite(getChannelHandlerContext(), child)
+            pendingWrite = write
+            try {
+                fillBuffer(data)
+                drainBufferAndMaybeClose()
+                return write.promise
+            } catch (cause: Throwable) {
+                if (pendingWrite === write) {
+                    pendingWrite = null
+                    write.fail(cause)
+                }
+                throw cause
+            }
         }
 
         fun onLocalOpen() {
@@ -196,9 +296,15 @@ open class YamuxHandler(
             drainBufferAndMaybeClose()
         }
 
-        fun onLocalClose() {
+        fun onLocalClose(
+            cause: Throwable = ConnectionClosedException("Yamux stream was reset with buffered data: $id")
+        ) {
             // close stream immediately so not transferring buffered data
-            sendBuffer.dispose()
+            val terminalCause = resetCause ?: cause
+            resetCause = terminalCause
+            dispose(terminalCause)
+            if (resetSent) return
+            resetSent = true
             writeAndFlushFrame(YamuxFrame(id, YamuxType.DATA, YamuxFlag.RST.asSet, 0))
         }
     }
@@ -206,6 +312,9 @@ open class YamuxHandler(
     private val idGenerator = YamuxStreamIdGenerator(connectionInitiator)
 
     private val streamHandlers: MutableMap<MuxId, YamuxStreamHandler> = ConcurrentHashMap()
+    private var pendingChildWriteBytes = 0L
+    private var activeChildWriteBytes = 0L
+    private val activeChildWrites = IdentityHashMap<ByteBuf, Int>()
     private var firstUnwritableNanos: Long? = null
     private var terminalWriteFailure: YamuxOutboundBufferExceededException? = null
 
@@ -264,7 +373,13 @@ open class YamuxHandler(
         val outboundBuffer = channel.unsafe().outboundBuffer()
         val pendingBytes = outboundBuffer?.totalPendingWriteBytes() ?: 0L
         val frameBytes = YAMUX_HEADER_BYTES + (yamuxFrame.data?.readableBytes()?.toLong() ?: 0L)
-        val projectedPendingBytes = pendingBytes + frameBytes
+        val queuedChildBytes = pendingChildWriteBytes - activeChildWriteBytes
+        check(queuedChildBytes >= 0) {
+            "Yamux child-write accounting has $activeChildWriteBytes active bytes but only " +
+                "$pendingChildWriteBytes pending bytes"
+        }
+        val projectedPendingBytes =
+            pendingBytes + frameBytes + queuedChildBytes + calculateTotalBufferedWrites()
         updateUnwritableStart(pendingBytes)
 
         if (projectedPendingBytes > maxBufferedConnectionWrites) {
@@ -280,7 +395,9 @@ open class YamuxHandler(
             channel.attr(WRITE_FAILURE).set(cause)
             ReferenceCountUtil.release(yamuxFrame.data)
             ctx.fireExceptionCaught(cause)
-            ctx.close()
+            // Let the throwing write unwind first so its retained slices are released before
+            // connection close fails the child promise and makes that failure visible upstream.
+            ctx.executor().execute { ctx.close() }
             throw cause
         }
 
@@ -322,7 +439,43 @@ open class YamuxHandler(
     }
 
     override fun onChildWrite(child: MuxChannel<ByteBuf>, data: ByteBuf): ChannelFuture {
-        return getStreamHandlerOrReleaseAndThrow(child.id, data).sendData(data)
+        return getStreamHandlerOrReleaseAndThrow(child.id, data).sendData(child, data)
+    }
+
+    override fun pendingChildWriteSize(data: ByteBuf): Int = data.readableBytes()
+
+    override fun onPendingChildWrite(child: MuxChannel<ByteBuf>, dataSize: Int): Throwable? {
+        val projectedBytes = pendingChildWriteBytes + dataSize
+        if (projectedBytes <= maxBufferedConnectionWrites) {
+            pendingChildWriteBytes = projectedBytes
+            return null
+        }
+
+        val cause = WriteBufferOverflowMuxerException(
+            "Overflowed send buffer ($projectedBytes/$maxBufferedConnectionWrites). " +
+                "Last stream attempting to write: ${child.id}"
+        )
+        try {
+            streamHandlers[child.id]?.onLocalClose(cause)
+        } catch (resetFailure: Throwable) {
+            if (resetFailure !== cause) cause.addSuppressed(resetFailure)
+        } finally {
+            child.close()
+        }
+        return cause
+    }
+
+    override fun onPendingChildWriteComplete(child: MuxChannel<ByteBuf>, data: ByteBuf, dataSize: Int) {
+        pendingChildWriteBytes -= dataSize
+        check(pendingChildWriteBytes >= 0) {
+            "Yamux child outbound accounting underflowed by ${-pendingChildWriteBytes} bytes after completing ${child.id}"
+        }
+        activeChildWrites.remove(data)?.let { activeSize ->
+            activeChildWriteBytes -= activeSize
+            check(activeChildWriteBytes >= 0) {
+                "Yamux active child-write accounting underflowed by ${-activeChildWriteBytes} bytes after completing ${child.id}"
+            }
+        }
     }
 
     override fun onLocalOpen(child: MuxChannel<ByteBuf>) {

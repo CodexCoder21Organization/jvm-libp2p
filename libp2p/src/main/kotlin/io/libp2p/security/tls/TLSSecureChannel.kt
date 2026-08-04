@@ -17,6 +17,7 @@ import io.libp2p.crypto.keys.EcdsaPublicKey
 import io.libp2p.crypto.keys.Ed25519PublicKey
 import io.libp2p.crypto.keys.generateEcdsaKeyPair
 import io.libp2p.crypto.keys.generateEd25519KeyPair
+import io.libp2p.crypto.nonBlockingSecureRandom
 import io.libp2p.etc.REMOTE_PEER_ID
 import io.libp2p.security.InvalidRemotePubKey
 import io.netty.buffer.ByteBuf
@@ -46,7 +47,6 @@ import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder
 import java.math.BigInteger
 import java.security.KeyFactory
 import java.security.PrivateKey
-import java.security.SecureRandom
 import java.security.cert.Certificate
 import java.security.cert.CertificateException
 import java.security.cert.X509Certificate
@@ -120,7 +120,7 @@ fun buildTlsHandler(
         .clientAuth(ClientAuth.REQUIRE)
         .trustManager(Libp2pTrustManager(expectedRemotePeer))
         .sslProvider(SslProvider.OPENSSL)
-        .secureRandom(SecureRandom())
+        .secureRandom(nonBlockingSecureRandom())
         .applicationProtocolConfig(
             ApplicationProtocolConfig(
                 ApplicationProtocolConfig.Protocol.ALPN,

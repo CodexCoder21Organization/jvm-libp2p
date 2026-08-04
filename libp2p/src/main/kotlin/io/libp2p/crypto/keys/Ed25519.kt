@@ -15,6 +15,7 @@ package io.libp2p.crypto.keys
 import crypto.pb.Crypto
 import io.libp2p.core.crypto.PrivKey
 import io.libp2p.core.crypto.PubKey
+import io.libp2p.crypto.nonBlockingSecureRandom
 import org.bouncycastle.crypto.generators.Ed25519KeyPairGenerator
 import org.bouncycastle.crypto.params.Ed25519KeyGenerationParameters
 import org.bouncycastle.crypto.params.Ed25519PrivateKeyParameters
@@ -64,7 +65,7 @@ class Ed25519PublicKey(private val pub: Ed25519PublicKeyParameters) : PubKey(Cry
  * @return a newly-generated ED25519 private and public key pair.
  */
 @JvmOverloads
-fun generateEd25519KeyPair(random: SecureRandom = SecureRandom()): Pair<PrivKey, PubKey> = with(Ed25519KeyPairGenerator()) {
+fun generateEd25519KeyPair(random: SecureRandom = nonBlockingSecureRandom()): Pair<PrivKey, PubKey> = with(Ed25519KeyPairGenerator()) {
     init(Ed25519KeyGenerationParameters(random))
     val keypair = generateKeyPair()
     val privateKey = keypair.private as Ed25519PrivateKeyParameters

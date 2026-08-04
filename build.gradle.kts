@@ -74,7 +74,9 @@ configure(
     // synchronously closes and destroys the child channel pipeline.
     // snapshot-17: measure the Noise read timeout only while an outbound handshake frame is awaiting
     // its remote response, excluding local crypto-pool queueing from the remote-read budget.
-    version = "1.3.0-codexcoder21-snapshot-19"
+    // snapshot-20: use NativePRNGNonBlocking for owned startup and key-generation entropy, including
+    // a fresh Noise ephemeral private key injected before every handshake starts.
+    version = "1.3.0-codexcoder21-snapshot-20"
 
     apply(plugin = "kotlin")
     apply(plugin = "idea")

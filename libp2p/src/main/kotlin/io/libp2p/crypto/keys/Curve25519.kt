@@ -17,6 +17,7 @@ import com.southernstorm.noise.protocol.Noise
 import crypto.pb.Crypto
 import io.libp2p.core.crypto.PrivKey
 import io.libp2p.core.crypto.PubKey
+import io.libp2p.crypto.nonBlockingSecureRandom
 
 /**
  * @param priv the private key backing this instance.
@@ -61,7 +62,13 @@ class Curve25519PublicKey(private val state: DHState) : PubKey(Crypto.KeyType.Cu
  */
 fun generateCurve25519KeyPair(): Pair<PrivKey, PubKey> {
     val k = Noise.createDH("25519")
-    k.generateKeyPair()
+    val privateKey = ByteArray(32).also { nonBlockingSecureRandom().nextBytes(it) }
+    try {
+        k.setPrivateKey(privateKey, 0)
+    } finally {
+        // noise-java copies the private key bytes into its own DHState.
+        privateKey.fill(0)
+    }
 
     val prk = Curve25519PrivateKey(k)
     val puk = Curve25519PublicKey(k)

@@ -12,6 +12,7 @@ import io.libp2p.crypto.keys.EcdsaPrivateKey
 import io.libp2p.crypto.keys.EcdsaPublicKey
 import io.libp2p.crypto.keys.decodeEcdsaPublicKeyUncompressed
 import io.libp2p.crypto.keys.generateEcdsaKeyPair
+import io.libp2p.crypto.nonBlockingSecureRandom
 import io.libp2p.crypto.stretchKeys
 import io.libp2p.etc.types.compareTo
 import io.libp2p.etc.types.toByteArray
@@ -27,7 +28,6 @@ import org.bouncycastle.crypto.macs.HMac
 import org.bouncycastle.crypto.params.KeyParameter
 import org.bouncycastle.jce.ECNamedCurveTable
 import spipe.pb.Spipe
-import java.security.SecureRandom
 
 data class SecioParams(
     val permanentPubKey: PubKey,
@@ -56,7 +56,7 @@ class SecIoNegotiator(
 
     private var state = State.Initial
 
-    private val random = SecureRandom()
+    private val random = nonBlockingSecureRandom()
     private val nonceSize = 16
     private val ciphers = linkedSetOf("AES-128", "AES-256")
     private val hashes = linkedSetOf("SHA256", "SHA512")

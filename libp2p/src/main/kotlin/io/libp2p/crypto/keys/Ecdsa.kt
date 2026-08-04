@@ -21,6 +21,8 @@ import io.libp2p.crypto.KEY_PKCS8
 import io.libp2p.crypto.Libp2pCrypto
 import io.libp2p.crypto.P256_CURVE
 import io.libp2p.crypto.SHA_256_WITH_ECDSA
+import io.libp2p.crypto.configureNonBlockingBouncyCastleEntropy
+import io.libp2p.crypto.nonBlockingSecureRandom
 import io.libp2p.etc.types.toBytes
 import org.bouncycastle.jcajce.provider.asymmetric.ec.BCECPrivateKey
 import org.bouncycastle.jce.ECNamedCurveTable
@@ -115,7 +117,8 @@ class EcdsaPublicKey(val pub: JavaECPublicKey) : PubKey(Crypto.KeyType.ECDSA) {
  * @param curve the curve spec.
  * @return a pair of private and public keys.
  */
-private fun generateECDSAKeyPairWithCurve(curve: ECNamedCurveParameterSpec, random: SecureRandom = SecureRandom()): Pair<EcdsaPrivateKey, EcdsaPublicKey> {
+private fun generateECDSAKeyPairWithCurve(curve: ECNamedCurveParameterSpec, random: SecureRandom = nonBlockingSecureRandom()): Pair<EcdsaPrivateKey, EcdsaPublicKey> {
+    configureNonBlockingBouncyCastleEntropy()
     val keypair: KeyPair = with(KeyPairGenerator.getInstance(ECDSA_ALGORITHM, Libp2pCrypto.provider)) {
         initialize(curve, random)
         genKeyPair()
@@ -132,7 +135,7 @@ private fun generateECDSAKeyPairWithCurve(curve: ECNamedCurveParameterSpec, rand
  * @return a pair of private and public keys.
  */
 @JvmOverloads
-fun generateEcdsaKeyPair(random: SecureRandom = SecureRandom()): Pair<PrivKey, PubKey> {
+fun generateEcdsaKeyPair(random: SecureRandom = nonBlockingSecureRandom()): Pair<PrivKey, PubKey> {
     // http://www.bouncycastle.org/wiki/display/JA1/Supported+Curves+%28ECDSA+and+ECGOST%29
     // and
     // http://www.bouncycastle.org/wiki/pages/viewpage.action?pageId=362269

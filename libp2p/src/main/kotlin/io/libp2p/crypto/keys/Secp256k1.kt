@@ -18,6 +18,8 @@ import io.libp2p.core.crypto.PrivKey
 import io.libp2p.core.crypto.PubKey
 import io.libp2p.core.crypto.sha256
 import io.libp2p.crypto.SECP_256K1_ALGORITHM
+import io.libp2p.crypto.configureNonBlockingBouncyCastleEntropy
+import io.libp2p.crypto.nonBlockingSecureRandom
 import org.bouncycastle.asn1.*
 import org.bouncycastle.asn1.sec.SECNamedCurves
 import org.bouncycastle.crypto.ec.CustomNamedCurves
@@ -127,18 +129,21 @@ class Secp256k1PublicKey(private val pub: ECPublicKeyParameters) : PubKey(Crypto
  * @return a pair of the private and public keys.
  */
 @JvmOverloads
-fun generateSecp256k1KeyPair(random: SecureRandom = SecureRandom()): Pair<PrivKey, PubKey> = with(ECKeyPairGenerator()) {
-    val domain = SECNamedCurves.getByName(SECP_256K1_ALGORITHM).let {
-        ECDomainParameters(it.curve, it.g, it.n, it.h)
-    }
-    init(ECKeyGenerationParameters(domain, random))
-    val keypair = generateKeyPair()
+fun generateSecp256k1KeyPair(random: SecureRandom = nonBlockingSecureRandom()): Pair<PrivKey, PubKey> {
+    configureNonBlockingBouncyCastleEntropy()
+    return with(ECKeyPairGenerator()) {
+        val domain = SECNamedCurves.getByName(SECP_256K1_ALGORITHM).let {
+            ECDomainParameters(it.curve, it.g, it.n, it.h)
+        }
+        init(ECKeyGenerationParameters(domain, random))
+        val keypair = generateKeyPair()
 
-    val privateKey = keypair.private as ECPrivateKeyParameters
-    return Pair(
-        Secp256k1PrivateKey(privateKey),
-        Secp256k1PublicKey(keypair.public as ECPublicKeyParameters)
-    )
+        val privateKey = keypair.private as ECPrivateKeyParameters
+        Pair(
+            Secp256k1PrivateKey(privateKey),
+            Secp256k1PublicKey(keypair.public as ECPublicKeyParameters)
+        )
+    }
 }
 
 /**

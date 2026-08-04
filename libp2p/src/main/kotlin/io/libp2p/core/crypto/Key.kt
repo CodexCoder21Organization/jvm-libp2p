@@ -27,6 +27,7 @@ import io.libp2p.crypto.keys.unmarshalRsaPrivateKey
 import io.libp2p.crypto.keys.unmarshalRsaPublicKey
 import io.libp2p.crypto.keys.unmarshalSecp256k1PrivateKey
 import io.libp2p.crypto.keys.unmarshalSecp256k1PublicKey
+import io.libp2p.crypto.nonBlockingSecureRandom
 import java.security.SecureRandom
 import crypto.pb.Crypto.PrivateKey as PbPrivateKey
 import crypto.pb.Crypto.PublicKey as PbPublicKey
@@ -124,7 +125,7 @@ abstract class PubKey(override val keyType: Crypto.KeyType) : Key {
  * @param bits the number of bits desired for the key (only applicable for RSA).
  */
 @JvmOverloads
-fun generateKeyPair(type: KeyType, bits: Int = 2048, random: SecureRandom = SecureRandom()): Pair<PrivKey, PubKey> {
+fun generateKeyPair(type: KeyType, bits: Int = 2048, random: SecureRandom = nonBlockingSecureRandom()): Pair<PrivKey, PubKey> {
     return when (type) {
         KeyType.RSA -> generateRsaKeyPair(bits, random)
         KeyType.ED25519 -> generateEd25519KeyPair(random)

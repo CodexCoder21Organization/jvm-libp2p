@@ -21,6 +21,7 @@ import io.libp2p.crypto.KEY_PKCS8
 import io.libp2p.crypto.Libp2pCrypto
 import io.libp2p.crypto.RSA_ALGORITHM
 import io.libp2p.crypto.SHA_256_WITH_RSA
+import io.libp2p.crypto.nonBlockingSecureRandom
 import org.bouncycastle.asn1.ASN1Primitive
 import org.bouncycastle.asn1.pkcs.PrivateKeyInfo
 import org.bouncycastle.asn1.pkcs.RSAPrivateKey
@@ -98,7 +99,7 @@ class RsaPublicKey(private val k: JavaPublicKey) : PubKey(Crypto.KeyType.RSA) {
  * @return a pair of the private and public keys.
  */
 @JvmOverloads
-fun generateRsaKeyPair(bits: Int, random: SecureRandom = SecureRandom()): Pair<PrivKey, PubKey> {
+fun generateRsaKeyPair(bits: Int, random: SecureRandom = nonBlockingSecureRandom()): Pair<PrivKey, PubKey> {
     if (bits < 2048) {
         throw Libp2pException(ERR_RSA_KEY_TOO_SMALL)
     }

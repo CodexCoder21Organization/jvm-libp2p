@@ -14,6 +14,7 @@ import io.libp2p.core.crypto.unmarshalPublicKey
 import io.libp2p.core.multistream.ProtocolDescriptor
 import io.libp2p.core.mux.StreamMuxer
 import io.libp2p.core.security.SecureChannel
+import io.libp2p.crypto.nonBlockingSecureRandom
 import io.libp2p.etc.REMOTE_PEER_ID
 import io.libp2p.etc.types.toByteArray
 import io.libp2p.etc.types.toByteBuf
@@ -123,7 +124,7 @@ class NoiseXXSecureChannel(private val localKey: PrivKey) :
         const val announce = "/noise"
 
         @JvmStatic
-        var localStaticPrivateKey25519: ByteArray = ByteArray(32).also { Noise.random(it) }
+        var localStaticPrivateKey25519: ByteArray = ByteArray(32).also { nonBlockingSecureRandom().nextBytes(it) }
 
         // temporary flag to handle different Noise handshake treatments
         // if true the noise handshake payload is prepended with 2 bytes encoded length
@@ -190,6 +191,16 @@ class NoiseIoHandshake(
         localNoiseState.setPrivateKey(localStaticPrivateKey, 0)
 
         handshakeState.localKeyPair.copyFrom(localNoiseState)
+        val ephemeralPrivateKey = ByteArray(32).also { nonBlockingSecureRandom().nextBytes(it) }
+        try {
+            // noise-java has no public RNG setter. Its "fixed" ephemeral hook is therefore used
+            // only to override the entropy source: these bytes are freshly generated for every
+            // NoiseIoHandshake instance, preserving normal one-ephemeral-key-per-handshake semantics.
+            handshakeState.fixedEphemeralKey.setPrivateKey(ephemeralPrivateKey, 0)
+        } finally {
+            // noise-java copies the private key bytes into its own DHState.
+            ephemeralPrivateKey.fill(0)
+        }
         handshakeState.start()
         initialized = true
     }

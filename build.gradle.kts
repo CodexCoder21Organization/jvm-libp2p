@@ -76,7 +76,9 @@ configure(
     // its remote response, excluding local crypto-pool queueing from the remote-read budget.
     // snapshot-20: use NativePRNGNonBlocking for owned startup and key-generation entropy, including
     // a fresh Noise ephemeral private key injected before every handshake starts.
-    version = "1.3.0-codexcoder21-snapshot-20"
+    // snapshot-21: exclude connections with completed close futures from both established-connection
+    // lookups, so a stream request made during close bookkeeping starts a fresh transport dial.
+    version = "1.3.0-codexcoder21-snapshot-21"
 
     apply(plugin = "kotlin")
     apply(plugin = "idea")

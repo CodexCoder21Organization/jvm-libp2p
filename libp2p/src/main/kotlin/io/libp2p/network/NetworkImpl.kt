@@ -108,9 +108,11 @@ class NetworkImpl(
      * connection that has already closed does not keep its peer's slot.
      */
     private fun retainOneConnectionPerPeer(id: PeerId, connection: Connection): Connection {
+        // The remapping function never returns null, so neither does compute; the elvis branch is
+        // unreachable and exists only to keep the result non-nullable without an unsafe call.
         val settled = settledConnections.compute(id) { _, alreadySettled ->
             if (alreadySettled != null && !alreadySettled.closeFuture().isDone) alreadySettled else connection
-        }!!
+        } ?: connection
         if (settled !== connection) {
             connection.close()
         } else {

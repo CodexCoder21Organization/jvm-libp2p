@@ -27,6 +27,13 @@ class NetworkImpl(
 
     private val pendingDials = ConcurrentHashMap<PendingDialKey, CompletableFuture<Connection>>()
 
+    /**
+     * The connection [connect] settled on for each peer, so that every caller of [connect] — and
+     * every address raced within one call — converges on the same one. See
+     * [retainOneConnectionPerPeer].
+     */
+    private val settledConnections = ConcurrentHashMap<PeerId, Connection>()
+
     init {
         transports.forEach(Transport::initialize)
     }
@@ -76,9 +83,45 @@ class NetworkImpl(
         val connectionFuts = addrs.map { it.withP2P(id) }
             .mapNotNull { addr ->
                 transports.firstOrNull { transport -> transport.handles(addr) }
-                    ?.let { transport -> pendingDial(id, addr, transport, preHandler) }
+                    ?.let { transport ->
+                        pendingDial(id, addr, transport, preHandler)
+                            .thenApply { connection -> retainOneConnectionPerPeer(id, connection) }
+                    }
             }
         return anyComplete(connectionFuts)
+    }
+
+    /**
+     * Returns the connection this network has settled on for [id], closing [connection] when that
+     * is a different one.
+     *
+     * A peer is reachable at several addresses and [connect] dials all of them at once, so several
+     * dials can succeed. Only one connection is ever returned to a caller; without this, each of
+     * the others stayed fully established — a live socket, Netty pipeline and muxer session that no
+     * caller holds a reference to and nothing ever closes. A long-lived process dialling a large,
+     * churning peer population retained one such connection per surplus address per peer it had
+     * ever contacted.
+     *
+     * The winner is chosen by a single atomic map operation rather than by dial completion order,
+     * so concurrent callers — which share the same pending dials but race their own address lists —
+     * always converge on the same connection instead of each closing the one another is using. A
+     * connection that has already closed does not keep its peer's slot.
+     */
+    private fun retainOneConnectionPerPeer(id: PeerId, connection: Connection): Connection {
+        // The remapping function never returns null, so neither does compute; the elvis branch is
+        // unreachable and exists only to keep the result non-nullable without an unsafe call.
+        val settled = settledConnections.compute(id) { _, alreadySettled ->
+            if (alreadySettled != null && !alreadySettled.closeFuture().isDone) alreadySettled else connection
+        } ?: connection
+        if (settled !== connection) {
+            connection.close()
+        } else {
+            // Releasing the slot on close lets the next connect() to this peer settle afresh.
+            // Registering this more than once for the same connection is harmless: the removal is
+            // conditional on the mapping still being this connection, and repeating it is a no-op.
+            connection.closeFuture().thenAccept { settledConnections.remove(id, connection) }
+        }
+        return settled
     }
 
     private fun pendingDial(

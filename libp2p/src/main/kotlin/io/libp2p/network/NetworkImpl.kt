@@ -77,7 +77,7 @@ class NetworkImpl(
      */
     override fun connect(id: PeerId, preHandler: ChannelVisitor<P2PChannel>?, vararg addrs: Multiaddr): CompletableFuture<Connection> {
         // we already have a connection for this peer, short circuit.
-        connections.find { it.secureSession().remoteId == id }
+        findActiveConnection(id)
             ?.apply { return CompletableFuture.completedFuture(this) }
 
         val connectionFuts = addrs.map { it.withP2P(id) }
@@ -138,7 +138,7 @@ class NetworkImpl(
 
         // An inbound or differently-addressed outbound connection may have completed between the
         // caller's established-connection check and installing this address-level pending dial.
-        connections.find { it.secureSession().remoteId == id }
+        findActiveConnection(id)
             ?.also {
                 completePendingDial(key, newPendingDial, it, null)
                 return subscriberFuture(newPendingDial)
@@ -154,6 +154,17 @@ class NetworkImpl(
         }
 
         return subscriberFuture(newPendingDial)
+    }
+
+    private fun findActiveConnection(id: PeerId): Connection? {
+        connections.forEach { connection ->
+            if (connection.closeFuture().isDone) {
+                connections.remove(connection)
+            } else if (connection.secureSession().remoteId == id) {
+                return connection
+            }
+        }
+        return null
     }
 
     private fun subscriberFuture(pendingDial: CompletableFuture<Connection>): CompletableFuture<Connection> =

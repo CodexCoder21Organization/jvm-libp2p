@@ -62,6 +62,13 @@ When child-stream payloads would cross that connection-wide budget, Yamux resets
 
 This budget gate is Yamux-only. Mplex does not currently enforce an equivalent parent outbound-buffer budget, so applications that need this hard stalled-peer protection should configure Yamux rather than assuming the setting applies to every muxer.
 
+## Connection reuse during close
+
+`Network.connect` reuses an established connection to the requested peer when one is live. Entries
+whose close future has completed are removed and skipped during selection, even if the connection's
+asynchronous table-removal continuation has not run yet. A request made in that interval therefore
+starts a fresh transport dial instead of receiving a connection whose muxer is already closed.
+
 ## Gossip simulator
 
 Deterministic Gossip simulator which may simulate networks as large as 10000 of peers

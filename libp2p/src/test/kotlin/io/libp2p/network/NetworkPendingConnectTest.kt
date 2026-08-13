@@ -196,6 +196,36 @@ class NetworkPendingConnectTest {
     }
 
     @Test
+    fun `connect called from close completion dials instead of returning the closed connection`() {
+        val server = createServer()
+        val serverAddress = server.listenAddresses().single()
+        val clientReference = AtomicReference<Host>()
+        val firstConnection = AtomicReference<Connection>()
+        val reconnectStarted = CountDownLatch(1)
+        val reconnect = AtomicReference<CompletableFuture<Connection>>()
+        val (client, transport) = createClient(CompletableFuture.completedFuture(Unit)) { connection ->
+            if (firstConnection.compareAndSet(null, connection)) {
+                connection.closeFuture().whenComplete { _, _ ->
+                    reconnect.set(clientReference.get().network.connect(server.peerId, serverAddress))
+                    reconnectStarted.countDown()
+                }
+            }
+        }
+        clientReference.set(client)
+        val closedConnection = client.network.connect(server.peerId, serverAddress).get(10, TimeUnit.SECONDS)
+
+        assertThat(firstConnection.get()).isSameAs(closedConnection)
+
+        closedConnection.close().get(10, TimeUnit.SECONDS)
+        assertThat(reconnectStarted.await(5, TimeUnit.SECONDS)).isTrue()
+
+        val replacement = reconnect.get().get(10, TimeUnit.SECONDS)
+        assertThat(replacement).isNotSameAs(closedConnection)
+        assertThat(replacement.closeFuture().isDone).isFalse()
+        assertThat(transport.dialCount.get()).isEqualTo(2)
+    }
+
+    @Test
     fun `one connect still dials all supplied addresses in parallel`() {
         val server = createServer()
         val blockedDial = CompletableFuture<Unit>()
@@ -325,7 +355,10 @@ class NetworkPendingConnectTest {
             it.start().get(10, TimeUnit.SECONDS)
         }
 
-    private fun createClient(initialDialGate: CompletableFuture<Unit>): Pair<Host, GatedCountingTcpTransport> {
+    private fun createClient(
+        initialDialGate: CompletableFuture<Unit>,
+        onConnection: ((Connection) -> Unit)? = null
+    ): Pair<Host, GatedCountingTcpTransport> {
         lateinit var countingTransport: GatedCountingTcpTransport
         val client = host {
             transports {
@@ -337,6 +370,11 @@ class NetworkPendingConnectTest {
             }
             protocols {
                 add(Ping())
+            }
+            onConnection?.let { callback ->
+                connectionHandlers {
+                    add(ConnectionHandler.create(callback))
+                }
             }
         }
         hosts += client

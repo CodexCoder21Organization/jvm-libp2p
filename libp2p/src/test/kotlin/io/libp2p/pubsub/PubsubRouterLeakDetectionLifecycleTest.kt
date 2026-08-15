@@ -18,7 +18,7 @@ class PubsubRouterLeakDetectionLifecycleTest {
             val listener = SummaryGeneratingListener()
             LauncherFactory.create().execute(
                 request()
-                    .selectors(selectMethod(LeakDetectionFixture::class.java, "fixtureMethod"))
+                    .selectors(selectMethod(PubsubRouterLeakDetectionFixture::class.java, "fixtureMethod"))
                     .build(),
                 listener
             )
@@ -31,10 +31,11 @@ class PubsubRouterLeakDetectionLifecycleTest {
         }
     }
 
-    class LeakDetectionFixture : PubsubRouterTest(DeterministicFuzz.createFloodFuzzRouterFactory()) {
-        @Test
-        fun fixtureMethod() {
-            assertThat(ResourceLeakDetector.getLevel()).isEqualTo(ResourceLeakDetector.Level.PARANOID)
-        }
+}
+
+class PubsubRouterLeakDetectionFixture : PubsubRouterTest(DeterministicFuzz.createFloodFuzzRouterFactory()) {
+    @Test
+    fun fixtureMethod() {
+        assertThat(ResourceLeakDetector.getLevel()).isEqualTo(ResourceLeakDetector.Level.PARANOID)
     }
 }

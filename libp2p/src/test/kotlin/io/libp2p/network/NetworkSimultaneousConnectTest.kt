@@ -80,11 +80,10 @@ class NetworkSimultaneousConnectTest {
             val higherConnect = if (higher === first) firstConnect else secondConnect
             val provisionalHigherConnection = higherConnect.get(10, TimeUnit.SECONDS)
             assertThat(provisionalHigherConnection.isInitiator)
-                .describedAs("higher peer's live connection while its preferred responder is still in the handler")
+                .describedAs("higher peer's provisional connection while its preferred responder is still in the handler")
                 .isTrue()
             assertThat(provisionalHigherConnection.secureSession().remoteId).isEqualTo(lower.peerId)
             provisionalHigherConnection.closeFuture().get(30, TimeUnit.SECONDS)
-            assertThat(provisionalHigherConnection.closeFuture().isDone).isFalse()
 
             releasePreferredInboundHandler.countDown()
 

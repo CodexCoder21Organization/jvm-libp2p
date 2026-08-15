@@ -15,14 +15,6 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 
-private fun shouldReplaceSettledConnection(settled: Connection, candidate: Connection): Boolean {
-    if (settled.isInitiator == candidate.isInitiator) return false
-
-    val session = candidate.secureSession()
-    val localPeerKeepsInitiator = session.localId.toBase58() < session.remoteId.toBase58()
-    return candidate.isInitiator == localPeerKeepsInitiator
-}
-
 class NetworkImpl(
     override val transports: List<Transport>,
     override val connectionHandler: ConnectionHandler
@@ -41,6 +33,9 @@ class NetworkImpl(
      * [retainOneConnectionPerPeer].
      */
     private val settledConnections = ConcurrentHashMap<PeerId, Connection>()
+
+    /** Connections arbitration has rejected but whose asynchronous close has not completed yet. */
+    private val rejectedConnections = ConcurrentHashMap.newKeySet<Connection>()
 
     init {
         transports.forEach(Transport::initialize)
@@ -72,8 +67,12 @@ class NetworkImpl(
     private fun createHookedConnHandler(handler: ConnectionHandler) =
         ConnectionHandler.create { connection ->
             connections += connection
-            connection.closeFuture().thenAccept { connections -= connection }
             val remoteId = connection.secureSession().remoteId
+            connection.closeFuture().whenComplete { _, _ ->
+                connections -= connection
+                rejectedConnections -= connection
+                reconcileConnections(remoteId)
+            }
             val retained = retainOneConnectionPerPeer(remoteId, connection)
             if (retained === connection) {
                 handler.handleConnection(connection)
@@ -117,41 +116,81 @@ class NetworkImpl(
      * peer's slot.
      */
     private fun retainOneConnectionPerPeer(id: PeerId, connection: Connection): Connection {
-        var replacedConnection: Connection? = null
-        var acceptAdditionalInboundConnection = false
-        // The remapping function never returns null, so neither does compute; the elvis branch is
-        // unreachable and exists only to keep the result non-nullable without an unsafe call.
-        val settled = settledConnections.compute(id) { _, alreadySettled ->
-            when {
-                alreadySettled == null || alreadySettled.closeFuture().isDone -> connection
-                alreadySettled === connection -> connection
-                !alreadySettled.isInitiator && !connection.isInitiator -> {
-                    // Several addresses dialled by the remote peer arrive as several inbound
-                    // connections. Picking an inbound winner independently can select a different
-                    // socket from the dialling peer and make both sides close every connection.
-                    // Let the dialling peer close its same-direction losers instead.
-                    acceptAdditionalInboundConnection = true
-                    alreadySettled
-                }
-                shouldReplaceSettledConnection(alreadySettled, connection) -> {
-                    replacedConnection = alreadySettled
-                    connection
-                }
-                else -> alreadySettled
-            }
-        } ?: connection
-        if (acceptAdditionalInboundConnection) return connection
+        val settlement = reconcileConnections(id, connection)
+        return if (settlement.candidateAccepted) connection else settlement.settled ?: connection
+    }
 
-        if (settled !== connection) {
-            connection.close()
-        } else {
-            replacedConnection?.close()
-            // Releasing the slot on close lets the next connect() to this peer settle afresh.
-            // Registering this more than once for the same connection is harmless: the removal is
-            // conditional on the mapping still being this connection, and repeating it is a no-op.
-            connection.closeFuture().thenAccept { settledConnections.remove(id, connection) }
+    /**
+     * Reconciles all upgraded connections to [id] in one atomic per-peer map decision.
+     *
+     * Rejected connections are marked before this operation returns, then closed afterwards. This
+     * keeps a closing loser out of public connection selection even when its close future is still
+     * pending. When a mapped inbound address candidate closes, another live inbound candidate is
+     * promoted here instead of leaving the settlement table empty.
+     */
+    private fun reconcileConnections(id: PeerId, candidate: Connection? = null): ConnectionSettlement {
+        val connectionsToClose = mutableListOf<Connection>()
+        var candidateAccepted = false
+        var selected: Connection? = null
+
+        settledConnections.compute(id) { _, alreadySettled ->
+            val activeCandidates = connections.filter { connection ->
+                connection !in rejectedConnections &&
+                    !connection.closeFuture().isDone &&
+                    connection.secureSession().remoteId == id
+            }
+            if (activeCandidates.isEmpty()) {
+                selected = null
+                return@compute null
+            }
+
+            val preferredCandidates = activeCandidates.filter(::isPreferredDirection)
+            val winningCandidates = if (preferredCandidates.isNotEmpty()) {
+                val preferredInitiator = preferredCandidates.first().isInitiator
+                activeCandidates.filter { connection -> connection.isInitiator == preferredInitiator }
+            } else {
+                val retainedDirection = alreadySettled
+                    ?.takeIf { it in activeCandidates }
+                    ?.isInitiator
+                    ?: activeCandidates.first().isInitiator
+                activeCandidates.filter { connection -> connection.isInitiator == retainedDirection }
+            }
+
+            val losingDirectionCandidates = activeCandidates.filterNot { it in winningCandidates }
+            reject(losingDirectionCandidates, connectionsToClose)
+
+            val existingWinner = alreadySettled?.takeIf { it in winningCandidates }
+            val winner = existingWinner ?: winningCandidates.first()
+            selected = winner
+
+            // The local dialer owns same-direction outbound address races and closes its surplus
+            // candidates. Inbound candidates stay available until the remote dialer chooses one.
+            if (winner.isInitiator) {
+                reject(winningCandidates.filterNot { it === winner }, connectionsToClose)
+            }
+
+            candidateAccepted = candidate != null &&
+                candidate in winningCandidates &&
+                candidate !in rejectedConnections
+            selected
         }
-        return settled
+
+        connectionsToClose.distinct().forEach(Connection::close)
+        return ConnectionSettlement(selected, candidateAccepted)
+    }
+
+    private fun isPreferredDirection(connection: Connection): Boolean {
+        val session = connection.secureSession()
+        val localPeerKeepsInitiator = session.localId.toBase58() < session.remoteId.toBase58()
+        return connection.isInitiator == localPeerKeepsInitiator
+    }
+
+    private fun reject(connections: List<Connection>, connectionsToClose: MutableList<Connection>) {
+        connections.forEach { connection ->
+            if (rejectedConnections.add(connection)) {
+                connectionsToClose += connection
+            }
+        }
     }
 
     private fun pendingDial(
@@ -187,15 +226,13 @@ class NetworkImpl(
     }
 
     private fun findActiveConnection(id: PeerId): Connection? {
-        connections.forEach { connection ->
-            if (connection.closeFuture().isDone) {
-                connections.remove(connection)
-            } else if (connection.secureSession().remoteId == id) {
-                return connection
-            }
-        }
-        return null
+        return reconcileConnections(id).settled
     }
+
+    private data class ConnectionSettlement(
+        val settled: Connection?,
+        val candidateAccepted: Boolean
+    )
 
     private fun subscriberFuture(pendingDial: CompletableFuture<Connection>): CompletableFuture<Connection> =
         pendingDial.thenApply { it }

@@ -30,7 +30,7 @@ class NetworkConnectionReadinessTest {
 
     @AfterEach
     fun stopHosts() {
-        hosts.asReversed().forEach { it.stop().get(10, TimeUnit.SECONDS) }
+        stopHostsPreservingFirstFailure(hosts)
     }
 
     @Test
@@ -45,16 +45,20 @@ class NetworkConnectionReadinessTest {
         }
         client.addConnectionHandler(handler)
 
-        val first = client.network.connect(server.peerId, server.listenAddresses().single())
-        assertThat(handlerEntered.await(10, TimeUnit.SECONDS)).isTrue()
-        val second = client.network.connect(server.peerId, server.listenAddresses().single())
+        try {
+            val first = client.network.connect(server.peerId, server.listenAddresses().single())
+            assertThat(handlerEntered.await(10, TimeUnit.SECONDS)).isTrue()
+            val second = client.network.connect(server.peerId, server.listenAddresses().single())
 
-        assertThat(transport.dialCount.get()).isEqualTo(1)
-        assertThat(first.isDone).isFalse()
-        assertThat(second.isDone).isFalse()
+            assertThat(transport.dialCount.get()).isEqualTo(1)
+            assertThat(first.isDone).isFalse()
+            assertThat(second.isDone).isFalse()
 
-        releaseHandler.countDown()
-        assertThat(second.get(10, TimeUnit.SECONDS)).isSameAs(first.get(10, TimeUnit.SECONDS))
+            releaseHandler.countDown()
+            assertThat(second.get(10, TimeUnit.SECONDS)).isSameAs(first.get(10, TimeUnit.SECONDS))
+        } finally {
+            releaseHandler.countDown()
+        }
     }
 
     @Test

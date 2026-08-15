@@ -36,7 +36,7 @@ class NetworkSimultaneousConnectTest {
 
     @AfterEach
     fun stopHosts() {
-        hosts.asReversed().forEach { it.stop().get(10, TimeUnit.SECONDS) }
+        stopHostsPreservingFirstFailure(hosts)
     }
 
     @Test
@@ -45,44 +45,48 @@ class NetworkSimultaneousConnectTest {
         val (first, firstTransport) = createHost(releaseBothDials)
         val (second, secondTransport) = createHost(releaseBothDials)
 
-        val firstConnect = first.network.connect(
-            second.peerId,
-            second.listenAddresses().single()
-        )
-        val secondConnect = second.network.connect(
-            first.peerId,
-            first.listenAddresses().single()
-        )
+        try {
+            val firstConnect = first.network.connect(
+                second.peerId,
+                second.listenAddresses().single()
+            )
+            val secondConnect = second.network.connect(
+                first.peerId,
+                first.listenAddresses().single()
+            )
 
-        assertThat(firstTransport.dialCount.get()).isEqualTo(1)
-        assertThat(secondTransport.dialCount.get()).isEqualTo(1)
-        assertThat(firstConnect.isDone).isFalse()
-        assertThat(secondConnect.isDone).isFalse()
+            assertThat(firstTransport.dialCount.get()).isEqualTo(1)
+            assertThat(secondTransport.dialCount.get()).isEqualTo(1)
+            assertThat(firstConnect.isDone).isFalse()
+            assertThat(secondConnect.isDone).isFalse()
 
-        releaseBothDials.complete(Unit)
-        CompletableFuture.allOf(firstConnect, secondConnect).get(30, TimeUnit.SECONDS)
-        assertPreferredConnectSelection(first, second)
-        assertPreferredConnectSelection(second, first)
-        awaitNonPreferredConnectionClose(first, second.peerId)
-        awaitNonPreferredConnectionClose(second, first.peerId)
+            releaseBothDials.complete(Unit)
+            CompletableFuture.allOf(firstConnect, secondConnect).get(30, TimeUnit.SECONDS)
+            assertPreferredConnectSelection(first, second)
+            assertPreferredConnectSelection(second, first)
+            awaitNonPreferredConnectionClose(first, second.peerId)
+            awaitNonPreferredConnectionClose(second, first.peerId)
 
-        assertThat(activeConnectionCount(first))
-            .describedAs("active connections the first peer holds to the second")
-            .isEqualTo(1)
-        assertThat(activeConnectionCount(second))
-            .describedAs("active connections the second peer holds to the first")
-            .isEqualTo(1)
+            assertThat(activeConnectionCount(first))
+                .describedAs("active connections the first peer holds to the second")
+                .isEqualTo(1)
+            assertThat(activeConnectionCount(second))
+                .describedAs("active connections the second peer holds to the first")
+                .isEqualTo(1)
 
-        first.newStream<PingController>(
-            listOf(PING_PROTOCOL),
-            second.peerId,
-            second.listenAddresses().single()
-        ).controller.thenCompose { it.ping() }.get(30, TimeUnit.SECONDS)
-        second.newStream<PingController>(
-            listOf(PING_PROTOCOL),
-            first.peerId,
-            first.listenAddresses().single()
-        ).controller.thenCompose { it.ping() }.get(30, TimeUnit.SECONDS)
+            first.newStream<PingController>(
+                listOf(PING_PROTOCOL),
+                second.peerId,
+                second.listenAddresses().single()
+            ).controller.thenCompose { it.ping() }.get(30, TimeUnit.SECONDS)
+            second.newStream<PingController>(
+                listOf(PING_PROTOCOL),
+                first.peerId,
+                first.listenAddresses().single()
+            ).controller.thenCompose { it.ping() }.get(30, TimeUnit.SECONDS)
+        } finally {
+            releaseBothDials.complete(Unit)
+        }
     }
 
     @Test
@@ -162,6 +166,7 @@ class NetworkSimultaneousConnectTest {
         val lower = if (first.peerId.toBase58() < second.peerId.toBase58()) first else second
         val higher = if (lower === first) second else first
         val higherTransport = if (higher === first) firstTransport else secondTransport
+        val lowerTransport = if (lower === first) firstTransport else secondTransport
         val lowerDialGate = if (lower === first) firstDialGate else secondDialGate
         val higherDialGate = if (higher === first) firstDialGate else secondDialGate
         val higherDialCompletion = if (higher === first) firstDialCompletion else secondDialCompletion
@@ -177,27 +182,39 @@ class NetworkSimultaneousConnectTest {
             higherTransport.awaitConnection(true)
             lowerDialGate.complete(Unit)
             val survivor = higherTransport.awaitConnection(false)
-            higherTransport.awaitRejectedConnection()
+            val lowerSurvivor = lowerTransport.awaitConnection(true)
+            val rejected = higherTransport.awaitRejectedConnection()
+
+            lowerDialCompletion.complete(Unit)
+            assertThat(lowerConnect.get(10, TimeUnit.SECONDS)).isSameAs(lowerSurvivor)
 
             survivor.close()
             firstCloseCompletion.complete(Unit)
             secondCloseCompletion.complete(Unit)
-            survivor.closeFuture().get(10, TimeUnit.SECONDS)
+            CompletableFuture.allOf(
+                survivor.closeFuture(),
+                lowerSurvivor.closeFuture(),
+                rejected.closeFuture()
+            ).get(10, TimeUnit.SECONDS)
 
             higherDialCompletion.complete(Unit)
             val error = org.junit.jupiter.api.assertThrows<ExecutionException> {
                 higherConnect.get(10, TimeUnit.SECONDS)
             }
-            assertThat(rootCause(error)).isInstanceOf(ConnectionClosedException::class.java)
-            assertThat(rootCause(error).message)
-                .contains("candidate was rejected or closed and no active settled connection remains")
+            assertThat(rootCause(error))
+                .isExactlyInstanceOf(ConnectionClosedException::class.java)
+                .hasMessage(
+                    "Connection to peer ${lower.peerId.toBase58()} could not be retained because " +
+                        "the candidate was rejected or closed and no active settled connection " +
+                        "remains (candidateCloseComplete=true, candidateRejected=false)"
+                )
         } finally {
+            higherDialCompletion.complete(Unit)
             lowerDialCompletion.complete(Unit)
             firstDialGate.complete(Unit)
             secondDialGate.complete(Unit)
             firstCloseCompletion.complete(Unit)
             secondCloseCompletion.complete(Unit)
-            runCatching { lowerConnect.get(10, TimeUnit.SECONDS) }
         }
     }
 

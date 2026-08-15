@@ -5,23 +5,37 @@ import io.netty.util.ResourceLeakDetector
 class ResourceLeakDetectorLevelScope(
     private val testLevel: ResourceLeakDetector.Level
 ) {
-    private var enabled = false
+    private var state = ResourceLeakDetectorLevelScopeState.NEVER_ENABLED
 
     @Synchronized
     fun enable() {
-        check(!enabled) { "The Netty leak-detection level is already scoped for this test" }
+        check(state != ResourceLeakDetectorLevelScopeState.ENABLED) {
+            "The Netty leak-detection level is already scoped for this test"
+        }
         ResourceLeakDetectorLevelCoordinator.acquire(testLevel)
-        enabled = true
+        state = ResourceLeakDetectorLevelScopeState.ENABLED
     }
 
     @Synchronized
     fun restore() {
-        check(enabled) {
-            "The Netty leak-detection level cannot be restored before it has been scoped for a test"
+        when (state) {
+            ResourceLeakDetectorLevelScopeState.NEVER_ENABLED -> error(
+                "The Netty leak-detection level cannot be restored before it has been scoped for a test"
+            )
+            ResourceLeakDetectorLevelScopeState.RESTORED -> error(
+                "The Netty leak-detection level has already been restored for this test"
+            )
+            ResourceLeakDetectorLevelScopeState.ENABLED -> Unit
         }
         ResourceLeakDetectorLevelCoordinator.release(testLevel)
-        enabled = false
+        state = ResourceLeakDetectorLevelScopeState.RESTORED
     }
+}
+
+private enum class ResourceLeakDetectorLevelScopeState {
+    NEVER_ENABLED,
+    ENABLED,
+    RESTORED
 }
 
 private object ResourceLeakDetectorLevelCoordinator {

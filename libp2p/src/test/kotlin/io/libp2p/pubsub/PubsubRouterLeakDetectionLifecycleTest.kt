@@ -2,6 +2,7 @@ package io.libp2p.pubsub
 
 import io.libp2p.pubsub.flood.FloodPubsubRouterTest
 import io.libp2p.security.tls.TlsSecureChannelTest
+import io.libp2p.tools.ResourceLeakDetectorLevelScope
 import io.netty.util.ResourceLeakDetector
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
@@ -22,13 +23,16 @@ class PubsubRouterLeakDetectionLifecycleTest {
     @Test
     fun `overlapping real test lifecycles retain leak detection until the last exit`() {
         val originalLevel = ResourceLeakDetector.getLevel()
+        val outerScope = ResourceLeakDetectorLevelScope(ResourceLeakDetector.Level.PARANOID)
         val scenario = LeakDetectionLifecycleScenario()
+        var outerScopeEnabled = false
         var fixtureStateInstalled = false
         var pubsubRun: FixtureRun? = null
         var secureChannelRun: FixtureRun? = null
         var primaryFailure: Throwable? = null
         try {
-            ResourceLeakDetector.setLevel(ResourceLeakDetector.Level.ADVANCED)
+            outerScope.enable()
+            outerScopeEnabled = true
             LeakDetectionLifecycleFixtureState.install(scenario)
             fixtureStateInstalled = true
             pubsubRun = startFixture(
@@ -66,7 +70,9 @@ class PubsubRouterLeakDetectionLifecycleTest {
             assertThat(secureChannelRun.listener.summary.failures.single().exception)
                 .isInstanceOf(IllegalStateException::class.java)
                 .hasMessage(DELIBERATE_SECURE_CHANNEL_BODY_FAILURE)
-            assertThat(ResourceLeakDetector.getLevel()).isEqualTo(ResourceLeakDetector.Level.ADVANCED)
+            assertThat(ResourceLeakDetector.getLevel())
+                .describedAs("The outer scope must retain PARANOID after both nested lifecycles restore")
+                .isEqualTo(ResourceLeakDetector.Level.PARANOID)
         } catch (throwable: Throwable) {
             primaryFailure = throwable
         } finally {
@@ -79,8 +85,15 @@ class PubsubRouterLeakDetectionLifecycleTest {
                     LeakDetectionLifecycleFixtureState.clear(scenario)
                 }
             }
+            if (outerScopeEnabled) {
+                primaryFailure = captureCleanupFailure(primaryFailure) {
+                    outerScope.restore()
+                }
+            }
             primaryFailure = captureCleanupFailure(primaryFailure) {
-                ResourceLeakDetector.setLevel(originalLevel)
+                assertThat(ResourceLeakDetector.getLevel())
+                    .describedAs("The outer scope must restore the leak-detection level captured before the test")
+                    .isEqualTo(originalLevel)
             }
         }
         primaryFailure?.let { throw it }

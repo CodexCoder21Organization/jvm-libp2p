@@ -23,9 +23,11 @@ import io.netty.buffer.ByteBuf
 import io.netty.buffer.Unpooled
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.RepeatedTest
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.TimeUnit
@@ -39,11 +41,23 @@ class NetworkSimultaneousConnectTest {
         stopHostsPreservingFirstFailure(hosts)
     }
 
-    @Test
+    @RepeatedTest(10)
     fun `simultaneous peer connects leave one shared connection open`() {
         val releaseBothDials = CompletableFuture<Unit>()
         val (first, firstTransport) = createHost(releaseBothDials)
         val (second, secondTransport) = createHost(releaseBothDials)
+        val lower = if (first.peerId.toBase58() < second.peerId.toBase58()) first else second
+        val higher = if (lower === first) second else first
+        val preferredInboundHandlerEntered = CountDownLatch(1)
+        val releasePreferredInboundHandler = CountDownLatch(1)
+        higher.addConnectionHandler(
+            ConnectionHandler.create { connection ->
+                if (!connection.isInitiator) {
+                    preferredInboundHandlerEntered.countDown()
+                    check(releasePreferredInboundHandler.await(10, TimeUnit.SECONDS))
+                }
+            }
+        )
 
         try {
             val firstConnect = first.network.connect(
@@ -61,6 +75,7 @@ class NetworkSimultaneousConnectTest {
             assertThat(secondConnect.isDone).isFalse()
 
             releaseBothDials.complete(Unit)
+            assertThat(preferredInboundHandlerEntered.await(10, TimeUnit.SECONDS)).isTrue()
             CompletableFuture.allOf(firstConnect, secondConnect).get(30, TimeUnit.SECONDS)
             assertPreferredConnectSelection(first, second)
             assertPreferredConnectSelection(second, first)
@@ -85,6 +100,7 @@ class NetworkSimultaneousConnectTest {
                 first.listenAddresses().single()
             ).controller.thenCompose { it.ping() }.get(30, TimeUnit.SECONDS)
         } finally {
+            releasePreferredInboundHandler.countDown()
             releaseBothDials.complete(Unit)
         }
     }

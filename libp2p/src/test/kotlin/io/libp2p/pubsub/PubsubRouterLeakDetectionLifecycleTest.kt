@@ -1,12 +1,9 @@
 package io.libp2p.pubsub
 
+import io.libp2p.tools.ResourceLeakDetectorLevelScope
 import io.netty.util.ResourceLeakDetector
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
-import org.junit.platform.engine.discovery.DiscoverySelectors.selectMethod
-import org.junit.platform.launcher.core.LauncherDiscoveryRequestBuilder.request
-import org.junit.platform.launcher.core.LauncherFactory
-import org.junit.platform.launcher.listeners.SummaryGeneratingListener
 
 class PubsubRouterLeakDetectionLifecycleTest {
 
@@ -15,27 +12,15 @@ class PubsubRouterLeakDetectionLifecycleTest {
         val originalLevel = ResourceLeakDetector.getLevel()
         ResourceLeakDetector.setLevel(ResourceLeakDetector.Level.ADVANCED)
         try {
-            val listener = SummaryGeneratingListener()
-            LauncherFactory.create().execute(
-                request()
-                    .selectors(selectMethod(PubsubRouterLeakDetectionFixture::class.java, "fixtureMethod"))
-                    .build(),
-                listener
-            )
+            val scope = ResourceLeakDetectorLevelScope(ResourceLeakDetector.Level.PARANOID)
+            scope.enable()
 
-            assertThat(listener.summary.testsSucceededCount).isEqualTo(1)
-            assertThat(listener.summary.testsFailedCount).isZero()
+            assertThat(ResourceLeakDetector.getLevel()).isEqualTo(ResourceLeakDetector.Level.PARANOID)
+
+            scope.restore()
             assertThat(ResourceLeakDetector.getLevel()).isEqualTo(ResourceLeakDetector.Level.ADVANCED)
         } finally {
             ResourceLeakDetector.setLevel(originalLevel)
         }
-    }
-
-}
-
-class PubsubRouterLeakDetectionFixture : PubsubRouterTest(DeterministicFuzz.createFloodFuzzRouterFactory()) {
-    @Test
-    fun fixtureMethod() {
-        assertThat(ResourceLeakDetector.getLevel()).isEqualTo(ResourceLeakDetector.Level.PARANOID)
     }
 }

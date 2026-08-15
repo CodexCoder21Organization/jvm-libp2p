@@ -15,6 +15,14 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 
+private fun shouldReplaceSettledConnection(settled: Connection, candidate: Connection): Boolean {
+    if (settled.isInitiator == candidate.isInitiator) return false
+
+    val session = candidate.secureSession()
+    val localPeerKeepsInitiator = session.localId.toBase58() < session.remoteId.toBase58()
+    return candidate.isInitiator == localPeerKeepsInitiator
+}
+
 class NetworkImpl(
     override val transports: List<Transport>,
     override val connectionHandler: ConnectionHandler
@@ -28,8 +36,8 @@ class NetworkImpl(
     private val pendingDials = ConcurrentHashMap<PendingDialKey, CompletableFuture<Connection>>()
 
     /**
-     * The connection [connect] settled on for each peer, so that every caller of [connect] — and
-     * every address raced within one call — converges on the same one. See
+     * The connection this network settled on for each peer, so inbound connections, every caller
+     * of [connect], and every address raced within one call converge on the same one. See
      * [retainOneConnectionPerPeer].
      */
     private val settledConnections = ConcurrentHashMap<PeerId, Connection>()
@@ -62,15 +70,15 @@ class NetworkImpl(
             ?: throw TransportNotSupportedException("no transport to handle addr: $addr")
 
     private fun createHookedConnHandler(handler: ConnectionHandler) =
-        ConnectionHandler.createBroadcast(
-            listOf(
-                handler,
-                ConnectionHandler.create { conn ->
-                    connections += conn
-                    conn.closeFuture().thenAccept { connections -= conn }
-                }
-            )
-        )
+        ConnectionHandler.create { connection ->
+            val remoteId = connection.secureSession().remoteId
+            val retained = retainOneConnectionPerPeer(remoteId, connection)
+            if (retained === connection) {
+                connections += connection
+                connection.closeFuture().thenAccept { connections -= connection }
+                handler.handleConnection(connection)
+            }
+        }
 
     /**
      * Connects to a peerid with a provided set of {@code Multiaddr}, returning the existing connection if already connected.
@@ -96,26 +104,37 @@ class NetworkImpl(
      * is a different one.
      *
      * A peer is reachable at several addresses and [connect] dials all of them at once, so several
-     * dials can succeed. Only one connection is ever returned to a caller; without this, each of
-     * the others stayed fully established — a live socket, Netty pipeline and muxer session that no
-     * caller holds a reference to and nothing ever closes. A long-lived process dialling a large,
-     * churning peer population retained one such connection per surplus address per peer it had
-     * ever contacted.
+     * dials can succeed. Two peers can also dial each other at the same time, establishing one
+     * connection in each direction. Only one connection is retained; without this, every surplus
+     * connection stays fully established with its own socket, Netty pipeline and muxer session.
      *
-     * The winner is chosen by a single atomic map operation rather than by dial completion order,
-     * so concurrent callers — which share the same pending dials but race their own address lists —
-     * always converge on the same connection instead of each closing the one another is using. A
-     * connection that has already closed does not keep its peer's slot.
+     * The winner is chosen by a single atomic map operation rather than by dial completion order.
+     * Same-direction address races keep the first active connection. When opposite directions
+     * coexist, peer identity determines the direction to keep: the lower-ID peer keeps its
+     * initiator connection and the higher-ID peer keeps its responder connection. Both peers
+     * therefore identify the same physical connection instead of each closing the other's winner.
+     * A lone connection is always accepted, and a connection that has closed does not keep its
+     * peer's slot.
      */
     private fun retainOneConnectionPerPeer(id: PeerId, connection: Connection): Connection {
+        var replacedConnection: Connection? = null
         // The remapping function never returns null, so neither does compute; the elvis branch is
         // unreachable and exists only to keep the result non-nullable without an unsafe call.
         val settled = settledConnections.compute(id) { _, alreadySettled ->
-            if (alreadySettled != null && !alreadySettled.closeFuture().isDone) alreadySettled else connection
+            when {
+                alreadySettled == null || alreadySettled.closeFuture().isDone -> connection
+                alreadySettled === connection -> connection
+                shouldReplaceSettledConnection(alreadySettled, connection) -> {
+                    replacedConnection = alreadySettled
+                    connection
+                }
+                else -> alreadySettled
+            }
         } ?: connection
         if (settled !== connection) {
             connection.close()
         } else {
+            replacedConnection?.close()
             // Releasing the slot on close lets the next connect() to this peer settle afresh.
             // Registering this more than once for the same connection is harmless: the removal is
             // conditional on the mapping still being this connection, and repeating it is a no-op.

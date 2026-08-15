@@ -36,4 +36,27 @@ class LoggingHandlerShortTest {
             }
         }
     }
+
+    @Test
+    fun `small protobuf messages retain their useful field details`() {
+        val rpc = Rpc.RPC.newBuilder()
+            .addSubscriptions(
+                Rpc.RPC.SubOpts.newBuilder()
+                    .setSubscribe(true)
+                    .setTopicid("small-topic")
+            )
+            .build()
+
+        TestLogAppender().install().use { appender ->
+            val channel = EmbeddedChannel(LoggingHandlerShort("small-protobuf-test", LogLevel.INFO))
+            try {
+                channel.writeOutbound(rpc)
+
+                assertThat(appender.logs.map { it.message.formattedMessage })
+                    .anyMatch { it.contains("topicid: \"small-topic\"") }
+            } finally {
+                channel.finishAndReleaseAll()
+            }
+        }
+    }
 }

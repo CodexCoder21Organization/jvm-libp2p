@@ -264,7 +264,7 @@ class NetworkSimultaneousConnectTest {
             lowerDialGate.complete(Unit)
             val higherSurvivor = higherTransport.awaitConnection(false)
             val lowerSurvivor = lowerTransport.awaitConnection(true)
-            higherTransport.awaitRejectedConnection()
+            assertThat(higherTransport.awaitRejectedConnection()).isSameAs(rejected)
 
             lowerDialCompletion.complete(Unit)
             assertThat(lowerConnect.get(10, TimeUnit.SECONDS)).isSameAs(lowerSurvivor)
@@ -277,6 +277,7 @@ class NetworkSimultaneousConnectTest {
                 lowerSurvivor.closeFuture(),
                 rejected.closeFuture()
             ).get(10, TimeUnit.SECONDS)
+            assertThat(higher.network.connections).isEmpty()
 
             // Releasing the first transport result now makes that address fail because its
             // candidate was rejected and the selected survivor has closed. The aggregate connect

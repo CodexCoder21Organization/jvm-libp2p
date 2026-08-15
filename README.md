@@ -69,6 +69,14 @@ whose close future has completed are removed and skipped during selection, even 
 asynchronous table-removal continuation has not run yet. A request made in that interval therefore
 starts a fresh transport dial instead of receiving a connection whose muxer is already closed.
 
+## Simultaneous peer connection reuse
+
+When two peers dial each other at the same time, both upgraded TCP connections briefly exist. The
+network settles on one connection using the peer IDs and connection direction: the lower-ID peer
+keeps its initiator side and the higher-ID peer keeps its responder side, so both hosts choose the
+same socket. The other connection is closed, and later `Network.connect` and `Host.newStream` calls
+reuse the surviving connection.
+
 ## Gossip simulator
 
 Deterministic Gossip simulator which may simulate networks as large as 10000 of peers

@@ -61,7 +61,7 @@ This is a standard Gradle project (JDK 11+). It is **built with Gradle** and the
 1. **Pick the next version.** Releases are `1.3.0-codexcoder21-snapshot-N`. **Increment `N` to the next unpublished value and confirm it is not already published** — the publish API refuses to overwrite an existing version (`HTTP 409`), and version numbers have in the past been claimed by parallel branches. Check with:
 
    ```bash
-   # 200 = already published (pick a higher N); 401 = not published (free to use)
+   # 200 = already published (pick a higher N); 404 = not published (free to use)
    curl -s -o /dev/null -w "%{http_code}\n" \
      "https://kotlin.directory/community/kotlin/libp2p/jvm-libp2p/1.3.0-codexcoder21-snapshot-N/jvm-libp2p-1.3.0-codexcoder21-snapshot-N.pom"
    ```

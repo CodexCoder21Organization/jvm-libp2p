@@ -61,8 +61,8 @@ class ResourceLeakDetectorLevelScopeTest {
             assertThatThrownBy { conflicting.enable() }
                 .isInstanceOf(IllegalStateException::class.java)
                 .hasMessage(
-                    "The Netty leak-detection level is already scoped to PARANOID by 1 active test scope(s), " +
-                        "so it cannot also be scoped to SIMPLE"
+                    "The Netty leak-detection level is already scoped to PARANOID, so it cannot also be scoped to " +
+                        "SIMPLE"
                 )
             assertThatThrownBy { conflicting.restore() }
                 .isInstanceOf(IllegalStateException::class.java)

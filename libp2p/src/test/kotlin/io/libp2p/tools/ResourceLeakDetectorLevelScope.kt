@@ -58,8 +58,8 @@ private object ResourceLeakDetectorLevelCoordinator {
         }
 
         check(scopedLevel == requestedLevel) {
-            "The Netty leak-detection level is already scoped to $scopedLevel by $ownerCount active test " +
-                "scope(s), so it cannot also be scoped to $requestedLevel"
+            "The Netty leak-detection level is already scoped to $scopedLevel, so it cannot also be scoped to " +
+                requestedLevel
         }
         ownerCount++
     }

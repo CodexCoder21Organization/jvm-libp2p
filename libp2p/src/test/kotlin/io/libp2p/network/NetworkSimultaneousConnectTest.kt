@@ -49,6 +49,8 @@ class NetworkSimultaneousConnectTest {
 
         releaseBothDials.complete(Unit)
         CompletableFuture.allOf(firstConnect, secondConnect).get(30, TimeUnit.SECONDS)
+        assertPreferredConnectSelection(first, second)
+        assertPreferredConnectSelection(second, first)
         awaitNonPreferredConnectionClose(first, second.peerId)
         awaitNonPreferredConnectionClose(second, first.peerId)
 
@@ -93,6 +95,14 @@ class NetworkSimultaneousConnectTest {
 
     private fun activeConnectionCount(host: Host): Int =
         host.network.connections.count { !it.closeFuture().isDone }
+
+    private fun assertPreferredConnectSelection(host: Host, remote: Host) {
+        val expectedInitiator = host.peerId.toBase58() < remote.peerId.toBase58()
+        val selected = host.network.connect(remote.peerId, remote.listenAddresses().single()).get()
+        assertThat(selected.isInitiator)
+            .describedAs("connection selected for a new call after simultaneous dial arbitration")
+            .isEqualTo(expectedInitiator)
+    }
 
     private fun awaitNonPreferredConnectionClose(host: Host, remotePeerId: PeerId) {
         val localPeerKeepsInitiator = host.peerId.toBase58() < remotePeerId.toBase58()

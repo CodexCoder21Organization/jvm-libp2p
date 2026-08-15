@@ -83,10 +83,10 @@ class NetworkSimultaneousConnectTest {
                 .describedAs("higher peer's live connection while its preferred responder is still in the handler")
                 .isTrue()
             assertThat(provisionalHigherConnection.secureSession().remoteId).isEqualTo(lower.peerId)
+            provisionalHigherConnection.closeFuture().get(30, TimeUnit.SECONDS)
             assertThat(provisionalHigherConnection.closeFuture().isDone).isFalse()
 
             releasePreferredInboundHandler.countDown()
-            provisionalHigherConnection.closeFuture().get(30, TimeUnit.SECONDS)
 
             assertPreferredConnectSelection(first, second)
             assertPreferredConnectSelection(second, first)

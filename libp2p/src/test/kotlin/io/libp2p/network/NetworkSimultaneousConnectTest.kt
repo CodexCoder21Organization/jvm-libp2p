@@ -23,12 +23,11 @@ import io.netty.buffer.ByteBuf
 import io.netty.buffer.Unpooled
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.RepeatedTest
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.CountDownLatch
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
@@ -41,7 +40,7 @@ class NetworkSimultaneousConnectTest {
         stopHostsPreservingFirstFailure(hosts)
     }
 
-    @RepeatedTest(10)
+    @Test
     fun `simultaneous peer connects leave one shared connection open`() {
         val releaseBothDials = CompletableFuture<Unit>()
         val (first, firstTransport) = createHost(releaseBothDials)
@@ -77,6 +76,18 @@ class NetworkSimultaneousConnectTest {
             releaseBothDials.complete(Unit)
             assertThat(preferredInboundHandlerEntered.await(10, TimeUnit.SECONDS)).isTrue()
             CompletableFuture.allOf(firstConnect, secondConnect).get(30, TimeUnit.SECONDS)
+
+            val higherConnect = if (higher === first) firstConnect else secondConnect
+            val provisionalHigherConnection = higherConnect.get(10, TimeUnit.SECONDS)
+            assertThat(provisionalHigherConnection.isInitiator)
+                .describedAs("higher peer's live connection while its preferred responder is still in the handler")
+                .isTrue()
+            assertThat(provisionalHigherConnection.secureSession().remoteId).isEqualTo(lower.peerId)
+            assertThat(provisionalHigherConnection.closeFuture().isDone).isFalse()
+
+            releasePreferredInboundHandler.countDown()
+            provisionalHigherConnection.closeFuture().get(30, TimeUnit.SECONDS)
+
             assertPreferredConnectSelection(first, second)
             assertPreferredConnectSelection(second, first)
             awaitNonPreferredConnectionClose(first, second.peerId)

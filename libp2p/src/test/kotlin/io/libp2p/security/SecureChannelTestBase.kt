@@ -12,10 +12,10 @@ import io.libp2p.etc.types.toByteArray
 import io.libp2p.etc.types.toByteBuf
 import io.libp2p.multistream.Negotiator
 import io.libp2p.multistream.ProtocolSelect
+import io.libp2p.tools.ResourceLeakDetectorLevelScope
 import io.libp2p.tools.TestChannel
 import io.libp2p.tools.TestChannel.Companion.interConnect
 import io.libp2p.tools.TestHandler
-import io.libp2p.tools.ResourceLeakDetectorLevelScope
 import io.netty.buffer.ByteBuf
 import io.netty.channel.ChannelHandlerContext
 import io.netty.channel.ChannelInboundHandlerAdapter

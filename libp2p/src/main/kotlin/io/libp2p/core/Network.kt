@@ -50,6 +50,9 @@ interface Network {
      * This is a shortcut to [connect(PeerId, Multiaddr)] for the
      * cases when [Multiaddr] contains [/p2p] component which contains remote [PeerId]
      *
+     * When this network has a configured local peer identity and the address contains that same
+     * identity, the returned future fails with [Libp2pException] before transport work begins.
+     *
      * @throws Libp2pException if [/p2p] component is missing or addresses has different [/p2p] values
      * @throws TransportNotSupportedException if any of [addrs] represents the transport which is not supported
      */
@@ -68,6 +71,8 @@ interface Network {
      * and completes the returned [Future] when any of connections succeeds
      *
      * If the connection is established it is handled by [connectionHandler]
+     * If [id] is the configured local peer identity, the returned future fails with
+     * [Libp2pException] before a transport is selected or dialed.
      *
      * @throws TransportNotSupportedException if any of [addrs] represents the transport which is not supported
      */
@@ -81,6 +86,8 @@ interface Network {
      * and completes the returned [Future] when any of connections succeeds
      *
      * If the connection is established it is handled by [connectionHandler]
+     * If [id] is the configured local peer identity, the returned future fails with
+     * [Libp2pException] before a transport is selected or dialed.
      *
      * @param preHandler is invoked prior to any other handlers (including security negotiation) on a newly created raw Channel
      * Concurrent calls may share an in-progress transport dial only when their peer, address, and [preHandler] are equal.

@@ -17,11 +17,30 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 
+/**
+ * Default [Network] implementation.
+ *
+ * [localPeerId] enables rejection of a connection to the local identity before transport work.
+ * Host instances built through the DSL supply this value. Direct callers that need the same check
+ * must use this peer-aware constructor rather than the two-argument compatibility constructor.
+ */
 class NetworkImpl(
     override val transports: List<Transport>,
     override val connectionHandler: ConnectionHandler,
-    private val localPeerId: PeerId? = null
+    private val localPeerId: PeerId?
 ) : Network {
+
+    /**
+     * Retains the original public JVM constructor for source and binary compatibility.
+     *
+     * This constructor has no local peer identity, so it cannot reject a self-identity connection
+     * before transport work. Direct callers that need that behavior must pass [localPeerId] to the
+     * peer-aware constructor.
+     */
+    constructor(
+        transports: List<Transport>,
+        connectionHandler: ConnectionHandler
+    ) : this(transports, connectionHandler, null)
 
     /**
      * The connection table.

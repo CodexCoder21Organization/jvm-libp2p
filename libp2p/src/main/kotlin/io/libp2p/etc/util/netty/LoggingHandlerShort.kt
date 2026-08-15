@@ -30,8 +30,9 @@ class LoggingHandlerShort : LoggingHandler {
     var charsCutThreshold = 256
 
     override fun format(ctx: ChannelHandlerContext?, eventName: String?, arg: Any?): String {
-        val orig = if (arg is MessageLite) {
-            "${ctx!!.channel()} $eventName: ${arg.javaClass.simpleName}(serializedSize=${arg.serializedSize})"
+        val protobufSize = (arg as? MessageLite)?.serializedSize
+        val orig = if (protobufSize != null && protobufSize > MAX_PROTOBUF_RENDER_BYTES) {
+            "${ctx!!.channel()} $eventName: ${arg.javaClass.simpleName}(serializedSize=$protobufSize)"
         } else {
             super.format(ctx, eventName, arg)
         }
@@ -59,5 +60,9 @@ class LoggingHandlerShort : LoggingHandler {
             }
         }
         return shortLines.joinToString("\n")
+    }
+
+    private companion object {
+        const val MAX_PROTOBUF_RENDER_BYTES = 1024
     }
 }

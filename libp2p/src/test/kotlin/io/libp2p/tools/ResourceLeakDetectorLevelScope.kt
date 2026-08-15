@@ -5,19 +5,74 @@ import io.netty.util.ResourceLeakDetector
 class ResourceLeakDetectorLevelScope(
     private val testLevel: ResourceLeakDetector.Level
 ) {
-    private var previousLevel: ResourceLeakDetector.Level? = null
+    private var enabled = false
 
+    @Synchronized
     fun enable() {
-        check(previousLevel == null) { "The Netty leak-detection level is already scoped for this test" }
-        previousLevel = ResourceLeakDetector.getLevel()
-        ResourceLeakDetector.setLevel(testLevel)
+        check(!enabled) { "The Netty leak-detection level is already scoped for this test" }
+        ResourceLeakDetectorLevelCoordinator.acquire(testLevel)
+        enabled = true
     }
 
+    @Synchronized
     fun restore() {
-        val levelToRestore = checkNotNull(previousLevel) {
+        check(enabled) {
             "The Netty leak-detection level cannot be restored before it has been scoped for a test"
         }
+        ResourceLeakDetectorLevelCoordinator.release(testLevel)
+        enabled = false
+    }
+}
+
+private object ResourceLeakDetectorLevelCoordinator {
+    private var originalLevel: ResourceLeakDetector.Level? = null
+    private var scopedLevel: ResourceLeakDetector.Level? = null
+    private var ownerCount = 0
+
+    @Synchronized
+    fun acquire(requestedLevel: ResourceLeakDetector.Level) {
+        if (ownerCount == 0) {
+            check(originalLevel == null && scopedLevel == null) {
+                "The Netty leak-detection level coordinator retained state without an active test scope"
+            }
+            val currentLevel = ResourceLeakDetector.getLevel()
+            ResourceLeakDetector.setLevel(requestedLevel)
+            originalLevel = currentLevel
+            scopedLevel = requestedLevel
+            ownerCount = 1
+            return
+        }
+
+        check(scopedLevel == requestedLevel) {
+            "The Netty leak-detection level is already scoped to $scopedLevel by $ownerCount active test " +
+                "scope(s), so it cannot also be scoped to $requestedLevel"
+        }
+        ownerCount++
+    }
+
+    @Synchronized
+    fun release(requestedLevel: ResourceLeakDetector.Level) {
+        val activeLevel = checkNotNull(scopedLevel) {
+            "The Netty leak-detection level coordinator has no active test scope to restore"
+        }
+        check(activeLevel == requestedLevel) {
+            "The Netty leak-detection level coordinator is scoped to $activeLevel, not $requestedLevel"
+        }
+        check(ownerCount > 0) {
+            "The Netty leak-detection level coordinator has no active owner for $activeLevel"
+        }
+
+        if (ownerCount > 1) {
+            ownerCount--
+            return
+        }
+
+        val levelToRestore = checkNotNull(originalLevel) {
+            "The Netty leak-detection level coordinator did not retain the original level"
+        }
         ResourceLeakDetector.setLevel(levelToRestore)
-        previousLevel = null
+        ownerCount = 0
+        originalLevel = null
+        scopedLevel = null
     }
 }

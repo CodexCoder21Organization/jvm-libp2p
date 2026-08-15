@@ -1,10 +1,12 @@
 package io.libp2p.pubsub
 
-import io.libp2p.security.SecureChannelTestBase
-import io.libp2p.security.plaintext.PlaintextInsecureChannel
+import io.libp2p.pubsub.flood.FloodPubsubRouterTest
+import io.libp2p.security.tls.TlsSecureChannelTest
 import io.netty.util.ResourceLeakDetector
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.extension.BeforeTestExecutionCallback
+import org.junit.jupiter.api.extension.ExtensionContext
 import org.junit.platform.engine.discovery.DiscoverySelectors.selectMethod
 import org.junit.platform.launcher.core.LauncherDiscoveryRequestBuilder.request
 import org.junit.platform.launcher.core.LauncherFactory
@@ -26,8 +28,8 @@ class PubsubRouterLeakDetectionLifecycleTest {
         var secureChannelRun: FixtureRun? = null
         try {
             pubsubRun = startFixture(
-                PubsubRouterLeakDetectionFixture::class.java,
-                "overlappingBody",
+                FloodPubsubRouterTest::class.java,
+                "Fanout",
                 "pubsub-leak-detection-fixture"
             )
             assertThat(scenario.pubsubBodyEntered.await(10, TimeUnit.SECONDS))
@@ -36,8 +38,8 @@ class PubsubRouterLeakDetectionLifecycleTest {
             assertThat(ResourceLeakDetector.getLevel()).isEqualTo(ResourceLeakDetector.Level.PARANOID)
 
             secureChannelRun = startFixture(
-                SecureChannelLeakDetectionFixture::class.java,
-                "overlappingBodyThatThrows",
+                TlsSecureChannelTest::class.java,
+                "incorrect initiator remote PeerId should throw",
                 "secure-channel-leak-detection-fixture"
             )
             assertThat(scenario.secureChannelBodyEntered.await(10, TimeUnit.SECONDS))
@@ -72,32 +74,29 @@ class PubsubRouterLeakDetectionLifecycleTest {
     }
 }
 
-class PubsubRouterLeakDetectionFixture : PubsubRouterTest(DeterministicFuzz.createFloodFuzzRouterFactory()) {
-    @Test
-    fun overlappingBody() {
+class LeakDetectionLifecycleExtension : BeforeTestExecutionCallback {
+    override fun beforeTestExecution(context: ExtensionContext) {
         val scenario = LeakDetectionLifecycleFixtureState.current()
-        assertThat(ResourceLeakDetector.getLevel()).isEqualTo(ResourceLeakDetector.Level.PARANOID)
-        scenario.pubsubBodyEntered.countDown()
-        check(scenario.allowPubsubBodyToExit.await(10, TimeUnit.SECONDS)) {
-            "The pubsub leak-detection fixture was not allowed to exit within 10 seconds"
+        when (context.requiredTestClass) {
+            FloodPubsubRouterTest::class.java -> {
+                assertThat(ResourceLeakDetector.getLevel()).isEqualTo(ResourceLeakDetector.Level.PARANOID)
+                scenario.pubsubBodyEntered.countDown()
+                check(scenario.allowPubsubBodyToExit.await(10, TimeUnit.SECONDS)) {
+                    "The pubsub leak-detection fixture was not allowed to exit within 10 seconds"
+                }
+            }
+            TlsSecureChannelTest::class.java -> {
+                assertThat(ResourceLeakDetector.getLevel()).isEqualTo(ResourceLeakDetector.Level.PARANOID)
+                scenario.secureChannelBodyEntered.countDown()
+                check(scenario.allowSecureChannelBodyToExit.await(10, TimeUnit.SECONDS)) {
+                    "The secure-channel leak-detection fixture was not allowed to exit within 10 seconds"
+                }
+                throw IllegalStateException(DELIBERATE_SECURE_CHANNEL_BODY_FAILURE)
+            }
+            else -> throw IllegalStateException(
+                "The leak-detection lifecycle extension does not support ${context.requiredTestClass.name}"
+            )
         }
-    }
-}
-
-class SecureChannelLeakDetectionFixture : SecureChannelTestBase(
-    ::PlaintextInsecureChannel,
-    emptyList(),
-    "/plaintext/2.0.0"
-) {
-    @Test
-    fun overlappingBodyThatThrows() {
-        val scenario = LeakDetectionLifecycleFixtureState.current()
-        assertThat(ResourceLeakDetector.getLevel()).isEqualTo(ResourceLeakDetector.Level.PARANOID)
-        scenario.secureChannelBodyEntered.countDown()
-        check(scenario.allowSecureChannelBodyToExit.await(10, TimeUnit.SECONDS)) {
-            "The secure-channel leak-detection fixture was not allowed to exit within 10 seconds"
-        }
-        throw IllegalStateException(DELIBERATE_SECURE_CHANNEL_BODY_FAILURE)
     }
 }
 
@@ -153,6 +152,7 @@ private fun startFixture(fixtureClass: Class<*>, methodName: String, threadName:
             LauncherFactory.create().execute(
                 request()
                     .selectors(selectMethod(fixtureClass, methodName))
+                    .configurationParameter("junit.jupiter.extensions.autodetection.enabled", "true")
                     .build(),
                 listener
             )

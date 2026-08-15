@@ -71,11 +71,11 @@ class NetworkImpl(
 
     private fun createHookedConnHandler(handler: ConnectionHandler) =
         ConnectionHandler.create { connection ->
+            connections += connection
+            connection.closeFuture().thenAccept { connections -= connection }
             val remoteId = connection.secureSession().remoteId
             val retained = retainOneConnectionPerPeer(remoteId, connection)
             if (retained === connection) {
-                connections += connection
-                connection.closeFuture().thenAccept { connections -= connection }
                 handler.handleConnection(connection)
             }
         }
@@ -118,12 +118,21 @@ class NetworkImpl(
      */
     private fun retainOneConnectionPerPeer(id: PeerId, connection: Connection): Connection {
         var replacedConnection: Connection? = null
+        var acceptAdditionalInboundConnection = false
         // The remapping function never returns null, so neither does compute; the elvis branch is
         // unreachable and exists only to keep the result non-nullable without an unsafe call.
         val settled = settledConnections.compute(id) { _, alreadySettled ->
             when {
                 alreadySettled == null || alreadySettled.closeFuture().isDone -> connection
                 alreadySettled === connection -> connection
+                !alreadySettled.isInitiator && !connection.isInitiator -> {
+                    // Several addresses dialled by the remote peer arrive as several inbound
+                    // connections. Picking an inbound winner independently can select a different
+                    // socket from the dialling peer and make both sides close every connection.
+                    // Let the dialling peer close its same-direction losers instead.
+                    acceptAdditionalInboundConnection = true
+                    alreadySettled
+                }
                 shouldReplaceSettledConnection(alreadySettled, connection) -> {
                     replacedConnection = alreadySettled
                     connection
@@ -131,6 +140,8 @@ class NetworkImpl(
                 else -> alreadySettled
             }
         } ?: connection
+        if (acceptAdditionalInboundConnection) return connection
+
         if (settled !== connection) {
             connection.close()
         } else {

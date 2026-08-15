@@ -5,9 +5,11 @@ import io.libp2p.core.Connection
 import io.libp2p.core.ConnectionHandler
 import io.libp2p.core.Host
 import io.libp2p.core.P2PChannel
+import io.libp2p.core.PeerId
 import io.libp2p.core.dsl.host
 import io.libp2p.core.multiformats.Multiaddr
 import io.libp2p.protocol.Ping
+import io.libp2p.protocol.PingController
 import io.libp2p.transport.ConnectionUpgrader
 import io.libp2p.transport.tcp.TcpTransport
 import org.assertj.core.api.Assertions.assertThat
@@ -28,8 +30,8 @@ class NetworkSimultaneousConnectTest {
     @Test
     fun `simultaneous peer connects leave one shared connection open`() {
         val releaseBothDials = CompletableFuture<Unit>()
-        val (first, firstTransport, firstHandledConnections) = createHost(releaseBothDials)
-        val (second, secondTransport, secondHandledConnections) = createHost(releaseBothDials)
+        val (first, firstTransport) = createHost(releaseBothDials)
+        val (second, secondTransport) = createHost(releaseBothDials)
 
         val firstConnect = first.network.connect(
             second.peerId,
@@ -47,8 +49,8 @@ class NetworkSimultaneousConnectTest {
 
         releaseBothDials.complete(Unit)
         CompletableFuture.allOf(firstConnect, secondConnect).get(30, TimeUnit.SECONDS)
-        val firstRetained = firstConnect.get()
-        val secondRetained = secondConnect.get()
+        awaitNonPreferredConnectionClose(first, second.peerId)
+        awaitNonPreferredConnectionClose(second, first.peerId)
 
         assertThat(activeConnectionCount(first))
             .describedAs("active connections the first peer holds to the second")
@@ -56,21 +58,21 @@ class NetworkSimultaneousConnectTest {
         assertThat(activeConnectionCount(second))
             .describedAs("active connections the second peer holds to the first")
             .isEqualTo(1)
-        assertThat(first.network.connections).containsExactly(firstRetained)
-        assertThat(second.network.connections).containsExactly(secondRetained)
-        assertThat(firstRetained.closeFuture().isDone).isFalse()
-        assertThat(secondRetained.closeFuture().isDone).isFalse()
-        assertThat(firstHandledConnections.get())
-            .describedAs("connections delivered to the first peer's application handler")
-            .isEqualTo(1)
-        assertThat(secondHandledConnections.get())
-            .describedAs("connections delivered to the second peer's application handler")
-            .isEqualTo(1)
+
+        first.newStream<PingController>(
+            listOf(PING_PROTOCOL),
+            second.peerId,
+            second.listenAddresses().single()
+        ).controller.thenCompose { it.ping() }.get(30, TimeUnit.SECONDS)
+        second.newStream<PingController>(
+            listOf(PING_PROTOCOL),
+            first.peerId,
+            first.listenAddresses().single()
+        ).controller.thenCompose { it.ping() }.get(30, TimeUnit.SECONDS)
     }
 
-    private fun createHost(dialGate: CompletableFuture<Unit>): Triple<Host, GatedTcpTransport, AtomicInteger> {
+    private fun createHost(dialGate: CompletableFuture<Unit>): Pair<Host, GatedTcpTransport> {
         lateinit var transport: GatedTcpTransport
-        val handledConnections = AtomicInteger()
         val created = host {
             network {
                 listen("/ip4/127.0.0.1/tcp/0")
@@ -83,17 +85,24 @@ class NetworkSimultaneousConnectTest {
             protocols {
                 add(Ping())
             }
-            connectionHandlers {
-                add(ConnectionHandler.create { handledConnections.incrementAndGet() })
-            }
         }
         hosts += created
         created.start().get(30, TimeUnit.SECONDS)
-        return Triple(created, transport, handledConnections)
+        return created to transport
     }
 
     private fun activeConnectionCount(host: Host): Int =
         host.network.connections.count { !it.closeFuture().isDone }
+
+    private fun awaitNonPreferredConnectionClose(host: Host, remotePeerId: PeerId) {
+        val localPeerKeepsInitiator = host.peerId.toBase58() < remotePeerId.toBase58()
+        host.network.connections
+            .filter { connection ->
+                connection.secureSession().remoteId == remotePeerId &&
+                    connection.isInitiator != localPeerKeepsInitiator
+            }
+            .forEach { it.closeFuture().get(30, TimeUnit.SECONDS) }
+    }
 
     private class GatedTcpTransport(
         upgrader: ConnectionUpgrader,
@@ -109,5 +118,9 @@ class NetworkSimultaneousConnectTest {
             dialCount.incrementAndGet()
             return dialGate.thenCompose { super.dial(addr, connHandler, preHandler) }
         }
+    }
+
+    companion object {
+        private const val PING_PROTOCOL = "/ipfs/ping/1.0.0"
     }
 }

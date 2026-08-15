@@ -2,23 +2,32 @@ package io.libp2p.network
 
 import io.libp2p.core.ChannelVisitor
 import io.libp2p.core.Connection
+import io.libp2p.core.ConnectionClosedException
 import io.libp2p.core.ConnectionHandler
 import io.libp2p.core.Host
+import io.libp2p.core.Libp2pException
 import io.libp2p.core.P2PChannel
 import io.libp2p.core.PeerId
+import io.libp2p.core.Stream
 import io.libp2p.core.dsl.host
 import io.libp2p.core.multiformats.Multiaddr
 import io.libp2p.core.multiformats.Protocol
 import io.libp2p.protocol.Ping
+import io.libp2p.protocol.PingBinding
 import io.libp2p.protocol.PingController
+import io.libp2p.protocol.PingProtocol
+import io.libp2p.protocol.ProtocolMessageHandler
 import io.libp2p.transport.ConnectionUpgrader
 import io.libp2p.transport.tcp.TcpTransport
+import io.netty.buffer.ByteBuf
+import io.netty.buffer.Unpooled
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.ExecutionException
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -129,6 +138,132 @@ class NetworkSimultaneousConnectTest {
             secondCloseCompletion.complete(Unit)
             firstDialGate.complete(Unit)
             secondDialGate.complete(Unit)
+        }
+    }
+
+    @Test
+    fun `rejected address result fails when its selected survivor has closed`() {
+        val firstDialGate = CompletableFuture<Unit>()
+        val secondDialGate = CompletableFuture<Unit>()
+        val firstCloseCompletion = CompletableFuture<Unit>()
+        val secondCloseCompletion = CompletableFuture<Unit>()
+        val firstDialCompletion = CompletableFuture<Unit>()
+        val secondDialCompletion = CompletableFuture<Unit>()
+        val (first, firstTransport) = createDelayedCloseHost(
+            firstDialGate,
+            firstCloseCompletion,
+            firstDialCompletion
+        )
+        val (second, secondTransport) = createDelayedCloseHost(
+            secondDialGate,
+            secondCloseCompletion,
+            secondDialCompletion
+        )
+        val lower = if (first.peerId.toBase58() < second.peerId.toBase58()) first else second
+        val higher = if (lower === first) second else first
+        val higherTransport = if (higher === first) firstTransport else secondTransport
+        val lowerDialGate = if (lower === first) firstDialGate else secondDialGate
+        val higherDialGate = if (higher === first) firstDialGate else secondDialGate
+        val higherDialCompletion = if (higher === first) firstDialCompletion else secondDialCompletion
+        val lowerDialCompletion = if (lower === first) firstDialCompletion else secondDialCompletion
+
+        val higherConnect = higher.network.connect(lower.peerId, lower.listenAddresses().single())
+        val lowerConnect = lower.network.connect(higher.peerId, higher.listenAddresses().single())
+
+        try {
+            // Hold the higher peer's transport result after its nonpreferred candidate has passed
+            // the connection hook. The preferred lower-to-higher candidate can then replace it.
+            higherDialGate.complete(Unit)
+            higherTransport.awaitConnection(true)
+            lowerDialGate.complete(Unit)
+            val survivor = higherTransport.awaitConnection(false)
+            higherTransport.awaitRejectedConnection()
+
+            survivor.close()
+            firstCloseCompletion.complete(Unit)
+            secondCloseCompletion.complete(Unit)
+            survivor.closeFuture().get(10, TimeUnit.SECONDS)
+
+            higherDialCompletion.complete(Unit)
+            val error = org.junit.jupiter.api.assertThrows<ExecutionException> {
+                higherConnect.get(10, TimeUnit.SECONDS)
+            }
+            assertThat(rootCause(error)).isInstanceOf(ConnectionClosedException::class.java)
+            assertThat(rootCause(error).message)
+                .contains("candidate was rejected or closed and no active settled connection remains")
+        } finally {
+            lowerDialCompletion.complete(Unit)
+            firstDialGate.complete(Unit)
+            secondDialGate.complete(Unit)
+            firstCloseCompletion.complete(Unit)
+            secondCloseCompletion.complete(Unit)
+            runCatching { lowerConnect.get(10, TimeUnit.SECONDS) }
+        }
+    }
+
+    @Test
+    fun `stream on provisional connection closes and a later stream uses the survivor`() {
+        val firstDialGate = CompletableFuture<Unit>()
+        val secondDialGate = CompletableFuture<Unit>()
+        val firstCloseCompletion = CompletableFuture<Unit>()
+        val secondCloseCompletion = CompletableFuture<Unit>()
+        val firstPing = ControlledPingProtocol()
+        val secondPing = ControlledPingProtocol()
+        val (first, firstTransport) = createDelayedCloseHost(
+            firstDialGate,
+            firstCloseCompletion,
+            ping = PingBinding(firstPing)
+        )
+        val (second, secondTransport) = createDelayedCloseHost(
+            secondDialGate,
+            secondCloseCompletion,
+            ping = PingBinding(secondPing)
+        )
+        val lower = if (first.peerId.toBase58() < second.peerId.toBase58()) first else second
+        val higher = if (lower === first) second else first
+        val lowerDialGate = if (lower === first) firstDialGate else secondDialGate
+        val higherDialGate = if (higher === first) firstDialGate else secondDialGate
+        val higherTransport = if (higher === first) firstTransport else secondTransport
+        val lowerPing = if (lower === first) firstPing else secondPing
+
+        try {
+            val preferredConnect = lower.network.connect(
+                higher.peerId,
+                higher.listenAddresses().single()
+            )
+            val provisionalStream = higher.newStream<PingController>(
+                listOf(PING_PROTOCOL),
+                lower.peerId,
+                lower.listenAddresses().single()
+            )
+            higherDialGate.complete(Unit)
+            val provisionalPing = provisionalStream.controller.get(30, TimeUnit.SECONDS).ping()
+            lowerPing.firstRequest.get(10, TimeUnit.SECONDS)
+
+            lowerDialGate.complete(Unit)
+            preferredConnect.get(30, TimeUnit.SECONDS)
+            higherTransport.awaitConnection(false)
+            higherTransport.awaitRejectedConnection()
+
+            val error = org.junit.jupiter.api.assertThrows<ExecutionException> {
+                provisionalPing.get(10, TimeUnit.SECONDS)
+            }
+            assertThat(error.cause)
+                .isExactlyInstanceOf(ConnectionClosedException::class.java)
+                .hasMessage("Connection is closed")
+
+            firstPing.respond.set(true)
+            secondPing.respond.set(true)
+            higher.newStream<PingController>(
+                listOf(PING_PROTOCOL),
+                lower.peerId,
+                lower.listenAddresses().single()
+            ).controller.thenCompose { it.ping() }.get(30, TimeUnit.SECONDS)
+        } finally {
+            firstDialGate.complete(Unit)
+            secondDialGate.complete(Unit)
+            firstCloseCompletion.complete(Unit)
+            secondCloseCompletion.complete(Unit)
         }
     }
 
@@ -250,7 +385,9 @@ class NetworkSimultaneousConnectTest {
 
     private fun createDelayedCloseHost(
         dialGate: CompletableFuture<Unit>,
-        closeCompletion: CompletableFuture<Unit>
+        closeCompletion: CompletableFuture<Unit>,
+        dialCompletion: CompletableFuture<Unit> = CompletableFuture.completedFuture(Unit),
+        ping: PingBinding = Ping()
     ): Pair<Host, DelayedCloseTcpTransport> {
         lateinit var transport: DelayedCloseTcpTransport
         val created = host {
@@ -259,11 +396,11 @@ class NetworkSimultaneousConnectTest {
             }
             transports {
                 add { upgrader ->
-                    DelayedCloseTcpTransport(upgrader, dialGate, closeCompletion).also { transport = it }
+                    DelayedCloseTcpTransport(upgrader, dialGate, closeCompletion, dialCompletion).also { transport = it }
                 }
             }
             protocols {
-                add(Ping())
+                add(ping)
             }
         }
         hosts += created
@@ -316,6 +453,9 @@ class NetworkSimultaneousConnectTest {
             .forEach { it.closeFuture().get(30, TimeUnit.SECONDS) }
     }
 
+    private fun rootCause(error: Throwable): Throwable =
+        generateSequence(error) { it.cause }.last()
+
     private class GatedTcpTransport(
         upgrader: ConnectionUpgrader,
         private val dialGate: CompletableFuture<Unit>
@@ -335,10 +475,12 @@ class NetworkSimultaneousConnectTest {
     private class DelayedCloseTcpTransport(
         upgrader: ConnectionUpgrader,
         private val dialGate: CompletableFuture<Unit>,
-        private val closeCompletion: CompletableFuture<Unit>
+        private val closeCompletion: CompletableFuture<Unit>,
+        private val dialCompletion: CompletableFuture<Unit>
     ) : TcpTransport(upgrader) {
         private val wrappedConnections = CopyOnWriteArrayList<DelayedCloseConnection>()
         private val rejectedConnection = CompletableFuture<DelayedCloseConnection>()
+        private val directionConnections = ConcurrentHashMap<Boolean, CompletableFuture<DelayedCloseConnection>>()
 
         override fun listen(
             addr: Multiaddr,
@@ -354,7 +496,10 @@ class NetworkSimultaneousConnectTest {
         ): CompletableFuture<Connection> =
             dialGate.thenCompose {
                 super.dial(addr, wrappingHandler(connHandler), preHandler)
-                    .thenApply { connection -> wrappedConnections.single { it.delegate === connection } }
+                    .thenCompose { connection ->
+                        val wrapped = wrappedConnections.single { it.delegate === connection }
+                        dialCompletion.thenApply { wrapped }
+                    }
             }
 
         fun awaitRejectedConnection(): DelayedCloseConnection =
@@ -363,12 +508,18 @@ class NetworkSimultaneousConnectTest {
         fun connectionWithDirection(initiator: Boolean): DelayedCloseConnection =
             wrappedConnections.single { it.isInitiator == initiator }
 
+        fun awaitConnection(initiator: Boolean): DelayedCloseConnection =
+            directionConnections.computeIfAbsent(initiator) { CompletableFuture() }
+                .get(30, TimeUnit.SECONDS)
+
         private fun wrappingHandler(handler: ConnectionHandler) =
             ConnectionHandler.create { connection ->
                 val wrapped = DelayedCloseConnection(connection, closeCompletion) {
                     rejectedConnection.complete(it)
                 }
                 wrappedConnections += wrapped
+                directionConnections.computeIfAbsent(wrapped.isInitiator) { CompletableFuture() }
+                    .complete(wrapped)
                 handler.handleConnection(wrapped)
             }
     }
@@ -480,6 +631,60 @@ class NetworkSimultaneousConnectTest {
             Multiaddr(address.components.filterNot { it.protocol in Protocol.PEER_ID_PROTOCOLS })
 
         private data class DeliveryKey(val initiator: Boolean, val address: Multiaddr)
+    }
+
+    private class ControlledPingProtocol : PingProtocol() {
+        val firstRequest = CompletableFuture<Unit>()
+        val respond = java.util.concurrent.atomic.AtomicBoolean()
+
+        override fun onStartInitiator(stream: Stream): CompletableFuture<PingController> {
+            val handler = ControlledPingInitiator()
+            stream.pushHandler(handler)
+            return handler.active
+        }
+
+        override fun onStartResponder(stream: Stream): CompletableFuture<PingController> {
+            val handler = object : ProtocolMessageHandler<ByteBuf>, PingController {
+                override fun onMessage(stream: Stream, msg: ByteBuf) {
+                    if (respond.get()) {
+                        stream.writeAndFlush(msg)
+                    } else {
+                        firstRequest.complete(Unit)
+                    }
+                }
+
+                override fun ping(): CompletableFuture<Long> {
+                    throw Libp2pException("This is ping responder only")
+                }
+            }
+            stream.pushHandler(handler)
+            return CompletableFuture.completedFuture(handler)
+        }
+
+        private class ControlledPingInitiator : ProtocolMessageHandler<ByteBuf>, PingController {
+            val active = CompletableFuture<PingController>()
+            private val response = CompletableFuture<Long>()
+            private lateinit var stream: Stream
+
+            override fun onActivated(stream: Stream) {
+                this.stream = stream
+                active.complete(this)
+            }
+
+            override fun onMessage(stream: Stream, msg: ByteBuf) {
+                response.complete(1L)
+            }
+
+            override fun onClosed(stream: Stream) {
+                response.completeExceptionally(ConnectionClosedException())
+                active.completeExceptionally(ConnectionClosedException())
+            }
+
+            override fun ping(): CompletableFuture<Long> {
+                stream.writeAndFlush(Unpooled.wrappedBuffer(byteArrayOf(1)))
+                return response
+            }
+        }
     }
 
     companion object {

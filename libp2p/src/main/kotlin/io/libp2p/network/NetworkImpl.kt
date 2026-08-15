@@ -2,7 +2,9 @@ package io.libp2p.network
 
 import io.libp2p.core.ChannelVisitor
 import io.libp2p.core.Connection
+import io.libp2p.core.ConnectionClosedException
 import io.libp2p.core.ConnectionHandler
+import io.libp2p.core.Libp2pException
 import io.libp2p.core.Network
 import io.libp2p.core.P2PChannel
 import io.libp2p.core.PeerId
@@ -17,7 +19,8 @@ import java.util.concurrent.CopyOnWriteArrayList
 
 class NetworkImpl(
     override val transports: List<Transport>,
-    override val connectionHandler: ConnectionHandler
+    override val connectionHandler: ConnectionHandler,
+    private val localPeerId: PeerId? = null
 ) : Network {
 
     /**
@@ -66,6 +69,17 @@ class NetworkImpl(
 
     private fun createHookedConnHandler(handler: ConnectionHandler) =
         ConnectionHandler.create { connection ->
+            try {
+                handler.handleConnection(connection)
+            } catch (handlerError: Throwable) {
+                try {
+                    connection.close()
+                } catch (closeError: Throwable) {
+                    handlerError.addSuppressed(closeError)
+                }
+                throw handlerError
+            }
+
             connections += connection
             val remoteId = connection.secureSession().remoteId
             connection.closeFuture().whenComplete { _, _ ->
@@ -73,16 +87,20 @@ class NetworkImpl(
                 rejectedConnections -= connection
                 reconcileConnections(remoteId)
             }
-            val retained = retainOneConnectionPerPeer(remoteId, connection)
-            if (retained === connection) {
-                handler.handleConnection(connection)
-            }
+            retainOneConnectionPerPeer(remoteId, connection)
         }
 
     /**
      * Connects to a peerid with a provided set of {@code Multiaddr}, returning the existing connection if already connected.
      */
     override fun connect(id: PeerId, preHandler: ChannelVisitor<P2PChannel>?, vararg addrs: Multiaddr): CompletableFuture<Connection> {
+        if (id == localPeerId) {
+            val error = Libp2pException(
+                "Cannot connect to peer ${id.toBase58()} because it is the local peer ID"
+            )
+            return CompletableFuture<Connection>().also { it.completeExceptionally(error) }
+        }
+
         // we already have a connection for this peer, short circuit.
         findActiveConnection(id)
             ?.apply { return CompletableFuture.completedFuture(this) }
@@ -117,7 +135,13 @@ class NetworkImpl(
      */
     private fun retainOneConnectionPerPeer(id: PeerId, connection: Connection): Connection {
         val settlement = reconcileConnections(id, connection)
-        return if (settlement.candidateAccepted) connection else settlement.settled ?: connection
+        if (settlement.candidateAccepted) return connection
+        return settlement.settled ?: throw ConnectionClosedException(
+            "Connection to peer ${id.toBase58()} could not be retained because the candidate " +
+                "was rejected or closed and no active settled connection remains " +
+                "(candidateCloseComplete=${connection.closeFuture().isDone}, " +
+                "candidateRejected=${connection in rejectedConnections})"
+        )
     }
 
     /**

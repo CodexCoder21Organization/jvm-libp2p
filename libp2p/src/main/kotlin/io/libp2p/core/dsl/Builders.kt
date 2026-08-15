@@ -7,6 +7,7 @@ import io.libp2p.core.Connection
 import io.libp2p.core.ConnectionHandler
 import io.libp2p.core.Host
 import io.libp2p.core.P2PChannel
+import io.libp2p.core.PeerId
 import io.libp2p.core.Stream
 import io.libp2p.core.crypto.KeyType
 import io.libp2p.core.crypto.PrivKey
@@ -209,7 +210,11 @@ open class Builder {
             connHandlerProtocols +
                 connectionHandlers.values
         )
-        val networkImpl = NetworkImpl(allTransports, broadcastConnHandler)
+        val networkImpl = NetworkImpl(
+            allTransports,
+            broadcastConnHandler,
+            PeerId.fromPubKey(privKey.publicKey())
+        )
 
         return HostImpl(
             privKey,

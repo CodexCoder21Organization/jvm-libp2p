@@ -77,6 +77,11 @@ keeps its initiator side and the higher-ID peer keeps its responder side, so bot
 same socket. The other connection is closed, and later `Network.connect` and `Host.newStream` calls
 reuse the surviving connection.
 
+A connection returned before the opposite-direction dial finishes is provisional. If arbitration
+later selects the other socket, streams already opened on the provisional connection close with
+`ConnectionClosedException("Connection is closed")`; the library does not replay an in-flight
+protocol operation. A later `Host.newStream` call uses the surviving connection normally.
+
 ## Gossip simulator
 
 Deterministic Gossip simulator which may simulate networks as large as 10000 of peers

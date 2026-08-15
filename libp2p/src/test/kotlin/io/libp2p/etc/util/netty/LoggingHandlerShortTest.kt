@@ -97,13 +97,13 @@ class LoggingHandlerShortTest {
             try {
                 channel.writeOutbound(rpc)
 
-                assertThat(
-                    appender.logs
-                        .filter { it.loggerName == loggerName }
-                        .map { it.message.formattedMessage }
-                ).anyMatch {
+                val messages = appender.logs
+                    .filter { it.loggerName == loggerName }
+                    .map { it.message.formattedMessage }
+                assertThat(messages).anyMatch {
                     it.contains("WRITE: RPC(serializedSize=1025)") && !it.contains(marker)
                 }
+                assertThat(messages).noneMatch { it.contains(marker) }
             } finally {
                 channel.finishAndReleaseAll()
             }

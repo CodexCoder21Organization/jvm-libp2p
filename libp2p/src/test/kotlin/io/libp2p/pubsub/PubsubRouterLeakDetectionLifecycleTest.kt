@@ -5,6 +5,7 @@ import io.libp2p.security.tls.TlsSecureChannelTest
 import io.netty.util.ResourceLeakDetector
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.extension.AfterTestExecutionCallback
 import org.junit.jupiter.api.extension.BeforeTestExecutionCallback
 import org.junit.jupiter.api.extension.ExtensionContext
 import org.junit.platform.engine.discovery.DiscoverySelectors.selectMethod
@@ -22,11 +23,14 @@ class PubsubRouterLeakDetectionLifecycleTest {
     fun `overlapping real test lifecycles retain leak detection until the last exit`() {
         val originalLevel = ResourceLeakDetector.getLevel()
         val scenario = LeakDetectionLifecycleScenario()
-        LeakDetectionLifecycleFixtureState.install(scenario)
-        ResourceLeakDetector.setLevel(ResourceLeakDetector.Level.ADVANCED)
+        var fixtureStateInstalled = false
         var pubsubRun: FixtureRun? = null
         var secureChannelRun: FixtureRun? = null
+        var primaryFailure: Throwable? = null
         try {
+            ResourceLeakDetector.setLevel(ResourceLeakDetector.Level.ADVANCED)
+            LeakDetectionLifecycleFixtureState.install(scenario)
+            fixtureStateInstalled = true
             pubsubRun = startFixture(
                 FloodPubsubRouterTest::class.java,
                 "Fanout",
@@ -63,20 +67,29 @@ class PubsubRouterLeakDetectionLifecycleTest {
                 .isInstanceOf(IllegalStateException::class.java)
                 .hasMessage(DELIBERATE_SECURE_CHANNEL_BODY_FAILURE)
             assertThat(ResourceLeakDetector.getLevel()).isEqualTo(ResourceLeakDetector.Level.ADVANCED)
+        } catch (throwable: Throwable) {
+            primaryFailure = throwable
         } finally {
             scenario.allowPubsubBodyToExit.countDown()
             scenario.allowSecureChannelBodyToExit.countDown()
-            pubsubRun?.joinForCleanup()
-            secureChannelRun?.joinForCleanup()
-            LeakDetectionLifecycleFixtureState.clear(scenario)
-            ResourceLeakDetector.setLevel(originalLevel)
+            primaryFailure = captureCleanupFailure(primaryFailure) { pubsubRun?.joinForCleanup() }
+            primaryFailure = captureCleanupFailure(primaryFailure) { secureChannelRun?.joinForCleanup() }
+            if (fixtureStateInstalled) {
+                primaryFailure = captureCleanupFailure(primaryFailure) {
+                    LeakDetectionLifecycleFixtureState.clear(scenario)
+                }
+            }
+            primaryFailure = captureCleanupFailure(primaryFailure) {
+                ResourceLeakDetector.setLevel(originalLevel)
+            }
         }
+        primaryFailure?.let { throw it }
     }
 }
 
-class LeakDetectionLifecycleExtension : BeforeTestExecutionCallback {
+class LeakDetectionLifecycleExtension : BeforeTestExecutionCallback, AfterTestExecutionCallback {
     override fun beforeTestExecution(context: ExtensionContext) {
-        val scenario = LeakDetectionLifecycleFixtureState.current()
+        val scenario = LeakDetectionLifecycleFixtureState.currentOrNull() ?: return
         when (context.requiredTestClass) {
             FloodPubsubRouterTest::class.java -> {
                 assertThat(ResourceLeakDetector.getLevel()).isEqualTo(ResourceLeakDetector.Level.PARANOID)
@@ -91,11 +104,19 @@ class LeakDetectionLifecycleExtension : BeforeTestExecutionCallback {
                 check(scenario.allowSecureChannelBodyToExit.await(10, TimeUnit.SECONDS)) {
                     "The secure-channel leak-detection fixture was not allowed to exit within 10 seconds"
                 }
-                throw IllegalStateException(DELIBERATE_SECURE_CHANNEL_BODY_FAILURE)
             }
             else -> throw IllegalStateException(
                 "The leak-detection lifecycle extension does not support ${context.requiredTestClass.name}"
             )
+        }
+    }
+
+    override fun afterTestExecution(context: ExtensionContext) {
+        if (
+            LeakDetectionLifecycleFixtureState.currentOrNull() != null &&
+            context.requiredTestClass == TlsSecureChannelTest::class.java
+        ) {
+            throw IllegalStateException(DELIBERATE_SECURE_CHANNEL_BODY_FAILURE)
         }
     }
 }
@@ -116,9 +137,7 @@ private object LeakDetectionLifecycleFixtureState {
         }
     }
 
-    fun current(): LeakDetectionLifecycleScenario = checkNotNull(currentScenario.get()) {
-        "No leak-detection lifecycle fixture scenario is installed"
-    }
+    fun currentOrNull(): LeakDetectionLifecycleScenario? = currentScenario.get()
 
     fun clear(scenario: LeakDetectionLifecycleScenario) {
         check(currentScenario.compareAndSet(scenario, null)) {
@@ -163,5 +182,19 @@ private fun startFixture(fixtureClass: Class<*>, methodName: String, threadName:
     return FixtureRun(listener, fixtureThread, executionFailure)
 }
 
+private fun captureCleanupFailure(primaryFailure: Throwable?, cleanup: () -> Unit): Throwable? {
+    return try {
+        cleanup()
+        primaryFailure
+    } catch (cleanupFailure: Throwable) {
+        if (primaryFailure == null) {
+            cleanupFailure
+        } else {
+            primaryFailure.addSuppressed(cleanupFailure)
+            primaryFailure
+        }
+    }
+}
+
 private const val DELIBERATE_SECURE_CHANNEL_BODY_FAILURE =
-    "Deliberate secure-channel test-body failure used to verify inherited cleanup"
+    "Deliberate secure-channel test-body completion failure used to verify inherited cleanup"

@@ -202,6 +202,97 @@ class NetworkSimultaneousConnectTest {
     }
 
     @Test
+    fun `rejected address failure does not preempt a later multi-address success`() {
+        val firstDialGate = CompletableFuture<Unit>()
+        val secondDialGate = CompletableFuture<Unit>()
+        val laterAddressDialGate = CompletableFuture<Unit>()
+        val firstCloseCompletion = CompletableFuture<Unit>()
+        val secondCloseCompletion = CompletableFuture<Unit>()
+        val firstDialCompletion = CompletableFuture<Unit>()
+        val secondDialCompletion = CompletableFuture<Unit>()
+        val (first, firstTransport) = createDelayedCloseHost(
+            firstDialGate,
+            firstCloseCompletion,
+            firstDialCompletion,
+            listenCount = 2
+        )
+        val (second, secondTransport) = createDelayedCloseHost(
+            secondDialGate,
+            secondCloseCompletion,
+            secondDialCompletion,
+            listenCount = 2
+        )
+        val lower = if (first.peerId.toBase58() < second.peerId.toBase58()) first else second
+        val higher = if (lower === first) second else first
+        val higherTransport = if (higher === first) firstTransport else secondTransport
+        val lowerTransport = if (lower === first) firstTransport else secondTransport
+        val lowerDialGate = if (lower === first) firstDialGate else secondDialGate
+        val higherDialGate = if (higher === first) firstDialGate else secondDialGate
+        val higherDialCompletion = if (higher === first) firstDialCompletion else secondDialCompletion
+        val lowerDialCompletion = if (lower === first) firstDialCompletion else secondDialCompletion
+        val lowerAddresses = lower.listenAddresses().take(2)
+
+        higherTransport.setDialGate(lowerAddresses[1], laterAddressDialGate)
+        val higherConnect = higher.network.connect(
+            lower.peerId,
+            *lowerAddresses.toTypedArray()
+        )
+        val lowerConnect = lower.network.connect(higher.peerId, higher.listenAddresses().first())
+
+        try {
+            // Only the first higher-to-lower address may start. Its transport result remains held
+            // after the connection hook while the preferred lower-to-higher connection replaces it.
+            higherDialGate.complete(Unit)
+            val rejected = higherTransport.awaitConnection(true)
+            lowerDialGate.complete(Unit)
+            val higherSurvivor = higherTransport.awaitConnection(false)
+            val lowerSurvivor = lowerTransport.awaitConnection(true)
+            higherTransport.awaitRejectedConnection()
+
+            lowerDialCompletion.complete(Unit)
+            assertThat(lowerConnect.get(10, TimeUnit.SECONDS)).isSameAs(lowerSurvivor)
+
+            higherSurvivor.close()
+            firstCloseCompletion.complete(Unit)
+            secondCloseCompletion.complete(Unit)
+            CompletableFuture.allOf(
+                higherSurvivor.closeFuture(),
+                lowerSurvivor.closeFuture(),
+                rejected.closeFuture()
+            ).get(10, TimeUnit.SECONDS)
+
+            // Releasing the first transport result now makes that address fail because its
+            // candidate was rejected and the selected survivor has closed. The aggregate connect
+            // must remain pending for the second supplied address.
+            higherDialCompletion.complete(Unit)
+            assertThat(higherConnect.isDone)
+                .describedAs("multi-address connect after its first address failed")
+                .isFalse()
+
+            laterAddressDialGate.complete(Unit)
+            val recovered = higherConnect.get(30, TimeUnit.SECONDS)
+            assertThat(recovered).isNotSameAs(rejected)
+            assertThat(recovered).isNotSameAs(higherSurvivor)
+            assertThat(recovered.closeFuture().isDone).isFalse()
+            assertThat(recovered.secureSession().remoteId).isEqualTo(lower.peerId)
+
+            higher.newStream<PingController>(
+                listOf(PING_PROTOCOL),
+                lower.peerId,
+                lowerAddresses[1]
+            ).controller.thenCompose { it.ping() }.get(30, TimeUnit.SECONDS)
+        } finally {
+            firstDialGate.complete(Unit)
+            secondDialGate.complete(Unit)
+            laterAddressDialGate.complete(Unit)
+            firstDialCompletion.complete(Unit)
+            secondDialCompletion.complete(Unit)
+            firstCloseCompletion.complete(Unit)
+            secondCloseCompletion.complete(Unit)
+        }
+    }
+
+    @Test
     fun `stream on provisional connection closes and a later stream uses the survivor`() {
         val firstDialGate = CompletableFuture<Unit>()
         val secondDialGate = CompletableFuture<Unit>()
@@ -387,12 +478,13 @@ class NetworkSimultaneousConnectTest {
         dialGate: CompletableFuture<Unit>,
         closeCompletion: CompletableFuture<Unit>,
         dialCompletion: CompletableFuture<Unit> = CompletableFuture.completedFuture(Unit),
-        ping: PingBinding = Ping()
+        ping: PingBinding = Ping(),
+        listenCount: Int = 1
     ): Pair<Host, DelayedCloseTcpTransport> {
         lateinit var transport: DelayedCloseTcpTransport
         val created = host {
             network {
-                listen("/ip4/127.0.0.1/tcp/0")
+                repeat(listenCount) { index -> listen("/ip4/127.0.0.${index + 1}/tcp/0") }
             }
             transports {
                 add { upgrader ->
@@ -481,6 +573,11 @@ class NetworkSimultaneousConnectTest {
         private val wrappedConnections = CopyOnWriteArrayList<DelayedCloseConnection>()
         private val rejectedConnection = CompletableFuture<DelayedCloseConnection>()
         private val directionConnections = ConcurrentHashMap<Boolean, CompletableFuture<DelayedCloseConnection>>()
+        private val dialGates = ConcurrentHashMap<Multiaddr, CompletableFuture<Unit>>()
+
+        fun setDialGate(address: Multiaddr, gate: CompletableFuture<Unit>) {
+            dialGates[transportAddress(address)] = gate
+        }
 
         override fun listen(
             addr: Multiaddr,
@@ -494,7 +591,7 @@ class NetworkSimultaneousConnectTest {
             connHandler: ConnectionHandler,
             preHandler: ChannelVisitor<P2PChannel>?
         ): CompletableFuture<Connection> =
-            dialGate.thenCompose {
+            (dialGates[transportAddress(addr)] ?: dialGate).thenCompose {
                 super.dial(addr, wrappingHandler(connHandler), preHandler)
                     .thenCompose { connection ->
                         val wrapped = wrappedConnections.single { it.delegate === connection }
@@ -518,10 +615,13 @@ class NetworkSimultaneousConnectTest {
                     rejectedConnection.complete(it)
                 }
                 wrappedConnections += wrapped
+                handler.handleConnection(wrapped)
                 directionConnections.computeIfAbsent(wrapped.isInitiator) { CompletableFuture() }
                     .complete(wrapped)
-                handler.handleConnection(wrapped)
             }
+
+        private fun transportAddress(address: Multiaddr): Multiaddr =
+            Multiaddr(address.components.filterNot { it.protocol in Protocol.PEER_ID_PROTOCOLS })
     }
 
     private class DelayedCloseConnection(

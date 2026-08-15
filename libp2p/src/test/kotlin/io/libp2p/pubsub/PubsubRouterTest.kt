@@ -17,7 +17,9 @@ import io.libp2p.tools.TestChannel.TestConnection
 import io.netty.handler.logging.LogLevel
 import io.netty.util.ResourceLeakDetector
 import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import pubsub.pb.Rpc
 import java.time.Duration
@@ -28,8 +30,17 @@ import java.util.concurrent.TimeUnit
 typealias RouterCtor = () -> PubsubRouterDebug
 
 abstract class PubsubRouterTest(val routerFactory: DeterministicFuzzRouterFactory) {
-    init {
+    private var previousLeakDetectionLevel = ResourceLeakDetector.getLevel()
+
+    @BeforeEach
+    fun enableParanoidLeakDetection() {
+        previousLeakDetectionLevel = ResourceLeakDetector.getLevel()
         ResourceLeakDetector.setLevel(ResourceLeakDetector.Level.PARANOID)
+    }
+
+    @AfterEach
+    fun restoreLeakDetectionLevel() {
+        ResourceLeakDetector.setLevel(previousLeakDetectionLevel)
     }
 
     fun newMessage(topic: String, seqNo: Long, data: ByteArray) =

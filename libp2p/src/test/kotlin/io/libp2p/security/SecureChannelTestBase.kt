@@ -20,6 +20,8 @@ import io.netty.channel.ChannelHandlerContext
 import io.netty.channel.ChannelInboundHandlerAdapter
 import io.netty.util.ResourceLeakDetector
 import org.assertj.core.api.Assertions.fail
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import org.slf4j.LoggerFactory
@@ -37,8 +39,17 @@ abstract class SecureChannelTestBase(
     val muxerIds: List<StreamMuxer>,
     val announce: String
 ) {
-    init {
+    private var previousLeakDetectionLevel = ResourceLeakDetector.getLevel()
+
+    @BeforeEach
+    fun enableParanoidLeakDetection() {
+        previousLeakDetectionLevel = ResourceLeakDetector.getLevel()
         ResourceLeakDetector.setLevel(ResourceLeakDetector.Level.PARANOID)
+    }
+
+    @AfterEach
+    fun restoreLeakDetectionLevel() {
+        ResourceLeakDetector.setLevel(previousLeakDetectionLevel)
     }
 
     companion object {

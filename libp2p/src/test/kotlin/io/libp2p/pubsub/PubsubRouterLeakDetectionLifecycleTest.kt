@@ -31,7 +31,7 @@ class PubsubRouterLeakDetectionLifecycleTest {
         }
     }
 
-    private class LeakDetectionFixture : PubsubRouterTest(DeterministicFuzz.createFloodFuzzRouterFactory()) {
+    class LeakDetectionFixture : PubsubRouterTest(DeterministicFuzz.createFloodFuzzRouterFactory()) {
         @Test
         fun fixtureMethod() {
             assertThat(ResourceLeakDetector.getLevel()).isEqualTo(ResourceLeakDetector.Level.PARANOID)

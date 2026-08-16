@@ -12,6 +12,7 @@ import io.libp2p.etc.types.toByteArray
 import io.libp2p.etc.types.toByteBuf
 import io.libp2p.multistream.Negotiator
 import io.libp2p.multistream.ProtocolSelect
+import io.libp2p.tools.ResourceLeakDetectorLevelScope
 import io.libp2p.tools.TestChannel
 import io.libp2p.tools.TestChannel.Companion.interConnect
 import io.libp2p.tools.TestHandler
@@ -20,6 +21,8 @@ import io.netty.channel.ChannelHandlerContext
 import io.netty.channel.ChannelInboundHandlerAdapter
 import io.netty.util.ResourceLeakDetector
 import org.assertj.core.api.Assertions.fail
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import org.slf4j.LoggerFactory
@@ -37,8 +40,17 @@ abstract class SecureChannelTestBase(
     val muxerIds: List<StreamMuxer>,
     val announce: String
 ) {
-    init {
-        ResourceLeakDetector.setLevel(ResourceLeakDetector.Level.PARANOID)
+    private val leakDetectionLevelScope =
+        ResourceLeakDetectorLevelScope(ResourceLeakDetector.Level.PARANOID)
+
+    @BeforeEach
+    fun enableParanoidLeakDetection() {
+        leakDetectionLevelScope.enable()
+    }
+
+    @AfterEach
+    fun restoreLeakDetectionLevel() {
+        leakDetectionLevelScope.restore()
     }
 
     companion object {

@@ -13,11 +13,14 @@ import io.libp2p.etc.types.toByteBuf
 import io.libp2p.etc.types.toBytesBigEndian
 import io.libp2p.etc.types.toProtobuf
 import io.libp2p.pubsub.gossip.GossipRouter
+import io.libp2p.tools.ResourceLeakDetectorLevelScope
 import io.libp2p.tools.TestChannel.TestConnection
 import io.netty.handler.logging.LogLevel
 import io.netty.util.ResourceLeakDetector
 import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import pubsub.pb.Rpc
 import java.time.Duration
@@ -28,8 +31,17 @@ import java.util.concurrent.TimeUnit
 typealias RouterCtor = () -> PubsubRouterDebug
 
 abstract class PubsubRouterTest(val routerFactory: DeterministicFuzzRouterFactory) {
-    init {
-        ResourceLeakDetector.setLevel(ResourceLeakDetector.Level.PARANOID)
+    private val leakDetectionLevelScope =
+        ResourceLeakDetectorLevelScope(ResourceLeakDetector.Level.PARANOID)
+
+    @BeforeEach
+    fun enableParanoidLeakDetection() {
+        leakDetectionLevelScope.enable()
+    }
+
+    @AfterEach
+    fun restoreLeakDetectionLevel() {
+        leakDetectionLevelScope.restore()
     }
 
     fun newMessage(topic: String, seqNo: Long, data: ByteArray) =

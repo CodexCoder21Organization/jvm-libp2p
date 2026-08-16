@@ -78,7 +78,8 @@ configure(
     // a fresh Noise ephemeral private key injected before every handshake starts.
     // snapshot-21: exclude connections with completed close futures from both established-connection
     // lookups, so a stream request made during close bookkeeping starts a fresh transport dial.
-    version = "1.3.0-codexcoder21-snapshot-21"
+    // snapshot-22: make simultaneous inbound and outbound peer connections settle on the same socket.
+    version = "1.3.0-codexcoder21-snapshot-22"
 
     apply(plugin = "kotlin")
     apply(plugin = "idea")

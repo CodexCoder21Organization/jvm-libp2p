@@ -11,6 +11,7 @@ import io.libp2p.core.security.SecureChannel
 import io.libp2p.etc.WRITE_FAILURE
 import io.libp2p.mux.YamuxOutboundBufferExceededException
 import io.libp2p.tools.NullTransport
+import io.libp2p.tools.ResourceLeakDetectorLevelScope
 import io.libp2p.transport.implementation.ConnectionOverNetty
 import io.netty.bootstrap.Bootstrap
 import io.netty.bootstrap.ServerBootstrap
@@ -137,12 +138,12 @@ class YamuxOutboundBufferBudgetRefCountTest {
     }
 
     private fun withParanoidLeakDetection(block: () -> Unit) {
-        val previousLevel = ResourceLeakDetector.getLevel()
-        ResourceLeakDetector.setLevel(ResourceLeakDetector.Level.PARANOID)
+        val scope = ResourceLeakDetectorLevelScope(ResourceLeakDetector.Level.PARANOID)
+        scope.enable()
         try {
             block()
         } finally {
-            ResourceLeakDetector.setLevel(previousLevel)
+            scope.restore()
         }
     }
 

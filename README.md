@@ -69,6 +69,32 @@ whose close future has completed are removed and skipped during selection, even 
 asynchronous table-removal continuation has not run yet. A request made in that interval therefore
 starts a fresh transport dial instead of receiving a connection whose muxer is already closed.
 
+## Local peer identity checks
+
+Hosts built with the `host { ... }` DSL give their local peer ID to the network. A
+`Network.connect` call targeting that same ID therefore returns a failed future with
+`Libp2pException("Cannot connect to peer <peer ID> because it is the local peer ID")` before a
+transport is selected or dialed. This also rejects a connection between two hosts configured with
+the same private identity before either host performs transport work.
+
+Direct `NetworkImpl` callers receive the same check when they use the peer-aware three-argument
+constructor and pass the local peer ID. The original two-argument constructor remains available for
+source and binary compatibility, but it has no local identity and therefore cannot perform this
+pre-transport self-identity check.
+
+## Simultaneous peer connection reuse
+
+When two peers dial each other at the same time, both upgraded TCP connections briefly exist. The
+network settles on one connection using the peer IDs and connection direction: the lower-ID peer
+keeps its initiator side and the higher-ID peer keeps its responder side, so both hosts choose the
+same socket. The other connection is closed, and later `Network.connect` and `Host.newStream` calls
+reuse the surviving connection.
+
+A connection returned before the opposite-direction dial finishes is provisional. If arbitration
+later selects the other socket, streams already opened on the provisional connection close with
+`ConnectionClosedException("Connection is closed")`; the library does not replay an in-flight
+protocol operation. A later `Host.newStream` call uses the surviving connection normally.
+
 ## Gossip simulator
 
 Deterministic Gossip simulator which may simulate networks as large as 10000 of peers

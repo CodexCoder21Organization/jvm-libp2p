@@ -31,6 +31,7 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.function.BiConsumer
 
 class NetworkSimultaneousConnectTest {
     private val hosts = mutableListOf<Host>()
@@ -253,16 +254,20 @@ class NetworkSimultaneousConnectTest {
         val secondCloseCompletion = CompletableFuture<Unit>()
         val firstDialCompletion = CompletableFuture<Unit>()
         val secondDialCompletion = CompletableFuture<Unit>()
+        val firstCloseObserverGate = CloseObserverGate()
+        val secondCloseObserverGate = CloseObserverGate()
         val (first, firstTransport) = createDelayedCloseHost(
             firstDialGate,
             firstCloseCompletion,
             firstDialCompletion,
+            firstCloseObserverGate,
             listenCount = 2
         )
         val (second, secondTransport) = createDelayedCloseHost(
             secondDialGate,
             secondCloseCompletion,
             secondDialCompletion,
+            secondCloseObserverGate,
             listenCount = 2
         )
         val lower = if (first.peerId.toBase58() < second.peerId.toBase58()) first else second
@@ -273,6 +278,8 @@ class NetworkSimultaneousConnectTest {
         val higherDialGate = if (higher === first) firstDialGate else secondDialGate
         val higherDialCompletion = if (higher === first) firstDialCompletion else secondDialCompletion
         val lowerDialCompletion = if (lower === first) firstDialCompletion else secondDialCompletion
+        val higherCloseObserverGate = if (higher === first) firstCloseObserverGate else secondCloseObserverGate
+        val lowerCloseObserverGate = if (lower === first) firstCloseObserverGate else secondCloseObserverGate
         val lowerAddresses = lower.listenAddresses().take(2)
 
         higherTransport.setDialGate(lowerAddresses[1], laterAddressDialGate)
@@ -303,7 +310,11 @@ class NetworkSimultaneousConnectTest {
                 lowerSurvivor.closeFuture(),
                 rejected.closeFuture()
             ).get(10, TimeUnit.SECONDS)
-            assertThat(higher.network.connections).isEmpty()
+            higherCloseObserverGate.awaitWithheldObserver()
+            lowerCloseObserverGate.awaitWithheldObserver()
+            assertThat(higher.network.connections.count { !it.closeFuture().isDone })
+                .describedAs("connections with incomplete public close futures")
+                .isZero()
 
             // Releasing the first transport result now makes that address fail because its
             // candidate was rejected and the selected survivor has closed. The aggregate connect
@@ -325,6 +336,12 @@ class NetworkSimultaneousConnectTest {
                 lower.peerId,
                 lowerAddresses[1]
             ).controller.thenCompose { it.ping() }.get(30, TimeUnit.SECONDS)
+
+            higherCloseObserverGate.releaseObservers()
+            lowerCloseObserverGate.releaseObservers()
+            assertThat(higher.network.connections).containsExactly(recovered)
+            assertThat(lower.network.connections).hasSize(1)
+            assertThat(lower.network.connections.single().closeFuture().isDone).isFalse()
         } finally {
             firstDialGate.complete(Unit)
             secondDialGate.complete(Unit)
@@ -333,6 +350,8 @@ class NetworkSimultaneousConnectTest {
             secondDialCompletion.complete(Unit)
             firstCloseCompletion.complete(Unit)
             secondCloseCompletion.complete(Unit)
+            firstCloseObserverGate.releaseObservers()
+            secondCloseObserverGate.releaseObservers()
         }
     }
 
@@ -522,6 +541,7 @@ class NetworkSimultaneousConnectTest {
         dialGate: CompletableFuture<Unit>,
         closeCompletion: CompletableFuture<Unit>,
         dialCompletion: CompletableFuture<Unit> = CompletableFuture.completedFuture(Unit),
+        closeObserverGate: CloseObserverGate? = null,
         ping: PingBinding = Ping(),
         listenCount: Int = 1
     ): Pair<Host, DelayedCloseTcpTransport> {
@@ -532,7 +552,13 @@ class NetworkSimultaneousConnectTest {
             }
             transports {
                 add { upgrader ->
-                    DelayedCloseTcpTransport(upgrader, dialGate, closeCompletion, dialCompletion).also { transport = it }
+                    DelayedCloseTcpTransport(
+                        upgrader,
+                        dialGate,
+                        closeCompletion,
+                        dialCompletion,
+                        closeObserverGate
+                    ).also { transport = it }
                 }
             }
             protocols {
@@ -612,7 +638,8 @@ class NetworkSimultaneousConnectTest {
         upgrader: ConnectionUpgrader,
         private val dialGate: CompletableFuture<Unit>,
         private val closeCompletion: CompletableFuture<Unit>,
-        private val dialCompletion: CompletableFuture<Unit>
+        private val dialCompletion: CompletableFuture<Unit>,
+        private val closeObserverGate: CloseObserverGate?
     ) : TcpTransport(upgrader) {
         private val wrappedConnections = CopyOnWriteArrayList<DelayedCloseConnection>()
         private val rejectedConnection = CompletableFuture<DelayedCloseConnection>()
@@ -655,7 +682,7 @@ class NetworkSimultaneousConnectTest {
 
         private fun wrappingHandler(handler: ConnectionHandler) =
             ConnectionHandler.create { connection ->
-                val wrapped = DelayedCloseConnection(connection, closeCompletion) {
+                val wrapped = DelayedCloseConnection(connection, closeCompletion, closeObserverGate) {
                     rejectedConnection.complete(it)
                 }
                 wrappedConnections += wrapped
@@ -671,10 +698,13 @@ class NetworkSimultaneousConnectTest {
     private class DelayedCloseConnection(
         val delegate: Connection,
         closeCompletion: CompletableFuture<Unit>,
+        closeObserverGate: CloseObserverGate?,
         private val onCloseRequested: (DelayedCloseConnection) -> Unit
     ) : Connection by delegate {
         val closeRequested = CompletableFuture<Unit>()
-        private val visibleCloseFuture = delegate.closeFuture().thenCompose { closeCompletion }
+        private val visibleCloseFuture = closeObserverGate?.gate(
+            delegate.closeFuture().thenCompose { closeCompletion }
+        ) ?: delegate.closeFuture().thenCompose { closeCompletion }
 
         override fun close(): CompletableFuture<Unit> {
             closeRequested.complete(Unit)
@@ -684,6 +714,54 @@ class NetworkSimultaneousConnectTest {
         }
 
         override fun closeFuture(): CompletableFuture<Unit> = visibleCloseFuture
+    }
+
+    private class CloseObserverGate {
+        private val observerWithheld = CompletableFuture<Unit>()
+        private val observerRelease = CompletableFuture<Unit>()
+
+        fun gate(source: CompletableFuture<Unit>): CompletableFuture<Unit> =
+            object : CompletableFuture<Unit>() {
+                init {
+                    source.whenComplete { value, error ->
+                        if (error == null) complete(value) else completeExceptionally(error)
+                    }
+                }
+
+                override fun whenComplete(
+                    action: BiConsumer<in Unit?, in Throwable?>
+                ): CompletableFuture<Unit> {
+                    val observerCompletion = CompletableFuture<Unit>()
+                    super.whenComplete { value, error ->
+                        observerWithheld.complete(Unit)
+                        observerRelease.whenComplete { _, releaseError ->
+                            if (releaseError != null) {
+                                observerCompletion.completeExceptionally(releaseError)
+                            } else {
+                                try {
+                                    action.accept(value, error)
+                                    if (error == null) {
+                                        observerCompletion.complete(value)
+                                    } else {
+                                        observerCompletion.completeExceptionally(error)
+                                    }
+                                } catch (observerError: Throwable) {
+                                    observerCompletion.completeExceptionally(observerError)
+                                }
+                            }
+                        }
+                    }
+                    return observerCompletion
+                }
+            }
+
+        fun awaitWithheldObserver() {
+            observerWithheld.get(10, TimeUnit.SECONDS)
+        }
+
+        fun releaseObservers() {
+            observerRelease.complete(Unit)
+        }
     }
 
     private class DeliveryControlledTcpTransport(

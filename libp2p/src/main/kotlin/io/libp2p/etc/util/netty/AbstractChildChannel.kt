@@ -68,8 +68,26 @@ abstract class AbstractChildChannel(parent: Channel, id: ChannelId?) : AbstractC
     }
 
     override fun doClose() {
-        if (!closeImplicitly) onClientClosed()
-        deactivate()
+        val probeId = "child=" + id() + " implicit=" + closeImplicitly + " state=" + state
+        ChildChannelTeardownProbe.record("doClose ENTER $probeId")
+        try {
+            if (!closeImplicitly) onClientClosed()
+        } catch (cause: Throwable) {
+            ChildChannelTeardownProbe.record(
+                "doClose ABORT-at-onClientClosed $probeId cause=" + cause.javaClass.simpleName + "(" + cause.message + ")"
+            )
+            throw cause
+        }
+        ChildChannelTeardownProbe.record("doClose after-onClientClosed $probeId")
+        try {
+            deactivate()
+        } catch (cause: Throwable) {
+            ChildChannelTeardownProbe.record(
+                "doClose ABORT-at-deactivate $probeId cause=" + cause.javaClass.simpleName + "(" + cause.message + ")"
+            )
+            throw cause
+        }
+        ChildChannelTeardownProbe.record("doClose after-deactivate $probeId")
         state = State.CLOSED
         parentCloseFuture.removeListener(parentCloseListener)
 
@@ -90,7 +108,17 @@ abstract class AbstractChildChannel(parent: Channel, id: ChannelId?) : AbstractC
         //
         // The standard deferred path still runs afterwards, but its second
         // `fireChannelUnregistered` is a no-op because the pipeline is already empty.
-        pipeline().fireChannelUnregistered()
+        ChildChannelTeardownProbe.record("doClose reached-fireChannelUnregistered child=" + id())
+        try {
+            pipeline().fireChannelUnregistered()
+        } catch (cause: Throwable) {
+            ChildChannelTeardownProbe.record(
+                "doClose ABORT-inside-fireChannelUnregistered child=" + id() +
+                    " cause=" + cause.javaClass.simpleName + "(" + cause.message + ")"
+            )
+            throw cause
+        }
+        ChildChannelTeardownProbe.record("doClose COMPLETE child=" + id())
     }
 
     protected open fun onClientClosed() {}

@@ -30,10 +30,12 @@ class NegotiationControllerCompletesOnEarlyCloseTest {
         channel.close().sync()
 
         Assertions.assertTrue(
-            channel.controllerFuture.isDone,
-            "The stream closed before negotiation completed, but the controller future returned to the " +
-                "caller was left pending. A caller therefore blocks for its whole timeout instead of " +
-                "learning immediately that the stream is gone."
+            channel.controllerFuture.isCompletedExceptionally,
+            "The stream closed before negotiation completed, so its controller must complete " +
+                "EXCEPTIONALLY - a caller has to learn the stream is gone, and `isDone` alone would also " +
+                "be satisfied by a controller that succeeded on a dead stream. Controller state: done=" +
+                channel.controllerFuture.isDone + " exceptionally=" +
+                channel.controllerFuture.isCompletedExceptionally
         )
     }
 }

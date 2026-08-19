@@ -11,6 +11,7 @@ import io.netty.channel.EventLoop
 import io.netty.util.concurrent.Future
 import io.netty.util.concurrent.GenericFutureListener
 import java.net.SocketAddress
+import java.util.concurrent.RejectedExecutionException
 
 /**
  * Class representing 'virtual' channel which has a parent and
@@ -76,7 +77,13 @@ abstract class AbstractChildChannel(parent: Channel, id: ChannelId?) : AbstractC
             // `handlerAdded` invoked, and tearing the pipeline down underneath that is not sound. The
             // deferred task runs once registration has completed, and closes a channel with a finished
             // pipeline.
-            eventLoop().execute { closeImpl() }
+            // A rejected execution during shutdown must not turn a close into a registration failure, and
+            // must not leave the child open either - fall back to closing inline.
+            try {
+                eventLoop().execute { closeImpl() }
+            } catch (rejected: RejectedExecutionException) {
+                closeImpl()
+            }
         } else {
             parentCloseFuture.addListener(parentCloseListener)
         }
@@ -115,8 +122,11 @@ abstract class AbstractChildChannel(parent: Channel, id: ChannelId?) : AbstractC
         // unconditional.
         try {
             if (!closeImplicitly) onClientClosed()
-            deactivate()
         } finally {
+            // `deactivate()` belongs with the teardown, not with the work that can fail before it: a
+            // channel that skipped `channelInactive` but fired `channelUnregistered` presents an
+            // inconsistent lifecycle to every handler on it.
+            deactivate()
             completeTeardown()
         }
     }

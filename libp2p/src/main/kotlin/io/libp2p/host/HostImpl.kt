@@ -112,7 +112,7 @@ class HostImpl(
     override fun <TController> newStream(protocols: List<String>, peer: PeerId, vararg addr: Multiaddr): StreamPromise<TController> {
         val streamFuture = CompletableFuture<Stream>()
         val controllerFuture = CompletableFuture<TController>()
-        attemptNewStream(protocols, peer, addr, true, streamFuture, controllerFuture)
+        attemptNewStream(protocols, peer, addr, null, streamFuture, controllerFuture)
         return StreamPromise(streamFuture, controllerFuture)
     }
 
@@ -120,13 +120,18 @@ class HostImpl(
         protocols: List<String>,
         peer: PeerId,
         addr: Array<out Multiaddr>,
-        mayRedial: Boolean,
+        firstFailure: Throwable?,
         streamFuture: CompletableFuture<Stream>,
         controllerFuture: CompletableFuture<TController>
     ) {
+        // Report the ORIGINAL cause when a redial also fails: the second attempt's exception describes a
+        // connection the caller never saw, and on the no-address overload it is a bare
+        // NothingToCompleteException, which says nothing true about why the caller's request failed.
         fun failBoth(cause: Throwable) {
-            streamFuture.completeExceptionally(cause)
-            controllerFuture.completeExceptionally(cause)
+            val reported = firstFailure ?: cause
+            if (firstFailure != null && firstFailure !== cause) firstFailure.addSuppressed(cause)
+            streamFuture.completeExceptionally(reported)
+            controllerFuture.completeExceptionally(reported)
         }
 
         network.connect(peer, *addr).whenComplete { connection, connectFailure ->
@@ -134,34 +139,66 @@ class HostImpl(
                 failBoth(connectFailure)
                 return@whenComplete
             }
-            val promise = try {
+            val attempt = try {
                 newStream<TController>(protocols, connection)
             } catch (cause: Throwable) {
                 failBoth(cause)
                 return@whenComplete
             }
-            promise.stream.whenComplete { stream, _ ->
-                // Stream failures are reported through the controller below, which is what decides whether
-                // this attempt is retryable; completing the stream future here would pre-empt that.
+            // A created substream is published immediately: `HostTransportsTest.unsupportedServerProtocol`
+            // pins the contract that the stream completes even when the controller then fails. Publishing
+            // it is also what forfeits the right to redial - see below.
+            attempt.stream.whenComplete { stream, _ ->
                 if (stream != null) streamFuture.complete(stream)
             }
-            promise.controller.whenComplete { controller, streamFailure ->
+            attempt.controller.whenComplete { controller, failure ->
                 when {
-                    streamFailure == null -> controllerFuture.complete(controller)
-                    mayRedial && streamFailure.hasCauseOfType(ConnectionClosedException::class) -> {
-                        // The connection this method selected is unusable. Close it and WAIT for the close
-                        // to complete before dialling again: the network drops a connection from its pool
-                        // on its close future, so retrying before that resolves can be served the very same
-                        // entry, which would make the retry meaningless.
+                    failure == null -> controllerFuture.complete(controller)
+                    isRedialableConnectionDeath(failure, connection, addr, firstFailure) &&
+                        !streamFuture.isDone -> {
+                        // Close the dead connection and WAIT for the close: the network drops a connection
+                        // from its pool on its close future, so dialling before that resolves can be served
+                        // the very same entry. This attempt's stream is deliberately never published - it
+                        // belongs to the connection being discarded.
                         connection.close().whenComplete { _, _ ->
-                            attemptNewStream(protocols, peer, addr, false, streamFuture, controllerFuture)
+                            attemptNewStream(protocols, peer, addr, failure, streamFuture, controllerFuture)
                         }
                     }
-                    else -> failBoth(streamFailure)
+                    else -> failBoth(failure)
                 }
             }
         }
     }
+
+    /**
+     * Whether [failure] means the CONNECTION died, as opposed to just this substream.
+     *
+     * The caller of this predicate additionally requires that no stream has been published yet. Once a
+     * substream has been handed to the caller, redialling would deliver a controller belonging to a
+     * different connection than the stream the caller already holds; at that point the honest outcome is
+     * the real failure, not a silent swap. In the production case this fix targets the stream future fails
+     * rather than completing, so nothing has been published and the redial is available.
+     *
+     * `ConnectionClosedException` is raised at substream granularity too — `ProtocolSelect` fires it from a
+     * mux child's `channelUnregistered`, which a plain remote reset of one substream is enough to trigger.
+     * Redialling on that would close a healthy shared connection and kill every other stream riding it
+     * (identify, ping, gossip, other `newStream` callers), turning one reset substream into a full re-dial
+     * and Noise handshake for everything. So the exception type alone is not enough: the connection itself
+     * has to be gone.
+     *
+     * Checking the connection's close future is sound here rather than racy, because a muxer only refuses
+     * new streams from `channelUnregistered`, which Netty fires strictly after the close future completes.
+     */
+    private fun isRedialableConnectionDeath(
+        failure: Throwable,
+        connection: Connection,
+        addr: Array<out Multiaddr>,
+        firstFailure: Throwable?
+    ): Boolean =
+        firstFailure == null &&
+            addr.isNotEmpty() &&
+            failure.hasCauseOfType(ConnectionClosedException::class) &&
+            connection.closeFuture().isDone
 
     override fun <TController> newStream(protocols: List<String>, conn: Connection): StreamPromise<TController> {
         @Suppress("UNCHECKED_CAST")

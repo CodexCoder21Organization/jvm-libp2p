@@ -130,16 +130,22 @@ class YamuxNegotiationControllerOnStreamCloseTest {
                     " close=" + closeOutcome.exceptionOrNull()?.javaClass?.simpleName +
                     " controllerDoneImmediately=" + promise.controller.isDone
             }
-            println("PROBE-INJECTION " + outcome)
 
             assertThat(awaitDone(promise.controller))
                 .withFailMessage(
                     "The substream's close path failed before it could tear its pipeline down, so the " +
                         "controller future handed to the caller was never completed - neither normally nor " +
                         "exceptionally - and the later connection close is a no-op for an already-closed " +
-                        "channel. The caller gets no signal at all and blocks for its whole timeout. The " +
-                        "controller must be failed from the channel's close future, which Netty completes " +
-                        "unconditionally, exactly as TotalTimeoutHandler already does for its timeout task."
+                        "channel. The caller gets no signal at all and blocks for its whole timeout. " +
+                        "Injection outcome was: %s",
+                    outcome
+                )
+                .isTrue()
+            assertThat(promise.controller.isCompletedExceptionally)
+                .withFailMessage(
+                    "A closed substream must FAIL its controller, not complete it successfully; " +
+                        "isDone alone cannot tell those apart. Injection outcome was: %s",
+                    outcome
                 )
                 .isTrue()
         }

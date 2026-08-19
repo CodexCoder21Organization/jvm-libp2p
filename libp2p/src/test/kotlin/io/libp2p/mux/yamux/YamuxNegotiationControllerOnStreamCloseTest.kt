@@ -169,6 +169,42 @@ class YamuxNegotiationControllerOnStreamCloseTest {
         }
     }
 
+
+    /**
+     * The production shape: the substream dies because the CONNECTION closed, and the question is not only
+     * whether the controller completes but whether the substream's pipeline is torn down at all. A closed
+     * substream that keeps its handlers keeps everything they retain, and anything that learns of the
+     * channel's death through the pipeline is never told.
+     */
+    @Test
+    @Timeout(60)
+    fun `a substream whose connection closes has its pipeline torn down`() {
+        Harness().use { harness ->
+            val promise = harness.handler.createStream(listOf(NeverAnsweredProtocol))
+            val stream = promise.stream.get(5, TimeUnit.SECONDS)
+            val channel = (stream as io.libp2p.transport.implementation.P2PChannelOverNetty).nettyChannel
+            assertThat(channel.pipeline().names())
+                .withFailMessage("the negotiation pipeline should be in place before the connection dies")
+                .contains("ProtocolSelect#0")
+
+            harness.closeConnectionRemotely()
+            assertThat(harness.client.closeFuture().await(10, TimeUnit.SECONDS)).isTrue()
+            assertThat(channel.closeFuture().await(10, TimeUnit.SECONDS))
+                .withFailMessage("the substream must close when its connection does")
+                .isTrue()
+
+            val remaining = channel.pipeline().names().filterNot { it.contains("TailContext") }
+            assertThat(remaining)
+                .withFailMessage(
+                    "The substream reported itself closed but kept its whole pipeline: %s. Nothing fires " +
+                        "handlerRemoved or channelUnregistered on those handlers again, so everything they " +
+                        "retain stays retained and anything waiting to hear the channel died never does.",
+                    remaining
+                )
+                .isEmpty()
+        }
+    }
+
     private fun awaitDone(future: CompletableFuture<*>): Boolean {
         // Five seconds is the budget the real caller had. Completing later than this is not "completing".
         val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)

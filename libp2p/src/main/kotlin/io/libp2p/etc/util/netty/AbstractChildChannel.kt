@@ -68,26 +68,17 @@ abstract class AbstractChildChannel(parent: Channel, id: ChannelId?) : AbstractC
     }
 
     override fun doClose() {
-        val probeId = "child=" + id() + " implicit=" + closeImplicitly + " state=" + state
-        ChildChannelTeardownProbe.record("doClose ENTER $probeId")
+        ChildChannelTeardownProbe.record { "doClose ENTER child=" + id() + " implicit=" + closeImplicitly + " state=" + state }
         try {
             if (!closeImplicitly) onClientClosed()
-        } catch (cause: Throwable) {
-            ChildChannelTeardownProbe.record(
-                "doClose ABORT-at-onClientClosed $probeId cause=" + cause.javaClass.simpleName + "(" + cause.message + ")"
-            )
-            throw cause
-        }
-        ChildChannelTeardownProbe.record("doClose after-onClientClosed $probeId")
-        try {
             deactivate()
         } catch (cause: Throwable) {
-            ChildChannelTeardownProbe.record(
-                "doClose ABORT-at-deactivate $probeId cause=" + cause.javaClass.simpleName + "(" + cause.message + ")"
-            )
+            ChildChannelTeardownProbe.record {
+                "doClose ABORT-before-unregister child=" + id() +
+                    " cause=" + cause.javaClass.simpleName + "(" + cause.message + ")"
+            }
             throw cause
         }
-        ChildChannelTeardownProbe.record("doClose after-deactivate $probeId")
         state = State.CLOSED
         parentCloseFuture.removeListener(parentCloseListener)
 
@@ -95,30 +86,17 @@ abstract class AbstractChildChannel(parent: Channel, id: ChannelId?) : AbstractC
         // `state == CLOSED` now makes `isOpen()` false, the pipeline's
         // `fireChannelUnregistered` runs `destroy()` synchronously — removing every
         // handler and firing `handlerRemoved` on each — before close() returns.
-        //
-        // Why this is needed (ContainerNursery / kotlin.directory OOM, UrlProtocol #294):
-        // `doDeregister()` is a no-op for child channels, so the standard close flow tears
-        // the pipeline down only via the DEFERRED `fireChannelInactiveAndDeregister` that
-        // `AbstractUnsafe.close()` posts with `invokeLater`. Under sustained inbound-stream
-        // churn the event loop drains those deferred close tasks slower than new frames
-        // arrive, so thousands of CLOSED MuxChannels keep their full multistream-negotiation
-        // pipelines (handlers + decoders + direct buffers) queued in the loop's
-        // MpscUnboundedArrayQueue until the heap is exhausted. The 2026-06-29 production
-        // dump showed ~30K such closed channels retaining ~68 MB / 53% of a 128 MB heap.
-        //
-        // The standard deferred path still runs afterwards, but its second
-        // `fireChannelUnregistered` is a no-op because the pipeline is already empty.
-        ChildChannelTeardownProbe.record("doClose reached-fireChannelUnregistered child=" + id())
+        ChildChannelTeardownProbe.record { "doClose reached-unregister child=" + id() }
         try {
             pipeline().fireChannelUnregistered()
         } catch (cause: Throwable) {
-            ChildChannelTeardownProbe.record(
-                "doClose ABORT-inside-fireChannelUnregistered child=" + id() +
+            ChildChannelTeardownProbe.record {
+                "doClose ABORT-inside-unregister child=" + id() +
                     " cause=" + cause.javaClass.simpleName + "(" + cause.message + ")"
-            )
+            }
             throw cause
         }
-        ChildChannelTeardownProbe.record("doClose COMPLETE child=" + id())
+        ChildChannelTeardownProbe.record { "doClose COMPLETE child=" + id() }
     }
 
     protected open fun onClientClosed() {}

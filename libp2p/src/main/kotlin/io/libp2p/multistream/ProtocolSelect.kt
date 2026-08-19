@@ -39,10 +39,9 @@ class ProtocolSelect<TController>(val protocols: List<ProtocolBinding<TControlle
         if (!activeFired) {
             ctx.fireChannelActive()
         }
-        ChildChannelTeardownProbe.record(
-            "ProtocolSelect self-remove-on-channelActive child=" + ctx.channel().id() +
-                " selectedDone=" + selectedFuture.isDone
-        )
+        ChildChannelTeardownProbe.record {
+            "ProtocolSelect self-remove child=" + ctx.channel().id() + " selectedDone=" + selectedFuture.isDone
+        }
         ctx.pipeline().remove(this)
     }
 
@@ -66,20 +65,19 @@ class ProtocolSelect<TController>(val protocols: List<ProtocolBinding<TControlle
     }
 
     override fun exceptionCaught(ctx: ChannelHandlerContext, cause: Throwable?) {
-        ChildChannelTeardownProbe.record(
-            "ProtocolSelect exceptionCaught child=" + ctx.channel().id() +
-                " cause=" + cause?.javaClass?.simpleName
-        )
+        ChildChannelTeardownProbe.record {
+            "ProtocolSelect exceptionCaught child=" + ctx.channel().id() + " cause=" + cause?.javaClass?.simpleName
+        }
         ctx.channel().attr(PROTOCOL).get()?.completeExceptionally(cause)
         selectedFuture.completeExceptionally(cause)
         ctx.close()
     }
 
     override fun channelUnregistered(ctx: ChannelHandlerContext) {
-        ChildChannelTeardownProbe.record(
+        ChildChannelTeardownProbe.record {
             "ProtocolSelect channelUnregistered child=" + ctx.channel().id() +
                 " selectedAlreadyDone=" + selectedFuture.isDone
-        )
+        }
         val exception = ConnectionClosedException("Channel closed ${ctx.channel()}")
         selectedFuture.completeExceptionally(exception)
         ctx.channel().attr(PROTOCOL).get()?.completeExceptionally(exception)

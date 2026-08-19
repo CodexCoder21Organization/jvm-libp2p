@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Timeout
  * multistream-select negotiation finishes, that future must complete exceptionally, otherwise the
  * caller waits out its entire timeout for a stream it could already know is gone.
  */
-class B2ControllerOnEarlyCloseTest {
+class NegotiationControllerCompletesOnEarlyCloseTest {
 
     @Test
     @Timeout(10)

@@ -52,10 +52,41 @@ abstract class AbstractChildChannel(parent: Channel, id: ChannelId?) : AbstractC
         return state == State.ACTIVE
     }
 
-    override fun doRegister() {
+    final override fun doRegister() {
         state = State.ACTIVE
-        parentCloseFuture.addListener(parentCloseListener)
+
+        // Build the subclass's pipeline BEFORE arming the parent-close listener.
+        //
+        // Netty notifies a listener added to an already-completed future immediately. A child whose parent
+        // died before it registered therefore used to run its ENTIRE close inside this call, against an
+        // empty pipeline — and registration then carried on and installed the subclass's handlers onto a
+        // channel that was already closed. Nothing removes those handlers or fires `channelUnregistered` at
+        // them afterwards, so whatever learns of the channel's death that way is never told: a
+        // `Host.newStream` caller blocked on the controller `ProtocolSelect` completes from exactly that
+        // callback waits out its whole timeout, and the handlers (and everything they retain) leak.
+        //
+        // Measured in UrlResolver buildtest run 55b03afc: a substream opened at 16 ms and closed at 19 ms
+        // with `sawInactive=false sawUnregistered=false sawHandlerRemoved=false` against a provably
+        // installed observer, `closeFutureDone=true`, and the full multistream pipeline still attached.
+        initChildPipeline()
+
+        if (parentCloseFuture.isDone) {
+            // The parent is already gone. Defer the close to the event loop rather than running it inline:
+            // Netty has not finished registration yet, so the handlers just installed have not had
+            // `handlerAdded` invoked, and tearing the pipeline down underneath that is not sound. The
+            // deferred task runs once registration has completed, and closes a channel with a finished
+            // pipeline.
+            eventLoop().execute { closeImpl() }
+        } else {
+            parentCloseFuture.addListener(parentCloseListener)
+        }
     }
+
+    /**
+     * Hook for subclasses to build their pipeline during registration. Runs before the parent-close
+     * listener is armed, so a close driven by an already-dead parent always sees the finished pipeline.
+     */
+    protected open fun initChildPipeline() {}
 
     override fun doDeregister() {
         // NOOP

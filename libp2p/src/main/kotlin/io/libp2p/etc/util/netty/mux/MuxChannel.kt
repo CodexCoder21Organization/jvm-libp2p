@@ -31,8 +31,7 @@ class MuxChannel<TData>(
     override fun remoteAddress0() =
         MultiplexSocketAddress(parent.getChannelHandlerContext().channel().remoteAddress(), id)
 
-    override fun doRegister() {
-        super.doRegister()
+    override fun initChildPipeline() {
         pipeline().addFirst(PendingWriteAccountingHandler())
         initializer(this)
     }

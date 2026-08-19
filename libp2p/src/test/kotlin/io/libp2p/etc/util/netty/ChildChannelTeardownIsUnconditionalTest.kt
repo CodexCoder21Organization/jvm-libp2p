@@ -61,6 +61,80 @@ class ChildChannelTeardownIsUnconditionalTest {
         nio.shutdownGracefully(0, 0, TimeUnit.MILLISECONDS).sync()
     }
 
+
+    /**
+     * A child channel whose parent is ALREADY closed when it registers must still tear down the pipeline
+     * its own registration builds.
+     *
+     * [AbstractChildChannel.doRegister] arms the parent-close listener, and subclasses build their pipeline
+     * *after* calling `super.doRegister()` — `MuxChannel` adds its accounting handler and then runs the
+     * initializer that installs the whole multistream negotiation stack. When the parent's close future is
+     * already complete, Netty notifies a newly added listener immediately, so the child's entire close runs
+     * during `super.doRegister()`, against an EMPTY pipeline. Registration then carries on and installs the
+     * negotiation handlers onto a channel that is already closed. Nothing ever removes them, nothing ever
+     * fires `channelUnregistered` at them, and `ProtocolSelect` — which fails the controller a
+     * `Host.newStream` caller is blocked on from exactly that callback — is never told.
+     *
+     * That is the production signature, measured in UrlResolver buildtest run 55b03afc: substream opened at
+     * 16 ms and closed at 19 ms, `sawInactive=false sawUnregistered=false sawHandlerRemoved=false` with the
+     * observer provably installed, `closeFutureDone=true`, the full pipeline still attached, and
+     * `total=0` connections on the host because the connection had already gone.
+     */
+    @Test
+    @Timeout(30)
+    fun `a child registering under an already-closed parent tears down the pipeline registration builds`() {
+        val handlerRemoved = java.util.concurrent.atomic.AtomicBoolean(false)
+        val unregistered = java.util.concurrent.atomic.AtomicBoolean(false)
+
+        val observer = object : io.netty.channel.ChannelInboundHandlerAdapter() {
+            override fun handlerRemoved(ctx: io.netty.channel.ChannelHandlerContext) {
+                handlerRemoved.set(true)
+            }
+            override fun channelUnregistered(ctx: io.netty.channel.ChannelHandlerContext) {
+                unregistered.set(true)
+                ctx.fireChannelUnregistered()
+            }
+        }
+
+        // A child that builds its pipeline during registration, exactly as MuxChannel does.
+        class PipelineBuildingChildChannel(parent: io.netty.channel.Channel) : AbstractChildChannel(parent, null) {
+            override fun localAddress0() = null
+            override fun remoteAddress0() = null
+            override fun doWrite(buf: ChannelOutboundBuffer) {
+                while (buf.current() != null) buf.remove()
+            }
+            override fun metadata(): ChannelMetadata = ChannelMetadata(false)
+            override fun initChildPipeline() {
+                pipeline().addLast("observer", observer)
+            }
+        }
+
+        val deadParent = EmbeddedChannel()
+        deadParent.close().sync()
+        assertThat(deadParent.closeFuture().isDone)
+            .withFailMessage("the parent must already be closed before the child registers")
+            .isTrue()
+
+        val child = PipelineBuildingChildChannel(deadParent)
+        nio.next().register(child).sync()
+        child.closeFuture().await(10, TimeUnit.SECONDS)
+
+        assertThat(child.pipeline().names().filterNot { it.contains("TailContext") })
+            .withFailMessage(
+                "The child closed during its own registration, then registration installed handlers onto " +
+                    "the already-closed channel. They are still attached: %s. Nothing will ever remove " +
+                    "them or fire channelUnregistered at them, so anything that learns of the channel's " +
+                    "death that way — ProtocolSelect failing a newStream caller's controller, for one — " +
+                    "waits forever.",
+                child.pipeline().names()
+            )
+            .isEmpty()
+
+        assertThat(unregistered.get() || handlerRemoved.get())
+            .withFailMessage("a handler installed during registration must still see the teardown")
+            .isTrue()
+    }
+
     @Test
     @Timeout(30)
     fun `a child channel whose close fails partway still tears its pipeline down`() {

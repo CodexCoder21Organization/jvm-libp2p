@@ -31,8 +31,7 @@ class MuxChannel<TData>(
     override fun remoteAddress0() =
         MultiplexSocketAddress(parent.getChannelHandlerContext().channel().remoteAddress(), id)
 
-    override fun doRegister() {
-        super.doRegister()
+    override fun initChildPipeline() {
         pipeline().addFirst(PendingWriteAccountingHandler())
         initializer(this)
     }
@@ -131,8 +130,15 @@ class MuxChannel<TData>(
     }
 
     override fun doClose() {
-        super.doClose()
-        parent.onClosed(this)
+        // The muxer's own bookkeeping - removing this child from `streamMap` and releasing its slot in the
+        // inbound-substream admission count - must happen even when the teardown above fails. Without the
+        // `finally`, a close that throws leaks a `streamMap` entry and permanently consumes one of the 512
+        // inbound slots, so "unconditional teardown" would hold for the pipeline but not for the muxer.
+        try {
+            super.doClose()
+        } finally {
+            parent.onClosed(this)
+        }
     }
 
     override fun onClientClosed() {

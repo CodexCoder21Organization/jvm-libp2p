@@ -68,17 +68,33 @@ abstract class AbstractChildChannel(parent: Channel, id: ChannelId?) : AbstractC
     }
 
     override fun doClose() {
-        ChildChannelTeardownProbe.record { "doClose ENTER child=" + id() + " implicit=" + closeImplicitly + " state=" + state }
+        // The teardown below is in a `finally` because it must run even when the work above it fails.
+        // `onClientClosed()` reaches the muxer — a yamux substream asks it to emit an RST frame, and that
+        // write throws once the connection has latched a terminal write failure. Netty's
+        // `AbstractUnsafe.doClose0` completes the channel's close future even when `doClose()` throws, and
+        // latches `closeInitiated` so every later `close()` is a no-op. Without this `finally`, such a
+        // channel reports itself closed forever while keeping its whole pipeline attached, and nothing
+        // ever fires `channelUnregistered` or `handlerRemoved` on it again.
+        //
+        // Observed twice over (UrlResolver buildtest run 21bb281d): a substream opened at 21 ms, closed at
+        // 28 ms, and the controller future its `Host.newStream` caller was blocked on was still not
+        // completed at 5016 ms — `ProtocolSelect` fails that future only from `channelUnregistered`. The
+        // same gap retains the closed channel's entire pipeline, which is the heap signature described
+        // below; making the teardown synchronous was not enough on its own, it also has to be
+        // unconditional.
         try {
             if (!closeImplicitly) onClientClosed()
             deactivate()
-        } catch (cause: Throwable) {
-            ChildChannelTeardownProbe.record {
-                "doClose ABORT-before-unregister child=" + id() +
-                    " cause=" + cause.javaClass.simpleName + "(" + cause.message + ")"
-            }
-            throw cause
+        } finally {
+            completeTeardown()
         }
+    }
+
+    /**
+     * Marks this channel closed and tears its pipeline down. Runs exactly once per close, whether or not
+     * the rest of [doClose] succeeded.
+     */
+    private fun completeTeardown() {
         state = State.CLOSED
         parentCloseFuture.removeListener(parentCloseListener)
 
@@ -86,17 +102,20 @@ abstract class AbstractChildChannel(parent: Channel, id: ChannelId?) : AbstractC
         // `state == CLOSED` now makes `isOpen()` false, the pipeline's
         // `fireChannelUnregistered` runs `destroy()` synchronously — removing every
         // handler and firing `handlerRemoved` on each — before close() returns.
-        ChildChannelTeardownProbe.record { "doClose reached-unregister child=" + id() }
-        try {
-            pipeline().fireChannelUnregistered()
-        } catch (cause: Throwable) {
-            ChildChannelTeardownProbe.record {
-                "doClose ABORT-inside-unregister child=" + id() +
-                    " cause=" + cause.javaClass.simpleName + "(" + cause.message + ")"
-            }
-            throw cause
-        }
-        ChildChannelTeardownProbe.record { "doClose COMPLETE child=" + id() }
+        //
+        // Why this is needed (ContainerNursery / kotlin.directory OOM, UrlProtocol #294):
+        // `doDeregister()` is a no-op for child channels, so the standard close flow tears
+        // the pipeline down only via the DEFERRED `fireChannelInactiveAndDeregister` that
+        // `AbstractUnsafe.close()` posts with `invokeLater`. Under sustained inbound-stream
+        // churn the event loop drains those deferred close tasks slower than new frames
+        // arrive, so thousands of CLOSED MuxChannels keep their full multistream-negotiation
+        // pipelines (handlers + decoders + direct buffers) queued in the loop's
+        // MpscUnboundedArrayQueue until the heap is exhausted. The 2026-06-29 production
+        // dump showed ~30K such closed channels retaining ~68 MB / 53% of a 128 MB heap.
+        //
+        // The standard deferred path still runs afterwards, but its second
+        // `fireChannelUnregistered` is a no-op because the pipeline is already empty.
+        pipeline().fireChannelUnregistered()
     }
 
     protected open fun onClientClosed() {}

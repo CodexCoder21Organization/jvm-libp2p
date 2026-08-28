@@ -23,22 +23,34 @@ class ProtocolSelect<TController>(val protocols: List<ProtocolBinding<TControlle
 
     val selectedFuture = CompletableFuture<TController>()
     var activeFired = false
+    private var removalArmed = false
 
     override fun channelRead(ctx: ChannelHandlerContext, msg: Any) {
         // when protocol data immediately follows protocol id in the same packet
         // the protocol data may be transmitted during Negotiator pipeline rebuilding
         // and the `active` event is fired after `read` event
         // See https://github.com/libp2p/jvm-libp2p/issues/94
-        activeFired = true
-        ctx.fireChannelActive()
+        activateAndRemoveWhenSelected(ctx)
         ctx.fireChannelRead(msg)
     }
 
     override fun channelActive(ctx: ChannelHandlerContext) {
+        activateAndRemoveWhenSelected(ctx)
+    }
+
+    private fun activateAndRemoveWhenSelected(ctx: ChannelHandlerContext) {
         if (!activeFired) {
+            activeFired = true
             ctx.fireChannelActive()
         }
-        ctx.pipeline().remove(this)
+        if (!removalArmed) {
+            removalArmed = true
+            selectedFuture.whenComplete { _, _ ->
+                if (ctx.pipeline().context(this) != null) {
+                    ctx.pipeline().remove(this)
+                }
+            }
+        }
     }
 
     override fun userEventTriggered(ctx: ChannelHandlerContext, evt: Any) {

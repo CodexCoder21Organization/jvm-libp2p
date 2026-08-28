@@ -45,6 +45,8 @@ class ProtocolSelect<TController>(val protocols: List<ProtocolBinding<TControlle
         }
         if (!removalArmed) {
             removalArmed = true
+            // A selected protocol may finish its own initialization asynchronously. Keep this lifecycle
+            // handler installed until then so an error or unregister can still fail the caller's future.
             selectedFuture.whenComplete { _, _ ->
                 if (ctx.pipeline().context(this) != null) {
                     ctx.pipeline().remove(this)

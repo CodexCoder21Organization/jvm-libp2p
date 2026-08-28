@@ -4,7 +4,6 @@ import io.libp2p.core.P2PChannel
 import io.libp2p.core.StreamHandler
 import io.libp2p.core.multistream.ProtocolBinding
 import io.libp2p.core.multistream.ProtocolDescriptor
-import io.libp2p.etc.types.seconds
 import io.libp2p.multistream.MultistreamProtocolDebugV1
 import io.libp2p.tools.TestChannel
 import org.assertj.core.api.Assertions.assertThat
@@ -37,7 +36,7 @@ class YamuxSelectedProtocolControllerOnCloseTest {
             override fun initChannel(ch: P2PChannel, selectedProtocol: String): CompletableFuture<Unit> =
                 CompletableFuture.completedFuture(Unit)
         }
-        val multistream = MultistreamProtocolDebugV1(120.seconds)
+        val multistream = MultistreamProtocolDebugV1()
         val clientHandler = YamuxHandler(
             multistream,
             1024 * 1024,

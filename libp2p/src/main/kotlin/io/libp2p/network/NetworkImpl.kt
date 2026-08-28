@@ -61,16 +61,34 @@ class NetworkImpl(
         transports.firstOrNull { tpt -> tpt.handles(addr) }
             ?: throw TransportNotSupportedException("no transport to handle addr: $addr")
 
+    /**
+     * Records [conn] in the connection table before handing it to [handler].
+     *
+     * The connection table is what [close], [disconnect] and [findActiveConnection] all work
+     * from, so a live connection missing from it can never be closed by its owner and can never
+     * be reused by the next dial to the same peer — every further `connect()` opens another
+     * socket that nothing tracks and nothing closes.
+     *
+     * [handler] is the application's connection handler chain: a public extension point
+     * (`Host.addConnectionHandler`, and any [ConnectionHandler] a protocol binding implements)
+     * whose failures are not this class's to control. Broadcasting to it first, as this used to,
+     * put the network's own bookkeeping behind it in a
+     * [io.libp2p.etc.BroadcastConnectionHandler] that dispatches with a bare `forEach` — so the
+     * first handler that threw stopped the broadcast before the registration below ever ran. The
+     * connection is fully established by then (secure session and muxer are both attached before
+     * [io.libp2p.transport.implementation.ConnectionBuilder.initChannel] calls this), and its
+     * socket stays open, so the failure stranded a live connection outside the network.
+     *
+     * Registering first makes the bookkeeping unconditional. A handler failure still propagates
+     * exactly as before — it completes the dial exceptionally — but it now leaves behind a
+     * connection the caller can find and close.
+     */
     private fun createHookedConnHandler(handler: ConnectionHandler) =
-        ConnectionHandler.createBroadcast(
-            listOf(
-                handler,
-                ConnectionHandler.create { conn ->
-                    connections += conn
-                    conn.closeFuture().thenAccept { connections -= conn }
-                }
-            )
-        )
+        ConnectionHandler.create { conn ->
+            connections += conn
+            conn.closeFuture().thenAccept { connections -= conn }
+            handler.handleConnection(conn)
+        }
 
     /**
      * Connects to a peerid with a provided set of {@code Multiaddr}, returning the existing connection if already connected.

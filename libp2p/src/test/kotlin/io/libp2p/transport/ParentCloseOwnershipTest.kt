@@ -57,12 +57,14 @@ class ParentCloseOwnershipTest {
             )
             // A caller can complete its CompletableFuture, but cannot complete the
             // close owned by the transport or release another shutdown caller.
+            val independentClose = connection.close()
             explicitClose.complete(Unit)
+            assertFalse(independentClose.isDone, "Completing one caller future must not complete another connection-close future.")
             assertFalse(firstShutdown.isDone, "Completing one caller's future must not finish network shutdown.")
             assertFalse(repeatedShutdown.isDone, "A later shutdown must still await the physical close.")
             hold.set(false)
             heldCloses.toList().forEach { (ctx, promise) -> ctx.close(promise) }
-            CompletableFuture.allOf(firstShutdown, explicitClose, repeatedShutdown).get(5, TimeUnit.SECONDS)
+            CompletableFuture.allOf(firstShutdown, explicitClose, repeatedShutdown, independentClose).get(5, TimeUnit.SECONDS)
             connection.close().get(5, TimeUnit.SECONDS)
             client.network.close().get(5, TimeUnit.SECONDS)
             assertEquals(1, heldCloses.size, "A completed parent close must stay terminal on repeated shutdown.")

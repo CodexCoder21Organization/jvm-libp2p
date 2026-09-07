@@ -1,0 +1,80 @@
+tb.sh: slot 2 acquired 18:47:53 for /tmp/claude-1000/-code/cc161e27-cb11-48c5-89b5-f0960e498312/scratchpad/workspace/uO-1080-shutdown/jvm-libp2p --test io.libp2p.transport.ParentCloseOwnershipTest
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.14.3/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+Build configured without Android submodules.
+    To include Android submodules define a valid SDK location with an ANDROID_HOME environment variable 
+    or by setting the sdk.dir path in your project's local properties file local.properties.
+> Task :libp2p:extractIncludeProto UP-TO-DATE
+> Task :libp2p:extractProto UP-TO-DATE
+> Task :libp2p:generateProto UP-TO-DATE
+> Task :libp2p:compileKotlin UP-TO-DATE
+> Task :libp2p:compileJava UP-TO-DATE
+> Task :libp2p:processResources UP-TO-DATE
+> Task :libp2p:classes UP-TO-DATE
+> Task :libp2p:inspectClassesForKotlinIC UP-TO-DATE
+> Task :libp2p:jar UP-TO-DATE
+> Task :tools:schedulers:processResources NO-SOURCE
+> Task :libp2p:extractIncludeTestFixturesProto UP-TO-DATE
+> Task :libp2p:extractTestFixturesProto UP-TO-DATE
+> Task :libp2p:generateTestFixturesProto NO-SOURCE
+> Task :tools:schedulers:compileKotlin UP-TO-DATE
+> Task :tools:schedulers:compileJava UP-TO-DATE
+> Task :tools:schedulers:classes UP-TO-DATE
+> Task :tools:schedulers:inspectClassesForKotlinIC UP-TO-DATE
+> Task :tools:schedulers:jar UP-TO-DATE
+> Task :libp2p:compileTestFixturesKotlin UP-TO-DATE
+> Task :libp2p:compileTestFixturesJava UP-TO-DATE
+> Task :libp2p:processTestFixturesResources NO-SOURCE
+> Task :libp2p:testFixturesClasses UP-TO-DATE
+> Task :libp2p:testFixturesJar UP-TO-DATE
+> Task :libp2p:extractIncludeTestProto UP-TO-DATE
+> Task :libp2p:extractTestProto UP-TO-DATE
+> Task :libp2p:generateTestProto NO-SOURCE
+> Task :libp2p:compileTestKotlin
+> Task :libp2p:compileTestJava
+> Task :libp2p:processTestResources
+> Task :libp2p:testClasses
+
+> Task :libp2p:test
+
+ParentCloseOwnershipTest > networkAndConnectionShutdownShareOnePendingPhysicalClose() FAILED
+    org.opentest4j.AssertionFailedError: One parent received 5 physical close requests while the first was pending; transport and connection shutdown must share the owner's in-flight close. ==> expected: <1> but was: <5>
+        at app//org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+        at app//org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+        at app//org.junit.jupiter.api.AssertEquals.failNotEqual(AssertEquals.java:197)
+        at app//org.junit.jupiter.api.AssertEquals.assertEquals(AssertEquals.java:150)
+        at app//org.junit.jupiter.api.Assertions.assertEquals(Assertions.java:563)
+        at app//io.libp2p.transport.ParentCloseOwnershipTest.networkAndConnectionShutdownShareOnePendingPhysicalClose(ParentCloseOwnershipTest.kt:53)
+
+ParentCloseOwnershipTest > failedCloseIsReturnedToEveryOwnerWithoutAnotherRequest() FAILED
+    org.opentest4j.AssertionFailedError: A failed close is terminal; another owner must observe its result without issuing another physical close. ==> expected: <1> but was: <3>
+        at app//org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+        at app//org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+        at app//org.junit.jupiter.api.AssertEquals.failNotEqual(AssertEquals.java:197)
+        at app//org.junit.jupiter.api.AssertEquals.assertEquals(AssertEquals.java:150)
+        at app//org.junit.jupiter.api.Assertions.assertEquals(Assertions.java:563)
+        at app//io.libp2p.transport.ParentCloseOwnershipTest.failedCloseIsReturnedToEveryOwnerWithoutAnotherRequest(ParentCloseOwnershipTest.kt:109)
+
+2 tests completed, 2 failed
+
+> Task :libp2p:test FAILED
+
+[Incubating] Problems report is available at: file:///tmp/claude-1000/-code/cc161e27-cb11-48c5-89b5-f0960e498312/scratchpad/workspace/uO-1080-shutdown/jvm-libp2p/build/reports/problems/problems-report.html
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':libp2p:test'.
+> There were failing tests. See the report at: file:///tmp/claude-1000/-code/cc161e27-cb11-48c5-89b5-f0960e498312/scratchpad/workspace/uO-1080-shutdown/jvm-libp2p/libp2p/build/reports/tests/test/index.html
+
+* Try:
+> Run with --scan to get full insights.
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 9.0.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/8.14.3/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD FAILED in 5m 26s
+23 actionable tasks: 4 executed, 19 up-to-date

@@ -33,10 +33,12 @@ On top of the upstream `develop` snapshot (which already provides the #412 threa
 - **`newStream` does not fail a caller for its own pool entry** (snapshot-25) — `Host.newStream(protocols, peer, addr)` selects the connection and creates the stream, so when the connection it selected turns out to be dead it evicts it, awaits the close, and dials once. The redial is refused when only the SUBSTREAM died (`ConnectionClosedException` is raised at substream granularity too) or when a stream has already been published to the caller, so a healthy shared connection is never torn down and a caller is never handed one attempt's stream with another attempt's controller.
 - **Terminal connection pool exclusion** (snapshot-21) — both established-connection lookups in `NetworkImpl.connect` remove and skip entries whose close future is already complete. Connection-table removal is itself a close-future continuation, so a caller could previously observe the completed future before that continuation ran and receive the closed connection instead of starting a fresh dial.
 
+- **One parent close operation** (snapshot-27) — connection borrowers and Netty transport shutdown share one atomically admitted close operation per physical parent. Repeated or re-entrant calls observe the same terminal result; completing one caller's future cannot complete another caller's close. This resolves the held-parent duplicate-close baseline in [the resolver ownership review](https://github.com/CodexCoder21Organization/UrlResolver/pull/1080).
+
 The patched build is published to [kotlin.directory](https://kotlin.directory) under an **unambiguously non-upstream** Maven coordinate (the `community.kotlin.libp2p` group is owned by CodexCoder21 — we deliberately do **not** publish under `io.libp2p`, which belongs to upstream):
 
 ```
-community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-25
+community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-27
 ```
 
 ## When this fork goes away

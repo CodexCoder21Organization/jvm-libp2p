@@ -11,11 +11,16 @@ import io.netty.channel.ChannelPromise
 import io.netty.util.concurrent.ImmediateEventExecutor
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertSame
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
+import java.io.IOException
+import java.util.concurrent.ExecutionException
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 
 class ParentCloseOwnershipTest {
     @Test
@@ -65,6 +70,51 @@ class ParentCloseOwnershipTest {
             CompletableFuture.allOf(client.stop(), server.stop()).get(10, TimeUnit.SECONDS)
         }
     }
+
+    @Test
+    fun failedCloseIsReturnedToEveryOwnerWithoutAnotherRequest() {
+        val server = closeOwnershipHost()
+        val client = closeOwnershipHost()
+        var connection: ConnectionOverNetty? = null
+        val requests = AtomicInteger()
+        val failure = IOException("Cannot close the test parent: the injected transport close operation failed.")
+        try {
+            server.start().get(5, TimeUnit.SECONDS)
+            client.start().get(5, TimeUnit.SECONDS)
+            val parent = client.network.connect(server.peerId, *server.listenAddresses().toTypedArray())
+                .get(5, TimeUnit.SECONDS) as ConnectionOverNetty
+            connection = parent
+            parent.nettyChannel.pipeline().addLast(
+                ImmediateEventExecutor.INSTANCE,
+                "fail-parent-close",
+                object : ChannelOutboundHandlerAdapter() {
+                    override fun close(ctx: ChannelHandlerContext, promise: ChannelPromise) {
+                        requests.incrementAndGet()
+                        promise.setFailure(failure)
+                    }
+                }
+            )
+            val first = assertThrows(ExecutionException::class.java) { parent.close().get(5, TimeUnit.SECONDS) }
+            val shutdown = assertThrows(ExecutionException::class.java) { client.network.close().get(5, TimeUnit.SECONDS) }
+            for (reported in listOf(first, shutdown)) {
+                var cause: Throwable = reported
+                while (cause.cause != null) cause = cause.cause!!
+                assertSame(failure, cause, "Every close owner must observe the original transport failure.")
+                assertEquals("Cannot close the test parent: the injected transport close operation failed.", cause.message)
+            }
+            assertEquals(1, requests.get(), "A failed close is terminal; another owner must observe its result without issuing another physical close.")
+        } finally {
+            // Release the fixture's real socket directly after its deliberate API failure.
+            // This is test cleanup, outside the connection/transport close contract under test.
+            connection?.let { parent ->
+                parent.nettyChannel.pipeline().remove("fail-parent-close")
+                parent.nettyChannel.close().get(5, TimeUnit.SECONDS)
+                parent.nettyChannel.eventLoop().submit {}.get(5, TimeUnit.SECONDS)
+            }
+            CompletableFuture.allOf(client.stop(), server.stop()).get(10, TimeUnit.SECONDS)
+        }
+    }
+
 }
 
 private fun closeOwnershipHost() = host {

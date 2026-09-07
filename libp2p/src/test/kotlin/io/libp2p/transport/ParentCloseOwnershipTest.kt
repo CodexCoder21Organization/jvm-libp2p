@@ -23,6 +23,8 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
 class ParentCloseOwnershipTest {
+    // Netty 4.2 exposes explicit handler execution only through this deprecated overload.
+    @Suppress("DEPRECATION")
     @Test
     fun networkAndConnectionShutdownShareOnePendingPhysicalClose() {
         val server = closeOwnershipHost()
@@ -71,6 +73,8 @@ class ParentCloseOwnershipTest {
         }
     }
 
+    // Netty 4.2 exposes explicit handler execution only through this deprecated overload.
+    @Suppress("DEPRECATION")
     @Test
     fun failedCloseIsReturnedToEveryOwnerWithoutAnotherRequest() {
         val server = closeOwnershipHost()

@@ -48,6 +48,11 @@ class ParentCloseOwnershipTest {
                 "One parent received ${heldCloses.size} physical close requests while the first was pending; " +
                     "transport and connection shutdown must share the owner's in-flight close."
             )
+            // A caller can complete its CompletableFuture, but cannot complete the
+            // close owned by the transport or release another shutdown caller.
+            explicitClose.complete(Unit)
+            assertFalse(firstShutdown.isDone, "Completing one caller's future must not finish network shutdown.")
+            assertFalse(repeatedShutdown.isDone, "A later shutdown must still await the physical close.")
             hold.set(false)
             heldCloses.toList().forEach { (ctx, promise) -> ctx.close(promise) }
             CompletableFuture.allOf(firstShutdown, explicitClose, repeatedShutdown).get(5, TimeUnit.SECONDS)

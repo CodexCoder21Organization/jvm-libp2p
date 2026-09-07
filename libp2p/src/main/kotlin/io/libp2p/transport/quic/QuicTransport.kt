@@ -24,6 +24,7 @@ import io.libp2p.security.tls.buildCert
 import io.libp2p.security.tls.getJavaKey
 import io.libp2p.security.tls.getPublicKeyFromCert
 import io.libp2p.security.tls.verifyAndExtractPeerId
+import io.libp2p.transport.implementation.closeNettyChannelOnce
 import io.libp2p.transport.implementation.ConnectionOverNetty
 import io.libp2p.transport.implementation.NettyTransport
 import io.netty.bootstrap.Bootstrap
@@ -132,11 +133,11 @@ class QuicTransport(
 
         val unbindsCompleted = listeners
             .map { (_, ch) -> ch }
-            .map { it.close().toVoidCompletableFuture() }
+            .map { closeNettyChannelOnce(it) }
 
         val channelsClosed = channels
             .toMutableList() // need a copy to avoid potential co-modification problems
-            .map { it.close().toVoidCompletableFuture() }
+            .map { closeNettyChannelOnce(it) }
 
         val everythingThatNeedsToClose = unbindsCompleted.union(channelsClosed)
         val allClosed = CompletableFuture.allOf(*everythingThatNeedsToClose.toTypedArray())
@@ -188,7 +189,7 @@ class QuicTransport(
     }
 
     override fun unlisten(addr: Multiaddr): CompletableFuture<Unit> {
-        return listeners[addr]?.close()?.toVoidCompletableFuture()
+        return listeners[addr]?.let { closeNettyChannelOnce(it) }
             ?: throw Libp2pException("No listeners on address $addr")
     }
 
@@ -256,7 +257,7 @@ class QuicTransport(
 
     private fun registerChannel(ch: Channel) {
         if (closed) {
-            ch.close()
+            closeNettyChannelOnce(ch)
             return
         }
 

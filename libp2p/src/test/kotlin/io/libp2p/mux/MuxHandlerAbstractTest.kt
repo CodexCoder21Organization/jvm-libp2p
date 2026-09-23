@@ -17,6 +17,7 @@ import io.netty.buffer.ByteBuf
 import io.netty.buffer.Unpooled
 import io.netty.channel.ChannelHandlerContext
 import io.netty.channel.ChannelInboundHandlerAdapter
+import io.netty.channel.WriteBufferWaterMark
 import io.netty.handler.logging.LogLevel
 import io.netty.handler.logging.LoggingHandler
 import org.assertj.core.api.Assertions.assertThat
@@ -115,6 +116,36 @@ abstract class MuxHandlerAbstractTest {
         val handlerFut = multistreamHandler.createStream(createTestStreamHandler()).controller
         ech.runPendingTasks()
         return handlerFut.get()
+    }
+
+    @Test
+    fun childChannelKeepsItsConfiguration() {
+        openStreamRemote()
+        val channel = childHandlers.single().ctx.channel()
+        val config = channel.config()
+        config.isAutoRead = false
+        config.writeBufferWaterMark = WriteBufferWaterMark(1024, 2048)
+
+        assertSame(config, channel.config())
+        assertFalse(channel.config().isAutoRead)
+        assertEquals(WriteBufferWaterMark(1024, 2048), channel.config().writeBufferWaterMark)
+    }
+
+    @Test
+    fun childChannelPausesInboundDeliveryUntilAutoReadResumes() {
+        val streamId = openStreamRemote()
+        val handler = childHandlers.single()
+        handler.ctx.channel().config().isAutoRead = false
+
+        writeStream(streamId, "22")
+        writeStream(streamId, "44")
+        assertTrue(handler.inboundMessages.isEmpty())
+        assertEquals(0, handler.readCompleteEventCount)
+
+        handler.ctx.channel().config().isAutoRead = true
+        ech.runPendingTasks()
+        assertEquals(listOf("22", "44"), handler.inboundMessages)
+        assertEquals(1, handler.readCompleteEventCount)
     }
 
     protected fun allocateBuf(): ByteBuf {

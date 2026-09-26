@@ -128,7 +128,8 @@ abstract class MuxHandlerAbstractTest {
 
         assertSame(config, channel.config())
         assertFalse(channel.config().isAutoRead)
-        assertEquals(WriteBufferWaterMark(1024, 2048), channel.config().writeBufferWaterMark)
+        assertEquals(1024, channel.config().writeBufferWaterMark.low())
+        assertEquals(2048, channel.config().writeBufferWaterMark.high())
     }
 
     @Test

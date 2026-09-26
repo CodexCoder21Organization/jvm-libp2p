@@ -31,6 +31,16 @@ abstract class AbstractChildChannel(parent: Channel, id: ChannelId?) : AbstractC
     private var state = State.OPEN
     private var closeImplicitly = false
     private val parentCloseListener = GenericFutureListener { _: Future<Void> -> closeImpl() }
+    private val childConfig: ChannelConfig by lazy {
+        object : DefaultChannelConfig(this) {
+            override fun setAutoRead(autoRead: Boolean): ChannelConfig {
+                val wasAutoRead = isAutoRead
+                val result = super.setAutoRead(autoRead)
+                if (wasAutoRead != autoRead) onAutoReadChanged()
+                return result
+            }
+        }
+    }
 
     fun closeImpl() {
         closeImplicitly = true
@@ -42,7 +52,9 @@ abstract class AbstractChildChannel(parent: Channel, id: ChannelId?) : AbstractC
     }
 
     override fun metadata(): ChannelMetadata = ChannelMetadata(false)
-    override fun config(): ChannelConfig = DefaultChannelConfig(this)
+    override fun config(): ChannelConfig = childConfig
+
+    protected open fun onAutoReadChanged() {}
     override fun isCompatible(loop: EventLoop?) = true
 
     override fun isOpen(): Boolean {

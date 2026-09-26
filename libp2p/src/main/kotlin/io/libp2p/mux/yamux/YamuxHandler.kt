@@ -51,6 +51,7 @@ open class YamuxHandler(
         val acknowledged = AtomicBoolean(false)
         val sendWindowSize = AtomicInteger(initialWindowSize)
         val receiveWindowSize = AtomicInteger(initialWindowSize)
+        private var deliveredSinceWindowUpdate = 0
         val sendBuffer = ByteBufQueue()
         var closedForWriting by Delegates.writeOnce(false)
         private var pendingWrite: PendingWrite? = null
@@ -131,18 +132,22 @@ open class YamuxHandler(
             }
             acknowledgeInboundStreamIfNeeded()
             val newWindow = receiveWindowSize.addAndGet(-size)
-            // send a window update frame once half of the window is depleted
-            if (newWindow < initialWindowSize / 2) {
-                val delta = initialWindowSize - newWindow
-                receiveWindowSize.addAndGet(delta)
-                try {
-                    writeAndFlushFrame(YamuxFrame(msg.id, YamuxType.WINDOW_UPDATE, YamuxFlag.NONE, delta.toLong()))
-                } catch (cause: Throwable) {
-                    ReferenceCountUtil.release(msg.data)
-                    throw cause
-                }
+            if (newWindow < 0) {
+                ReferenceCountUtil.release(msg.data)
+                getChannelHandlerContext().close()
+                throw Libp2pException("Yamux stream $id received $size bytes beyond its $initialWindowSize-byte receive window")
             }
             childRead(msg.id, msg.data!!)
+        }
+
+        fun onBytesDelivered(size: Int) {
+            deliveredSinceWindowUpdate += size
+            if (deliveredSinceWindowUpdate > initialWindowSize / 2) {
+                val delta = deliveredSinceWindowUpdate
+                deliveredSinceWindowUpdate = 0
+                receiveWindowSize.addAndGet(delta)
+                writeAndFlushFrame(YamuxFrame(id, YamuxType.WINDOW_UPDATE, YamuxFlag.NONE, delta.toLong()))
+            }
         }
 
         private fun handleWindowUpdate(msg: YamuxFrame) {
@@ -443,6 +448,13 @@ open class YamuxHandler(
     }
 
     override fun pendingChildWriteSize(data: ByteBuf): Int = data.readableBytes()
+
+    override val maxPendingChildReadBytes: Long
+        get() = initialWindowSize.toLong()
+
+    override fun onChildReadDelivered(id: MuxId, dataSize: Int) {
+        streamHandlers[id]?.onBytesDelivered(dataSize)
+    }
 
     override fun onPendingChildWrite(child: MuxChannel<ByteBuf>, dataSize: Int): Throwable? {
         val projectedBytes = pendingChildWriteBytes + dataSize

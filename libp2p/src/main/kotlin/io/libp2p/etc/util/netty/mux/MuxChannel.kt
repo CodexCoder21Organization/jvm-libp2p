@@ -24,6 +24,10 @@ class MuxChannel<TData>(
     var localDisconnected = false
     private var waitingForParentWrite = false
 
+    override fun onAutoReadChanged() {
+        parent.childAutoReadChanged(this)
+    }
+
     override fun metadata(): ChannelMetadata = ChannelMetadata(true)
     override fun localAddress0() =
         MultiplexSocketAddress(parent.getChannelHandlerContext().channel().localAddress(), id)

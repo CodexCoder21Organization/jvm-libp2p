@@ -148,6 +148,67 @@ abstract class MuxHandlerAbstractTest {
         assertEquals(1, handler.readCompleteEventCount)
     }
 
+    @Test
+    fun pausedChildStopsParentReadsUntilEveryPausedChildResumes() {
+        openStreamRemote()
+        openStreamRemote()
+        val first = childHandlers[0].ctx.channel()
+        val second = childHandlers[1].ctx.channel()
+
+        first.config().isAutoRead = false
+        assertFalse(ech.config().isAutoRead)
+        second.config().isAutoRead = false
+        first.config().isAutoRead = true
+        ech.runPendingTasks()
+        assertFalse(ech.config().isAutoRead)
+
+        second.config().isAutoRead = true
+        ech.runPendingTasks()
+        assertTrue(ech.config().isAutoRead)
+    }
+
+    @Test
+    fun closingPausedChildReleasesUndeliveredPayloadAndRestoresParentReads() {
+        val streamId = openStreamRemote()
+        val handler = childHandlers.single()
+        val child = handler.ctx.channel()
+        val config = child.config()
+        config.isAutoRead = false
+        writeStream(streamId, "22")
+        val payload = allocatedBufs.last()
+
+        assertTrue(handler.inboundMessages.isEmpty())
+        resetStream(streamId)
+        ech.runPendingTasks()
+        assertTrue(handler.inboundMessages.isEmpty())
+        assertEquals(1, payload.refCnt())
+        assertSame(config, child.config())
+        assertTrue(ech.config().isAutoRead)
+    }
+
+    @Test
+    fun pausingAgainDuringQueuedDeliveryKeepsRemainingPayloadInOrder() {
+        val streamId = openStreamRemote()
+        val handler = childHandlers.single()
+        val child = handler.ctx.channel()
+        child.config().isAutoRead = false
+        writeStream(streamId, "22")
+        writeStream(streamId, "44")
+        writeStream(streamId, "66")
+        handler.onRead = {
+            if (handler.inboundMessages.size == 1) child.config().isAutoRead = false
+        }
+
+        child.config().isAutoRead = true
+        ech.runPendingTasks()
+        assertEquals(listOf("22"), handler.inboundMessages)
+        assertFalse(ech.config().isAutoRead)
+
+        child.config().isAutoRead = true
+        ech.runPendingTasks()
+        assertEquals(listOf("22", "44", "66"), handler.inboundMessages)
+    }
+
     protected fun allocateBuf(): ByteBuf {
         val buf = Unpooled.buffer()
         buf.retain() // ref counter to 2 to check that exactly 1 ref remains at the end
@@ -533,6 +594,7 @@ abstract class MuxHandlerAbstractTest {
 
     inner class TestHandler : ChannelInboundHandlerAdapter() {
         val inboundMessages = mutableListOf<String>()
+        var onRead: (() -> Unit)? = null
         lateinit var ctx: ChannelHandlerContext
         var readCompleteEventCount = 0
 
@@ -576,6 +638,7 @@ abstract class MuxHandlerAbstractTest {
             println("MuxHandlerAbstractTest.channelRead")
             msg as ByteBuf
             inboundMessages += msg.readAllBytesAndRelease().toHex()
+            onRead?.invoke()
         }
 
         override fun channelReadComplete(ctx: ChannelHandlerContext?) {

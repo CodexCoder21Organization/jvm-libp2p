@@ -100,6 +100,26 @@ class YamuxHandlerTest : MuxHandlerAbstractTest() {
     private fun readYamuxFrameOrThrow() = readYamuxFrame() ?: throw AssertionError("No outbound frames")
 
     @Test
+    fun pausedChildDoesNotReturnReceiveWindowCreditUntilDelivery() {
+        val streamId = openStreamRemote()
+        val child = childHandlers.single().ctx.channel()
+        val acknowledgement = readYamuxFrameOrThrow()
+        assertThat(acknowledgement.flags).containsExactly(YamuxFlag.ACK)
+        child.config().isAutoRead = false
+
+        writeStream(streamId, "42".repeat(initialWindowSize / 2 + 1))
+        assertThat(readYamuxFrame()).isNull()
+        assertThat(childHandlers.single().inboundMessages).isEmpty()
+
+        child.config().isAutoRead = true
+        ech.runPendingTasks()
+        assertThat(childHandlers.single().inboundMessages).containsExactly("42".repeat(initialWindowSize / 2 + 1))
+        val update = readYamuxFrameOrThrow()
+        assertThat(update.type).isEqualTo(YamuxType.WINDOW_UPDATE)
+        assertThat(update.length).isEqualTo((initialWindowSize / 2 + 1).toLong())
+    }
+
+    @Test
     fun `test ack new stream`() {
         // signal opening of new stream
         openStreamRemote(12)

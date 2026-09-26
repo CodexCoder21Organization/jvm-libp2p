@@ -120,6 +120,23 @@ class YamuxHandlerTest : MuxHandlerAbstractTest() {
     }
 
     @Test
+    fun pausedChildCannotRetainMoreThanItsReceiveWindow() {
+        val streamId = openStreamRemote()
+        readYamuxFrameOrThrow()
+        val child = childHandlers.single().ctx.channel()
+        child.config().isAutoRead = false
+
+        writeStream(streamId, "42".repeat(initialWindowSize - 100))
+        assertThrows<Libp2pException> {
+            writeStream(streamId, "42".repeat(101))
+        }
+
+        assertThat(ech.isOpen).isFalse()
+        assertThat(childHandlers.single().inboundMessages).isEmpty()
+        assertThat(allocatedBufs).allMatch { it.refCnt() == 1 }
+    }
+
+    @Test
     fun `test ack new stream`() {
         // signal opening of new stream
         openStreamRemote(12)

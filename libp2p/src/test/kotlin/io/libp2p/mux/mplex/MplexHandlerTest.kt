@@ -100,6 +100,22 @@ class MplexHandlerTest : MuxHandlerAbstractTest() {
         assertThat(ech.config().isAutoRead).isTrue()
     }
 
+    @Test
+    fun wireDecodedEmptyControlReleasesItsPayload() {
+        val streamId = openStreamRemote()
+        ech.pipeline().addBefore(ech.pipeline().context(multistreamHandler).name(), "wire", MplexFrameCodec())
+        val wire = Unpooled.buffer(2)
+            .writeByte((streamId.toInt() shl 3) or MplexFlag.CloseInitiator.value)
+            .writeByte(0)
+        wire.retain()
+        try {
+            ech.writeInbound(wire)
+            assertThat(wire.refCnt()).isEqualTo(1)
+        } finally {
+            while (wire.refCnt() > 0) wire.release()
+        }
+    }
+
     /**
      * Regression test for the inbound-substream retention leak that OOM-crash-looped ContainerNursery
      * (UrlProtocol #294). A production heap dump (`-Xmx128m`) showed ~30,000 live MuxChannel /

@@ -226,6 +226,30 @@ abstract class MuxHandlerAbstractTest {
         assertEquals(listOf("22", "44", "66"), handler.inboundMessages)
     }
 
+    @Test
+    fun remoteEndWaitsForPausedDataEvenAfterLocalDisconnect() {
+        val streamId = openStreamRemote()
+        val handler = childHandlers.single()
+        val child = handler.ctx.channel()
+        child.config().isAutoRead = false
+        handler.ctx.disconnect().sync()
+        writeStream(streamId, "22")
+        val payload = allocatedBufs.last()
+        closeStream(streamId)
+
+        assertTrue(handler.inboundMessages.isEmpty())
+        assertTrue(handler.userEvents.isEmpty())
+        assertFalse(child.closeFuture().isDone)
+        handler.onRead = { assertTrue(handler.userEvents.isEmpty()) }
+
+        child.config().isAutoRead = true
+        ech.runPendingTasks()
+        assertEquals(listOf("22"), handler.inboundMessages)
+        assertEquals(listOf(RemoteWriteClosed), handler.userEvents)
+        assertTrue(child.closeFuture().isDone)
+        assertEquals(1, payload.refCnt())
+    }
+
     protected fun allocateBuf(): ByteBuf {
         val buf = Unpooled.buffer()
         buf.retain() // ref counter to 2 to check that exactly 1 ref remains at the end

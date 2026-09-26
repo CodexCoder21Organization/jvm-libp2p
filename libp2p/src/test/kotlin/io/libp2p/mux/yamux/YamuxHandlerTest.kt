@@ -11,6 +11,7 @@ import io.libp2p.mux.MuxHandlerAbstractTest
 import io.libp2p.mux.MuxHandlerAbstractTest.AbstractTestMuxFrame.Flag.*
 import io.libp2p.tools.readAllBytesAndRelease
 import io.netty.buffer.ByteBuf
+import io.netty.buffer.Unpooled
 import io.netty.channel.ChannelHandlerContext
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Assertions
@@ -134,6 +135,43 @@ class YamuxHandlerTest : MuxHandlerAbstractTest() {
         assertThat(ech.isOpen).isFalse()
         assertThat(childHandlers.single().inboundMessages).isEmpty()
         assertThat(allocatedBufs).allMatch { it.refCnt() == 1 }
+    }
+
+    @Test
+    fun pausedChildAcceptsManySmallFramesWithinItsWindow() {
+        val streamId = openStreamRemote()
+        readYamuxFrameOrThrow()
+        val handler = childHandlers.single()
+        val child = handler.ctx.channel()
+        child.config().isAutoRead = false
+
+        repeat(65) { writeStream(streamId, "42") }
+        assertThat(child.isOpen).isTrue()
+        assertThat(handler.inboundMessages).isEmpty()
+
+        child.config().isAutoRead = true
+        ech.runPendingTasks()
+        assertThat(handler.inboundMessages).hasSize(65).allMatch { it == "42" }
+    }
+
+    @Test
+    fun wireDecodedEmptyDataReleasesItsPayload() {
+        val streamId = openStreamRemote()
+        readYamuxFrameOrThrow()
+        val child = childHandlers.single().ctx.channel()
+        child.config().isAutoRead = false
+        ech.pipeline().addBefore(ech.pipeline().context(multistreamHandler).name(), "wire", YamuxFrameCodec())
+        val wire = Unpooled.buffer(12)
+            .writeByte(0).writeByte(YamuxType.DATA.intValue).writeShort(0)
+            .writeInt(streamId.toInt()).writeInt(0)
+        wire.retain()
+        try {
+            ech.writeInbound(wire)
+            assertThat(wire.refCnt()).isEqualTo(1)
+            assertThat(child.isOpen).isTrue()
+        } finally {
+            while (wire.refCnt() > 0) wire.release()
+        }
     }
 
     @Test

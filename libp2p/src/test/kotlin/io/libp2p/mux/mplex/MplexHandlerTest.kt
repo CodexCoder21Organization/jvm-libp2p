@@ -93,11 +93,30 @@ class MplexHandlerTest : MuxHandlerAbstractTest() {
         val child = handler.ctx.channel()
         child.config().isAutoRead = false
 
-        repeat(65) { writeStream(streamId, "") }
+        repeat(64) { writeStream(streamId, "") }
+        assertThat(child.isOpen).isTrue()
+        assertThat(handler.inboundMessages).isEmpty()
+        writeStream(streamId, "")
 
         assertThat(child.closeFuture().isDone).isTrue()
         assertThat(handler.inboundMessages).isEmpty()
         assertThat(ech.config().isAutoRead).isTrue()
+    }
+
+    @Test
+    fun pausedChildAcceptsExactByteCapAndClosesOnOneMoreByte() {
+        val streamId = openStreamRemote()
+        val handler = childHandlers.single()
+        val child = handler.ctx.channel()
+        child.config().isAutoRead = false
+
+        repeat(4) { writeStream(streamId, "42".repeat(maxFrameDataLength)) }
+        assertThat(child.isOpen).isTrue()
+        assertThat(handler.inboundMessages).isEmpty()
+        writeStream(streamId, "42")
+
+        assertThat(child.closeFuture().isDone).isTrue()
+        assertThat(allocatedBufs).allMatch { it.refCnt() == 1 }
     }
 
     @Test

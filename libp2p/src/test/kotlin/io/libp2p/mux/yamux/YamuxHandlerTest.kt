@@ -128,9 +128,16 @@ class YamuxHandlerTest : MuxHandlerAbstractTest() {
         child.config().isAutoRead = false
 
         writeStream(streamId, "42".repeat(initialWindowSize - 100))
-        assertThrows<Libp2pException> {
-            writeStream(streamId, "42".repeat(101))
+        writeStream(streamId, "42".repeat(100))
+        assertThat(child.isOpen).isTrue()
+        assertThat(childHandlers.single().inboundMessages).isEmpty()
+        assertThat(readYamuxFrame()).isNull()
+        val failure = assertThrows<Libp2pException> {
+            writeStream(streamId, "42")
         }
+        assertThat(failure.message).isEqualTo(
+            "Yamux stream ${streamId.toMuxId()} received 1 bytes beyond its $initialWindowSize-byte receive window"
+        )
 
         assertThat(ech.isOpen).isFalse()
         assertThat(childHandlers.single().inboundMessages).isEmpty()

@@ -27,6 +27,9 @@ import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 /**
  * Created by Anton Nashatyrev on 09.07.2019.
@@ -80,15 +83,16 @@ abstract class MuxHandlerAbstractTest {
 
     @AfterEach
     open fun cleanUpAndCheck() {
-        childHandlers.forEach {
-            assertThat(it.exceptions).isEmpty()
+        try {
+            childHandlers.forEach { assertThat(it.exceptions).isEmpty() }
+            allocatedBufs.forEach { assertThat(it.refCnt()).isEqualTo(1) }
+        } finally {
+            ech.close().sync()
+            ech.finishAndReleaseAll()
+            allocatedBufs.forEach { while (it.refCnt() > 0) it.release() }
+            allocatedBufs.clear()
+            childHandlers.clear()
         }
-        childHandlers.clear()
-
-        allocatedBufs.forEach {
-            assertThat(it.refCnt()).isEqualTo(1)
-        }
-        allocatedBufs.clear()
     }
 
     data class AbstractTestMuxFrame(
@@ -169,6 +173,54 @@ abstract class MuxHandlerAbstractTest {
     }
 
     @Test
+    fun pausingAndResumingChildPreservesAnAlreadyPausedParent() {
+        val streamId = openStreamRemote()
+        val child = childHandlers.single().ctx.channel()
+        ech.config().isAutoRead = false
+        child.config().isAutoRead = false
+        writeStream(streamId, "22")
+        child.config().isAutoRead = true
+        ech.runPendingTasks()
+
+        assertEquals(listOf("22"), childHandlers.single().inboundMessages)
+        assertFalse(ech.config().isAutoRead)
+    }
+
+    @Test
+    fun concurrentConfigSettersLeaveParentAndChildInAgreement() {
+        val streamId = openStreamRemote()
+        val child = childHandlers.single().ctx.channel()
+        val config = child.config()
+        val start = CountDownLatch(1)
+        val workers = Executors.newFixedThreadPool(2)
+        try {
+            val writes = List(2) {
+                workers.submit {
+                    start.await()
+                    repeat(100) { index ->
+                        assertSame(config, child.config())
+                        child.config().isAutoRead = index % 2 == 0
+                    }
+                }
+            }
+            start.countDown()
+            writes.forEach { it.get(5, TimeUnit.SECONDS) }
+            config.isAutoRead = false
+            ech.runPendingTasks()
+            assertFalse(ech.config().isAutoRead)
+            writeStream(streamId, "22")
+            assertTrue(childHandlers.single().inboundMessages.isEmpty())
+
+            config.isAutoRead = true
+            ech.runPendingTasks()
+            assertTrue(ech.config().isAutoRead)
+            assertEquals(listOf("22"), childHandlers.single().inboundMessages)
+        } finally {
+            workers.shutdownNow()
+        }
+    }
+
+    @Test
     fun closingPausedChildReleasesUndeliveredPayloadAndRestoresParentReads() {
         val streamId = openStreamRemote()
         val handler = childHandlers.single()
@@ -208,11 +260,13 @@ abstract class MuxHandlerAbstractTest {
         val streamId = openStreamRemote()
         val handler = childHandlers.single()
         val child = handler.ctx.channel()
+        val config = child.config()
         child.config().isAutoRead = false
         writeStream(streamId, "22")
         writeStream(streamId, "44")
         writeStream(streamId, "66")
         handler.onRead = {
+            assertSame(config, child.config())
             if (handler.inboundMessages.size == 1) child.config().isAutoRead = false
         }
 

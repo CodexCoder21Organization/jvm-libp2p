@@ -34,9 +34,11 @@ abstract class AbstractChildChannel(parent: Channel, id: ChannelId?) : AbstractC
     private val childConfig: ChannelConfig by lazy {
         object : DefaultChannelConfig(this) {
             override fun setAutoRead(autoRead: Boolean): ChannelConfig {
-                val wasAutoRead = isAutoRead
                 val result = super.setAutoRead(autoRead)
-                if (wasAutoRead != autoRead) onAutoReadChanged()
+                // Reconcile against the current value even if another caller changed it while
+                // this setter ran. Reading the old value before Netty's atomic update can miss
+                // the final transition when two callers write concurrently.
+                onAutoReadChanged()
                 return result
             }
         }

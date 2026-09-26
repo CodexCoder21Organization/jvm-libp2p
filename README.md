@@ -62,6 +62,12 @@ When child-stream payloads would cross that connection-wide budget, Yamux resets
 
 This budget gate is Yamux-only. Mplex does not currently enforce an equivalent parent outbound-buffer budget, so applications that need this hard stalled-peer protection should configure Yamux rather than assuming the setting applies to every muxer.
 
+## Child stream read pausing
+
+Each child stream channel keeps one Netty `ChannelConfig` for its lifetime. For a `StreamOverNetty`, setting `nettyChannel.config().isAutoRead = false` holds inbound payloads for that stream in arrival order. Setting it back to `true` delivers the held payloads in order; closing the stream releases them. The muxer pauses reads on the parent connection while any child is paused, then restores the parent's earlier auto-read setting when all paused children resume or close.
+
+Already decoded payloads have a finite limit of 64 frames per paused child. Yamux also holds at most the stream's receive window and returns window credit only after delivery. Mplex has no receive window, so it holds at most four maximum-length frames' worth of bytes per paused child. A stream that exceeds either limit is closed and its held payloads are released.
+
 ## Connection reuse during close
 
 `Network.connect` reuses an established connection to the requested peer when one is live. Entries

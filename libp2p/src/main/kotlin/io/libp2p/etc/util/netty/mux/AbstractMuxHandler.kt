@@ -23,6 +23,7 @@ private val log = LoggerFactory.getLogger(AbstractMuxHandler::class.java)
  * bounded to a few MB even on a small (e.g. 128 MB) consumer heap.
  */
 const val DEFAULT_MAX_INBOUND_STREAMS: Int = 512
+private const val MAX_PAUSED_CHILD_FRAMES = 64
 
 abstract class AbstractMuxHandler<TData>(
     /**
@@ -136,9 +137,14 @@ abstract class AbstractMuxHandler<TData>(
                 if (!child.config().isAutoRead || queued != null) {
                     val pending = queued ?: PendingInbound<TData>().also { pendingInbound[id] = it }
                     val size = pendingChildReadSize(msg)
-                    if (pending.bytes + size > maxPendingChildReadBytes) {
+                    if (pending.bytes + size > maxPendingChildReadBytes || pending.messages.size >= MAX_PAUSED_CHILD_FRAMES) {
                         releaseMessage(msg)
-                        log.warn("Paused child {} exceeded its {}-byte inbound queue; closing the child", id, maxPendingChildReadBytes)
+                        log.warn(
+                            "Paused child {} exceeded its inbound queue limit of {} bytes or {} frames; closing the child",
+                            id,
+                            maxPendingChildReadBytes,
+                            MAX_PAUSED_CHILD_FRAMES
+                        )
                         child.closeImpl()
                         return
                     }

@@ -115,12 +115,26 @@ open class YamuxHandler(
         }
 
         fun handleFrameRead(msg: YamuxFrame) {
-            handleFlags(msg)
             when (msg.type) {
-                YamuxType.DATA -> handleDataRead(msg)
-                YamuxType.WINDOW_UPDATE -> handleWindowUpdate(msg)
+                YamuxType.DATA -> {
+                    if (YamuxFlag.RST in msg.flags) {
+                        try {
+                            handleFlags(msg)
+                        } finally {
+                            ReferenceCountUtil.release(msg.data)
+                        }
+                    } else {
+                        // A FIN on this frame follows its DATA, including when delivery is paused.
+                        handleDataRead(msg)
+                        handleFlags(msg)
+                    }
+                }
+                YamuxType.WINDOW_UPDATE -> {
+                    handleFlags(msg)
+                    handleWindowUpdate(msg)
+                }
                 else -> {
-                    /* ignore */
+                    handleFlags(msg)
                 }
             }
         }
@@ -128,6 +142,7 @@ open class YamuxHandler(
         private fun handleDataRead(msg: YamuxFrame) {
             val size = msg.length.toInt()
             if (size == 0) {
+                ReferenceCountUtil.release(msg.data)
                 return
             }
             acknowledgeInboundStreamIfNeeded()
@@ -451,6 +466,8 @@ open class YamuxHandler(
 
     override val maxPendingChildReadBytes: Long
         get() = initialWindowSize.toLong()
+
+    override val maxPendingChildReadFrames: Int? = null
 
     override fun onChildReadDelivered(id: MuxId, dataSize: Int) {
         streamHandlers[id]?.onBytesDelivered(dataSize)

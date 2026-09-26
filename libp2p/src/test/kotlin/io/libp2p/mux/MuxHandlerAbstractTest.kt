@@ -232,10 +232,10 @@ abstract class MuxHandlerAbstractTest {
         val handler = childHandlers.single()
         val child = handler.ctx.channel()
         child.config().isAutoRead = false
-        handler.ctx.disconnect().sync()
         writeStream(streamId, "22")
         val payload = allocatedBufs.last()
         closeStream(streamId)
+        handler.ctx.disconnect().sync()
 
         assertTrue(handler.inboundMessages.isEmpty())
         assertTrue(handler.userEvents.isEmpty())

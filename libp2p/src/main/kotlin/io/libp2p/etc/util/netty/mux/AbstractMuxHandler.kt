@@ -23,7 +23,6 @@ private val log = LoggerFactory.getLogger(AbstractMuxHandler::class.java)
  * bounded to a few MB even on a small (e.g. 128 MB) consumer heap.
  */
 const val DEFAULT_MAX_INBOUND_STREAMS: Int = 512
-private const val MAX_PAUSED_CHILD_FRAMES = 64
 
 abstract class AbstractMuxHandler<TData>(
     /**
@@ -56,9 +55,10 @@ abstract class AbstractMuxHandler<TData>(
     protected abstract val inboundInitializer: MuxChannelInitializer<TData>
     private val pendingReadComplete = mutableSetOf<MuxId>()
     private class PendingInbound<TData> {
-        val messages = mutableListOf<TData>()
+        val messages = java.util.ArrayDeque<TData>()
         var bytes = 0L
         var draining = false
+        var remoteEndPending = false
     }
     private val pendingInbound = mutableMapOf<MuxId, PendingInbound<TData>>()
     private val pausedChildren = mutableSetOf<MuxId>()
@@ -66,6 +66,9 @@ abstract class AbstractMuxHandler<TData>(
 
     /** A finite limit for frames already decoded when parent reads are stopped. */
     protected open val maxPendingChildReadBytes: Long = 4L * 1024 * 1024
+
+    /** Mplex bounds empty frames; windowed muxers may rely on their receive window instead. */
+    protected open val maxPendingChildReadFrames: Int? = 64
 
     /** Size of one retained child payload. Production muxers override this for ByteBuf. */
     protected open fun pendingChildReadSize(data: TData): Int = 1
@@ -137,13 +140,16 @@ abstract class AbstractMuxHandler<TData>(
                 if (!child.config().isAutoRead || queued != null) {
                     val pending = queued ?: PendingInbound<TData>().also { pendingInbound[id] = it }
                     val size = pendingChildReadSize(msg)
-                    if (pending.bytes + size > maxPendingChildReadBytes || pending.messages.size >= MAX_PAUSED_CHILD_FRAMES) {
+                    val frameLimit = maxPendingChildReadFrames
+                    if (pending.bytes + size > maxPendingChildReadBytes ||
+                        (frameLimit != null && pending.messages.size >= frameLimit)
+                    ) {
                         releaseMessage(msg)
                         log.warn(
                             "Paused child {} exceeded its inbound queue limit of {} bytes or {} frames; closing the child",
                             id,
                             maxPendingChildReadBytes,
-                            MAX_PAUSED_CHILD_FRAMES
+                            frameLimit ?: "unlimited"
                         )
                         child.closeImpl()
                         return
@@ -200,7 +206,7 @@ abstract class AbstractMuxHandler<TData>(
         queued.draining = true
         try {
             while (child.isOpen && child.config().isAutoRead && queued.messages.isNotEmpty()) {
-                val msg = queued.messages.removeAt(0)
+                val msg = queued.messages.removeFirst()
                 queued.bytes -= pendingChildReadSize(msg)
                 delivered = true
                 deliverToChild(child, msg, true)
@@ -209,6 +215,7 @@ abstract class AbstractMuxHandler<TData>(
             queued.draining = false
             if (queued.messages.isEmpty() && pendingInbound[child.id] === queued) pendingInbound.remove(child.id)
             if (delivered && child.isOpen) child.pipeline().fireChannelReadComplete()
+            if (queued.messages.isEmpty() && queued.remoteEndPending && child.isOpen) child.onRemoteDisconnected()
         }
     }
 
@@ -290,7 +297,14 @@ abstract class AbstractMuxHandler<TData>(
 
     protected fun onRemoteDisconnect(id: MuxId) {
         // the channel could be RESET locally, so ignore remote CLOSE
-        streamMap[id]?.onRemoteDisconnected()
+        val child = streamMap[id] ?: return
+        val queued = pendingInbound[id]
+        if (queued != null) {
+            queued.remoteEndPending = true
+            if (child.config().isAutoRead) drainPendingInbound(child)
+        } else {
+            child.onRemoteDisconnected()
+        }
     }
 
     protected fun onRemoteClose(id: MuxId) {

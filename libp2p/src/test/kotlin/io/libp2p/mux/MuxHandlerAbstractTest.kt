@@ -214,12 +214,12 @@ abstract class MuxHandlerAbstractTest {
         val child = childHandlers.single().ctx.channel()
         val config = child.config()
         val start = CountDownLatch(1)
-        val workers = Executors.newFixedThreadPool(2)
+        val workers = Executors.newFixedThreadPool(4)
         try {
-            val writes = List(2) {
+            val writes = List(4) {
                 workers.submit {
                     start.await()
-                    repeat(100) { index ->
+                    repeat(1000) { index ->
                         assertSame(config, child.config())
                         child.config().isAutoRead = index % 2 == 0
                     }

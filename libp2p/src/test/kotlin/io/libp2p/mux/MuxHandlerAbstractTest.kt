@@ -87,11 +87,17 @@ abstract class MuxHandlerAbstractTest {
             childHandlers.forEach { assertThat(it.exceptions).isEmpty() }
             allocatedBufs.forEach { assertThat(it.refCnt()).isEqualTo(1) }
         } finally {
-            ech.close().sync()
-            ech.finishAndReleaseAll()
-            allocatedBufs.forEach { while (it.refCnt() > 0) it.release() }
-            allocatedBufs.clear()
-            childHandlers.clear()
+            try {
+                ech.close().sync()
+            } finally {
+                try {
+                    ech.finishAndReleaseAll()
+                } finally {
+                    allocatedBufs.forEach { while (it.refCnt() > 0) it.release() }
+                    allocatedBufs.clear()
+                    childHandlers.clear()
+                }
+            }
         }
     }
 
@@ -187,6 +193,22 @@ abstract class MuxHandlerAbstractTest {
     }
 
     @Test
+    fun closingOneOfTwoPausedChildrenKeepsParentPaused() {
+        val firstId = openStreamRemote()
+        openStreamRemote()
+        val first = childHandlers[0].ctx.channel()
+        val second = childHandlers[1].ctx.channel()
+        first.config().isAutoRead = false
+        second.config().isAutoRead = false
+
+        resetStream(firstId)
+        assertFalse(ech.config().isAutoRead)
+        second.config().isAutoRead = true
+        ech.runPendingTasks()
+        assertTrue(ech.config().isAutoRead)
+    }
+
+    @Test
     fun concurrentConfigSettersLeaveParentAndChildInAgreement() {
         val streamId = openStreamRemote()
         val child = childHandlers.single().ctx.channel()
@@ -217,6 +239,40 @@ abstract class MuxHandlerAbstractTest {
             assertEquals(listOf("22"), childHandlers.single().inboundMessages)
         } finally {
             workers.shutdownNow()
+        }
+    }
+
+    @Test
+    fun crossThreadPauseAllowsOnlyTheAlreadyInFlightPayload() {
+        val streamId = openStreamRemote()
+        val handler = childHandlers.single()
+        val child = handler.ctx.channel()
+        val enteredDelivery = CountDownLatch(1)
+        val continueDelivery = CountDownLatch(1)
+        child.pipeline().addBefore(handler.ctx.name(), "in-flight-pause-gate", object : ChannelInboundHandlerAdapter() {
+            override fun channelRead(ctx: ChannelHandlerContext, msg: Any) {
+                enteredDelivery.countDown()
+                assertTrue(continueDelivery.await(5, TimeUnit.SECONDS))
+                ctx.fireChannelRead(msg)
+            }
+        })
+        val worker = Executors.newSingleThreadExecutor()
+        try {
+            val firstWrite = worker.submit { writeStream(streamId, "22") }
+            assertTrue(enteredDelivery.await(5, TimeUnit.SECONDS))
+            child.config().isAutoRead = false
+            continueDelivery.countDown()
+            firstWrite.get(5, TimeUnit.SECONDS)
+            assertEquals(listOf("22"), handler.inboundMessages)
+
+            writeStream(streamId, "44")
+            assertEquals(listOf("22"), handler.inboundMessages)
+            child.config().isAutoRead = true
+            ech.runPendingTasks()
+            assertEquals(listOf("22", "44"), handler.inboundMessages)
+        } finally {
+            continueDelivery.countDown()
+            worker.shutdownNow()
         }
     }
 
@@ -302,6 +358,22 @@ abstract class MuxHandlerAbstractTest {
         assertEquals(listOf(RemoteWriteClosed), handler.userEvents)
         assertTrue(child.closeFuture().isDone)
         assertEquals(1, payload.refCnt())
+    }
+
+    @Test
+    fun remoteDataAfterDeferredEndIsRejected() {
+        val streamId = openStreamRemote()
+        val handler = childHandlers.single()
+        val child = handler.ctx.channel()
+        child.config().isAutoRead = false
+        writeStream(streamId, "22")
+        closeStream(streamId)
+
+        assertThrows(Libp2pException::class.java) { writeStream(streamId, "44") }
+        child.config().isAutoRead = true
+        ech.runPendingTasks()
+        assertEquals(listOf("22"), handler.inboundMessages)
+        assertEquals(listOf(RemoteWriteClosed), handler.userEvents)
     }
 
     protected fun allocateBuf(): ByteBuf {

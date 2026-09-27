@@ -121,6 +121,19 @@ class YamuxHandlerTest : MuxHandlerAbstractTest() {
     }
 
     @Test
+    fun resettingPausedChildDoesNotReturnReceiveWindowCredit() {
+        val streamId = openStreamRemote()
+        readYamuxFrameOrThrow()
+        childHandlers.single().ctx.channel().config().isAutoRead = false
+        writeStream(streamId, "42".repeat(initialWindowSize / 2 + 1))
+        resetStream(streamId)
+
+        assertThat(readYamuxFrame()).isNull()
+        assertThat(childHandlers.single().inboundMessages).isEmpty()
+        assertThat(allocatedBufs).allMatch { it.refCnt() == 1 }
+    }
+
+    @Test
     fun pausedChildCannotRetainMoreThanItsReceiveWindow() {
         val streamId = openStreamRemote()
         readYamuxFrameOrThrow()
@@ -168,17 +181,26 @@ class YamuxHandlerTest : MuxHandlerAbstractTest() {
         val child = childHandlers.single().ctx.channel()
         child.config().isAutoRead = false
         ech.pipeline().addBefore(ech.pipeline().context(multistreamHandler).name(), "wire", YamuxFrameCodec())
-        val wire = Unpooled.buffer(12)
-            .writeByte(0).writeByte(YamuxType.DATA.intValue).writeShort(0)
-            .writeInt(streamId.toInt()).writeInt(0)
-        wire.retain()
-        try {
-            ech.writeInbound(wire)
-            assertThat(wire.refCnt()).isEqualTo(1)
-            assertThat(child.isOpen).isTrue()
-        } finally {
-            while (wire.refCnt() > 0) wire.release()
+        val newId = remoteMuxIdGenerator.next()
+        val controls = listOf(
+            streamId to 0,
+            newId to YamuxFlag.SYN.intFlag,
+            streamId to YamuxFlag.FIN.intFlag,
+            newId to YamuxFlag.RST.intFlag
+        )
+        controls.forEach { (id, flags) ->
+            val wire = Unpooled.buffer(12)
+                .writeByte(0).writeByte(YamuxType.DATA.intValue).writeShort(flags)
+                .writeInt(id.toInt()).writeInt(0)
+            wire.retain()
+            try {
+                ech.writeInbound(wire)
+                assertThat(wire.refCnt()).describedAs("Yamux flags $flags wire payload").isEqualTo(1)
+            } finally {
+                while (wire.refCnt() > 0) wire.release()
+            }
         }
+        assertThat(childHandlers.flatMap { it.inboundMessages }).isEmpty()
     }
 
     @Test

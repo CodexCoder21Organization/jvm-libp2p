@@ -129,7 +129,7 @@ abstract class AbstractMuxHandler<TData>(
                 throw ConnectionClosedException("Channel with id $id not opened")
             }
 
-            child.remoteDisconnected -> {
+            child.remoteDisconnected || pendingInbound[id]?.remoteEndPending == true -> {
                 releaseMessage(msg)
                 throw ConnectionClosedException("Channel with id $id was closed for sending by remote")
             }

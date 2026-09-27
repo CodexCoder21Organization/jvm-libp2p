@@ -121,17 +121,27 @@ class MplexHandlerTest : MuxHandlerAbstractTest() {
 
     @Test
     fun wireDecodedEmptyControlReleasesItsPayload() {
-        val streamId = openStreamRemote()
+        val closeId = 0L
+        val resetId = 2L
+        openStreamRemote(closeId)
+        openStreamRemote(resetId)
         ech.pipeline().addBefore(ech.pipeline().context(multistreamHandler).name(), "wire", MplexFrameCodec())
-        val wire = Unpooled.buffer(2)
-            .writeByte((streamId.toInt() shl 3) or MplexFlag.CloseInitiator.value)
-            .writeByte(0)
-        wire.retain()
-        try {
-            ech.writeInbound(wire)
-            assertThat(wire.refCnt()).isEqualTo(1)
-        } finally {
-            while (wire.refCnt() > 0) wire.release()
+        val controls = listOf(
+            1L to MplexFlag.NewStream,
+            closeId to MplexFlag.CloseInitiator,
+            resetId to MplexFlag.ResetInitiator
+        )
+        controls.forEach { (id, flag) ->
+            val wire = Unpooled.buffer(2)
+                .writeByte((id.toInt() shl 3) or flag.value)
+                .writeByte(0)
+            wire.retain()
+            try {
+                ech.writeInbound(wire)
+                assertThat(wire.refCnt()).describedAs("$flag wire payload").isEqualTo(1)
+            } finally {
+                while (wire.refCnt() > 0) wire.release()
+            }
         }
     }
 

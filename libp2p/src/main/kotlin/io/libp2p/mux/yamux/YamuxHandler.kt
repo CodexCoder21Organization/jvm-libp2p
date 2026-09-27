@@ -123,10 +123,18 @@ open class YamuxHandler(
                         } finally {
                             ReferenceCountUtil.release(msg.data)
                         }
-                    } else {
+                    } else if (YamuxFlag.FIN in msg.flags) {
                         // A FIN on this frame follows its DATA, including when delivery is paused.
                         handleDataRead(msg)
                         handleFlags(msg)
+                    } else {
+                        try {
+                            handleFlags(msg)
+                        } catch (cause: Throwable) {
+                            ReferenceCountUtil.release(msg.data)
+                            throw cause
+                        }
+                        handleDataRead(msg)
                     }
                 }
                 YamuxType.WINDOW_UPDATE -> {

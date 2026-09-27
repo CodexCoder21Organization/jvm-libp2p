@@ -71,9 +71,9 @@ class MplexFrameCodec(
             }
             val streamTag = header.and(0x07).toInt()
             val streamId = header.shr(3)
+            val flag = MplexFlag.getByValue(streamTag)
             val data = msg.readSlice(lenData.toInt())
             data.retain() // MessageToMessageCodec releases original buffer, but it needs to be relayed
-            val flag = MplexFlag.getByValue(streamTag)
             val mplexFrame = MplexFrame(MplexId(ctx.channel().id(), streamId, !flag.isInitiator), flag, data)
             out.add(mplexFrame)
         }

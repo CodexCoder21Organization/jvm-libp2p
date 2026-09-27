@@ -380,8 +380,13 @@ open class YamuxHandler(
             else -> {
                 if (YamuxFlag.SYN in msg.flags) {
                     // remote opens a new stream
-                    validateSynRemoteMuxId(msg.id)
-                    onRemoteYamuxOpen(msg.id)
+                    try {
+                        validateSynRemoteMuxId(msg.id)
+                        onRemoteYamuxOpen(msg.id)
+                    } catch (cause: Throwable) {
+                        ReferenceCountUtil.release(msg.data)
+                        throw cause
+                    }
                 }
 
                 getStreamHandlerOrReleaseAndThrow(msg.id, msg.data).handleFrameRead(msg)

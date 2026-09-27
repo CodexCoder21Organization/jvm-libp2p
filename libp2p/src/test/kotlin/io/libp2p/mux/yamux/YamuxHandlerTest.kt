@@ -8,6 +8,7 @@ import io.libp2p.etc.types.toHex
 import io.libp2p.mux.AckBacklogLimitExceededMuxerException
 import io.libp2p.mux.MuxHandler
 import io.libp2p.mux.MuxHandlerAbstractTest
+import io.libp2p.etc.util.netty.mux.RemoteWriteClosed
 import io.libp2p.mux.MuxHandlerAbstractTest.AbstractTestMuxFrame.Flag.*
 import io.libp2p.tools.readAllBytesAndRelease
 import io.netty.buffer.ByteBuf
@@ -175,6 +176,24 @@ class YamuxHandlerTest : MuxHandlerAbstractTest() {
     }
 
     @Test
+    fun finOnDataFrameFollowsPausedPayload() {
+        val streamId = openStreamRemote()
+        readYamuxFrameOrThrow()
+        val handler = childHandlers.single()
+        val child = handler.ctx.channel()
+        child.config().isAutoRead = false
+        val payload = "22".fromHex().toByteBuf(allocateBuf())
+        ech.writeInbound(YamuxFrame(streamId.toMuxId(), YamuxType.DATA, YamuxFlag.FIN.asSet, 1, payload))
+
+        assertThat(handler.inboundMessages).isEmpty()
+        assertThat(handler.userEvents).isEmpty()
+        child.config().isAutoRead = true
+        ech.runPendingTasks()
+        assertThat(handler.inboundMessages).containsExactly("22")
+        assertThat(handler.userEvents).containsExactly(RemoteWriteClosed)
+    }
+
+    @Test
     fun wireDecodedEmptyDataReleasesItsPayload() {
         val streamId = openStreamRemote()
         readYamuxFrameOrThrow()
@@ -201,6 +220,21 @@ class YamuxHandlerTest : MuxHandlerAbstractTest() {
             }
         }
         assertThat(childHandlers.flatMap { it.inboundMessages }).isEmpty()
+    }
+
+    @Test
+    fun invalidWireSynReleasesItsDecodedPayload() {
+        ech.pipeline().addBefore(ech.pipeline().context(multistreamHandler).name(), "wire", YamuxFrameCodec())
+        val wire = Unpooled.buffer(12)
+            .writeByte(0).writeByte(YamuxType.DATA.intValue).writeShort(YamuxFlag.SYN.intFlag)
+            .writeInt(1).writeInt(0)
+        wire.retain()
+        try {
+            assertThrows<Libp2pException> { ech.writeInbound(wire) }
+            assertThat(wire.refCnt()).isEqualTo(1)
+        } finally {
+            while (wire.refCnt() > 0) wire.release()
+        }
     }
 
     @Test

@@ -57,6 +57,20 @@ class MplexFrameCodecTest {
         assertFalse(channelSmall.isOpen)
     }
 
+    @Test
+    fun invalidWireTagDoesNotKeepAReferenceToItsInput() {
+        val decoder = EmbeddedChannel(MplexFrameCodec())
+        val wire = Unpooled.buffer(2).writeByte(7).writeByte(0)
+        wire.retain()
+        try {
+            assertThrows<DecoderException> { decoder.writeInbound(wire) }
+            assertEquals(1, wire.refCnt())
+        } finally {
+            decoder.finishAndReleaseAll()
+            while (wire.refCnt() > 0) wire.release()
+        }
+    }
+
     @ParameterizedTest
     @MethodSource("splitIndexes")
     fun testDecoder(sliceIdx: List<Int>) {

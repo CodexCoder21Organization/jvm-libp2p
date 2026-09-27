@@ -223,9 +223,21 @@ abstract class AbstractMuxHandler<TData>(
             }
         } finally {
             queued.draining = false
-            if (queued.messages.isEmpty() && pendingInbound[child.id] === queued) pendingInbound.remove(child.id)
-            if (delivered && child.isOpen) child.pipeline().fireChannelReadComplete()
-            if (queued.messages.isEmpty() && queued.remoteEndPending && child.isOpen) child.onRemoteDisconnected()
+            val remoteEndReady = queued.messages.isEmpty() && queued.remoteEndPending
+            if (queued.messages.isEmpty() && !remoteEndReady && pendingInbound[child.id] === queued) {
+                pendingInbound.remove(child.id)
+            }
+            try {
+                if (delivered && child.isOpen) child.pipeline().fireChannelReadComplete()
+            } finally {
+                if (remoteEndReady) {
+                    try {
+                        if (child.isOpen) child.onRemoteDisconnected()
+                    } finally {
+                        if (pendingInbound[child.id] === queued) pendingInbound.remove(child.id)
+                    }
+                }
+            }
         }
     }
 
@@ -309,6 +321,7 @@ abstract class AbstractMuxHandler<TData>(
         // the channel could be RESET locally, so ignore remote CLOSE
         val child = streamMap[id] ?: return
         val queued = pendingInbound[id]
+        if (child.remoteDisconnected || queued?.remoteEndPending == true) return
         if (queued != null) {
             queued.remoteEndPending = true
             if (child.config().isAutoRead) drainPendingInbound(child)

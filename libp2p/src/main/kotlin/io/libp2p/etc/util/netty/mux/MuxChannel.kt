@@ -128,9 +128,13 @@ class MuxChannel<TData>(
     }
 
     fun onRemoteDisconnected() {
-        pipeline().fireUserEventTriggered(RemoteWriteClosed)
+        if (remoteDisconnected) return
         remoteDisconnected = true
-        closeIfBothDisconnected()
+        try {
+            pipeline().fireUserEventTriggered(RemoteWriteClosed)
+        } finally {
+            closeIfBothDisconnected()
+        }
     }
 
     override fun doClose() {

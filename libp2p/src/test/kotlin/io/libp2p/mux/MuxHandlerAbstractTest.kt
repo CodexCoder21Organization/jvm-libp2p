@@ -373,11 +373,48 @@ abstract class MuxHandlerAbstractTest {
         writeStream(streamId, "22")
         closeStream(streamId)
 
-        assertThrows(Libp2pException::class.java) { writeStream(streamId, "44") }
+        val rejection = assertThrows(Libp2pException::class.java) { writeStream(streamId, "44") }
+        assertEquals("Channel with id ${(child as MuxChannel<*>).id} was closed for sending by remote", rejection.message)
         child.config().isAutoRead = true
         ech.runPendingTasks()
         assertEquals(listOf("22"), handler.inboundMessages)
         assertEquals(listOf(RemoteWriteClosed), handler.userEvents)
+    }
+
+    @Test
+    fun remoteDataReenteredFromReadCompleteAfterDeferredEndIsRejected() =
+        assertReenteredDataAfterDeferredEndIsRejected(false)
+
+    @Test
+    fun remoteDataReenteredFromEndEventAfterDeferredEndIsRejected() =
+        assertReenteredDataAfterDeferredEndIsRejected(true)
+
+    private fun assertReenteredDataAfterDeferredEndIsRejected(fromEndEvent: Boolean) {
+        val streamId = openStreamRemote()
+        val handler = childHandlers.single()
+        val child = handler.ctx.channel()
+        var injected = false
+        var rejection: Throwable? = null
+        val callback = {
+            if (!injected) {
+                injected = true
+                rejection = runCatching { writeStream(streamId, "44") }.exceptionOrNull()
+                if (fromEndEvent) closeStream(streamId)
+            }
+        }
+        if (fromEndEvent) handler.onRemoteEnd = callback else handler.onReadComplete = callback
+        child.config().isAutoRead = false
+        writeStream(streamId, "22")
+        closeStream(streamId)
+
+        child.config().isAutoRead = true
+        ech.runPendingTasks()
+
+        assertTrue(injected)
+        assertEquals("Channel with id ${(child as MuxChannel<*>).id} was closed for sending by remote", rejection?.message)
+        assertEquals(listOf("22"), handler.inboundMessages)
+        assertEquals(listOf(RemoteWriteClosed), handler.userEvents)
+        assertTrue(allocatedBufs.all { it.refCnt() == 1 })
     }
 
     protected fun allocateBuf(): ByteBuf {
@@ -766,6 +803,8 @@ abstract class MuxHandlerAbstractTest {
     inner class TestHandler : ChannelInboundHandlerAdapter() {
         val inboundMessages = mutableListOf<String>()
         var onRead: (() -> Unit)? = null
+        var onReadComplete: (() -> Unit)? = null
+        var onRemoteEnd: (() -> Unit)? = null
         lateinit var ctx: ChannelHandlerContext
         var readCompleteEventCount = 0
 
@@ -815,11 +854,13 @@ abstract class MuxHandlerAbstractTest {
         override fun channelReadComplete(ctx: ChannelHandlerContext?) {
             readCompleteEventCount++
             println("MuxHandlerAbstractTest.channelReadComplete")
+            onReadComplete?.invoke()
         }
 
         override fun userEventTriggered(ctx: ChannelHandlerContext, evt: Any) {
             userEvents += evt
             println("MuxHandlerAbstractTest.userEventTriggered: $evt")
+            if (evt == RemoteWriteClosed) onRemoteEnd?.invoke()
         }
 
         override fun exceptionCaught(ctx: ChannelHandlerContext, cause: Throwable) {

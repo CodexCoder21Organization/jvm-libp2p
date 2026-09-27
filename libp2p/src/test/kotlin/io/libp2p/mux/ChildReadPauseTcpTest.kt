@@ -5,6 +5,10 @@ import io.libp2p.core.Stream
 import io.libp2p.core.dsl.host
 import io.libp2p.core.multistream.StrictProtocolBinding
 import io.libp2p.core.mux.StreamMuxerProtocol
+import io.libp2p.mux.mplex.MplexFlag
+import io.libp2p.mux.mplex.MplexFrame
+import io.libp2p.mux.yamux.YamuxFrame
+import io.libp2p.mux.yamux.YamuxType
 import io.libp2p.protocol.ProtocolHandler
 import io.libp2p.security.plaintext.PlaintextInsecureChannel
 import io.libp2p.transport.implementation.StreamOverNetty
@@ -12,6 +16,7 @@ import io.libp2p.transport.tcp.TcpTransport
 import io.netty.buffer.ByteBuf
 import io.netty.buffer.Unpooled
 import io.netty.channel.ChannelHandlerContext
+import io.netty.channel.ChannelInboundHandlerAdapter
 import io.netty.channel.SimpleChannelInboundHandler
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -31,6 +36,7 @@ class ChildReadPauseTcpTest {
     fun serverConsumerCanPauseAndResumeRealMuxedStream(muxer: String) {
         val received = ConcurrentLinkedQueue<Int>()
         val delivered = CountDownLatch(2)
+        val parentReceivedData = CountDownLatch(1)
         val responder = CompletableFuture<Stream>()
         val binding = object : StrictProtocolBinding<Stream>(
             PAUSE_PROTOCOL,
@@ -42,11 +48,39 @@ class ChildReadPauseTcpTest {
                     val channel = (stream as StreamOverNetty).nettyChannel
                     channel.pipeline().addLast(object : SimpleChannelInboundHandler<ByteBuf>() {
                         override fun channelRead0(ctx: ChannelHandlerContext, msg: ByteBuf) {
+                            assertTrue(ctx.executor().inEventLoop())
                             received.add(msg.readUnsignedByte().toInt())
                             delivered.countDown()
                         }
                     })
-                    channel.config().isAutoRead = false
+                    val parent = channel.parent()
+                    val muxContext = parent.pipeline().context(MuxHandler::class.java)
+                    parent.pipeline().addBefore(
+                        muxContext.name(),
+                        "pause-on-parent-data",
+                        object : ChannelInboundHandlerAdapter() {
+                            var paused = false
+
+                            override fun channelRead(ctx: ChannelHandlerContext, msg: Any) {
+                                val isData = when (msg) {
+                                    is MplexFrame -> msg.flag.type == MplexFlag.Type.DATA && msg.data.isReadable
+                                    is YamuxFrame -> msg.type == YamuxType.DATA && msg.data?.isReadable == true
+                                    else -> false
+                                }
+                                if (isData && !paused) {
+                                    paused = true
+                                    channel.config().isAutoRead = false
+                                    try {
+                                        ctx.fireChannelRead(msg)
+                                    } finally {
+                                        parentReceivedData.countDown()
+                                    }
+                                } else {
+                                    ctx.fireChannelRead(msg)
+                                }
+                            }
+                        }
+                    )
                     responder.complete(stream)
                     return CompletableFuture.completedFuture(stream)
                 }
@@ -73,12 +107,16 @@ class ChildReadPauseTcpTest {
                 server.listenAddresses().single()
             ).controller.get(5, TimeUnit.SECONDS)
             val receiver = responder.get(5, TimeUnit.SECONDS) as StreamOverNetty
-            assertFalse(receiver.nettyChannel.config().isAutoRead)
+            assertTrue(receiver.nettyChannel.config().isAutoRead)
 
             sender.writeAndFlushWithFuture(Unpooled.wrappedBuffer(byteArrayOf(22))).get(5, TimeUnit.SECONDS)
+            assertTrue(parentReceivedData.await(5, TimeUnit.SECONDS))
+            assertFalse(receiver.nettyChannel.config().isAutoRead)
+            assertTrue(received.isEmpty())
             sender.writeAndFlushWithFuture(Unpooled.wrappedBuffer(byteArrayOf(44))).get(5, TimeUnit.SECONDS)
-            receiver.nettyChannel.eventLoop().submit { assertTrue(received.isEmpty()) }.get(5, TimeUnit.SECONDS)
+            assertTrue(received.isEmpty())
 
+            assertFalse(receiver.nettyChannel.eventLoop().inEventLoop())
             receiver.nettyChannel.config().isAutoRead = true
             assertTrue(delivered.await(5, TimeUnit.SECONDS))
             assertEquals(listOf(22, 44), received.toList())

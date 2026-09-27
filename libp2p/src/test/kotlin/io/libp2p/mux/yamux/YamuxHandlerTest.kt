@@ -230,7 +230,8 @@ class YamuxHandlerTest : MuxHandlerAbstractTest() {
             .writeInt(1).writeInt(0)
         wire.retain()
         try {
-            assertThrows<Libp2pException> { ech.writeInbound(wire) }
+            val rejection = assertThrows<Libp2pException> { ech.writeInbound(wire) }
+            assertThat(rejection.message).isEqualTo("Invalid remote SYN StreamID: test/1, isRemoteInitiator: false")
             assertThat(wire.refCnt()).isEqualTo(1)
         } finally {
             while (wire.refCnt() > 0) wire.release()

@@ -63,6 +63,7 @@ abstract class AbstractMuxHandler<TData>(
     private val pendingInbound = mutableMapOf<MuxId, PendingInbound<TData>>()
     private val pausedChildren = mutableSetOf<MuxId>()
     private var parentAutoReadBeforePause: Boolean? = null
+
     // A child config may be set by concurrent callers. Keep the saved parent setting and paused
     // child set as one state change even when an event loop reports several callers as in-loop.
     private val parentReadLock = Any()

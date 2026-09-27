@@ -316,6 +316,24 @@ abstract class MuxHandlerAbstractTest {
     }
 
     @Test
+    fun closingParentReleasesEveryPausedChildPayload() {
+        val firstId = openStreamRemote()
+        val secondId = openStreamRemote()
+        childHandlers.forEach { it.ctx.channel().config().isAutoRead = false }
+        writeStream(firstId, "22")
+        writeStream(secondId, "44")
+        val payloads = allocatedBufs.takeLast(2)
+
+        ech.close().sync()
+
+        childHandlers.forEach { handler ->
+            assertTrue(handler.ctx.channel().closeFuture().isDone)
+            assertTrue(handler.inboundMessages.isEmpty())
+        }
+        payloads.forEach { assertEquals(1, it.refCnt()) }
+    }
+
+    @Test
     fun pausingAgainDuringQueuedDeliveryKeepsRemainingPayloadInOrder() {
         val streamId = openStreamRemote()
         val handler = childHandlers.single()

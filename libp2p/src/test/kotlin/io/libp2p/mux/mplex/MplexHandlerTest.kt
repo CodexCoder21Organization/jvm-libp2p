@@ -10,6 +10,7 @@ import io.libp2p.mux.MuxHandlerAbstractTest
 import io.libp2p.mux.MuxHandlerAbstractTest.AbstractTestMuxFrame.Flag.*
 import io.libp2p.tools.TestChannel
 import io.libp2p.tools.readAllBytesAndRelease
+import io.netty.buffer.ByteBuf
 import io.netty.buffer.Unpooled
 import io.netty.channel.ChannelHandlerContext
 import io.netty.handler.logging.LogLevel
@@ -139,6 +140,35 @@ class MplexHandlerTest : MuxHandlerAbstractTest() {
             } finally {
                 while (wire.refCnt() > 0) wire.release()
             }
+        }
+    }
+
+    @Test
+    fun wireDecodedEmptyDataCountsTowardPausedFrameLimitAndReleasesOnClose() {
+        ech.pipeline().addBefore(ech.pipeline().context(multistreamHandler).name(), "wire", MplexFrameCodec())
+        val wires = mutableListOf<ByteBuf>()
+        try {
+            val open = Unpooled.buffer(2).writeByte(MplexFlag.NewStream.value).writeByte(0)
+            open.retain()
+            wires += open
+            ech.writeInbound(open)
+            val handler = childHandlers.single()
+            val child = handler.ctx.channel()
+            child.config().isAutoRead = false
+
+            repeat(65) { index ->
+                val wire = Unpooled.buffer(2).writeByte(MplexFlag.MessageInitiator.value).writeByte(0)
+                wire.retain()
+                wires += wire
+                ech.writeInbound(wire)
+                if (index == 63) assertThat(child.isOpen).isTrue()
+            }
+
+            assertThat(child.closeFuture().isDone).isTrue()
+            assertThat(handler.inboundMessages).isEmpty()
+            assertThat(wires).allMatch { it.refCnt() == 1 }
+        } finally {
+            wires.forEach { wire -> while (wire.refCnt() > 0) wire.release() }
         }
     }
 

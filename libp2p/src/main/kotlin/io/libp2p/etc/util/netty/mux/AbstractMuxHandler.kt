@@ -63,6 +63,9 @@ abstract class AbstractMuxHandler<TData>(
     private val pendingInbound = mutableMapOf<MuxId, PendingInbound<TData>>()
     private val pausedChildren = mutableSetOf<MuxId>()
     private var parentAutoReadBeforePause: Boolean? = null
+    // A child config may be set by concurrent callers. Keep the saved parent setting and paused
+    // child set as one state change even when an event loop reports several callers as in-loop.
+    private val parentReadLock = Any()
 
     /** A finite limit for frames already decoded when parent reads are stopped. */
     protected open val maxPendingChildReadBytes: Long = 4L * 1024 * 1024
@@ -103,8 +106,10 @@ abstract class AbstractMuxHandler<TData>(
         val retained = pendingInbound.values.toList()
         pendingInbound.clear()
         retained.forEach { queued -> queued.messages.forEach(::releaseMessage) }
-        pausedChildren.clear()
-        parentAutoReadBeforePause = null
+        synchronized(parentReadLock) {
+            pausedChildren.clear()
+            parentAutoReadBeforePause = null
+        }
         super.channelUnregistered(ctx)
     }
 
@@ -170,9 +175,11 @@ abstract class AbstractMuxHandler<TData>(
             if (child.isOpen) {
                 if (child.config().isAutoRead) {
                     drainPendingInbound(child)
-                    if (child.isOpen && child.config().isAutoRead) {
-                        pausedChildren.remove(child.id)
-                        restoreParentReadsIfPossible()
+                    synchronized(parentReadLock) {
+                        if (child.isOpen && child.config().isAutoRead) {
+                            pausedChildren.remove(child.id)
+                            restoreParentReadsIfPossible()
+                        }
                     }
                 } else {
                     pauseChild(child)
@@ -183,14 +190,17 @@ abstract class AbstractMuxHandler<TData>(
     }
 
     private fun pauseChild(child: MuxChannel<TData>) {
-        if (!pausedChildren.add(child.id)) return
-        val parentChannel = getChannelHandlerContext().channel()
-        if (parentAutoReadBeforePause == null) {
-            parentAutoReadBeforePause = parentChannel.config().isAutoRead
+        synchronized(parentReadLock) {
+            if (!child.isOpen || child.config().isAutoRead || !pausedChildren.add(child.id)) return
+            val parentChannel = getChannelHandlerContext().channel()
+            if (parentAutoReadBeforePause == null) {
+                parentAutoReadBeforePause = parentChannel.config().isAutoRead
+            }
+            parentChannel.config().isAutoRead = false
         }
-        parentChannel.config().isAutoRead = false
     }
 
+    /** Called while holding [parentReadLock]. */
     private fun restoreParentReadsIfPossible() {
         if (pausedChildren.isNotEmpty()) return
         val wasAutoRead = parentAutoReadBeforePause ?: return
@@ -322,8 +332,10 @@ abstract class AbstractMuxHandler<TData>(
 
     fun onClosed(child: MuxChannel<TData>) {
         pendingInbound.remove(child.id)?.messages?.forEach(::releaseMessage)
-        pausedChildren.remove(child.id)
-        restoreParentReadsIfPossible()
+        synchronized(parentReadLock) {
+            pausedChildren.remove(child.id)
+            restoreParentReadsIfPossible()
+        }
         if (streamMap.remove(child.id) != null && !child.initiator) {
             // An inbound (remote-initiated) substream closed (handled, reset, or negotiation
             // timed out): release its admission slot so a fresh inbound substream can take it.

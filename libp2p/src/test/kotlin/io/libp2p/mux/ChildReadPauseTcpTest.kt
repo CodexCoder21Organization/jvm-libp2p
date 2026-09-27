@@ -68,7 +68,9 @@ class ChildReadPauseTcpTest {
             client.start().get(5, TimeUnit.SECONDS)
             server.start().get(5, TimeUnit.SECONDS)
             val sender = client.newStream<Stream>(
-                listOf(PAUSE_PROTOCOL), server.peerId, server.listenAddresses().single()
+                listOf(PAUSE_PROTOCOL),
+                server.peerId,
+                server.listenAddresses().single()
             ).controller.get(5, TimeUnit.SECONDS)
             val receiver = responder.get(5, TimeUnit.SECONDS) as StreamOverNetty
             assertFalse(receiver.nettyChannel.config().isAutoRead)

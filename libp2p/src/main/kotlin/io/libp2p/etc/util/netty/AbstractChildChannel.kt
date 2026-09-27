@@ -31,6 +31,7 @@ abstract class AbstractChildChannel(parent: Channel, id: ChannelId?) : AbstractC
     private var state = State.OPEN
     private var closeImplicitly = false
     private val parentCloseListener = GenericFutureListener { _: Future<Void> -> closeImpl() }
+
     /**
      * One config for the channel lifetime. An off-loop auto-read pause may leave one inbound
      * payload already in delivery after the setter returns. The muxer stops parent transport

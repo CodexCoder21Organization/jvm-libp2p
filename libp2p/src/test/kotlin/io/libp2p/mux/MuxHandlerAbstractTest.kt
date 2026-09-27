@@ -249,13 +249,17 @@ abstract class MuxHandlerAbstractTest {
         val child = handler.ctx.channel()
         val enteredDelivery = CountDownLatch(1)
         val continueDelivery = CountDownLatch(1)
-        child.pipeline().addBefore(handler.ctx.name(), "in-flight-pause-gate", object : ChannelInboundHandlerAdapter() {
-            override fun channelRead(ctx: ChannelHandlerContext, msg: Any) {
-                enteredDelivery.countDown()
-                assertTrue(continueDelivery.await(5, TimeUnit.SECONDS))
-                ctx.fireChannelRead(msg)
+        child.pipeline().addBefore(
+            handler.ctx.name(),
+            "in-flight-pause-gate",
+            object : ChannelInboundHandlerAdapter() {
+                override fun channelRead(ctx: ChannelHandlerContext, msg: Any) {
+                    enteredDelivery.countDown()
+                    assertTrue(continueDelivery.await(5, TimeUnit.SECONDS))
+                    ctx.fireChannelRead(msg)
+                }
             }
-        })
+        )
         val worker = Executors.newSingleThreadExecutor()
         try {
             val firstWrite = worker.submit { writeStream(streamId, "22") }

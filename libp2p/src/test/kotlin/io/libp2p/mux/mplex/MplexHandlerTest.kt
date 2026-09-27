@@ -10,6 +10,7 @@ import io.libp2p.mux.MuxHandlerAbstractTest
 import io.libp2p.mux.MuxHandlerAbstractTest.AbstractTestMuxFrame.Flag.*
 import io.libp2p.tools.TestChannel
 import io.libp2p.tools.readAllBytesAndRelease
+import io.netty.buffer.ByteBuf
 import io.netty.buffer.Unpooled
 import io.netty.channel.ChannelHandlerContext
 import io.netty.handler.logging.LogLevel
@@ -68,6 +69,106 @@ class MplexHandlerTest : MuxHandlerAbstractTest() {
             }
             val data = maybeMplexFrame.data.readAllBytesAndRelease().toHex()
             AbstractTestMuxFrame(mplexFrame.id.id, flag, data)
+        }
+    }
+
+    @Test
+    fun pausedChildQueueClosesAtItsByteLimit() {
+        val streamId = openStreamRemote()
+        val handler = childHandlers.single()
+        val child = handler.ctx.channel()
+        child.config().isAutoRead = false
+
+        repeat(5) { writeStream(streamId, "42".repeat(maxFrameDataLength)) }
+
+        assertThat(child.closeFuture().isDone).isTrue()
+        assertThat(handler.inboundMessages).isEmpty()
+        assertThat(allocatedBufs).allMatch { it.refCnt() == 1 }
+        assertThat(ech.config().isAutoRead).isTrue()
+    }
+
+    @Test
+    fun pausedChildQueueAlsoLimitsEmptyFrames() {
+        val streamId = openStreamRemote()
+        val handler = childHandlers.single()
+        val child = handler.ctx.channel()
+        child.config().isAutoRead = false
+
+        repeat(64) { writeStream(streamId, "") }
+        assertThat(child.isOpen).isTrue()
+        assertThat(handler.inboundMessages).isEmpty()
+        writeStream(streamId, "")
+
+        assertThat(child.closeFuture().isDone).isTrue()
+        assertThat(handler.inboundMessages).isEmpty()
+        assertThat(ech.config().isAutoRead).isTrue()
+    }
+
+    @Test
+    fun pausedChildAcceptsExactByteCapAndClosesOnOneMoreByte() {
+        val streamId = openStreamRemote()
+        val handler = childHandlers.single()
+        val child = handler.ctx.channel()
+        child.config().isAutoRead = false
+
+        repeat(4) { writeStream(streamId, "42".repeat(maxFrameDataLength)) }
+        assertThat(child.isOpen).isTrue()
+        assertThat(handler.inboundMessages).isEmpty()
+        writeStream(streamId, "42")
+
+        assertThat(child.closeFuture().isDone).isTrue()
+        assertThat(allocatedBufs).allMatch { it.refCnt() == 1 }
+    }
+
+    @Test
+    fun wireDecodedEmptyControlReleasesItsPayload() {
+        ech.pipeline().addBefore(ech.pipeline().context(multistreamHandler).name(), "wire", MplexFrameCodec())
+        val controls = listOf(
+            0L to MplexFlag.NewStream,
+            2L to MplexFlag.NewStream,
+            0L to MplexFlag.CloseInitiator,
+            2L to MplexFlag.ResetInitiator
+        )
+        controls.forEach { (id, flag) ->
+            val wire = Unpooled.buffer(2)
+                .writeByte((id.toInt() shl 3) or flag.value)
+                .writeByte(0)
+            wire.retain()
+            try {
+                ech.writeInbound(wire)
+                assertThat(wire.refCnt()).describedAs("$flag wire payload").isEqualTo(1)
+            } finally {
+                while (wire.refCnt() > 0) wire.release()
+            }
+        }
+    }
+
+    @Test
+    fun wireDecodedEmptyDataCountsTowardPausedFrameLimitAndReleasesOnClose() {
+        ech.pipeline().addBefore(ech.pipeline().context(multistreamHandler).name(), "wire", MplexFrameCodec())
+        val wires = mutableListOf<ByteBuf>()
+        try {
+            val open = Unpooled.buffer(2).writeByte(MplexFlag.NewStream.value).writeByte(0)
+            open.retain()
+            wires += open
+            ech.writeInbound(open)
+            val handler = childHandlers.single()
+            val child = handler.ctx.channel()
+            child.config().isAutoRead = false
+
+            repeat(65) { index ->
+                val wire = Unpooled.buffer(2).writeByte(MplexFlag.MessageInitiator.value).writeByte(0)
+                wire.retain()
+                wires += wire
+                ech.writeInbound(wire)
+                if (index == 63) assertThat(child.isOpen).isTrue()
+            }
+
+            assertThat(child.closeFuture().isDone).isTrue()
+            assertThat(handler.inboundMessages).isEmpty()
+            assertThat(wires).allMatch { it.refCnt() == 1 }
+        } finally {
+            wires.forEach { wire -> while (wire.refCnt() > 0) wire.release() }
         }
     }
 

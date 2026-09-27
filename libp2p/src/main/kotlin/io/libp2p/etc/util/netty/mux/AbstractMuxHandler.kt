@@ -54,6 +54,31 @@ abstract class AbstractMuxHandler<TData>(
     private var closed = false
     protected abstract val inboundInitializer: MuxChannelInitializer<TData>
     private val pendingReadComplete = mutableSetOf<MuxId>()
+    private class PendingInbound<TData> {
+        val messages = java.util.ArrayDeque<TData>()
+        var bytes = 0L
+        var draining = false
+        var remoteEndPending = false
+    }
+    private val pendingInbound = mutableMapOf<MuxId, PendingInbound<TData>>()
+    private val pausedChildren = mutableSetOf<MuxId>()
+    private var parentAutoReadBeforePause: Boolean? = null
+
+    // A child config may be set by concurrent callers. Keep the saved parent setting and paused
+    // child set as one state change even when an event loop reports several callers as in-loop.
+    private val parentReadLock = Any()
+
+    /** A finite limit for frames already decoded when parent reads are stopped. */
+    protected open val maxPendingChildReadBytes: Long = 4L * 1024 * 1024
+
+    /** Mplex bounds empty frames; windowed muxers may rely on their receive window instead. */
+    protected open val maxPendingChildReadFrames: Int? = 64
+
+    /** Size of one retained child payload. Production muxers override this for ByteBuf. */
+    protected open fun pendingChildReadSize(data: TData): Int = 1
+
+    /** Called only after the child pipeline has received a payload. */
+    protected open fun onChildReadDelivered(id: MuxId, dataSize: Int) = Unit
 
     // Accessed only on this channel's single event-loop thread (same as streamMap), so plain vars
     // are sufficient — no synchronization needed.
@@ -79,6 +104,13 @@ abstract class AbstractMuxHandler<TData>(
     override fun channelUnregistered(ctx: ChannelHandlerContext?) {
         activeFuture.completeExceptionally(ConnectionClosedException())
         closed = true
+        val retained = pendingInbound.values.toList()
+        pendingInbound.clear()
+        retained.forEach { queued -> queued.messages.forEach(::releaseMessage) }
+        synchronized(parentReadLock) {
+            pausedChildren.clear()
+            parentAutoReadBeforePause = null
+        }
         super.channelUnregistered(ctx)
     }
 
@@ -103,16 +135,118 @@ abstract class AbstractMuxHandler<TData>(
                 throw ConnectionClosedException("Channel with id $id not opened")
             }
 
-            child.remoteDisconnected -> {
+            child.remoteDisconnected || pendingInbound[id]?.remoteEndPending == true -> {
                 releaseMessage(msg)
                 throw ConnectionClosedException("Channel with id $id was closed for sending by remote")
             }
 
             else -> {
-                pendingReadComplete += id
-                child.pipeline().fireChannelRead(msg)
+                if (!child.config().isAutoRead) pauseChild(child)
+                val queued = pendingInbound[id]
+                if (!child.config().isAutoRead || queued != null) {
+                    val pending = queued ?: PendingInbound<TData>().also { pendingInbound[id] = it }
+                    val size = pendingChildReadSize(msg)
+                    val frameLimit = maxPendingChildReadFrames
+                    if (pending.bytes + size > maxPendingChildReadBytes ||
+                        (frameLimit != null && pending.messages.size >= frameLimit)
+                    ) {
+                        releaseMessage(msg)
+                        log.warn(
+                            "Paused child {} exceeded its inbound queue limit of {} bytes or {} frames; closing the child",
+                            id,
+                            maxPendingChildReadBytes,
+                            frameLimit ?: "unlimited"
+                        )
+                        child.closeImpl()
+                        return
+                    }
+                    pending.messages.add(msg)
+                    pending.bytes += size
+                    if (child.config().isAutoRead) drainPendingInbound(child)
+                } else {
+                    deliverToChild(child, msg, false)
+                }
             }
         }
+    }
+
+    internal fun childAutoReadChanged(child: MuxChannel<TData>) {
+        val parentContext = getChannelHandlerContext()
+        val update = Runnable {
+            if (child.isOpen) {
+                if (child.config().isAutoRead) {
+                    drainPendingInbound(child)
+                    synchronized(parentReadLock) {
+                        if (child.isOpen && child.config().isAutoRead) {
+                            pausedChildren.remove(child.id)
+                            restoreParentReadsIfPossible()
+                        }
+                    }
+                } else {
+                    pauseChild(child)
+                }
+            }
+        }
+        if (parentContext.executor().inEventLoop()) update.run() else parentContext.executor().execute(update)
+    }
+
+    private fun pauseChild(child: MuxChannel<TData>) {
+        synchronized(parentReadLock) {
+            if (!child.isOpen || child.config().isAutoRead || !pausedChildren.add(child.id)) return
+            val parentChannel = getChannelHandlerContext().channel()
+            if (parentAutoReadBeforePause == null) {
+                parentAutoReadBeforePause = parentChannel.config().isAutoRead
+            }
+            parentChannel.config().isAutoRead = false
+        }
+    }
+
+    /** Called while holding [parentReadLock]. */
+    private fun restoreParentReadsIfPossible() {
+        if (pausedChildren.isNotEmpty()) return
+        val wasAutoRead = parentAutoReadBeforePause ?: return
+        parentAutoReadBeforePause = null
+        val parentChannel = getChannelHandlerContext().channel()
+        if (wasAutoRead && parentChannel.isOpen) parentChannel.config().isAutoRead = true
+    }
+
+    private fun drainPendingInbound(child: MuxChannel<TData>) {
+        val queued = pendingInbound[child.id] ?: return
+        if (queued.draining) return
+        var delivered = false
+        queued.draining = true
+        try {
+            while (child.isOpen && child.config().isAutoRead && queued.messages.isNotEmpty()) {
+                val msg = queued.messages.removeFirst()
+                queued.bytes -= pendingChildReadSize(msg)
+                delivered = true
+                deliverToChild(child, msg, true)
+            }
+        } finally {
+            queued.draining = false
+            val remoteEndReady = queued.messages.isEmpty() && queued.remoteEndPending
+            if (queued.messages.isEmpty() && !remoteEndReady && pendingInbound[child.id] === queued) {
+                pendingInbound.remove(child.id)
+            }
+            try {
+                if (delivered && child.isOpen) child.pipeline().fireChannelReadComplete()
+            } finally {
+                if (remoteEndReady) {
+                    try {
+                        if (child.isOpen) child.onRemoteDisconnected()
+                    } finally {
+                        if (pendingInbound[child.id] === queued) pendingInbound.remove(child.id)
+                    }
+                }
+            }
+        }
+    }
+
+    private fun deliverToChild(child: MuxChannel<TData>, msg: TData, fromQueue: Boolean) {
+        val size = pendingChildReadSize(msg)
+        if (!fromQueue) pendingReadComplete += child.id
+        child.pipeline().fireChannelRead(msg)
+        if (child.isOpen) onChildReadDelivered(child.id, size)
     }
 
     override fun channelReadComplete(ctx: ChannelHandlerContext) {
@@ -186,7 +320,15 @@ abstract class AbstractMuxHandler<TData>(
 
     protected fun onRemoteDisconnect(id: MuxId) {
         // the channel could be RESET locally, so ignore remote CLOSE
-        streamMap[id]?.onRemoteDisconnected()
+        val child = streamMap[id] ?: return
+        val queued = pendingInbound[id]
+        if (child.remoteDisconnected || queued?.remoteEndPending == true) return
+        if (queued != null) {
+            queued.remoteEndPending = true
+            if (child.config().isAutoRead) drainPendingInbound(child)
+        } else {
+            child.onRemoteDisconnected()
+        }
     }
 
     protected fun onRemoteClose(id: MuxId) {
@@ -203,6 +345,11 @@ abstract class AbstractMuxHandler<TData>(
     }
 
     fun onClosed(child: MuxChannel<TData>) {
+        pendingInbound.remove(child.id)?.messages?.forEach(::releaseMessage)
+        synchronized(parentReadLock) {
+            pausedChildren.remove(child.id)
+            restoreParentReadsIfPossible()
+        }
         if (streamMap.remove(child.id) != null && !child.initiator) {
             // An inbound (remote-initiated) substream closed (handled, reset, or negotiation
             // timed out): release its admission slot so a fresh inbound substream can take it.

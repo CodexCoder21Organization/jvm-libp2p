@@ -57,6 +57,21 @@ class MplexFrameCodecTest {
         assertFalse(channelSmall.isOpen)
     }
 
+    @Test
+    fun invalidWireTagDoesNotKeepAReferenceToItsInput() {
+        val decoder = EmbeddedChannel(MplexFrameCodec())
+        val wire = Unpooled.buffer(2).writeByte(7).writeByte(0)
+        wire.retain()
+        try {
+            val rejection = assertThrows<DecoderException> { decoder.writeInbound(wire) }
+            assertEquals("java.lang.IllegalArgumentException: Invalid Mplex stream tag: 7", rejection.message)
+            assertEquals(1, wire.refCnt())
+        } finally {
+            decoder.finishAndReleaseAll()
+            while (wire.refCnt() > 0) wire.release()
+        }
+    }
+
     @ParameterizedTest
     @MethodSource("splitIndexes")
     fun testDecoder(sliceIdx: List<Int>) {

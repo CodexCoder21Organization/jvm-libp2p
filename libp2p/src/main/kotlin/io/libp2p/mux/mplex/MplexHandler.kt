@@ -11,6 +11,7 @@ import io.libp2p.mux.MuxHandler
 import io.netty.buffer.ByteBuf
 import io.netty.channel.ChannelFuture
 import io.netty.channel.ChannelHandlerContext
+import io.netty.util.ReferenceCountUtil
 import io.netty.util.concurrent.PromiseCombiner
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.atomic.AtomicLong
@@ -30,11 +31,19 @@ open class MplexHandler(
 
     override fun channelRead(ctx: ChannelHandlerContext, msg: Any) {
         msg as MplexFrame
-        when (msg.flag.type) {
-            MplexFlag.Type.OPEN -> onRemoteOpen(msg.id)
-            MplexFlag.Type.CLOSE -> onRemoteDisconnect(msg.id)
-            MplexFlag.Type.RESET -> onRemoteClose(msg.id)
-            MplexFlag.Type.DATA -> childRead(msg.id, msg.data)
+        if (msg.flag.type == MplexFlag.Type.DATA) {
+            childRead(msg.id, msg.data)
+        } else {
+            try {
+                when (msg.flag.type) {
+                    MplexFlag.Type.OPEN -> onRemoteOpen(msg.id)
+                    MplexFlag.Type.CLOSE -> onRemoteDisconnect(msg.id)
+                    MplexFlag.Type.RESET -> onRemoteClose(msg.id)
+                    MplexFlag.Type.DATA -> error("DATA handled above")
+                }
+            } finally {
+                ReferenceCountUtil.release(msg.data)
+            }
         }
     }
 

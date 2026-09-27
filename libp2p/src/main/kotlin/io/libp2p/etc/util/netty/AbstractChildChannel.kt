@@ -32,6 +32,24 @@ abstract class AbstractChildChannel(parent: Channel, id: ChannelId?) : AbstractC
     private var closeImplicitly = false
     private val parentCloseListener = GenericFutureListener { _: Future<Void> -> closeImpl() }
 
+    /**
+     * One config for the channel lifetime. An off-loop auto-read pause may leave one inbound
+     * payload already in delivery after the setter returns. The muxer stops parent transport
+     * reads for the whole connection while any child remains paused.
+     */
+    private val childConfig: ChannelConfig by lazy {
+        object : DefaultChannelConfig(this) {
+            override fun setAutoRead(autoRead: Boolean): ChannelConfig {
+                val result = super.setAutoRead(autoRead)
+                // Reconcile against the current value even if another caller changed it while
+                // this setter ran. Reading the old value before Netty's atomic update can miss
+                // the final transition when two callers write concurrently.
+                onAutoReadChanged()
+                return result
+            }
+        }
+    }
+
     fun closeImpl() {
         closeImplicitly = true
         try {
@@ -42,7 +60,9 @@ abstract class AbstractChildChannel(parent: Channel, id: ChannelId?) : AbstractC
     }
 
     override fun metadata(): ChannelMetadata = ChannelMetadata(false)
-    override fun config(): ChannelConfig = DefaultChannelConfig(this)
+    override fun config(): ChannelConfig = childConfig
+
+    protected open fun onAutoReadChanged() {}
     override fun isCompatible(loop: EventLoop?) = true
 
     override fun isOpen(): Boolean {

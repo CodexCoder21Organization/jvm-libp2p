@@ -51,6 +51,7 @@ open class YamuxHandler(
         val acknowledged = AtomicBoolean(false)
         val sendWindowSize = AtomicInteger(initialWindowSize)
         val receiveWindowSize = AtomicInteger(initialWindowSize)
+        private var deliveredSinceWindowUpdate = 0
         val sendBuffer = ByteBufQueue()
         var closedForWriting by Delegates.writeOnce(false)
         private var pendingWrite: PendingWrite? = null
@@ -114,12 +115,34 @@ open class YamuxHandler(
         }
 
         fun handleFrameRead(msg: YamuxFrame) {
-            handleFlags(msg)
             when (msg.type) {
-                YamuxType.DATA -> handleDataRead(msg)
-                YamuxType.WINDOW_UPDATE -> handleWindowUpdate(msg)
+                YamuxType.DATA -> {
+                    if (YamuxFlag.RST in msg.flags) {
+                        try {
+                            handleFlags(msg)
+                        } finally {
+                            ReferenceCountUtil.release(msg.data)
+                        }
+                    } else if (YamuxFlag.FIN in msg.flags) {
+                        // A FIN on this frame follows its DATA, including when delivery is paused.
+                        handleDataRead(msg)
+                        handleFlags(msg)
+                    } else {
+                        try {
+                            handleFlags(msg)
+                        } catch (cause: Throwable) {
+                            ReferenceCountUtil.release(msg.data)
+                            throw cause
+                        }
+                        handleDataRead(msg)
+                    }
+                }
+                YamuxType.WINDOW_UPDATE -> {
+                    handleFlags(msg)
+                    handleWindowUpdate(msg)
+                }
                 else -> {
-                    /* ignore */
+                    handleFlags(msg)
                 }
             }
         }
@@ -127,22 +150,27 @@ open class YamuxHandler(
         private fun handleDataRead(msg: YamuxFrame) {
             val size = msg.length.toInt()
             if (size == 0) {
+                ReferenceCountUtil.release(msg.data)
                 return
             }
             acknowledgeInboundStreamIfNeeded()
             val newWindow = receiveWindowSize.addAndGet(-size)
-            // send a window update frame once half of the window is depleted
-            if (newWindow < initialWindowSize / 2) {
-                val delta = initialWindowSize - newWindow
-                receiveWindowSize.addAndGet(delta)
-                try {
-                    writeAndFlushFrame(YamuxFrame(msg.id, YamuxType.WINDOW_UPDATE, YamuxFlag.NONE, delta.toLong()))
-                } catch (cause: Throwable) {
-                    ReferenceCountUtil.release(msg.data)
-                    throw cause
-                }
+            if (newWindow < 0) {
+                ReferenceCountUtil.release(msg.data)
+                getChannelHandlerContext().close()
+                throw Libp2pException("Yamux stream $id received $size bytes beyond its $initialWindowSize-byte receive window")
             }
             childRead(msg.id, msg.data!!)
+        }
+
+        fun onBytesDelivered(size: Int) {
+            deliveredSinceWindowUpdate += size
+            if (deliveredSinceWindowUpdate > initialWindowSize / 2) {
+                val delta = deliveredSinceWindowUpdate
+                deliveredSinceWindowUpdate = 0
+                receiveWindowSize.addAndGet(delta)
+                writeAndFlushFrame(YamuxFrame(id, YamuxType.WINDOW_UPDATE, YamuxFlag.NONE, delta.toLong()))
+            }
         }
 
         private fun handleWindowUpdate(msg: YamuxFrame) {
@@ -352,8 +380,13 @@ open class YamuxHandler(
             else -> {
                 if (YamuxFlag.SYN in msg.flags) {
                     // remote opens a new stream
-                    validateSynRemoteMuxId(msg.id)
-                    onRemoteYamuxOpen(msg.id)
+                    try {
+                        validateSynRemoteMuxId(msg.id)
+                        onRemoteYamuxOpen(msg.id)
+                    } catch (cause: Throwable) {
+                        ReferenceCountUtil.release(msg.data)
+                        throw cause
+                    }
                 }
 
                 getStreamHandlerOrReleaseAndThrow(msg.id, msg.data).handleFrameRead(msg)
@@ -443,6 +476,15 @@ open class YamuxHandler(
     }
 
     override fun pendingChildWriteSize(data: ByteBuf): Int = data.readableBytes()
+
+    override val maxPendingChildReadBytes: Long
+        get() = initialWindowSize.toLong()
+
+    override val maxPendingChildReadFrames: Int? = null
+
+    override fun onChildReadDelivered(id: MuxId, dataSize: Int) {
+        streamHandlers[id]?.onBytesDelivered(dataSize)
+    }
 
     override fun onPendingChildWrite(child: MuxChannel<ByteBuf>, dataSize: Int): Throwable? {
         val projectedBytes = pendingChildWriteBytes + dataSize

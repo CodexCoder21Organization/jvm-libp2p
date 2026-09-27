@@ -5,12 +5,14 @@ import io.libp2p.core.StreamHandler
 import io.libp2p.core.multistream.MultistreamProtocolV1
 import io.libp2p.etc.types.fromHex
 import io.libp2p.etc.types.toHex
+import io.libp2p.etc.util.netty.mux.RemoteWriteClosed
 import io.libp2p.mux.AckBacklogLimitExceededMuxerException
 import io.libp2p.mux.MuxHandler
 import io.libp2p.mux.MuxHandlerAbstractTest
 import io.libp2p.mux.MuxHandlerAbstractTest.AbstractTestMuxFrame.Flag.*
 import io.libp2p.tools.readAllBytesAndRelease
 import io.netty.buffer.ByteBuf
+import io.netty.buffer.Unpooled
 import io.netty.channel.ChannelHandlerContext
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Assertions
@@ -98,6 +100,143 @@ class YamuxHandlerTest : MuxHandlerAbstractTest() {
     }
 
     private fun readYamuxFrameOrThrow() = readYamuxFrame() ?: throw AssertionError("No outbound frames")
+
+    @Test
+    fun pausedChildDoesNotReturnReceiveWindowCreditUntilDelivery() {
+        val streamId = openStreamRemote()
+        val child = childHandlers.single().ctx.channel()
+        val acknowledgement = readYamuxFrameOrThrow()
+        assertThat(acknowledgement.flags).containsExactly(YamuxFlag.ACK)
+        child.config().isAutoRead = false
+
+        writeStream(streamId, "42".repeat(initialWindowSize / 2 + 1))
+        assertThat(readYamuxFrame()).isNull()
+        assertThat(childHandlers.single().inboundMessages).isEmpty()
+
+        child.config().isAutoRead = true
+        ech.runPendingTasks()
+        assertThat(childHandlers.single().inboundMessages).containsExactly("42".repeat(initialWindowSize / 2 + 1))
+        val update = readYamuxFrameOrThrow()
+        assertThat(update.type).isEqualTo(YamuxType.WINDOW_UPDATE)
+        assertThat(update.length).isEqualTo((initialWindowSize / 2 + 1).toLong())
+    }
+
+    @Test
+    fun resettingPausedChildDoesNotReturnReceiveWindowCredit() {
+        val streamId = openStreamRemote()
+        readYamuxFrameOrThrow()
+        childHandlers.single().ctx.channel().config().isAutoRead = false
+        writeStream(streamId, "42".repeat(initialWindowSize / 2 + 1))
+        resetStream(streamId)
+
+        assertThat(readYamuxFrame()).isNull()
+        assertThat(childHandlers.single().inboundMessages).isEmpty()
+        assertThat(allocatedBufs).allMatch { it.refCnt() == 1 }
+    }
+
+    @Test
+    fun pausedChildCannotRetainMoreThanItsReceiveWindow() {
+        val streamId = openStreamRemote()
+        readYamuxFrameOrThrow()
+        val child = childHandlers.single().ctx.channel()
+        child.config().isAutoRead = false
+
+        writeStream(streamId, "42".repeat(initialWindowSize - 100))
+        writeStream(streamId, "42".repeat(100))
+        assertThat(child.isOpen).isTrue()
+        assertThat(childHandlers.single().inboundMessages).isEmpty()
+        assertThat(readYamuxFrame()).isNull()
+        val failure = assertThrows<Libp2pException> {
+            writeStream(streamId, "42")
+        }
+        assertThat(failure.message).isEqualTo(
+            "Yamux stream ${streamId.toMuxId()} received 1 bytes beyond its $initialWindowSize-byte receive window"
+        )
+
+        assertThat(ech.isOpen).isFalse()
+        assertThat(childHandlers.single().inboundMessages).isEmpty()
+        assertThat(allocatedBufs).allMatch { it.refCnt() == 1 }
+    }
+
+    @Test
+    fun pausedChildAcceptsManySmallFramesWithinItsWindow() {
+        val streamId = openStreamRemote()
+        readYamuxFrameOrThrow()
+        val handler = childHandlers.single()
+        val child = handler.ctx.channel()
+        child.config().isAutoRead = false
+
+        repeat(65) { writeStream(streamId, "42") }
+        assertThat(child.isOpen).isTrue()
+        assertThat(handler.inboundMessages).isEmpty()
+
+        child.config().isAutoRead = true
+        ech.runPendingTasks()
+        assertThat(handler.inboundMessages).hasSize(65).allMatch { it == "42" }
+    }
+
+    @Test
+    fun finOnDataFrameFollowsPausedPayload() {
+        val streamId = openStreamRemote()
+        readYamuxFrameOrThrow()
+        val handler = childHandlers.single()
+        val child = handler.ctx.channel()
+        child.config().isAutoRead = false
+        val payload = "22".fromHex().toByteBuf(allocateBuf())
+        ech.writeInbound(YamuxFrame(streamId.toMuxId(), YamuxType.DATA, YamuxFlag.FIN.asSet, 1, payload))
+
+        assertThat(handler.inboundMessages).isEmpty()
+        assertThat(handler.userEvents).isEmpty()
+        child.config().isAutoRead = true
+        ech.runPendingTasks()
+        assertThat(handler.inboundMessages).containsExactly("22")
+        assertThat(handler.userEvents).containsExactly(RemoteWriteClosed)
+    }
+
+    @Test
+    fun wireDecodedEmptyDataReleasesItsPayload() {
+        val streamId = openStreamRemote()
+        readYamuxFrameOrThrow()
+        val child = childHandlers.single().ctx.channel()
+        child.config().isAutoRead = false
+        ech.pipeline().addBefore(ech.pipeline().context(multistreamHandler).name(), "wire", YamuxFrameCodec())
+        val newId = remoteMuxIdGenerator.next()
+        val controls = listOf(
+            streamId to 0,
+            newId to YamuxFlag.SYN.intFlag,
+            streamId to YamuxFlag.FIN.intFlag,
+            newId to YamuxFlag.RST.intFlag
+        )
+        controls.forEach { (id, flags) ->
+            val wire = Unpooled.buffer(12)
+                .writeByte(0).writeByte(YamuxType.DATA.intValue).writeShort(flags)
+                .writeInt(id.toInt()).writeInt(0)
+            wire.retain()
+            try {
+                ech.writeInbound(wire)
+                assertThat(wire.refCnt()).describedAs("Yamux flags $flags wire payload").isEqualTo(1)
+            } finally {
+                while (wire.refCnt() > 0) wire.release()
+            }
+        }
+        assertThat(childHandlers.flatMap { it.inboundMessages }).isEmpty()
+    }
+
+    @Test
+    fun invalidWireSynReleasesItsDecodedPayload() {
+        ech.pipeline().addBefore(ech.pipeline().context(multistreamHandler).name(), "wire", YamuxFrameCodec())
+        val wire = Unpooled.buffer(12)
+            .writeByte(0).writeByte(YamuxType.DATA.intValue).writeShort(YamuxFlag.SYN.intFlag)
+            .writeInt(1).writeInt(0)
+        wire.retain()
+        try {
+            val rejection = assertThrows<Libp2pException> { ech.writeInbound(wire) }
+            assertThat(rejection.message).isEqualTo("Invalid remote SYN StreamID: test/1, isRemoteInitiator: false")
+            assertThat(wire.refCnt()).isEqualTo(1)
+        } finally {
+            while (wire.refCnt() > 0) wire.release()
+        }
+    }
 
     @Test
     fun `test ack new stream`() {

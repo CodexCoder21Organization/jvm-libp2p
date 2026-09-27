@@ -61,4 +61,9 @@ abstract class MuxHandler(
     override fun releaseMessage(msg: ByteBuf) {
         msg.release()
     }
+
+    override fun pendingChildReadSize(data: ByteBuf): Int = data.readableBytes()
+
+    override val maxPendingChildReadBytes: Long
+        get() = maxFrameDataLength.toLong() * 4
 }

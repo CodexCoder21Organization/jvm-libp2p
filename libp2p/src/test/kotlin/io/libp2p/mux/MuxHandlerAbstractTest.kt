@@ -17,6 +17,7 @@ import io.netty.buffer.ByteBuf
 import io.netty.buffer.Unpooled
 import io.netty.channel.ChannelHandlerContext
 import io.netty.channel.ChannelInboundHandlerAdapter
+import io.netty.channel.WriteBufferWaterMark
 import io.netty.handler.logging.LogLevel
 import io.netty.handler.logging.LoggingHandler
 import org.assertj.core.api.Assertions.assertThat
@@ -26,6 +27,9 @@ import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 /**
  * Created by Anton Nashatyrev on 09.07.2019.
@@ -79,15 +83,22 @@ abstract class MuxHandlerAbstractTest {
 
     @AfterEach
     open fun cleanUpAndCheck() {
-        childHandlers.forEach {
-            assertThat(it.exceptions).isEmpty()
+        try {
+            childHandlers.forEach { assertThat(it.exceptions).isEmpty() }
+            allocatedBufs.forEach { assertThat(it.refCnt()).isEqualTo(1) }
+        } finally {
+            try {
+                ech.close().sync()
+            } finally {
+                try {
+                    ech.finishAndReleaseAll()
+                } finally {
+                    allocatedBufs.forEach { while (it.refCnt() > 0) it.release() }
+                    allocatedBufs.clear()
+                    childHandlers.clear()
+                }
+            }
         }
-        childHandlers.clear()
-
-        allocatedBufs.forEach {
-            assertThat(it.refCnt()).isEqualTo(1)
-        }
-        allocatedBufs.clear()
     }
 
     data class AbstractTestMuxFrame(
@@ -115,6 +126,313 @@ abstract class MuxHandlerAbstractTest {
         val handlerFut = multistreamHandler.createStream(createTestStreamHandler()).controller
         ech.runPendingTasks()
         return handlerFut.get()
+    }
+
+    @Test
+    fun childChannelKeepsItsConfiguration() {
+        openStreamRemote()
+        val channel = childHandlers.single().ctx.channel()
+        val config = channel.config()
+        config.isAutoRead = false
+        config.writeBufferWaterMark = WriteBufferWaterMark(1024, 2048)
+
+        assertSame(config, channel.config())
+        assertFalse(channel.config().isAutoRead)
+        assertEquals(1024, channel.config().writeBufferWaterMark.low())
+        assertEquals(2048, channel.config().writeBufferWaterMark.high())
+    }
+
+    @Test
+    fun childChannelPausesInboundDeliveryUntilAutoReadResumes() {
+        val streamId = openStreamRemote()
+        val handler = childHandlers.single()
+        handler.ctx.channel().config().isAutoRead = false
+
+        writeStream(streamId, "22")
+        writeStream(streamId, "44")
+        assertTrue(handler.inboundMessages.isEmpty())
+        assertEquals(0, handler.readCompleteEventCount)
+
+        handler.ctx.channel().config().isAutoRead = true
+        ech.runPendingTasks()
+        assertEquals(listOf("22", "44"), handler.inboundMessages)
+        assertEquals(1, handler.readCompleteEventCount)
+    }
+
+    @Test
+    fun pausedChildStopsParentReadsUntilEveryPausedChildResumes() {
+        openStreamRemote()
+        openStreamRemote()
+        val first = childHandlers[0].ctx.channel()
+        val second = childHandlers[1].ctx.channel()
+
+        first.config().isAutoRead = false
+        assertFalse(ech.config().isAutoRead)
+        second.config().isAutoRead = false
+        first.config().isAutoRead = true
+        ech.runPendingTasks()
+        assertFalse(ech.config().isAutoRead)
+
+        second.config().isAutoRead = true
+        ech.runPendingTasks()
+        assertTrue(ech.config().isAutoRead)
+    }
+
+    @Test
+    fun pausingAndResumingChildPreservesAnAlreadyPausedParent() {
+        val streamId = openStreamRemote()
+        val child = childHandlers.single().ctx.channel()
+        ech.config().isAutoRead = false
+        child.config().isAutoRead = false
+        writeStream(streamId, "22")
+        child.config().isAutoRead = true
+        ech.runPendingTasks()
+
+        assertEquals(listOf("22"), childHandlers.single().inboundMessages)
+        assertFalse(ech.config().isAutoRead)
+    }
+
+    @Test
+    fun closingOneOfTwoPausedChildrenKeepsParentPaused() {
+        val firstId = openStreamRemote()
+        openStreamRemote()
+        val first = childHandlers[0].ctx.channel()
+        val second = childHandlers[1].ctx.channel()
+        first.config().isAutoRead = false
+        second.config().isAutoRead = false
+
+        resetStream(firstId)
+        assertFalse(ech.config().isAutoRead)
+        second.config().isAutoRead = true
+        ech.runPendingTasks()
+        assertTrue(ech.config().isAutoRead)
+    }
+
+    @Test
+    fun concurrentConfigSettersLeaveParentAndChildInAgreement() {
+        val streamId = openStreamRemote()
+        val child = childHandlers.single().ctx.channel()
+        val config = child.config()
+        val start = CountDownLatch(1)
+        val workers = Executors.newFixedThreadPool(4)
+        try {
+            val writes = List(4) {
+                workers.submit {
+                    start.await()
+                    repeat(1000) { index ->
+                        assertSame(config, child.config())
+                        child.config().isAutoRead = index % 2 == 0
+                    }
+                }
+            }
+            start.countDown()
+            writes.forEach { it.get(5, TimeUnit.SECONDS) }
+            config.isAutoRead = false
+            ech.runPendingTasks()
+            assertFalse(ech.config().isAutoRead)
+            writeStream(streamId, "22")
+            assertTrue(childHandlers.single().inboundMessages.isEmpty())
+
+            config.isAutoRead = true
+            ech.runPendingTasks()
+            assertTrue(ech.config().isAutoRead)
+            assertEquals(listOf("22"), childHandlers.single().inboundMessages)
+        } finally {
+            workers.shutdownNow()
+        }
+    }
+
+    @Test
+    fun crossThreadPauseAllowsOnlyTheAlreadyInFlightPayload() {
+        val streamId = openStreamRemote()
+        val handler = childHandlers.single()
+        val child = handler.ctx.channel()
+        val enteredDelivery = CountDownLatch(1)
+        val continueDelivery = CountDownLatch(1)
+        child.pipeline().addBefore(
+            handler.ctx.name(),
+            "in-flight-pause-gate",
+            object : ChannelInboundHandlerAdapter() {
+                override fun channelRead(ctx: ChannelHandlerContext, msg: Any) {
+                    enteredDelivery.countDown()
+                    assertTrue(continueDelivery.await(5, TimeUnit.SECONDS))
+                    ctx.fireChannelRead(msg)
+                }
+            }
+        )
+        val worker = Executors.newSingleThreadExecutor()
+        try {
+            val firstWrite = worker.submit { writeStream(streamId, "22") }
+            assertTrue(enteredDelivery.await(5, TimeUnit.SECONDS))
+            child.config().isAutoRead = false
+            continueDelivery.countDown()
+            firstWrite.get(5, TimeUnit.SECONDS)
+            assertEquals(listOf("22"), handler.inboundMessages)
+
+            writeStream(streamId, "44")
+            assertEquals(listOf("22"), handler.inboundMessages)
+            child.config().isAutoRead = true
+            ech.runPendingTasks()
+            assertEquals(listOf("22", "44"), handler.inboundMessages)
+        } finally {
+            continueDelivery.countDown()
+            worker.shutdownNow()
+        }
+    }
+
+    @Test
+    fun closingPausedChildReleasesUndeliveredPayloadAndRestoresParentReads() {
+        val streamId = openStreamRemote()
+        val handler = childHandlers.single()
+        val child = handler.ctx.channel()
+        val config = child.config()
+        config.isAutoRead = false
+        writeStream(streamId, "22")
+        val payload = allocatedBufs.last()
+
+        assertTrue(handler.inboundMessages.isEmpty())
+        resetStream(streamId)
+        ech.runPendingTasks()
+        assertTrue(handler.inboundMessages.isEmpty())
+        assertEquals(1, payload.refCnt())
+        assertSame(config, child.config())
+        assertTrue(ech.config().isAutoRead)
+    }
+
+    @Test
+    fun closingParentReleasesPausedChildPayload() {
+        val streamId = openStreamRemote()
+        val handler = childHandlers.single()
+        val child = handler.ctx.channel()
+        child.config().isAutoRead = false
+        writeStream(streamId, "22")
+        val payload = allocatedBufs.last()
+
+        ech.close().sync()
+
+        assertTrue(child.closeFuture().isDone)
+        assertTrue(handler.inboundMessages.isEmpty())
+        assertEquals(1, payload.refCnt())
+    }
+
+    @Test
+    fun closingParentReleasesEveryPausedChildPayload() {
+        val firstId = openStreamRemote()
+        val secondId = openStreamRemote()
+        childHandlers.forEach { it.ctx.channel().config().isAutoRead = false }
+        writeStream(firstId, "22")
+        writeStream(secondId, "44")
+        val payloads = allocatedBufs.takeLast(2)
+
+        ech.close().sync()
+
+        childHandlers.forEach { handler ->
+            assertTrue(handler.ctx.channel().closeFuture().isDone)
+            assertTrue(handler.inboundMessages.isEmpty())
+        }
+        payloads.forEach { assertEquals(1, it.refCnt()) }
+    }
+
+    @Test
+    fun pausingAgainDuringQueuedDeliveryKeepsRemainingPayloadInOrder() {
+        val streamId = openStreamRemote()
+        val handler = childHandlers.single()
+        val child = handler.ctx.channel()
+        val config = child.config()
+        child.config().isAutoRead = false
+        writeStream(streamId, "22")
+        writeStream(streamId, "44")
+        writeStream(streamId, "66")
+        handler.onRead = {
+            assertSame(config, child.config())
+            if (handler.inboundMessages.size == 1) child.config().isAutoRead = false
+        }
+
+        child.config().isAutoRead = true
+        ech.runPendingTasks()
+        assertEquals(listOf("22"), handler.inboundMessages)
+        assertFalse(ech.config().isAutoRead)
+
+        child.config().isAutoRead = true
+        ech.runPendingTasks()
+        assertEquals(listOf("22", "44", "66"), handler.inboundMessages)
+    }
+
+    @Test
+    fun remoteEndWaitsForPausedDataEvenAfterLocalDisconnect() {
+        val streamId = openStreamRemote()
+        val handler = childHandlers.single()
+        val child = handler.ctx.channel()
+        child.config().isAutoRead = false
+        writeStream(streamId, "22")
+        val payload = allocatedBufs.last()
+        closeStream(streamId)
+        handler.ctx.disconnect().sync()
+
+        assertTrue(handler.inboundMessages.isEmpty())
+        assertTrue(handler.userEvents.isEmpty())
+        assertFalse(child.closeFuture().isDone)
+        handler.onRead = { assertTrue(handler.userEvents.isEmpty()) }
+
+        child.config().isAutoRead = true
+        ech.runPendingTasks()
+        assertEquals(listOf("22"), handler.inboundMessages)
+        assertEquals(listOf(RemoteWriteClosed), handler.userEvents)
+        assertTrue(child.closeFuture().isDone)
+        assertEquals(1, payload.refCnt())
+    }
+
+    @Test
+    fun remoteDataAfterDeferredEndIsRejected() {
+        val streamId = openStreamRemote()
+        val handler = childHandlers.single()
+        val child = handler.ctx.channel()
+        child.config().isAutoRead = false
+        writeStream(streamId, "22")
+        closeStream(streamId)
+
+        val rejection = assertThrows(Libp2pException::class.java) { writeStream(streamId, "44") }
+        assertEquals("Channel with id ${(child as MuxChannel<*>).id} was closed for sending by remote", rejection.message)
+        child.config().isAutoRead = true
+        ech.runPendingTasks()
+        assertEquals(listOf("22"), handler.inboundMessages)
+        assertEquals(listOf(RemoteWriteClosed), handler.userEvents)
+    }
+
+    @Test
+    fun remoteDataReenteredFromReadCompleteAfterDeferredEndIsRejected() =
+        assertReenteredDataAfterDeferredEndIsRejected(false)
+
+    @Test
+    fun remoteDataReenteredFromEndEventAfterDeferredEndIsRejected() =
+        assertReenteredDataAfterDeferredEndIsRejected(true)
+
+    private fun assertReenteredDataAfterDeferredEndIsRejected(fromEndEvent: Boolean) {
+        val streamId = openStreamRemote()
+        val handler = childHandlers.single()
+        val child = handler.ctx.channel()
+        var injected = false
+        var rejection: Throwable? = null
+        val callback = {
+            if (!injected) {
+                injected = true
+                rejection = runCatching { writeStream(streamId, "44") }.exceptionOrNull()
+                if (fromEndEvent) closeStream(streamId)
+            }
+        }
+        if (fromEndEvent) handler.onRemoteEnd = callback else handler.onReadComplete = callback
+        child.config().isAutoRead = false
+        writeStream(streamId, "22")
+        closeStream(streamId)
+
+        child.config().isAutoRead = true
+        ech.runPendingTasks()
+
+        assertTrue(injected)
+        assertEquals("Channel with id ${(child as MuxChannel<*>).id} was closed for sending by remote", rejection?.message)
+        assertEquals(listOf("22"), handler.inboundMessages)
+        assertEquals(listOf(RemoteWriteClosed), handler.userEvents)
+        assertTrue(allocatedBufs.all { it.refCnt() == 1 })
     }
 
     protected fun allocateBuf(): ByteBuf {
@@ -502,6 +820,9 @@ abstract class MuxHandlerAbstractTest {
 
     inner class TestHandler : ChannelInboundHandlerAdapter() {
         val inboundMessages = mutableListOf<String>()
+        var onRead: (() -> Unit)? = null
+        var onReadComplete: (() -> Unit)? = null
+        var onRemoteEnd: (() -> Unit)? = null
         lateinit var ctx: ChannelHandlerContext
         var readCompleteEventCount = 0
 
@@ -545,16 +866,19 @@ abstract class MuxHandlerAbstractTest {
             println("MuxHandlerAbstractTest.channelRead")
             msg as ByteBuf
             inboundMessages += msg.readAllBytesAndRelease().toHex()
+            onRead?.invoke()
         }
 
         override fun channelReadComplete(ctx: ChannelHandlerContext?) {
             readCompleteEventCount++
             println("MuxHandlerAbstractTest.channelReadComplete")
+            onReadComplete?.invoke()
         }
 
         override fun userEventTriggered(ctx: ChannelHandlerContext, evt: Any) {
             userEvents += evt
             println("MuxHandlerAbstractTest.userEventTriggered: $evt")
+            if (evt == RemoteWriteClosed) onRemoteEnd?.invoke()
         }
 
         override fun exceptionCaught(ctx: ChannelHandlerContext, cause: Throwable) {

@@ -64,9 +64,14 @@ This budget gate is Yamux-only. Mplex does not currently enforce an equivalent p
 
 ## Child stream read pausing
 
-Each child stream channel keeps one Netty `ChannelConfig` for its lifetime. For a `StreamOverNetty`, setting `nettyChannel.config().isAutoRead = false` holds inbound payloads for that stream in arrival order. A pause made from another thread can allow at most one payload whose delivery was already in progress when the setter returned. Setting auto-read back to `true` delivers held payloads in order, followed by any received end-of-stream event; closing the stream releases held payloads. The muxer pauses reads on the parent connection while any child is paused, then restores the parent's earlier auto-read setting when all paused children resume or close. This stops new transport reads for every stream on that connection until all paused children resume or close.
+Each child stream channel keeps one Netty `ChannelConfig` for its lifetime. For a `StreamOverNetty`, setting `nettyChannel.config().isAutoRead = false` holds inbound payloads for that stream in arrival order. A pause made from another thread can allow at most one payload whose delivery was already in progress when the setter returned. Setting auto-read back to `true` delivers held payloads in order, followed by any received end-of-stream event; closing the stream releases held payloads. What a pause does to the rest of the connection depends on the muxer:
 
-Already decoded Mplex payloads have a finite limit of 64 frames and four maximum-length frames' worth of bytes per paused child. Yamux uses its receive window as the paused byte bound, with no separate frame limit, and returns window credit only after delivery. A stream that exceeds its applicable limit is closed and its held payloads are released.
+| Muxer | Paused child | Sibling streams and parent reads |
+| --- | --- | --- |
+| Yamux | Withholds its own receive-window credit and its own delivery. Its held payloads are bounded by its receive window; credit is returned only after delivery, so the remote stops sending to that stream on its own. | Unaffected. The parent connection keeps reading and sibling streams keep receiving data and credit. |
+| Mplex | Holds its payloads, up to 64 frames and four maximum-length frames' worth of bytes. | Mplex has no per-stream flow control, so the muxer pauses reads on the parent connection while any child is paused, then restores the parent's earlier auto-read setting when all paused children resume or close. No stream on that connection receives new data until then. |
+
+A stream that exceeds its applicable limit is closed and its held payloads are released. Setting `autoRead = false` on the parent connection channel itself stops transport reads for every stream under both muxers.
 
 ## Connection reuse during close
 

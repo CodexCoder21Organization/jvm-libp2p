@@ -68,7 +68,17 @@ abstract class AbstractMuxHandler<TData>(
     // child set as one state change even when an event loop reports several callers as in-loop.
     private val parentReadLock = Any()
 
-    /** A finite limit for frames already decoded when parent reads are stopped. */
+    /**
+     * Whether a paused child also stops transport reads on the parent connection.
+     *
+     * A muxer without per-stream flow control (Mplex) must stop parent reads: otherwise the remote can
+     * keep sending to a paused child without limit. A muxer with per-stream flow control (Yamux)
+     * overrides this with `false`: a paused child withholds only its own receive credit and its own
+     * delivery, its queue is bounded by [maxPendingChildReadBytes], and sibling streams keep flowing.
+     */
+    protected open val pauseParentReadsForPausedChild: Boolean = true
+
+    /** A finite limit for payloads a paused child may hold before it is closed. */
     protected open val maxPendingChildReadBytes: Long = 4L * 1024 * 1024
 
     /** Mplex bounds empty frames; windowed muxers may rely on their receive window instead. */
@@ -191,6 +201,7 @@ abstract class AbstractMuxHandler<TData>(
     }
 
     private fun pauseChild(child: MuxChannel<TData>) {
+        if (!pauseParentReadsForPausedChild) return
         synchronized(parentReadLock) {
             if (!child.isOpen || child.config().isAutoRead || !pausedChildren.add(child.id)) return
             val parentChannel = getChannelHandlerContext().channel()

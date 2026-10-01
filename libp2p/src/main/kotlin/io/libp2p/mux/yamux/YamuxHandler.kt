@@ -480,6 +480,11 @@ open class YamuxHandler(
     override val maxPendingChildReadBytes: Long
         get() = initialWindowSize.toLong()
 
+    // Credit is returned only after delivery, so a paused stream holds at most its receive window and
+    // the remote stops sending to it on its own. Parent reads continue for the sibling streams.
+    override val pauseParentReadsForPausedChild: Boolean
+        get() = false
+
     override val maxPendingChildReadFrames: Int? = null
 
     override fun onChildReadDelivered(id: MuxId, dataSize: Int) {

@@ -34,8 +34,9 @@ abstract class AbstractChildChannel(parent: Channel, id: ChannelId?) : AbstractC
 
     /**
      * One config for the channel lifetime. An off-loop auto-read pause may leave one inbound
-     * payload already in delivery after the setter returns. The muxer stops parent transport
-     * reads for the whole connection while any child remains paused.
+     * payload already in delivery after the setter returns. Mplex stops parent transport reads
+     * for the whole connection while any child remains paused. Yamux keeps parent reads running:
+     * a paused child withholds only its own receive credit and delivery.
      */
     private val childConfig: ChannelConfig by lazy {
         object : DefaultChannelConfig(this) {

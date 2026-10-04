@@ -45,6 +45,12 @@ abstract class MuxHandlerAbstractTest {
     val isLocalConnectionInitiator = true
 
     abstract val maxFrameDataLength: Int
+
+    /**
+     * Mplex has no per-stream flow control, so a paused child stops parent reads for the whole
+     * connection. Yamux keeps parent reads running and withholds only the paused stream's credit.
+     */
+    abstract val childPauseStopsParentReads: Boolean
     abstract fun createMuxHandler(streamHandler: StreamHandler<*>): MuxHandler
 
     abstract val localMuxIdGenerator: Iterator<Long>
@@ -160,25 +166,6 @@ abstract class MuxHandlerAbstractTest {
     }
 
     @Test
-    fun pausedChildStopsParentReadsUntilEveryPausedChildResumes() {
-        openStreamRemote()
-        openStreamRemote()
-        val first = childHandlers[0].ctx.channel()
-        val second = childHandlers[1].ctx.channel()
-
-        first.config().isAutoRead = false
-        assertFalse(ech.config().isAutoRead)
-        second.config().isAutoRead = false
-        first.config().isAutoRead = true
-        ech.runPendingTasks()
-        assertFalse(ech.config().isAutoRead)
-
-        second.config().isAutoRead = true
-        ech.runPendingTasks()
-        assertTrue(ech.config().isAutoRead)
-    }
-
-    @Test
     fun pausingAndResumingChildPreservesAnAlreadyPausedParent() {
         val streamId = openStreamRemote()
         val child = childHandlers.single().ctx.channel()
@@ -190,22 +177,6 @@ abstract class MuxHandlerAbstractTest {
 
         assertEquals(listOf("22"), childHandlers.single().inboundMessages)
         assertFalse(ech.config().isAutoRead)
-    }
-
-    @Test
-    fun closingOneOfTwoPausedChildrenKeepsParentPaused() {
-        val firstId = openStreamRemote()
-        openStreamRemote()
-        val first = childHandlers[0].ctx.channel()
-        val second = childHandlers[1].ctx.channel()
-        first.config().isAutoRead = false
-        second.config().isAutoRead = false
-
-        resetStream(firstId)
-        assertFalse(ech.config().isAutoRead)
-        second.config().isAutoRead = true
-        ech.runPendingTasks()
-        assertTrue(ech.config().isAutoRead)
     }
 
     @Test
@@ -229,7 +200,7 @@ abstract class MuxHandlerAbstractTest {
             writes.forEach { it.get(5, TimeUnit.SECONDS) }
             config.isAutoRead = false
             ech.runPendingTasks()
-            assertFalse(ech.config().isAutoRead)
+            assertEquals(!childPauseStopsParentReads, ech.config().isAutoRead)
             writeStream(streamId, "22")
             assertTrue(childHandlers.single().inboundMessages.isEmpty())
 
@@ -300,6 +271,32 @@ abstract class MuxHandlerAbstractTest {
     }
 
     @Test
+    fun pausingAChildFromItsOwnCloseListenerLeavesParentReadingAndReleasesPayload() {
+        val streamId = openStreamRemote()
+        val handler = childHandlers.single()
+        val child = handler.ctx.channel()
+        child.config().isAutoRead = false
+        writeStream(streamId, "22")
+        val payload = allocatedBufs.last()
+        assertEquals(!childPauseStopsParentReads, ech.config().isAutoRead)
+        var listenerFailure: Throwable? = null
+        child.closeFuture().addListener {
+            listenerFailure = runCatching {
+                child.config().isAutoRead = true
+                child.config().isAutoRead = false
+            }.exceptionOrNull()
+        }
+
+        child.close().sync()
+        ech.runPendingTasks()
+
+        assertNull(listenerFailure)
+        assertTrue(handler.inboundMessages.isEmpty())
+        assertEquals(1, payload.refCnt())
+        assertTrue(ech.config().isAutoRead, "a closed child must not keep the parent paused")
+    }
+
+    @Test
     fun closingParentReleasesPausedChildPayload() {
         val streamId = openStreamRemote()
         val handler = childHandlers.single()
@@ -351,7 +348,7 @@ abstract class MuxHandlerAbstractTest {
         child.config().isAutoRead = true
         ech.runPendingTasks()
         assertEquals(listOf("22"), handler.inboundMessages)
-        assertFalse(ech.config().isAutoRead)
+        assertEquals(!childPauseStopsParentReads, ech.config().isAutoRead)
 
         child.config().isAutoRead = true
         ech.runPendingTasks()

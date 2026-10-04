@@ -21,6 +21,10 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 
 class YamuxHandlerTest : MuxHandlerAbstractTest() {
 
@@ -28,6 +32,7 @@ class YamuxHandlerTest : MuxHandlerAbstractTest() {
     private val maxBufferedConnectionWrites = 512
     private val ackBacklogLimit = 42
     private val initialWindowSize = 300
+    override val childPauseStopsParentReads = false
     override val localMuxIdGenerator = YamuxStreamIdGenerator(isLocalConnectionInitiator).toIterator()
     override val remoteMuxIdGenerator = YamuxStreamIdGenerator(!isLocalConnectionInitiator).toIterator()
 
@@ -132,6 +137,142 @@ class YamuxHandlerTest : MuxHandlerAbstractTest() {
         assertThat(readYamuxFrame()).isNull()
         assertThat(childHandlers.single().inboundMessages).isEmpty()
         assertThat(allocatedBufs).allMatch { it.refCnt() == 1 }
+    }
+
+    private fun drainYamuxFrames(): List<YamuxFrame> = generateSequence { readYamuxFrame() }.toList()
+
+    private fun windowCredit(frames: List<YamuxFrame>, streamId: Long): Long =
+        frames.filter { it.type == YamuxType.WINDOW_UPDATE && it.id.id == streamId }.sumOf { it.length }
+
+    @Test
+    fun pausedChildrenNeverStopParentReads() {
+        val firstId = openStreamRemote()
+        openStreamRemote()
+        val first = childHandlers[0].ctx.channel()
+        val second = childHandlers[1].ctx.channel()
+
+        first.config().isAutoRead = false
+        assertThat(ech.config().isAutoRead).isTrue()
+        second.config().isAutoRead = false
+        assertThat(ech.config().isAutoRead).isTrue()
+        first.config().isAutoRead = true
+        ech.runPendingTasks()
+        assertThat(ech.config().isAutoRead).isTrue()
+        first.config().isAutoRead = false
+        resetStream(firstId)
+        assertThat(ech.config().isAutoRead).isTrue()
+        second.config().isAutoRead = true
+        ech.runPendingTasks()
+        assertThat(ech.config().isAutoRead).isTrue()
+    }
+
+    @Test
+    fun pausedChildAtItsFullWindowDoesNotHoldSiblingDeliveryOrCredit() {
+        val pausedId = openStreamRemote()
+        val siblingId = openStreamRemote()
+        drainYamuxFrames()
+        val paused = childHandlers[0]
+        val sibling = childHandlers[1]
+        paused.ctx.channel().config().isAutoRead = false
+
+        val pausedChunks = listOf("01".repeat(100), "02".repeat(100), "03".repeat(initialWindowSize - 200))
+        pausedChunks.forEach { writeStream(pausedId, it) }
+        assertThat(paused.ctx.channel().isOpen).isTrue()
+
+        // Four receive windows and more on the sibling; each frame is above the credit threshold.
+        val siblingChunks = (1..9).map { "%02x".format(it).repeat(initialWindowSize / 2 + 1) }
+        siblingChunks.forEach { writeStream(siblingId, it) }
+        assertThat(sibling.inboundMessages).containsExactlyElementsOf(siblingChunks)
+        val whilePaused = drainYamuxFrames()
+        assertThat(windowCredit(whilePaused, siblingId)).isEqualTo(siblingChunks.sumOf { it.length / 2 }.toLong())
+        assertThat(windowCredit(whilePaused, pausedId)).isZero()
+        assertThat(paused.inboundMessages).isEmpty()
+        assertThat(ech.config().isAutoRead).isTrue()
+
+        paused.ctx.channel().config().isAutoRead = true
+        ech.runPendingTasks()
+        assertThat(paused.inboundMessages).containsExactlyElementsOf(pausedChunks)
+        // Credit is returned once more than half the window has been delivered: after 200 bytes here.
+        assertThat(windowCredit(drainYamuxFrames(), pausedId)).isEqualTo(200L)
+    }
+
+    @Test
+    fun concurrentPauseResumeOfOneChildNeverTouchesParentOrSibling() {
+        val pausedId = openStreamRemote()
+        val siblingId = openStreamRemote()
+        drainYamuxFrames()
+        val paused = childHandlers[0]
+        val sibling = childHandlers[1]
+        val config = paused.ctx.channel().config()
+        val start = CountDownLatch(1)
+        val parentObservedPaused = AtomicBoolean(false)
+        val workers = Executors.newFixedThreadPool(5)
+        try {
+            val togglers = List(4) {
+                workers.submit {
+                    start.await()
+                    repeat(1000) { index -> config.isAutoRead = index % 2 == 0 }
+                }
+            }
+            val watcher = workers.submit {
+                start.await()
+                while (!togglers.all { it.isDone }) {
+                    if (!ech.config().isAutoRead) parentObservedPaused.set(true)
+                }
+            }
+            start.countDown()
+            togglers.forEach { it.get(5, TimeUnit.SECONDS) }
+            watcher.get(5, TimeUnit.SECONDS)
+            assertThat(parentObservedPaused.get()).isFalse()
+
+            config.isAutoRead = false
+            ech.runPendingTasks()
+            writeStream(pausedId, "22")
+            writeStream(siblingId, "44")
+            assertThat(paused.inboundMessages).isEmpty()
+            assertThat(sibling.inboundMessages).containsExactly("44")
+            assertThat(ech.config().isAutoRead).isTrue()
+
+            config.isAutoRead = true
+            ech.runPendingTasks()
+            assertThat(paused.inboundMessages).containsExactly("22")
+        } finally {
+            workers.shutdownNow()
+        }
+    }
+
+    @Test
+    fun closingPausedChildWithQueuedWindowReleasesItAndLeavesSiblingFlowing() {
+        val pausedId = openStreamRemote()
+        val siblingId = openStreamRemote()
+        drainYamuxFrames()
+        val paused = childHandlers[0]
+        val sibling = childHandlers[1]
+        val child = paused.ctx.channel()
+        child.config().isAutoRead = false
+        writeStream(pausedId, "42".repeat(initialWindowSize))
+        closeStream(pausedId)
+        val retained = allocatedBufs.last()
+        var pauseFromCloseListener: Throwable? = null
+        child.closeFuture().addListener {
+            pauseFromCloseListener = runCatching {
+                child.config().isAutoRead = false
+                child.config().isAutoRead = true
+                child.config().isAutoRead = false
+            }.exceptionOrNull()
+        }
+
+        child.close().sync()
+        ech.runPendingTasks()
+
+        assertThat(pauseFromCloseListener).isNull()
+        assertThat(paused.inboundMessages).isEmpty()
+        assertThat(retained.refCnt()).isEqualTo(1)
+        assertThat(windowCredit(drainYamuxFrames(), pausedId)).isZero()
+        assertThat(ech.config().isAutoRead).isTrue()
+        writeStream(siblingId, "44".repeat(initialWindowSize / 2 + 1))
+        assertThat(sibling.inboundMessages).containsExactly("44".repeat(initialWindowSize / 2 + 1))
+        assertThat(windowCredit(drainYamuxFrames(), siblingId)).isEqualTo((initialWindowSize / 2 + 1).toLong())
     }
 
     @Test

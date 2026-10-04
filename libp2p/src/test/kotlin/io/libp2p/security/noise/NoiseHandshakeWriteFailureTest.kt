@@ -3,21 +3,21 @@ package io.libp2p.security.noise
 import io.libp2p.core.Connection
 import io.libp2p.core.crypto.KeyType
 import io.libp2p.core.dsl.host
+import io.libp2p.etc.types.NonCompleteException
+import io.libp2p.tools.TestLogAppender
 import io.netty.buffer.ByteBuf
 import io.netty.channel.ChannelHandlerContext
 import io.netty.channel.ChannelOutboundHandlerAdapter
 import io.netty.channel.ChannelPromise
 import io.netty.util.ReferenceCountUtil
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.RepeatedTest
 import org.junit.jupiter.api.Test
-import io.libp2p.tools.TestLogAppender
-import io.libp2p.etc.types.NonCompleteException
-import java.util.concurrent.CompletionException
-import org.junit.jupiter.api.Assertions.assertInstanceOf
-import org.junit.jupiter.api.Assertions.assertFalse
 import java.io.IOException
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CompletionException
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.TimeUnit
 
@@ -69,8 +69,11 @@ class NoiseHandshakeWriteFailureTest {
             assertSame(writeFailure, transportFailure.cause, "The connect caller must retain the original write failure")
             dialChannel.get(5, TimeUnit.SECONDS).closeFuture().get(2, TimeUnit.SECONDS)
         } finally {
-            dialer.stop().get(5, TimeUnit.SECONDS)
-            listener.stop().get(5, TimeUnit.SECONDS)
+            try {
+                dialer.stop().get(5, TimeUnit.SECONDS)
+            } finally {
+                listener.stop().get(5, TimeUnit.SECONDS)
+            }
         }
     }
 
@@ -120,9 +123,11 @@ class NoiseHandshakeWriteFailureTest {
                 assertFalse(logs.hasAnyWarns(), logs.logs.joinToString("\n") { it.message.formattedMessage })
             }
         } finally {
-            dialer.stop().get(5, TimeUnit.SECONDS)
-            listener.stop().get(5, TimeUnit.SECONDS)
+            try {
+                dialer.stop().get(5, TimeUnit.SECONDS)
+            } finally {
+                listener.stop().get(5, TimeUnit.SECONDS)
+            }
         }
     }
-
 }

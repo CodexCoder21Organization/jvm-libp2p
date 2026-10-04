@@ -12,6 +12,9 @@ import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.RepeatedTest
 import org.junit.jupiter.api.Test
 import io.libp2p.tools.TestLogAppender
+import io.libp2p.etc.types.NonCompleteException
+import java.util.concurrent.CompletionException
+import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertFalse
 import java.io.IOException
 import java.util.concurrent.CompletableFuture
@@ -60,7 +63,10 @@ class NoiseHandshakeWriteFailureTest {
             } catch (failure: ExecutionException) {
                 failure
             }
-            assertSame(writeFailure, failure.cause, "The connect caller must receive the original write failure")
+            // Network.connect aggregates failures from candidate transports.
+            val aggregate = assertInstanceOf(NonCompleteException::class.java, failure.cause)
+            val transportFailure = assertInstanceOf(CompletionException::class.java, aggregate.cause)
+            assertSame(writeFailure, transportFailure.cause, "The connect caller must retain the original write failure")
             dialChannel.get(5, TimeUnit.SECONDS).closeFuture().get(2, TimeUnit.SECONDS)
         } finally {
             dialer.stop().get(5, TimeUnit.SECONDS)

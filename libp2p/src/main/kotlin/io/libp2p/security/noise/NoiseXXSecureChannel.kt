@@ -359,7 +359,9 @@ class NoiseIoHandshake(
             if (write.isSuccess && expectsRemoteResponse && !terminal.get()) {
                 readTimeout.arm()
             } else if (!write.isSuccess && write.cause() != null) {
-                ctx.fireExceptionCaught(write.cause())
+                // The handshake owns this write. Forwarding from its context skips
+                // its exception handler and leaves the connect future pending.
+                exceptionCaught(ctx, write.cause())
             }
         }
     } // sendNoiseMessage

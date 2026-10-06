@@ -25,6 +25,11 @@ class ProtocolSelect<TController>(val protocols: List<ProtocolBinding<TControlle
     var activeFired = false
     private var removalArmed = false
 
+    override fun handlerAdded(ctx: ChannelHandlerContext) {
+        // A close during handler installation may have fired before this handler was present.
+        if (ctx.channel().closeFuture().isDone) channelUnregistered(ctx)
+    }
+
     override fun channelRead(ctx: ChannelHandlerContext, msg: Any) {
         // when protocol data immediately follows protocol id in the same packet
         // the protocol data may be transmitted during Negotiator pipeline rebuilding

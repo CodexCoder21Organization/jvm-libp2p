@@ -11,6 +11,7 @@ import io.libp2p.core.mux.StreamMuxerProtocol
 import io.libp2p.multistream.MultistreamProtocolDebugV1
 import io.libp2p.protocol.Ping
 import io.libp2p.protocol.PingController
+import io.libp2p.transport.implementation.P2PChannelOverNetty
 import io.netty.buffer.ByteBuf
 import io.netty.channel.ChannelHandlerContext
 import io.netty.channel.ChannelInboundHandlerAdapter
@@ -104,10 +105,11 @@ private fun selectedProtocolWithPendingControllerSurvivesClose(muxer: StreamMuxe
         assertEquals(protocol, stream.getProtocol().get(5, TimeUnit.SECONDS))
         assertFalse(promise.controller.isDone)
         stream.reset().get(5, TimeUnit.SECONDS)
-        val cause = reviewFailure(promise.controller, "Channel closed before protocol negotiation: $stream")
+        val message = "Channel closed ${(stream as P2PChannelOverNetty).nettyChannel}"
+        val cause = reviewFailure(promise.controller, message)
         assertEquals(protocol, stream.getProtocol().get(5, TimeUnit.SECONDS), "Selection remains successful when controller setup is pending")
         pending.complete("late controller")
-        assertSame(cause, reviewFailure(promise.controller, "Channel closed before protocol negotiation: $stream"))
+        assertSame(cause, reviewFailure(promise.controller, message))
     }
 }
 
@@ -123,7 +125,7 @@ private fun closeOnFirstNegotiationMessage(muxer: StreamMuxerProtocol) {
                         val wire = bytes.toString(Charsets.UTF_8)
                         assertEquals("/multistream/1.0.0\n", wire.substring(1), "The first received message is the negotiation header")
                         stream.reset()
-                        firstMessage.complete("Channel closed before protocol negotiation: $stream")
+                        firstMessage.complete("Channel closed ${ctx.channel()}")
                     } catch (failure: Throwable) {
                         firstMessage.completeExceptionally(failure)
                         throw failure

@@ -56,7 +56,7 @@ private fun checkHandlerAddedClose(muxer: StreamMuxerProtocol) {
                 stream.pushHandler(object : ChannelInboundHandlerAdapter() {
                     override fun handlerAdded(ctx: ChannelHandlerContext) {
                         stream.reset()
-                        expectedCloseMessage.complete("Channel closed ${ctx.channel()}")
+                        expectedCloseMessage.complete("Channel closed before protocol negotiation: $stream")
                         closedInAdded.complete(stream)
                     }
                 })

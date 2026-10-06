@@ -19,10 +19,6 @@ class MultistreamImpl<TController>(
     override fun initChannel(ch: P2PChannel): CompletableFuture<TController> {
         return with(ch) {
             val protocolSelect = ProtocolSelect(bindings)
-            val selectedFuture = protocolSelect.selectedFuture
-            // Registration can defer handlerAdded until after these initialization callbacks return.
-            // Observe closure independently of handlers that teardown may remove before adding them.
-            closeFuture().thenRun { settleClosedNegotiation(ch, selectedFuture) }
             if (settleClosedNegotiation(ch, protocolSelect.selectedFuture)) return protocolSelect.selectedFuture
             preHandler?.also {
                 it.initChannel(ch)

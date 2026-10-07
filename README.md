@@ -54,6 +54,10 @@ Legend:
 - :lemon: - prototype or beta, not tested in production
 - :tomato: - in progress 
 
+## Closing a stream during initialization
+
+A `Host.addStreamVisitor` callback may close or reset a newly opened stream. If it closes the stream before protocol negotiation, the stream's protocol future and the caller's controller future complete exceptionally. Closing that child leaves its shared connection and other streams usable.
+
 ## Stream muxer write buffering
 
 Yamux enforces the `maxBufferedConnectionWrites` setting across the complete connection write path: application payloads queued in child stream channels, flow-control-buffered payloads, and frames queued on the parent Netty connection. The default is `10 * 1024 * 1024` bytes (10 MiB), configured with `StreamMuxerProtocol.getYamux(maxBufferedConnectionWrites = ...)`.

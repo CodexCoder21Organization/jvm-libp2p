@@ -91,6 +91,11 @@ abstract class AbstractChildChannel(parent: Channel, id: ChannelId?) : AbstractC
         // installed observer, `closeFutureDone=true`, and the full multistream pipeline still attached.
         initChildPipeline()
 
+        // Initialization may close this child synchronously. Its teardown has already removed the
+        // parent listener, so registering it now would retain a closed child on the live parent.
+        // Registration and teardown run on the child's event loop, which keeps this check ordered.
+        if (!isOpen) return
+
         if (parentCloseFuture.isDone) {
             // The parent is already gone. Defer the close to the event loop rather than running it inline:
             // Netty has not finished registration yet, so the handlers just installed have not had

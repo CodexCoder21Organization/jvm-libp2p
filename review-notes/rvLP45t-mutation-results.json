@@ -1,0 +1,1355 @@
+{
+  "productionHead": "337601406b88f972a9e9ad389b74a76556655918",
+  "reviewedPullRequest": "https://github.com/CodexCoder21Organization/jvm-libp2p/pull/45",
+  "mutations": [
+    {
+      "mutation": "remove-after-pre-check",
+      "exit": 1,
+      "counts": [
+        20,
+        2,
+        0,
+        0
+      ],
+      "cases": [
+        {
+          "class": "io.libp2p.core.HostStreamVisitorCloseTest",
+          "test": "mplexVisitorCloseSettlesNegotiation()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostStreamVisitorCloseTest",
+          "test": "yamuxVisitorCloseSettlesNegotiation()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxSeveralSiblingsSurviveReset()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxPostHandlerCloseSettlesFutures()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxSelectedProtocolSurvivesClose()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexCloseOnFirstNegotiationMessage()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexSeveralSiblingsSurviveReset()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexPreHandlerCloseStopsPostHandler()",
+          "failure": "org.opentest4j.AssertionFailedError: Initialization callbacks stop after the pre-handler closes the stream ==> expected: <0> but was: <1>"
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxSelectedProtocolWithPendingControllerSurvivesClose()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexCompletionRemainsTerminal()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxCloseOnFirstNegotiationMessage()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxCompletionRemainsTerminal()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexSelectedProtocolWithPendingControllerSurvivesClose()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxResponderVisitorReset()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxPreHandlerCloseStopsPostHandler()",
+          "failure": "org.opentest4j.AssertionFailedError: Initialization callbacks stop after the pre-handler closes the stream ==> expected: <0> but was: <1>"
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexResponderVisitorReset()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexSelectedProtocolSurvivesClose()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexPostHandlerCloseSettlesFutures()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostHandlerAddedCloseReviewTest",
+          "test": "yamuxHandlerAddedCloseSettlesNegotiation()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostHandlerAddedCloseReviewTest",
+          "test": "mplexHandlerAddedCloseSettlesNegotiation()",
+          "failure": null
+        }
+      ],
+      "restoredCounts": [
+        20,
+        0,
+        0,
+        0
+      ],
+      "diff": "diff --git a/libp2p/src/main/kotlin/io/libp2p/multistream/MultistreamImpl.kt b/libp2p/src/main/kotlin/io/libp2p/multistream/MultistreamImpl.kt\nindex 4b54d330..427f5634 100644\n--- a/libp2p/src/main/kotlin/io/libp2p/multistream/MultistreamImpl.kt\n+++ b/libp2p/src/main/kotlin/io/libp2p/multistream/MultistreamImpl.kt\n@@ -27,7 +27,6 @@ class MultistreamImpl<TController>(\n             preHandler?.also {\n                 it.initChannel(ch)\n             }\n-            if (settleClosedNegotiation(ch, protocolSelect.selectedFuture)) return protocolSelect.selectedFuture\n             pushHandler(\n                 if (ch.isInitiator) {\n                     Negotiator.createRequesterInitializer(\n"
+    },
+    {
+      "mutation": "remove-after-post-check",
+      "exit": 0,
+      "counts": [
+        20,
+        0,
+        0,
+        0
+      ],
+      "cases": [
+        {
+          "class": "io.libp2p.core.HostStreamVisitorCloseTest",
+          "test": "mplexVisitorCloseSettlesNegotiation()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostStreamVisitorCloseTest",
+          "test": "yamuxVisitorCloseSettlesNegotiation()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxSeveralSiblingsSurviveReset()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxPostHandlerCloseSettlesFutures()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxSelectedProtocolSurvivesClose()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexCloseOnFirstNegotiationMessage()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexSeveralSiblingsSurviveReset()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexPreHandlerCloseStopsPostHandler()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxSelectedProtocolWithPendingControllerSurvivesClose()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexCompletionRemainsTerminal()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxCloseOnFirstNegotiationMessage()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxCompletionRemainsTerminal()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexSelectedProtocolWithPendingControllerSurvivesClose()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxResponderVisitorReset()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxPreHandlerCloseStopsPostHandler()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexResponderVisitorReset()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexSelectedProtocolSurvivesClose()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexPostHandlerCloseSettlesFutures()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostHandlerAddedCloseReviewTest",
+          "test": "yamuxHandlerAddedCloseSettlesNegotiation()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostHandlerAddedCloseReviewTest",
+          "test": "mplexHandlerAddedCloseSettlesNegotiation()",
+          "failure": null
+        }
+      ],
+      "restoredCounts": [
+        20,
+        0,
+        0,
+        0
+      ],
+      "diff": "diff --git a/libp2p/src/main/kotlin/io/libp2p/multistream/MultistreamImpl.kt b/libp2p/src/main/kotlin/io/libp2p/multistream/MultistreamImpl.kt\nindex 4b54d330..7b11ce81 100644\n--- a/libp2p/src/main/kotlin/io/libp2p/multistream/MultistreamImpl.kt\n+++ b/libp2p/src/main/kotlin/io/libp2p/multistream/MultistreamImpl.kt\n@@ -44,7 +44,6 @@ class MultistreamImpl<TController>(\n             postHandler?.also {\n                 it.initChannel(ch)\n             }\n-            if (settleClosedNegotiation(ch, protocolSelect.selectedFuture)) return protocolSelect.selectedFuture\n             pushHandler(protocolSelect)\n             protocolSelect.selectedFuture\n         }\n"
+    },
+    {
+      "mutation": "remove-handlerAdded-check",
+      "exit": 0,
+      "counts": [
+        20,
+        0,
+        0,
+        0
+      ],
+      "cases": [
+        {
+          "class": "io.libp2p.core.HostStreamVisitorCloseTest",
+          "test": "mplexVisitorCloseSettlesNegotiation()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostStreamVisitorCloseTest",
+          "test": "yamuxVisitorCloseSettlesNegotiation()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxSeveralSiblingsSurviveReset()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxPostHandlerCloseSettlesFutures()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxSelectedProtocolSurvivesClose()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexCloseOnFirstNegotiationMessage()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexSeveralSiblingsSurviveReset()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexPreHandlerCloseStopsPostHandler()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxSelectedProtocolWithPendingControllerSurvivesClose()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexCompletionRemainsTerminal()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxCloseOnFirstNegotiationMessage()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxCompletionRemainsTerminal()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexSelectedProtocolWithPendingControllerSurvivesClose()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxResponderVisitorReset()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxPreHandlerCloseStopsPostHandler()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexResponderVisitorReset()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexSelectedProtocolSurvivesClose()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexPostHandlerCloseSettlesFutures()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostHandlerAddedCloseReviewTest",
+          "test": "yamuxHandlerAddedCloseSettlesNegotiation()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostHandlerAddedCloseReviewTest",
+          "test": "mplexHandlerAddedCloseSettlesNegotiation()",
+          "failure": null
+        }
+      ],
+      "restoredCounts": [
+        20,
+        0,
+        0,
+        0
+      ],
+      "diff": "diff --git a/libp2p/src/main/kotlin/io/libp2p/multistream/ProtocolSelect.kt b/libp2p/src/main/kotlin/io/libp2p/multistream/ProtocolSelect.kt\nindex a7170a45..d6105ebe 100644\n--- a/libp2p/src/main/kotlin/io/libp2p/multistream/ProtocolSelect.kt\n+++ b/libp2p/src/main/kotlin/io/libp2p/multistream/ProtocolSelect.kt\n@@ -27,7 +27,6 @@ class ProtocolSelect<TController>(val protocols: List<ProtocolBinding<TControlle\n \n     override fun handlerAdded(ctx: ChannelHandlerContext) {\n         // A close during handler installation may have fired before this handler was present.\n-        if (ctx.channel().closeFuture().isDone) channelUnregistered(ctx)\n     }\n \n     override fun channelRead(ctx: ChannelHandlerContext, msg: Any) {\n"
+    },
+    {
+      "mutation": "overwrite-protocol-result",
+      "exit": 1,
+      "counts": [
+        20,
+        8,
+        0,
+        0
+      ],
+      "cases": [
+        {
+          "class": "io.libp2p.core.HostStreamVisitorCloseTest",
+          "test": "mplexVisitorCloseSettlesNegotiation()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostStreamVisitorCloseTest",
+          "test": "yamuxVisitorCloseSettlesNegotiation()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxSeveralSiblingsSurviveReset()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxPostHandlerCloseSettlesFutures()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxSelectedProtocolSurvivesClose()",
+          "failure": "java.util.concurrent.ExecutionException: io.libp2p.core.ConnectionClosedException: Channel closed before protocol negotiation: P2PChannelOverNetty(nettyChannel=[id: 0x50fdcc85/1, L:Mux[/127.0.0.1:52908-1620bafffe81001f-002adf8a-00000012-4cd525ce04e0f360-50fdcc85/1] ! R:Mux[/127.0.0.1:34137-1620bafffe81001f-002adf8a-00000012-4cd525ce04e0f360-50fdcc85/1]], isInitiator=true)"
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexCloseOnFirstNegotiationMessage()",
+          "failure": "org.opentest4j.MultipleFailuresError: Multiple Failures (1 failure)\n\torg.opentest4j.AssertionFailedError: expected: <Channel closed [id: 0x91c7d384/16/true, L:Mux[/127.0.0.1:42162-1620bafffe81001f-002adf8a-00000016-4a8eda5e04e0f403-91c7d384/16/true] ! R:Mux[/127.0.0.1:36577-1620bafffe81001f-002adf8a-00000016-4a8eda5e04e0f403-91c7d384/16/true]]> but was: <Channel closed before protocol negotiation: P2PChannelOverNetty(nettyChannel=[id: 0x91c7d384/16/true, L:Mux[/127.0.0.1:42162-1620bafffe81001f-002adf8a-00000016-4a8eda5e04e0f403-91c7d384/16/true] ! R:Mux[/127.0.0.1:36577-1620bafffe81001f-002adf8a-00000016-4a8eda5e04e0f403-91c7d384/16/true]], isInitiator=true)>"
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexSeveralSiblingsSurviveReset()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexPreHandlerCloseStopsPostHandler()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxSelectedProtocolWithPendingControllerSurvivesClose()",
+          "failure": "java.util.concurrent.ExecutionException: io.libp2p.core.ConnectionClosedException: Channel closed before protocol negotiation: P2PChannelOverNetty(nettyChannel=[id: 0xbd7ab3c0/1, L:Mux[/127.0.0.1:47066-1620bafffe81001f-002adf8a-00000022-bee13aed84e0f75b-bd7ab3c0/1] ! R:Mux[/127.0.0.1:44371-1620bafffe81001f-002adf8a-00000022-bee13aed84e0f75b-bd7ab3c0/1]], isInitiator=true)"
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexCompletionRemainsTerminal()",
+          "failure": "org.opentest4j.AssertionFailedError: Later settlement cannot replace the first result ==> expected: io.libp2p.core.ConnectionClosedException@424de326<io.libp2p.core.ConnectionClosedException: Channel closed before protocol negotiation: P2PChannelOverNetty(nettyChannel=[id: 0x532cdb71/16/true, L:Mux[/127.0.0.1:33958-1620bafffe81001f-002adf8a-00000026-790512bd84e0f7be-532cdb71/16/true] ! R:Mux[/127.0.0.1:43035-1620bafffe81001f-002adf8a-00000026-790512bd84e0f7be-532cdb71/16/true]], isInitiator=true)> but was: io.libp2p.core.ConnectionClosedException@4bc33720<io.libp2p.core.ConnectionClosedException: Channel closed before protocol negotiation: P2PChannelOverNetty(nettyChannel=[id: 0x532cdb71/16/true, L:Mux[/127.0.0.1:33958-1620bafffe81001f-002adf8a-00000026-790512bd84e0f7be-532cdb71/16/true] ! R:Mux[/127.0.0.1:43035-1620bafffe81001f-002adf8a-00000026-790512bd84e0f7be-532cdb71/16/true]], isInitiator=true)>"
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxCloseOnFirstNegotiationMessage()",
+          "failure": "org.opentest4j.MultipleFailuresError: Multiple Failures (1 failure)\n\torg.opentest4j.AssertionFailedError: expected: <Channel closed [id: 0x6f2bd431/1, L:Mux[/127.0.0.1:36456-1620bafffe81001f-002adf8a-0000002a-f227f86384e0e874-6f2bd431/1] ! R:Mux[/127.0.0.1:45097-1620bafffe81001f-002adf8a-0000002a-f227f86384e0e874-6f2bd431/1]]> but was: <Channel closed before protocol negotiation: P2PChannelOverNetty(nettyChannel=[id: 0x6f2bd431/1, L:Mux[/127.0.0.1:36456-1620bafffe81001f-002adf8a-0000002a-f227f86384e0e874-6f2bd431/1] ! R:Mux[/127.0.0.1:45097-1620bafffe81001f-002adf8a-0000002a-f227f86384e0e874-6f2bd431/1]], isInitiator=true)>"
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxCompletionRemainsTerminal()",
+          "failure": "org.opentest4j.AssertionFailedError: Later settlement cannot replace the first result ==> expected: io.libp2p.core.ConnectionClosedException@1b7a52dd<io.libp2p.core.ConnectionClosedException: Channel closed before protocol negotiation: P2PChannelOverNetty(nettyChannel=[id: 0xafcfb9d3/1, L:Mux[/127.0.0.1:34318-1620bafffe81001f-002adf8a-0000002e-4979d5eb84e0e968-afcfb9d3/1] ! R:Mux[/127.0.0.1:35063-1620bafffe81001f-002adf8a-0000002e-4979d5eb84e0e968-afcfb9d3/1]], isInitiator=true)> but was: io.libp2p.core.ConnectionClosedException@7f93dd4e<io.libp2p.core.ConnectionClosedException: Channel closed before protocol negotiation: P2PChannelOverNetty(nettyChannel=[id: 0xafcfb9d3/1, L:Mux[/127.0.0.1:34318-1620bafffe81001f-002adf8a-0000002e-4979d5eb84e0e968-afcfb9d3/1] ! R:Mux[/127.0.0.1:35063-1620bafffe81001f-002adf8a-0000002e-4979d5eb84e0e968-afcfb9d3/1]], isInitiator=true)>"
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexSelectedProtocolWithPendingControllerSurvivesClose()",
+          "failure": "java.util.concurrent.ExecutionException: io.libp2p.core.ConnectionClosedException: Channel closed before protocol negotiation: P2PChannelOverNetty(nettyChannel=[id: 0x3b453fad/16/true, L:Mux[/127.0.0.1:58302-1620bafffe81001f-002adf8a-00000032-0503d4db84e0ea3a-3b453fad/16/true] ! R:Mux[/127.0.0.1:46609-1620bafffe81001f-002adf8a-00000032-0503d4db84e0ea3a-3b453fad/16/true]], isInitiator=true)"
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxResponderVisitorReset()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxPreHandlerCloseStopsPostHandler()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexResponderVisitorReset()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexSelectedProtocolSurvivesClose()",
+          "failure": "java.util.concurrent.ExecutionException: io.libp2p.core.ConnectionClosedException: Channel closed before protocol negotiation: P2PChannelOverNetty(nettyChannel=[id: 0x5b3d2c95/16/true, L:Mux[/127.0.0.1:42530-1620bafffe81001f-002adf8a-00000042-52e7a5e084e0ec8d-5b3d2c95/16/true] ! R:Mux[/127.0.0.1:33543-1620bafffe81001f-002adf8a-00000042-52e7a5e084e0ec8d-5b3d2c95/16/true]], isInitiator=true)"
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexPostHandlerCloseSettlesFutures()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostHandlerAddedCloseReviewTest",
+          "test": "yamuxHandlerAddedCloseSettlesNegotiation()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostHandlerAddedCloseReviewTest",
+          "test": "mplexHandlerAddedCloseSettlesNegotiation()",
+          "failure": null
+        }
+      ],
+      "restoredCounts": [
+        20,
+        0,
+        0,
+        0
+      ],
+      "diff": "diff --git a/libp2p/src/main/kotlin/io/libp2p/multistream/MultistreamImpl.kt b/libp2p/src/main/kotlin/io/libp2p/multistream/MultistreamImpl.kt\nindex 4b54d330..99facc67 100644\n--- a/libp2p/src/main/kotlin/io/libp2p/multistream/MultistreamImpl.kt\n+++ b/libp2p/src/main/kotlin/io/libp2p/multistream/MultistreamImpl.kt\n@@ -55,7 +55,7 @@ class MultistreamImpl<TController>(\n private fun <T> settleClosedNegotiation(channel: P2PChannel, controller: CompletableFuture<T>): Boolean {\n     if (!channel.closeFuture().isDone) return false\n     val failure = ConnectionClosedException(\"Channel closed before protocol negotiation: $channel\")\n-    (channel as? Stream)?.getProtocol()?.completeExceptionally(failure)\n+    (channel as? Stream)?.getProtocol()?.obtrudeException(failure)\n     controller.completeExceptionally(failure)\n     return true\n }\n"
+    },
+    {
+      "mutation": "omit-protocol-settlement",
+      "exit": 1,
+      "counts": [
+        20,
+        14,
+        0,
+        0
+      ],
+      "cases": [
+        {
+          "class": "io.libp2p.core.HostStreamVisitorCloseTest",
+          "test": "mplexVisitorCloseSettlesNegotiation()",
+          "failure": "org.opentest4j.AssertionFailedError: A stream closed before negotiation must fail its protocol future ==> expected: <true> but was: <false>"
+        },
+        {
+          "class": "io.libp2p.core.HostStreamVisitorCloseTest",
+          "test": "yamuxVisitorCloseSettlesNegotiation()",
+          "failure": "org.opentest4j.AssertionFailedError: A stream closed before negotiation must fail its protocol future ==> expected: <true> but was: <false>"
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxSeveralSiblingsSurviveReset()",
+          "failure": "org.opentest4j.MultipleFailuresError: Multiple Failures (1 failure)\n\torg.opentest4j.AssertionFailedError: Closed negotiation must fail immediately ==> expected: <true> but was: <false>"
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxPostHandlerCloseSettlesFutures()",
+          "failure": "org.opentest4j.MultipleFailuresError: Multiple Failures (1 failure)\n\torg.opentest4j.AssertionFailedError: Closed negotiation must fail immediately ==> expected: <true> but was: <false>"
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxSelectedProtocolSurvivesClose()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexCloseOnFirstNegotiationMessage()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexSeveralSiblingsSurviveReset()",
+          "failure": "org.opentest4j.MultipleFailuresError: Multiple Failures (1 failure)\n\torg.opentest4j.AssertionFailedError: Closed negotiation must fail immediately ==> expected: <true> but was: <false>"
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexPreHandlerCloseStopsPostHandler()",
+          "failure": "org.opentest4j.MultipleFailuresError: Multiple Failures (1 failure)\n\torg.opentest4j.AssertionFailedError: Closed negotiation must fail immediately ==> expected: <true> but was: <false>"
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxSelectedProtocolWithPendingControllerSurvivesClose()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexCompletionRemainsTerminal()",
+          "failure": "org.opentest4j.AssertionFailedError: Closed negotiation must fail immediately ==> expected: <true> but was: <false>"
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxCloseOnFirstNegotiationMessage()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxCompletionRemainsTerminal()",
+          "failure": "org.opentest4j.AssertionFailedError: Closed negotiation must fail immediately ==> expected: <true> but was: <false>"
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexSelectedProtocolWithPendingControllerSurvivesClose()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxResponderVisitorReset()",
+          "failure": "org.opentest4j.MultipleFailuresError: Multiple Failures (1 failure)\n\torg.opentest4j.AssertionFailedError: Closed negotiation must fail immediately ==> expected: <true> but was: <false>"
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxPreHandlerCloseStopsPostHandler()",
+          "failure": "org.opentest4j.MultipleFailuresError: Multiple Failures (1 failure)\n\torg.opentest4j.AssertionFailedError: Closed negotiation must fail immediately ==> expected: <true> but was: <false>"
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexResponderVisitorReset()",
+          "failure": "org.opentest4j.MultipleFailuresError: Multiple Failures (1 failure)\n\torg.opentest4j.AssertionFailedError: Closed negotiation must fail immediately ==> expected: <true> but was: <false>"
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexSelectedProtocolSurvivesClose()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexPostHandlerCloseSettlesFutures()",
+          "failure": "org.opentest4j.MultipleFailuresError: Multiple Failures (1 failure)\n\torg.opentest4j.AssertionFailedError: Closed negotiation must fail immediately ==> expected: <true> but was: <false>"
+        },
+        {
+          "class": "io.libp2p.core.HostHandlerAddedCloseReviewTest",
+          "test": "yamuxHandlerAddedCloseSettlesNegotiation()",
+          "failure": "org.opentest4j.MultipleFailuresError: Multiple Failures (1 failure)\n\torg.opentest4j.AssertionFailedError: The selected protocol future must fail when handlerAdded closes the child before negotiation; done=false ==> expected: <true> but was: <false>"
+        },
+        {
+          "class": "io.libp2p.core.HostHandlerAddedCloseReviewTest",
+          "test": "mplexHandlerAddedCloseSettlesNegotiation()",
+          "failure": "org.opentest4j.MultipleFailuresError: Multiple Failures (1 failure)\n\torg.opentest4j.AssertionFailedError: The selected protocol future must fail when handlerAdded closes the child before negotiation; done=false ==> expected: <true> but was: <false>"
+        }
+      ],
+      "restoredCounts": [
+        20,
+        0,
+        0,
+        0
+      ],
+      "diff": "diff --git a/libp2p/src/main/kotlin/io/libp2p/multistream/MultistreamImpl.kt b/libp2p/src/main/kotlin/io/libp2p/multistream/MultistreamImpl.kt\nindex 4b54d330..f8bb1cfc 100644\n--- a/libp2p/src/main/kotlin/io/libp2p/multistream/MultistreamImpl.kt\n+++ b/libp2p/src/main/kotlin/io/libp2p/multistream/MultistreamImpl.kt\n@@ -55,7 +55,6 @@ class MultistreamImpl<TController>(\n private fun <T> settleClosedNegotiation(channel: P2PChannel, controller: CompletableFuture<T>): Boolean {\n     if (!channel.closeFuture().isDone) return false\n     val failure = ConnectionClosedException(\"Channel closed before protocol negotiation: $channel\")\n-    (channel as? Stream)?.getProtocol()?.completeExceptionally(failure)\n     controller.completeExceptionally(failure)\n     return true\n }\n"
+    },
+    {
+      "mutation": "omit-unregistered-controller",
+      "exit": 1,
+      "counts": [
+        20,
+        4,
+        0,
+        0
+      ],
+      "cases": [
+        {
+          "class": "io.libp2p.core.HostStreamVisitorCloseTest",
+          "test": "mplexVisitorCloseSettlesNegotiation()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostStreamVisitorCloseTest",
+          "test": "yamuxVisitorCloseSettlesNegotiation()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxSeveralSiblingsSurviveReset()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxPostHandlerCloseSettlesFutures()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxSelectedProtocolSurvivesClose()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexCloseOnFirstNegotiationMessage()",
+          "failure": "org.opentest4j.MultipleFailuresError: Multiple Failures (1 failure)\n\torg.opentest4j.AssertionFailedError: expected: <Channel closed [id: 0x915d1e99/16/true, L:Mux[/127.0.0.1:39376-1620bafffe81001f-002b378a-00000016-ac3ee6ae41690f33-915d1e99/16/true] ! R:Mux[/127.0.0.1:36939-1620bafffe81001f-002b378a-00000016-ac3ee6ae41690f33-915d1e99/16/true]]> but was: <Channel closed before protocol negotiation: P2PChannelOverNetty(nettyChannel=[id: 0x915d1e99/16/true, L:Mux[/127.0.0.1:39376-1620bafffe81001f-002b378a-00000016-ac3ee6ae41690f33-915d1e99/16/true] ! R:Mux[/127.0.0.1:36939-1620bafffe81001f-002b378a-00000016-ac3ee6ae41690f33-915d1e99/16/true]], isInitiator=true)>"
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexSeveralSiblingsSurviveReset()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexPreHandlerCloseStopsPostHandler()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxSelectedProtocolWithPendingControllerSurvivesClose()",
+          "failure": "org.opentest4j.AssertionFailedError: expected: <Channel closed [id: 0x871287d1/1, L:Mux[/127.0.0.1:49358-1620bafffe81001f-002b378a-00000022-bfb95bde41690015-871287d1/1] ! R:Mux[/127.0.0.1:42525-1620bafffe81001f-002b378a-00000022-bfb95bde41690015-871287d1/1]]> but was: <Channel closed before protocol negotiation: P2PChannelOverNetty(nettyChannel=[id: 0x871287d1/1, L:Mux[/127.0.0.1:49358-1620bafffe81001f-002b378a-00000022-bfb95bde41690015-871287d1/1] ! R:Mux[/127.0.0.1:42525-1620bafffe81001f-002b378a-00000022-bfb95bde41690015-871287d1/1]], isInitiator=true)>"
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexCompletionRemainsTerminal()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxCloseOnFirstNegotiationMessage()",
+          "failure": "org.opentest4j.MultipleFailuresError: Multiple Failures (1 failure)\n\torg.opentest4j.AssertionFailedError: expected: <Channel closed [id: 0x0139b367/1, L:Mux[/127.0.0.1:47108-1620bafffe81001f-002b378a-0000002a-04c8d301c1690089-0139b367/1] ! R:Mux[/127.0.0.1:35561-1620bafffe81001f-002b378a-0000002a-04c8d301c1690089-0139b367/1]]> but was: <Channel closed before protocol negotiation: P2PChannelOverNetty(nettyChannel=[id: 0x0139b367/1, L:Mux[/127.0.0.1:47108-1620bafffe81001f-002b378a-0000002a-04c8d301c1690089-0139b367/1] ! R:Mux[/127.0.0.1:35561-1620bafffe81001f-002b378a-0000002a-04c8d301c1690089-0139b367/1]], isInitiator=true)>"
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxCompletionRemainsTerminal()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexSelectedProtocolWithPendingControllerSurvivesClose()",
+          "failure": "org.opentest4j.AssertionFailedError: expected: <Channel closed [id: 0xfa7cb3ad/16/true, L:Mux[/127.0.0.1:56198-1620bafffe81001f-002b378a-00000032-1492c8f1c16900e2-fa7cb3ad/16/true] ! R:Mux[/127.0.0.1:42589-1620bafffe81001f-002b378a-00000032-1492c8f1c16900e2-fa7cb3ad/16/true]]> but was: <Channel closed before protocol negotiation: P2PChannelOverNetty(nettyChannel=[id: 0xfa7cb3ad/16/true, L:Mux[/127.0.0.1:56198-1620bafffe81001f-002b378a-00000032-1492c8f1c16900e2-fa7cb3ad/16/true] ! R:Mux[/127.0.0.1:42589-1620bafffe81001f-002b378a-00000032-1492c8f1c16900e2-fa7cb3ad/16/true]], isInitiator=true)>"
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxResponderVisitorReset()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxPreHandlerCloseStopsPostHandler()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexResponderVisitorReset()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexSelectedProtocolSurvivesClose()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexPostHandlerCloseSettlesFutures()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostHandlerAddedCloseReviewTest",
+          "test": "yamuxHandlerAddedCloseSettlesNegotiation()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostHandlerAddedCloseReviewTest",
+          "test": "mplexHandlerAddedCloseSettlesNegotiation()",
+          "failure": null
+        }
+      ],
+      "restoredCounts": [
+        20,
+        0,
+        0,
+        0
+      ],
+      "diff": "diff --git a/libp2p/src/main/kotlin/io/libp2p/multistream/ProtocolSelect.kt b/libp2p/src/main/kotlin/io/libp2p/multistream/ProtocolSelect.kt\nindex a7170a45..6f2813fc 100644\n--- a/libp2p/src/main/kotlin/io/libp2p/multistream/ProtocolSelect.kt\n+++ b/libp2p/src/main/kotlin/io/libp2p/multistream/ProtocolSelect.kt\n@@ -87,7 +87,6 @@ class ProtocolSelect<TController>(val protocols: List<ProtocolBinding<TControlle\n \n     override fun channelUnregistered(ctx: ChannelHandlerContext) {\n         val exception = ConnectionClosedException(\"Channel closed ${ctx.channel()}\")\n-        selectedFuture.completeExceptionally(exception)\n         ctx.channel().attr(PROTOCOL).get()?.completeExceptionally(exception)\n     }\n }\n"
+    },
+    {
+      "mutation": "close-shared-parent",
+      "exit": 1,
+      "counts": [
+        20,
+        8,
+        0,
+        0
+      ],
+      "cases": [
+        {
+          "class": "io.libp2p.core.HostStreamVisitorCloseTest",
+          "test": "mplexVisitorCloseSettlesNegotiation()",
+          "failure": "org.opentest4j.AssertionFailedError: Closing one child must leave its shared parent live ==> expected: <false> but was: <true>"
+        },
+        {
+          "class": "io.libp2p.core.HostStreamVisitorCloseTest",
+          "test": "yamuxVisitorCloseSettlesNegotiation()",
+          "failure": "org.opentest4j.AssertionFailedError: Closing one child must leave its shared parent live ==> expected: <false> but was: <true>"
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxSeveralSiblingsSurviveReset()",
+          "failure": "org.opentest4j.AssertionFailedError: expected: <false> but was: <true>"
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxPostHandlerCloseSettlesFutures()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxSelectedProtocolSurvivesClose()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexCloseOnFirstNegotiationMessage()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexSeveralSiblingsSurviveReset()",
+          "failure": "org.opentest4j.AssertionFailedError: expected: <false> but was: <true>"
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexPreHandlerCloseStopsPostHandler()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxSelectedProtocolWithPendingControllerSurvivesClose()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexCompletionRemainsTerminal()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxCloseOnFirstNegotiationMessage()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxCompletionRemainsTerminal()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexSelectedProtocolWithPendingControllerSurvivesClose()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxResponderVisitorReset()",
+          "failure": "org.opentest4j.AssertionFailedError: expected: <false> but was: <true>"
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxPreHandlerCloseStopsPostHandler()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexResponderVisitorReset()",
+          "failure": "org.opentest4j.AssertionFailedError: expected: <false> but was: <true>"
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexSelectedProtocolSurvivesClose()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexPostHandlerCloseSettlesFutures()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostHandlerAddedCloseReviewTest",
+          "test": "yamuxHandlerAddedCloseSettlesNegotiation()",
+          "failure": "org.opentest4j.AssertionFailedError: One child reset must leave the shared connection live ==> expected: <false> but was: <true>"
+        },
+        {
+          "class": "io.libp2p.core.HostHandlerAddedCloseReviewTest",
+          "test": "mplexHandlerAddedCloseSettlesNegotiation()",
+          "failure": "org.opentest4j.AssertionFailedError: One child reset must leave the shared connection live ==> expected: <false> but was: <true>"
+        }
+      ],
+      "restoredCounts": [
+        20,
+        0,
+        0,
+        0
+      ],
+      "diff": "diff --git a/libp2p/src/main/kotlin/io/libp2p/multistream/MultistreamImpl.kt b/libp2p/src/main/kotlin/io/libp2p/multistream/MultistreamImpl.kt\nindex 4b54d330..1e1b5074 100644\n--- a/libp2p/src/main/kotlin/io/libp2p/multistream/MultistreamImpl.kt\n+++ b/libp2p/src/main/kotlin/io/libp2p/multistream/MultistreamImpl.kt\n@@ -54,6 +54,7 @@ class MultistreamImpl<TController>(\n // A visitor can close a stream before negotiation handlers exist to observe its close event.\n private fun <T> settleClosedNegotiation(channel: P2PChannel, controller: CompletableFuture<T>): Boolean {\n     if (!channel.closeFuture().isDone) return false\n+    (channel as? Stream)?.connection?.close()\n     val failure = ConnectionClosedException(\"Channel closed before protocol negotiation: $channel\")\n     (channel as? Stream)?.getProtocol()?.completeExceptionally(failure)\n     controller.completeExceptionally(failure)\n"
+    },
+    {
+      "mutation": "remove-close-observer",
+      "exit": 1,
+      "counts": [
+        22,
+        2,
+        0,
+        0
+      ],
+      "cases": [
+        {
+          "class": "io.libp2p.core.HostStreamVisitorCloseTest",
+          "test": "mplexVisitorCloseSettlesNegotiation()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostStreamVisitorCloseTest",
+          "test": "yamuxVisitorCloseSettlesNegotiation()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxSeveralSiblingsSurviveReset()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxPostHandlerCloseSettlesFutures()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxSelectedProtocolSurvivesClose()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexCloseOnFirstNegotiationMessage()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexSeveralSiblingsSurviveReset()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexPreHandlerCloseStopsPostHandler()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxSelectedProtocolWithPendingControllerSurvivesClose()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexCompletionRemainsTerminal()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxCloseOnFirstNegotiationMessage()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxCompletionRemainsTerminal()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexSelectedProtocolWithPendingControllerSurvivesClose()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxResponderVisitorReset()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxPreHandlerCloseStopsPostHandler()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexResponderVisitorReset()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexSelectedProtocolSurvivesClose()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexPostHandlerCloseSettlesFutures()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostClosedStreamMultistreamReviewTest",
+          "test": "mplexClosedStreamDoesNotRunPreHandler()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostClosedStreamMultistreamReviewTest",
+          "test": "yamuxClosedStreamDoesNotRunPreHandler()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostHandlerAddedCloseReviewTest",
+          "test": "yamuxHandlerAddedCloseSettlesNegotiation()",
+          "failure": "org.gradle.internal.exceptions.DefaultMultiCauseException: Multiple Failures (2 failures)\n\torg.opentest4j.AssertionFailedError: The controller future must fail when handlerAdded closes the child before negotiation; done=false ==> expected: <true> but was: <false>\n\torg.opentest4j.AssertionFailedError: The selected protocol future must fail when handlerAdded closes the child before negotiation; done=false ==> expected: <true> but was: <false>"
+        },
+        {
+          "class": "io.libp2p.core.HostHandlerAddedCloseReviewTest",
+          "test": "mplexHandlerAddedCloseSettlesNegotiation()",
+          "failure": "org.gradle.internal.exceptions.DefaultMultiCauseException: Multiple Failures (2 failures)\n\torg.opentest4j.AssertionFailedError: The controller future must fail when handlerAdded closes the child before negotiation; done=false ==> expected: <true> but was: <false>\n\torg.opentest4j.AssertionFailedError: The selected protocol future must fail when handlerAdded closes the child before negotiation; done=false ==> expected: <true> but was: <false>"
+        }
+      ],
+      "restoredCounts": [
+        22,
+        0,
+        0,
+        0
+      ],
+      "diff": "diff --git a/libp2p/src/main/kotlin/io/libp2p/multistream/MultistreamImpl.kt b/libp2p/src/main/kotlin/io/libp2p/multistream/MultistreamImpl.kt\nindex 4b54d330..2e341718 100644\n--- a/libp2p/src/main/kotlin/io/libp2p/multistream/MultistreamImpl.kt\n+++ b/libp2p/src/main/kotlin/io/libp2p/multistream/MultistreamImpl.kt\n@@ -19,10 +19,8 @@ class MultistreamImpl<TController>(\n     override fun initChannel(ch: P2PChannel): CompletableFuture<TController> {\n         return with(ch) {\n             val protocolSelect = ProtocolSelect(bindings)\n-            val selectedFuture = protocolSelect.selectedFuture\n             // Registration can defer handlerAdded until after these initialization callbacks return.\n             // Observe closure independently of handlers that teardown may remove before adding them.\n-            closeFuture().thenRun { settleClosedNegotiation(ch, selectedFuture) }\n             if (settleClosedNegotiation(ch, protocolSelect.selectedFuture)) return protocolSelect.selectedFuture\n             preHandler?.also {\n                 it.initChannel(ch)\n"
+    },
+    {
+      "mutation": "omit-controller-settlement",
+      "exit": 1,
+      "counts": [
+        22,
+        16,
+        0,
+        0
+      ],
+      "cases": [
+        {
+          "class": "io.libp2p.core.HostStreamVisitorCloseTest",
+          "test": "mplexVisitorCloseSettlesNegotiation()",
+          "failure": "org.opentest4j.AssertionFailedError: A stream closed by its initialization visitor must fail its controller before it is returned to the caller ==> expected: <true> but was: <false>"
+        },
+        {
+          "class": "io.libp2p.core.HostStreamVisitorCloseTest",
+          "test": "yamuxVisitorCloseSettlesNegotiation()",
+          "failure": "org.opentest4j.AssertionFailedError: A stream closed by its initialization visitor must fail its controller before it is returned to the caller ==> expected: <true> but was: <false>"
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxSeveralSiblingsSurviveReset()",
+          "failure": "org.opentest4j.MultipleFailuresError: Multiple Failures (1 failure)\n\torg.opentest4j.AssertionFailedError: Closed negotiation must fail immediately ==> expected: <true> but was: <false>"
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxPostHandlerCloseSettlesFutures()",
+          "failure": "org.opentest4j.MultipleFailuresError: Multiple Failures (1 failure)\n\torg.opentest4j.AssertionFailedError: Closed negotiation must fail immediately ==> expected: <true> but was: <false>"
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxSelectedProtocolSurvivesClose()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexCloseOnFirstNegotiationMessage()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexSeveralSiblingsSurviveReset()",
+          "failure": "org.opentest4j.MultipleFailuresError: Multiple Failures (1 failure)\n\torg.opentest4j.AssertionFailedError: Closed negotiation must fail immediately ==> expected: <true> but was: <false>"
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexPreHandlerCloseStopsPostHandler()",
+          "failure": "org.opentest4j.MultipleFailuresError: Multiple Failures (1 failure)\n\torg.opentest4j.AssertionFailedError: Closed negotiation must fail immediately ==> expected: <true> but was: <false>"
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxSelectedProtocolWithPendingControllerSurvivesClose()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexCompletionRemainsTerminal()",
+          "failure": "org.opentest4j.AssertionFailedError: Closed negotiation must fail immediately ==> expected: <true> but was: <false>"
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxCloseOnFirstNegotiationMessage()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxCompletionRemainsTerminal()",
+          "failure": "org.opentest4j.AssertionFailedError: Closed negotiation must fail immediately ==> expected: <true> but was: <false>"
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexSelectedProtocolWithPendingControllerSurvivesClose()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxResponderVisitorReset()",
+          "failure": "org.opentest4j.MultipleFailuresError: Multiple Failures (1 failure)\n\torg.opentest4j.AssertionFailedError: Closed negotiation must fail immediately ==> expected: <true> but was: <false>"
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxPreHandlerCloseStopsPostHandler()",
+          "failure": "org.opentest4j.MultipleFailuresError: Multiple Failures (1 failure)\n\torg.opentest4j.AssertionFailedError: Closed negotiation must fail immediately ==> expected: <true> but was: <false>"
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexResponderVisitorReset()",
+          "failure": "org.opentest4j.MultipleFailuresError: Multiple Failures (1 failure)\n\torg.opentest4j.AssertionFailedError: Closed negotiation must fail immediately ==> expected: <true> but was: <false>"
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexSelectedProtocolSurvivesClose()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexPostHandlerCloseSettlesFutures()",
+          "failure": "org.opentest4j.MultipleFailuresError: Multiple Failures (1 failure)\n\torg.opentest4j.AssertionFailedError: Closed negotiation must fail immediately ==> expected: <true> but was: <false>"
+        },
+        {
+          "class": "io.libp2p.core.HostClosedStreamMultistreamReviewTest",
+          "test": "mplexClosedStreamDoesNotRunPreHandler()",
+          "failure": "org.opentest4j.AssertionFailedError: Closed multistream must fail before initialization returns ==> expected: <true> but was: <false>"
+        },
+        {
+          "class": "io.libp2p.core.HostClosedStreamMultistreamReviewTest",
+          "test": "yamuxClosedStreamDoesNotRunPreHandler()",
+          "failure": "org.opentest4j.AssertionFailedError: Closed multistream must fail before initialization returns ==> expected: <true> but was: <false>"
+        },
+        {
+          "class": "io.libp2p.core.HostHandlerAddedCloseReviewTest",
+          "test": "yamuxHandlerAddedCloseSettlesNegotiation()",
+          "failure": "org.opentest4j.MultipleFailuresError: Multiple Failures (1 failure)\n\torg.opentest4j.AssertionFailedError: The controller future must fail when handlerAdded closes the child before negotiation; done=false ==> expected: <true> but was: <false>"
+        },
+        {
+          "class": "io.libp2p.core.HostHandlerAddedCloseReviewTest",
+          "test": "mplexHandlerAddedCloseSettlesNegotiation()",
+          "failure": "org.opentest4j.MultipleFailuresError: Multiple Failures (1 failure)\n\torg.opentest4j.AssertionFailedError: The controller future must fail when handlerAdded closes the child before negotiation; done=false ==> expected: <true> but was: <false>"
+        }
+      ],
+      "restoredCounts": [
+        22,
+        0,
+        0,
+        0
+      ],
+      "diff": "diff --git a/libp2p/src/main/kotlin/io/libp2p/multistream/MultistreamImpl.kt b/libp2p/src/main/kotlin/io/libp2p/multistream/MultistreamImpl.kt\nindex 4b54d330..8612def9 100644\n--- a/libp2p/src/main/kotlin/io/libp2p/multistream/MultistreamImpl.kt\n+++ b/libp2p/src/main/kotlin/io/libp2p/multistream/MultistreamImpl.kt\n@@ -56,6 +56,6 @@ private fun <T> settleClosedNegotiation(channel: P2PChannel, controller: Complet\n     if (!channel.closeFuture().isDone) return false\n     val failure = ConnectionClosedException(\"Channel closed before protocol negotiation: $channel\")\n     (channel as? Stream)?.getProtocol()?.completeExceptionally(failure)\n-    controller.completeExceptionally(failure)\n+    if (controller.isDone) controller.completeExceptionally(failure)\n     return true\n }\n"
+    },
+    {
+      "mutation": "remove-before-pre-check",
+      "exit": 1,
+      "counts": [
+        22,
+        2,
+        0,
+        0
+      ],
+      "cases": [
+        {
+          "class": "io.libp2p.core.HostStreamVisitorCloseTest",
+          "test": "mplexVisitorCloseSettlesNegotiation()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostStreamVisitorCloseTest",
+          "test": "yamuxVisitorCloseSettlesNegotiation()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxSeveralSiblingsSurviveReset()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxPostHandlerCloseSettlesFutures()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxSelectedProtocolSurvivesClose()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexCloseOnFirstNegotiationMessage()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexSeveralSiblingsSurviveReset()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexPreHandlerCloseStopsPostHandler()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxSelectedProtocolWithPendingControllerSurvivesClose()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexCompletionRemainsTerminal()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxCloseOnFirstNegotiationMessage()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxCompletionRemainsTerminal()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexSelectedProtocolWithPendingControllerSurvivesClose()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxResponderVisitorReset()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxPreHandlerCloseStopsPostHandler()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexResponderVisitorReset()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexSelectedProtocolSurvivesClose()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexPostHandlerCloseSettlesFutures()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostClosedStreamMultistreamReviewTest",
+          "test": "mplexClosedStreamDoesNotRunPreHandler()",
+          "failure": "org.opentest4j.AssertionFailedError: An already-closed stream must not run initialization callbacks ==> expected: <0> but was: <1>"
+        },
+        {
+          "class": "io.libp2p.core.HostClosedStreamMultistreamReviewTest",
+          "test": "yamuxClosedStreamDoesNotRunPreHandler()",
+          "failure": "org.opentest4j.AssertionFailedError: An already-closed stream must not run initialization callbacks ==> expected: <0> but was: <1>"
+        },
+        {
+          "class": "io.libp2p.core.HostHandlerAddedCloseReviewTest",
+          "test": "yamuxHandlerAddedCloseSettlesNegotiation()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostHandlerAddedCloseReviewTest",
+          "test": "mplexHandlerAddedCloseSettlesNegotiation()",
+          "failure": null
+        }
+      ],
+      "restoredCounts": [
+        22,
+        0,
+        0,
+        0
+      ],
+      "diff": "diff --git a/libp2p/src/main/kotlin/io/libp2p/multistream/MultistreamImpl.kt b/libp2p/src/main/kotlin/io/libp2p/multistream/MultistreamImpl.kt\nindex 4b54d330..f711db6f 100644\n--- a/libp2p/src/main/kotlin/io/libp2p/multistream/MultistreamImpl.kt\n+++ b/libp2p/src/main/kotlin/io/libp2p/multistream/MultistreamImpl.kt\n@@ -23,7 +23,6 @@ class MultistreamImpl<TController>(\n             // Registration can defer handlerAdded until after these initialization callbacks return.\n             // Observe closure independently of handlers that teardown may remove before adding them.\n             closeFuture().thenRun { settleClosedNegotiation(ch, selectedFuture) }\n-            if (settleClosedNegotiation(ch, protocolSelect.selectedFuture)) return protocolSelect.selectedFuture\n             preHandler?.also {\n                 it.initChannel(ch)\n             }\n"
+    },
+    {
+      "mutation": "overwrite-controller-result",
+      "exit": 1,
+      "counts": [
+        22,
+        2,
+        0,
+        0
+      ],
+      "cases": [
+        {
+          "class": "io.libp2p.core.HostStreamVisitorCloseTest",
+          "test": "mplexVisitorCloseSettlesNegotiation()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostStreamVisitorCloseTest",
+          "test": "yamuxVisitorCloseSettlesNegotiation()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxSeveralSiblingsSurviveReset()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxPostHandlerCloseSettlesFutures()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxSelectedProtocolSurvivesClose()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexCloseOnFirstNegotiationMessage()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexSeveralSiblingsSurviveReset()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexPreHandlerCloseStopsPostHandler()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxSelectedProtocolWithPendingControllerSurvivesClose()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexCompletionRemainsTerminal()",
+          "failure": "org.opentest4j.AssertionFailedError: Both futures retain the one closure cause ==> expected: io.libp2p.core.ConnectionClosedException@37c36608<io.libp2p.core.ConnectionClosedException: Channel closed before protocol negotiation: P2PChannelOverNetty(nettyChannel=[id: 0xe9f7427b/16/true, L:Mux[/127.0.0.1:60646-1620bafffe81001f-002b87e4-0000002e-a8cde03bf4134f4e-e9f7427b/16/true] ! R:Mux[/127.0.0.1:34501-1620bafffe81001f-002b87e4-0000002e-a8cde03bf4134f4e-e9f7427b/16/true]], isInitiator=true)> but was: io.libp2p.core.ConnectionClosedException@5d497a91<io.libp2p.core.ConnectionClosedException: Channel closed before protocol negotiation: P2PChannelOverNetty(nettyChannel=[id: 0xe9f7427b/16/true, L:Mux[/127.0.0.1:60646-1620bafffe81001f-002b87e4-0000002e-a8cde03bf4134f4e-e9f7427b/16/true] ! R:Mux[/127.0.0.1:34501-1620bafffe81001f-002b87e4-0000002e-a8cde03bf4134f4e-e9f7427b/16/true]], isInitiator=true)>"
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxCloseOnFirstNegotiationMessage()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxCompletionRemainsTerminal()",
+          "failure": "org.opentest4j.AssertionFailedError: Both futures retain the one closure cause ==> expected: io.libp2p.core.ConnectionClosedException@4a2929a4<io.libp2p.core.ConnectionClosedException: Channel closed before protocol negotiation: P2PChannelOverNetty(nettyChannel=[id: 0x31d32210/1, L:Mux[/127.0.0.1:58118-1620bafffe81001f-002b87e4-00000036-21ede65bf4134fb8-31d32210/1] ! R:Mux[/127.0.0.1:46175-1620bafffe81001f-002b87e4-00000036-21ede65bf4134fb8-31d32210/1]], isInitiator=true)> but was: io.libp2p.core.ConnectionClosedException@cda6019<io.libp2p.core.ConnectionClosedException: Channel closed before protocol negotiation: P2PChannelOverNetty(nettyChannel=[id: 0x31d32210/1, L:Mux[/127.0.0.1:58118-1620bafffe81001f-002b87e4-00000036-21ede65bf4134fb8-31d32210/1] ! R:Mux[/127.0.0.1:46175-1620bafffe81001f-002b87e4-00000036-21ede65bf4134fb8-31d32210/1]], isInitiator=true)>"
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexSelectedProtocolWithPendingControllerSurvivesClose()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxResponderVisitorReset()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "yamuxPreHandlerCloseStopsPostHandler()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexResponderVisitorReset()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexSelectedProtocolSurvivesClose()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostNegotiationCoverageReviewTest",
+          "test": "mplexPostHandlerCloseSettlesFutures()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostClosedStreamMultistreamReviewTest",
+          "test": "mplexClosedStreamDoesNotRunPreHandler()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostClosedStreamMultistreamReviewTest",
+          "test": "yamuxClosedStreamDoesNotRunPreHandler()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostHandlerAddedCloseReviewTest",
+          "test": "yamuxHandlerAddedCloseSettlesNegotiation()",
+          "failure": null
+        },
+        {
+          "class": "io.libp2p.core.HostHandlerAddedCloseReviewTest",
+          "test": "mplexHandlerAddedCloseSettlesNegotiation()",
+          "failure": null
+        }
+      ],
+      "restoredCounts": [
+        22,
+        0,
+        0,
+        0
+      ],
+      "diff": "diff --git a/libp2p/src/main/kotlin/io/libp2p/multistream/MultistreamImpl.kt b/libp2p/src/main/kotlin/io/libp2p/multistream/MultistreamImpl.kt\nindex 4b54d330..df587f98 100644\n--- a/libp2p/src/main/kotlin/io/libp2p/multistream/MultistreamImpl.kt\n+++ b/libp2p/src/main/kotlin/io/libp2p/multistream/MultistreamImpl.kt\n@@ -56,6 +56,6 @@ private fun <T> settleClosedNegotiation(channel: P2PChannel, controller: Complet\n     if (!channel.closeFuture().isDone) return false\n     val failure = ConnectionClosedException(\"Channel closed before protocol negotiation: $channel\")\n     (channel as? Stream)?.getProtocol()?.completeExceptionally(failure)\n-    controller.completeExceptionally(failure)\n+    controller.obtrudeException(failure)\n     return true\n }\n"
+    }
+  ]
+}

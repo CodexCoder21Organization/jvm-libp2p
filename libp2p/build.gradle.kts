@@ -61,3 +61,8 @@ protobuf {
         }
     }
 }
+
+// Forked mDNS tests install their own standard JVM name resolver.
+tasks.test {
+    systemProperty("mdnsTestClasspath", sourceSets["test"].runtimeClasspath.asPath)
+}

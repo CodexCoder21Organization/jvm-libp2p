@@ -23,8 +23,8 @@ class MDnsDiscovery(
     private val queryInterval: Int = QueryInterval,
     val address: InetAddress? = null
 ) : Discoverer {
-    private val localhost = InetAddress.getLocalHost()
-    private var mDns = JmDNS.create(address ?: localhost)
+    private val localhost = address ?: InetAddress.getLocalHost()
+    private var mDns = JmDNS.create(localhost, host.peerId.toBase58())
     override val newPeerFoundListeners: MutableCollection<PeerListener> = CopyOnWriteArrayList()
     private val executor by lazy { ForkJoinPool(1) }
 
@@ -165,7 +165,7 @@ class MDnsDiscovery(
         }.map {
             it.getFirstComponent(protocol)
         }.filterNotNull().map {
-            InetAddress.getByAddress(localhost.hostName, it.value)
+            InetAddress.getByAddress(host.peerId.toBase58(), it.value)
         }.filterIsInstance(klass)
     }
 

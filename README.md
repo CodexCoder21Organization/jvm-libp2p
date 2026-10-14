@@ -79,6 +79,16 @@ whose close future has completed are removed and skipped during selection, even 
 asynchronous table-removal continuation has not run yet. A request made in that interval therefore
 starts a fresh transport dial instead of receiving a connection whose muxer is already closed.
 
+## Explicit-address mDNS startup
+
+`MDnsDiscovery` uses the host's peer ID for its local multicast name. When callers supply
+a numeric `address`, construction and address-record preparation do not consult the
+system DNS resolver. Omitting `address` retains automatic local-host address selection.
+
+The DNS regression tests use the standard JVM resolver-provider API in isolated child
+processes and require JDK 18 or later to run. The library remains compatible with Java 11.
+Run these tests with `./gradlew :libp2p:test --tests '*MDnsDiscoveryExplicitAddressTest'`.
+
 ## Gossip simulator
 
 Deterministic Gossip simulator which may simulate networks as large as 10000 of peers

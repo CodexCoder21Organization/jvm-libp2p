@@ -27,8 +27,7 @@ class MDnsDiscoveryExplicitAddressTest {
     String classpath = System.getProperty("mdnsTestClasspath");
     assertTrue(classpath != null, "Gradle must supply the mDNS test runtime classpath");
     for (String name : new String[] {"ControlledDns.java", "MdnsNoDnsMain.java"}) {
-      try (InputStream source =
-          getClass().getResourceAsStream("/mdns-explicit-address/" + name)) {
+      try (InputStream source = getClass().getResourceAsStream("/mdns-explicit-address/" + name)) {
         assertTrue(source != null, "Missing mDNS test source " + name);
         Files.copy(source, directory.resolve(name));
       }

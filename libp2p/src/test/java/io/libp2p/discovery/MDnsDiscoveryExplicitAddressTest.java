@@ -69,6 +69,7 @@ class MDnsDiscoveryExplicitAddressTest {
       String log = Files.readString(output);
       assertEquals(0, child.exitValue(), log);
       assertTrue(log.contains("MDNS_NO_DNS_OK " + mode + " forward=0 reverse=0"), log);
+      assertTrue(log.contains("MDNS_DNS_PROVIDER_OK"), log);
     } finally {
       child.destroyForcibly();
       assertTrue(child.waitFor(5, TimeUnit.SECONDS), "mDNS child did not exit: " + mode);

@@ -28,8 +28,8 @@ public final class MdnsNoDnsMain {
                 MDnsDiscovery discovery = new MDnsDiscovery(
                         host, "_mdns-explicit-address-test._udp.local.", 120,
                         InetAddress.getByAddress(new byte[] {127, 0, 0, 1}));
-                discovery.start().get(5, TimeUnit.SECONDS);
                 try {
+                    discovery.start().get(5, TimeUnit.SECONDS);
                     if (ControlledDns.forwardCalls.get() != 0 || ControlledDns.reverseCalls.get() != 0) {
                         throw new AssertionError("mDNS start consulted system DNS");
                     }
@@ -60,6 +60,19 @@ public final class MdnsNoDnsMain {
                         + ControlledDns.forwardCalls + ", reverse=" + ControlledDns.reverseCalls);
             }
             System.out.println("MDNS_NO_DNS_OK " + mode + " forward=0 reverse=0");
+            try {
+                InetAddress.getByAddress(new byte[] {(byte) 192, 0, 2, 99}).getHostName();
+                throw new AssertionError("The controlled DNS provider was not installed");
+            } catch (AssertionError expected) {
+                if (!"Explicit-address mDNS must not perform reverse DNS".equals(expected.getMessage())) {
+                    throw expected;
+                }
+            }
+            if (ControlledDns.reverseCalls.get() != 1) {
+                throw new AssertionError("Expected one resolver control query after mDNS: "
+                        + ControlledDns.reverseCalls);
+            }
+            System.out.println("MDNS_DNS_PROVIDER_OK");
         } finally {
             callers.shutdownNow();
             if (!callers.awaitTermination(5, TimeUnit.SECONDS)) {

@@ -21,11 +21,11 @@ public final class MdnsNoDnsMain {
             return Unit.INSTANCE;
         });
         Host host = builder.build(Builder.Defaults.Standard);
-        ControlledDns.checkingMdns = true;
         ExecutorService callers = Executors.newFixedThreadPool(4);
         try {
             if (mode.equals("forward-start")) {
                 host.start().get(5, TimeUnit.SECONDS);
+                ControlledDns.checkingMdns = true;
                 MDnsDiscovery discovery = new MDnsDiscovery(
                         host, "_mdns-explicit-address-test._udp.local.", 120,
                         InetAddress.getByAddress(new byte[] {127, 0, 0, 1}));
@@ -38,6 +38,7 @@ public final class MdnsNoDnsMain {
                     discovery.stop().get(5, TimeUnit.SECONDS);
                 }
             } else {
+                ControlledDns.checkingMdns = true;
                 List<Future<?>> results = new ArrayList<>();
                 for (int call = 0; call < 10; call++) {
                     results.add(callers.submit(() -> {

@@ -81,10 +81,9 @@ starts a fresh transport dial instead of receiving a connection whose muxer is a
 
 ## Explicit-address mDNS startup
 
-`MDnsDiscovery(host, address = numericAddress)` uses the supplied address and the host's
-peer ID for its local multicast name. Construction and address-record preparation do not
-consult the system DNS resolver. Omitting `address` retains automatic local-host address
-selection.
+`MDnsDiscovery` uses the host's peer ID for its local multicast name. When callers supply
+a numeric `address`, construction and address-record preparation do not consult the
+system DNS resolver. Omitting `address` retains automatic local-host address selection.
 
 The DNS regression tests use the standard JVM resolver-provider API in isolated child
 processes and require JDK 18 or later to run. The library remains compatible with Java 11.

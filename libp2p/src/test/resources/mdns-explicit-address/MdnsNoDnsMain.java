@@ -21,6 +21,7 @@ public final class MdnsNoDnsMain {
             return Unit.INSTANCE;
         });
         Host host = builder.build(Builder.Defaults.Standard);
+        ControlledDns.checkingMdns = true;
         ExecutorService callers = Executors.newFixedThreadPool(4);
         try {
             if (mode.equals("forward-start")) {

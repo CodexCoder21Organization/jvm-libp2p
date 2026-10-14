@@ -78,7 +78,9 @@ configure(
     // a fresh Noise ephemeral private key injected before every handshake starts.
     // snapshot-21: exclude connections with completed close futures from both established-connection
     // lookups, so a stream request made during close bookkeeping starts a fresh transport dial.
-    version = "1.3.0-codexcoder21-snapshot-28"
+    // snapshot-29: a paused Yamux child withholds only its own receive credit and delivery; parent
+    // connection reads continue for its siblings. Mplex keeps the connection-wide pause.
+    version = "1.3.0-codexcoder21-snapshot-29"
 
     apply(plugin = "kotlin")
     apply(plugin = "idea")

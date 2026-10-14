@@ -191,7 +191,11 @@ class ChildReadPauseTcpTest {
                 remoteEndFrameForwarded.await(5, TimeUnit.SECONDS),
                 "the remote end frame did not reach the muxer while the child was paused"
             )
-            assertFalse(receiverParent.config().isAutoRead, "the paused child must stop parent reads")
+            assertEquals(
+                muxer == "mplex",
+                !receiverParent.config().isAutoRead,
+                "only an Mplex child pause stops parent reads; a Yamux child pause withholds only its own credit"
+            )
 
             val beforeResume = delivered.toList()
             assertEquals(expectedMessages.first(), beforeResume.first())

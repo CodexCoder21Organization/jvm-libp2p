@@ -1,6 +1,6 @@
-    @ParameterizedTest(name = "earlyCloseObserverReentrySettlesQueuedOpens({0})")
-    @ValueSource(strings = ["yamux", "mplex"])
-    fun earlyCloseObserverReentrySettlesQueuedOpens(muxerName: String) {
+    @ParameterizedTest(name = "earlyCloseObserverReentrySettlesQueuedOpens({0}, {1})")
+    @org.junit.jupiter.params.provider.CsvSource("yamux,connection", "mplex,connection", "yamux,pipeline", "mplex,pipeline")
+    fun earlyCloseObserverReentrySettlesQueuedOpens(muxerName: String, closer: String) {
         val pending = CompletableFuture<List<StreamPromise<PingController>>>()
         val settledAtNestedClose = CompletableFuture<Boolean>()
         val muxer = StreamMuxerProtocol { multistream, protocols ->
@@ -25,7 +25,12 @@
         withPublicationHosts(muxer, { client ->
             client.addConnectionHandler(ConnectionHandler.create { connection ->
                 pending.complete(List(32) { connection.muxerSession().createStream(Ping()) })
-                connection.close()
+                if (closer == "connection") connection.close()
+                else connection.pushHandler(object : ChannelInboundHandlerAdapter() {
+                    override fun handlerAdded(ctx: ChannelHandlerContext) {
+                        ctx.close()
+                    }
+                })
             })
         }) { client, server ->
             client.network.connect(server.peerId, *server.listenAddresses().toTypedArray()).get(5, TimeUnit.SECONDS)

@@ -132,6 +132,23 @@ class ChildReadPauseTcpTest {
             muxers { add(mux) }
             if (listen) network { listen("/ip4/127.0.0.1/tcp/0") }
             protocols { add(binding) }
+            debug {
+                val role = if (listen) "server" else "client"
+                beforeSecureHandler.addNettyHandler(io.netty.handler.logging.LoggingHandler("r237.$role.raw", io.netty.handler.logging.LogLevel.INFO))
+                beforeSecureHandler.addNettyHandler(object : io.netty.channel.ChannelDuplexHandler() {
+                    override fun close(ctx: ChannelHandlerContext, promise: io.netty.channel.ChannelPromise) {
+                        Exception("r237 first physical close $role ${ctx.channel()}").printStackTrace()
+                        ctx.close(promise)
+                    }
+                    override fun exceptionCaught(ctx: ChannelHandlerContext, cause: Throwable) {
+                        println("r237 root exception $role")
+                        cause.printStackTrace()
+                        ctx.fireExceptionCaught(cause)
+                    }
+                })
+                afterSecureHandler.addNettyHandler(io.netty.handler.logging.LoggingHandler("r237.$role.after", io.netty.handler.logging.LogLevel.INFO))
+                muxFramesHandler.addNettyHandler(io.netty.handler.logging.LoggingHandler("r237.$role.frames", io.netty.handler.logging.LogLevel.INFO))
+            }
         }
 
         val client = newHost(false)
@@ -285,6 +302,23 @@ class ChildReadPauseTcpTest {
             muxers { add(mux) }
             if (listen) network { listen("/ip4/127.0.0.1/tcp/0") }
             protocols { add(binding) }
+            debug {
+                val role = if (listen) "server" else "client"
+                beforeSecureHandler.addNettyHandler(io.netty.handler.logging.LoggingHandler("r237.$role.raw", io.netty.handler.logging.LogLevel.INFO))
+                beforeSecureHandler.addNettyHandler(object : io.netty.channel.ChannelDuplexHandler() {
+                    override fun close(ctx: ChannelHandlerContext, promise: io.netty.channel.ChannelPromise) {
+                        Exception("r237 first physical close $role ${ctx.channel()}").printStackTrace()
+                        ctx.close(promise)
+                    }
+                    override fun exceptionCaught(ctx: ChannelHandlerContext, cause: Throwable) {
+                        println("r237 root exception $role")
+                        cause.printStackTrace()
+                        ctx.fireExceptionCaught(cause)
+                    }
+                })
+                afterSecureHandler.addNettyHandler(io.netty.handler.logging.LoggingHandler("r237.$role.after", io.netty.handler.logging.LogLevel.INFO))
+                muxFramesHandler.addNettyHandler(io.netty.handler.logging.LoggingHandler("r237.$role.frames", io.netty.handler.logging.LogLevel.INFO))
+            }
         }
 
         val client = newHost(false)

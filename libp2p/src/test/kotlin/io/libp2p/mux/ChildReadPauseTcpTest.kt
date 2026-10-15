@@ -172,8 +172,8 @@ class ChildReadPauseTcpTest {
             assertFalse(receiverChannel.eventLoop().inEventLoop(), "the test thread must be outside the child event loop")
 
             // Keep the real TCP receiver from reading until every application write and the remote end
-            // have been flushed into the socket. The first callback then blocks while the decoder
-            // forwards this batch through the muxer.
+            // have been flushed into the socket. TCP may still deliver them across several reads.
+            // The first callback blocks while the test pauses the child from outside its I/O loop.
             receiverParent.config().setAutoRead(false)
             val senderChannel = (sender as StreamOverNetty).nettyChannel
             outboundPayloads += expectedMessages.map { Unpooled.copiedBuffer(it, CharsetUtil.UTF_8) }
@@ -196,17 +196,21 @@ class ChildReadPauseTcpTest {
 
             continueFirstDelivery.countDown()
             assertTrue(firstDeliveryCompleted.await(5, TimeUnit.SECONDS), "the in-flight payload did not complete")
-            assertTrue(
-                payloadFramesForwarded.await(5, TimeUnit.SECONDS),
-                "not every payload frame reached the muxer while the child was paused"
-            )
-            assertTrue(
-                remoteEndFrameForwarded.await(5, TimeUnit.SECONDS),
-                "the remote end frame did not reach the muxer while the child was paused"
-            )
+            // Wait for the in-flight callback and the queued off-loop pause to finish, rather than
+            // waiting for frames that may need another TCP read while parent reads are stopped.
+            receiverChannel.eventLoop().submit(Callable {}).get(5, TimeUnit.SECONDS)
             assertFalse(receiverParent.config().isAutoRead, "the paused child must stop parent reads")
 
             val beforeResume = delivered.toList()
+            if (fragmentedReads) {
+                assertEquals(listOf(expectedMessages.first()), beforeResume)
+                assertEquals(
+                    (expectedMessages.size - 1).toLong(),
+                    payloadFramesForwarded.count,
+                    "later payload frames must still need another transport read"
+                )
+                assertEquals(1L, remoteEndFrameForwarded.count, "the remote end must still need another transport read")
+            }
             assertEquals(expectedMessages.first(), beforeResume.first())
             assertTrue(remoteEndMarker !in beforeResume, "the deferred remote end must wait for resume")
             assertTrue(
@@ -216,6 +220,14 @@ class ChildReadPauseTcpTest {
             assertEquals(expectedMessages.take(beforeResume.size), beforeResume)
 
             receiverChannel.config().setAutoRead(true)
+            assertTrue(
+                payloadFramesForwarded.await(5, TimeUnit.SECONDS),
+                "not every payload frame reached the muxer after reads resumed"
+            )
+            assertTrue(
+                remoteEndFrameForwarded.await(5, TimeUnit.SECONDS),
+                "the remote end frame did not reach the muxer after reads resumed"
+            )
             assertTrue(deliveredPayloads.await(5, TimeUnit.SECONDS), "queued payloads were not delivered after resume")
             assertTrue(deliveredRemoteEnd.await(5, TimeUnit.SECONDS), "the deferred remote end was not delivered")
             receiverChannel.eventLoop().submit(Callable {}).get(5, TimeUnit.SECONDS)

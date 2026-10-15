@@ -1,0 +1,32 @@
+gradle.projectsEvaluated {
+    def module = gradle.rootProject.project(':libp2p')
+    def normal = module.tasks.named('test', Test).get()
+    module.tasks.register('lane220LifecycleReview', Test) {
+        dependsOn module.tasks.named('testClasses')
+        testClassesDirs = normal.testClassesDirs
+        classpath = normal.classpath
+        useJUnitPlatform { excludeTags('interop') }
+        filter {
+            includeTestsMatching('io.libp2p.core.MuxCloseDuringPublicationTest')
+            includeTestsMatching('io.libp2p.core.MuxSessionActivationTest')
+        }
+        maxHeapSize = '128m'
+        maxParallelForks = 1
+        outputs.upToDateWhen { false }
+        testLogging { events 'FAILED'; exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL }
+    }
+    (1..5).each { iteration ->
+        module.tasks.register("lane220FramingRepeat${iteration}", Test) {
+            dependsOn module.tasks.named('testClasses')
+            testClassesDirs = normal.testClassesDirs
+            classpath = normal.classpath
+            useJUnitPlatform { excludeTags('interop') }
+            filter { includeTestsMatching('io.libp2p.core.PlaintextMuxCoalescingReviewTest') }
+            maxHeapSize = '128m'
+            maxParallelForks = 1
+            outputs.upToDateWhen { false }
+            testLogging { events 'FAILED'; exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL }
+            if (iteration > 1) mustRunAfter ":libp2p:lane220FramingRepeat${iteration - 1}"
+        }
+    }
+}

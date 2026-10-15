@@ -31,3 +31,16 @@ Pending.
 ## Upload and remote probes
 
 Pending.
+
+## Upload and remote probes
+
+Published using `community.kotlin.maven.artifact.publishing:community-kotlin-maven-artifact-publishing:0.0.6` and `https://api.kotlin.directory/upload`. The CLI accepted the upload after its interactive confirmation; `--force` was not used.
+
+Complete published coordinate list (the only Maven publication configured by this fork at this version):
+
+| Coordinate | File | Probe | SHA-256 | Match to staged file |
+|---|---|---|---|---|
+| `community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-32` | [POM](https://kotlin.directory/community/kotlin/libp2p/jvm-libp2p/1.3.0-codexcoder21-snapshot-32/jvm-libp2p-1.3.0-codexcoder21-snapshot-32.pom) | HTTP 200 | `fc421c87f3bfe55c128bd2e4ff5dec5860b847eaa8e30626023bf6553beb4fdc` | Yes, byte-for-byte |
+| `community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-32` | [JAR](https://kotlin.directory/community/kotlin/libp2p/jvm-libp2p/1.3.0-codexcoder21-snapshot-32/jvm-libp2p-1.3.0-codexcoder21-snapshot-32.jar) | HTTP 200 | `ed318e37320ac46ab174b26969f08d762b0dc6e8de3b615988112a3e46afeb35` | Yes, byte-for-byte |
+
+Sources JAR, Javadoc JAR, and Gradle `.module` metadata were generated into the local Maven repository but excluded from upload by the fork's stated release procedure. No consumer repository was cloned or changed in this lane.

@@ -59,3 +59,16 @@ The module verification keeps the normal Gradle unit-task exclusion of the inter
 | investigations/*.md and captured logs | Keep off source PR | Evidence remains linked from PR39 and evidence branches; these are not product source |
 
 No overlap requires a source edit or importing PR39 history. Current focused/module test outcomes, still pending, are the runtime verification for this decision.
+
+## 13:17 UTC — requested classification complete
+OBSERVED: Unchanged develop 3e88aeef completes the identical five-task command in 401.05 seconds, exit 0: **20/20 pass, 0 failures/errors/skips**. Fresh comparison totals are branch 19/20, base 20/20.
+
+| PlaintextTcpTest scenario | Branch pass/fail | Fresh unchanged-base pass/fail | Disposition |
+|---|---:|---:|---|
+| twoEchosOverSecureConnection | 5 / 0 | 5 / 0 | Unreproduced in both requested samples; earlier suite failure remains recorded |
+| unsupportedServerProtocol | 5 / 0 | 5 / 0 | Unreproduced in both requested samples; earlier wrong-exception trial remains recorded |
+| echoOverSecureConnection | 4 / 1 | 5 / 0 | Existing failure, established by prior identical-base native failure with identical full stack and exact malformed 47-byte wire payload; fresh five base trials did not fire |
+| largeEchoOverSecureConnection | 5 / 0 | 5 / 0 | Unreproduced in both requested samples; earlier suite failure remains recorded |
+
+REFUTED INFERENCE: The brief's suggested rule that a failure occurring only in a five-trial branch sample must be introduced is not supported for echo: the identical source base already emitted the identical test failure and byte-for-byte malformed frame. Five base passes do not invalidate that observed base failure. This is not a green retry verdict or a claim of absence/unchanged frequency; all 40 fresh results and the prior failing base XML are preserved. No speculative source fix is made. The known repeated-activation protocol defect is explicitly left as the follow-up the brief requested.
+PLAN: source/reconciliation DONE; requested four-test comparison DONE with the evidence-backed qualification above; full module verification IN PROGRESS; final PR update/push/cleanup TODO. Restored exact source head 7a27e489, fresh fetch/rebase remains no-op, and began focused 28-case gate before the complementary module halves.

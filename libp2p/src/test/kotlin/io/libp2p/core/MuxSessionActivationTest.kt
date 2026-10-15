@@ -15,13 +15,65 @@ import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
+import java.util.concurrent.Callable
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.ExecutionException
+import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
 class MuxSessionActivationTest {
+    @ParameterizedTest(name = "offLoopQueuedOpensSettleBeforeParentCloseCompletes({0})")
+    @ValueSource(strings = ["yamux", "mplex"])
+    fun offLoopQueuedOpensSettleBeforeParentCloseCompletes(muxerName: String) {
+        val published = CompletableFuture<Connection>()
+        val releasePublication = CountDownLatch(1)
+        val callers = Executors.newFixedThreadPool(8)
+        try {
+            withPublicationHosts(publicationMuxer(muxerName), { client ->
+                client.addConnectionHandler(
+                    ConnectionHandler.create { connection ->
+                        published.complete(connection)
+                        assertTrue(releasePublication.await(5, TimeUnit.SECONDS), "The publication callback was not released")
+                    }
+                )
+            }) { client, server ->
+                try {
+                    val connected = client.network.connect(server.peerId, *server.listenAddresses().toTypedArray())
+                    val connection = published.get(5, TimeUnit.SECONDS)
+                    // The callback holds the event loop while close and real callers queue their work.
+                    // Close is queued first, so every open must settle without executing child creation.
+                    val closed = connection.close()
+                    val opens = callers.invokeAll(List(64) {
+                        Callable { connection.muxerSession().createStream(Ping()) }
+                    }).map { it.get(5, TimeUnit.SECONDS) }
+                    val completions = AtomicInteger()
+                    opens.forEach {
+                        it.stream.whenComplete { _, _ -> completions.incrementAndGet() }
+                        it.controller.whenComplete { _, _ -> completions.incrementAndGet() }
+                    }
+                    val settledAtClose = closed.thenApply {
+                        opens.all { it.stream.isCompletedExceptionally && it.controller.isCompletedExceptionally }
+                    }
+                    releasePublication.countDown()
+                    assertTrue(settledAtClose.get(5, TimeUnit.SECONDS), "Off-loop stream opens must fail before close completes")
+                    connected.get(5, TimeUnit.SECONDS)
+                    opens.forEach(::assertPublicationClosed)
+                    connection.close().get(5, TimeUnit.SECONDS)
+                    assertEquals(128, completions.get(), "Each of the 64 stream and controller futures must complete once")
+                } finally {
+                    releasePublication.countDown()
+                }
+            }
+        } finally {
+            releasePublication.countDown()
+            callers.shutdownNow()
+            assertTrue(callers.awaitTermination(5, TimeUnit.SECONDS), "The stream caller executor did not terminate")
+        }
+    }
+
     @ParameterizedTest
     @org.junit.jupiter.params.provider.CsvSource(
         "yamux,cancel",

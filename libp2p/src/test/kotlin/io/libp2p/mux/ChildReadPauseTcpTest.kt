@@ -13,6 +13,7 @@ import io.libp2p.mux.yamux.YamuxFlag
 import io.libp2p.mux.yamux.YamuxType
 import io.libp2p.protocol.ProtocolHandler
 import io.libp2p.security.plaintext.PlaintextInsecureChannel
+import io.libp2p.transport.implementation.ConnectionOverNetty
 import io.libp2p.transport.implementation.StreamOverNetty
 import io.libp2p.transport.tcp.TcpTransport
 import io.netty.buffer.ByteBuf
@@ -134,6 +135,16 @@ class ChildReadPauseTcpTest {
             muxers { add(mux) }
             if (listen) network { listen("/ip4/127.0.0.1/tcp/0") }
             protocols { add(binding) }
+            debug {
+                if (listen && fragmentedReads) {
+                    beforeSecureHandler.addHandler {
+                        // Configure before the first socket read: Netty caches its receive handle.
+                        // A frame's final byte then cannot share a transport read with a later frame.
+                        val parent = (it as ConnectionOverNetty).nettyChannel
+                        parent.config().setRecvByteBufAllocator(FixedRecvByteBufAllocator(1).maxMessagesPerRead(1))
+                    }
+                }
+            }
         }
 
         val client = newHost(false)
@@ -163,14 +174,7 @@ class ChildReadPauseTcpTest {
             // Keep the real TCP receiver from reading until every application write and the remote end
             // have been flushed into the socket. The first callback then blocks while the decoder
             // forwards this batch through the muxer.
-            receiverParent.eventLoop().submit(Callable {
-                if (fragmentedReads) {
-                    // One byte per read forces the decoder to request another transport read for
-                    // later frames, regardless of how TCP groups the sender's writes.
-                    receiverParent.config().setRecvByteBufAllocator(FixedRecvByteBufAllocator(1).maxMessagesPerRead(1))
-                }
-                receiverParent.config().setAutoRead(false)
-            }).get(5, TimeUnit.SECONDS)
+            receiverParent.config().setAutoRead(false)
             val senderChannel = (sender as StreamOverNetty).nettyChannel
             outboundPayloads += expectedMessages.map { Unpooled.copiedBuffer(it, CharsetUtil.UTF_8) }
             val writeFutures = senderChannel.eventLoop().submit(Callable {

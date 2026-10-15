@@ -1,7 +1,7 @@
 gradle.projectsEvaluated {
     def p = gradle.rootProject.project(':libp2p')
     def original = p.tasks.named('test', Test).get()
-    (1..20).each { n ->
+    (1..Integer.parseInt(p.findProperty('lane238.trials') ?: '20')).each { n ->
         p.tasks.register("lane238Trial${n}", Test) {
             testClassesDirs = original.testClassesDirs
             classpath = original.classpath

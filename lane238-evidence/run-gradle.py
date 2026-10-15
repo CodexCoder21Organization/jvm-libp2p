@@ -5,7 +5,8 @@ subprocess.run(['git','fetch','origin'],cwd='jvm-libp2p',check=True)
 subprocess.run(['git','rebase','origin/develop'],cwd='jvm-libp2p',check=True)
 base=['jvm-libp2p/gradlew','-p','jvm-libp2p','--no-daemon','--max-workers=1','-Dorg.gradle.jvmargs=-Xmx2g','-Pkotlin.compiler.execution.strategy=in-process']
 if sys.argv[2]=='trials':
-    args=['-I',str(Path('repeat.init.gradle').resolve()),'--continue']+[f':libp2p:lane238Trial{i}' for i in range(1,21)]
+    count=int(sys.argv[3]) if len(sys.argv)>3 else 20
+    args=['-I',str(Path('repeat.init.gradle').resolve()),f'-Plane238.trials={count}','--continue']+[f':libp2p:lane238Trial{i}' for i in range(1,count+1)]
 else: args=sys.argv[2:]
 env=dict(os.environ,JAVA_OPTS='-Xmx2g')
 code=subprocess.run([sys.executable,'bounded.py','900',f'evidence/{name}.log']+base+args,env=env).returncode

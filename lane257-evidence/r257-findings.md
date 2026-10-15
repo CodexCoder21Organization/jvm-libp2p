@@ -3,10 +3,10 @@
 2026-10-15 16:20 UTC — RUNNING. Read p257 brief, common rules, previous p252 brief and findings, handoff snapshot, github-repos and status-report skills. No delegation, handoff writes, CI monitoring, merges, publishing or deployment. Stop new work at 17:33 UTC, wall limit 17:48 UTC (start approximately 16:18 UTC).
 
 ## Plan
-- [in progress] Fresh clone; read repository instructions and linked reference docs; verify predecessor commits and state the activation/close invariants.
-- [pending] Reproduce public close failures, review/reapply WIP, fix at the cause and checkpoint.
-- [pending] Run ten focused repetitions, original coalesced fixture, 191 neighboring tests and transport tests with a bounded Gradle invocation.
-- [pending] Independent test and code reviews; rebase, commit/push; create REST PR against develop; record counts and clean owned processes, checkout and cache.
+- [completed] Fresh clone; read repository instructions and linked reference docs; verify predecessor commits and state the activation/close invariants.
+- [completed] Reproduce public close failures, review/reapply WIP, fix at the cause and checkpoint.
+- [completed] Run ten focused repetitions, original coalesced fixture, 191 neighboring tests and transport tests with a bounded Gradle invocation.
+- [completed] Independent test and code reviews; rebase, commit/push; create REST PR against develop; record counts and clean owned processes, checkout and cache.
 
 ## Observed / inferred
 OBSERVED: predecessor findings report a rejected decoder-order candidate, an activation-guard fix, and four public close-callback failures. These remain prior evidence until verified locally. Repository search is in progress.
@@ -70,3 +70,10 @@ OBSERVED: complete native XML copied to `out/r257-verification-xml/`, exact grou
 2. Activation/close/input invariants — DONE. Public tests prove once-only activation, close before/during activation, no payload after activation-close, repeated close, input release and pending-controller settlement. Close tests fail 6/8 with source fix removed (two passing controls); 16/16 fixed, then ten independent 16/16 runs.
 3. Required repeated/original/neighbor/transport checks — DONE with counts above; no assertion weakened or timeout raised.
 4. Commit/push — DONE at linked commits; REST PR/evidence push and cleanup IN PROGRESS. No merge/publication/deployment/CI monitoring performed or planned.
+
+## 16:47 UTC — DONE
+REST PR against develop: https://github.com/CodexCoder21Organization/jvm-libp2p/pull/50 . Source branch: https://github.com/CodexCoder21Organization/jvm-libp2p/tree/fix/lane257-negotiation-activation-close . Exact tested head: https://github.com/CodexCoder21Organization/jvm-libp2p/commit/f74ff5a0dccefbdfe035ee6a67395acddcd45d2c .
+Evidence (full native XML, logs, counts, original fixture, prior fail-first/candidate evidence, review and findings): https://github.com/CodexCoder21Organization/jvm-libp2p/tree/evidence/lane257-negotiation-20261015/lane257-evidence . Evidence branch initially pushed at a13fd5492943e46bd48a7dc9110eb921e5f157fa; final findings snapshot will be saved to this branch as well.
+OBSERVED: all brief steps complete. 160/160 repeated focused cases, 2/2 original fixture cases, 199/199 neighboring cases, 72 transport passes with one inherited disabled case; no failures/errors. Final strengthened tests fail 6/8 without the close fix; original coalesced baseline fails 4/4. Full failure stack traces preserved in the evidence.
+OBSERVED: final code worktree and stash were clean; no generated file or evidence artifact included in the four-file PR diff. Checkout deleted, isolated Kubo files/archive deleted, temporary scripts and reference-doc cache deleted. No lane257 kompile cache existed. Kubo wrapper exited and every tracked command completed. `ps -eo pid,args -ww` saved to out/r257-processes-final.txt and checked: no launched Kubo/Gradle process remains. No merge, queue, artifact publication, deployment, handoff write or CI watch performed. CI monitoring remains with the supervisor per common.md.
+Open questions: none. No required work remains in this lane.

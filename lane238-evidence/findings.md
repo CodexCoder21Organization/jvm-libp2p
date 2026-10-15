@@ -3,8 +3,8 @@
 ## 2026-10-15 14:08 UTC — plan
 - DONE: Read brief/common/reference docs, fresh clone, confirm exact PR head and no-op rebase.
 - DONE: Read test/router/PR diff; record mechanism and invariant table before changes.
-- IN PROGRESS: Identical original-test trials on PR/develop; preserve native logs and failure stacks.
-- TODO: Deterministically force suspected ordering on both heads through public API.
+- DONE: Identical original-test trials on PR/develop; preserve native logs and failure stacks.
+- IN PROGRESS: Deterministically force suspected ordering on both heads through public API.
 - TODO: Fix the demonstrated cause on own branch; mutation-check fast-ID assertions; fixed 10/10 and neighbours.
 - TODO: Independent test/code review, REST PR, durable evidence, process/cache/checkout cleanup.
 
@@ -58,3 +58,15 @@ PLAN UPDATE: After deterministic proof and correction, run **30** fixed original
 OBSERVED: Public-API ordering probe on unchanged develop completes 20 native cases: **old completion assumption fails 10/10; await-real-completion variant passes 10/10**. Every attempt logs BEFORE `duplicateDone=false, createdMessages=0` after the original 100 ms poll. Releasing the event-thread gate and awaiting the actual inbound future logs AFTER `duplicateDone=true, createdMessages=1, canonicalId=null` (all 20 cleanup observations). No product source changed. The public gate is a queued router event callback; no CPU load, sleep, reflection, mux or transport is involved.
 OBSERVED: The failing assertion is the original expected-size-1 assertion (probe line 84), not a timeout. Full stacks and stdout are in develop-ordering/test/TEST-io.libp2p.pubsub.GossipFastMessageIdOrderingProbe.xml. Native run exit 1 is expected: its ten negative controls intentionally retain the wrong original completion assumption. Positive controls explicitly wait for the task and retain count/null-delivery/canonical-null assertions.
 INFER: The test's clock-based silence check can precede message construction; the product's fast-ID filtering works after completion in the same forced schedule. This establishes the root completion-contract defect on develop. The exact same probe is now running at unchanged PR head 7a27e489; no fix has been written.
+
+## 14:28 UTC — RUNNING status report
+Original request: Attribute GossipApiTest.testFastMessageId failures against exact PR 48 and fix the demonstrated cause on an own branch. OBSERVED: Fresh REST read confirms https://github.com/CodexCoder21Organization/jvm-libp2p/pull/48 remains OPEN at 7a27e489, base develop, mergeable_state clean. No session PR exists yet. Source comparison and native original comparison are complete; unchanged develop has four exact natural assertion failures. Its deterministic probe has ten expected old-contract failures and ten completion-based passes; PR probe has compiled production/fixtures and is compiling tests. No correction has been written yet.
+Delegated work at a glance: none active or recently finished. No blockers. Landing parallelization sweep: one owned Gradle build is running; no additional independent gate is waiting to be started within this brief. No Handoff service or recurring background loop is used, as common.md explicitly forbids Handoff actions and requires this findings file instead.
+Planned correction: Put each assertion after its inbound call on the router event thread. Chain the two real completion futures and wait for the chain within the existing one-second first-message bound. Retain the real executor and all fast-ID assertions, closing the test executor in finally.
+Next: Finish the PR ordering proof, implement the test correction, mutation-check it, run 30 fixed trials and neighbors, review, open REST PR, push final evidence and clean up.
+Lessons: Queue silence is not a completion barrier; exact native base trials can directly refute an attribution; a forced public-API ordering proves the contract without machine-tuned load.
+
+## 14:30 UTC — exact PR deterministic proof; mechanism settled before correction
+OBSERVED: Exact PR 7a27e489 yields the identical **10/10 expected old-contract failures and 10/10 completion-based passes**, with all 20 BEFORE observations pending/size 0 and all 20 AFTER observations completed/size 1/canonical null. Native XML/full output saved. Thus both heads demonstrate the original assertion reachable before the queued inbound task runs; both handle the duplicate correctly once it finishes. Deterministic proof fails at expected-size-1, not a timeout. No product changes or test correction preceded this result.
+VERDICT: This is a pre-existing test completion-contract bug, not a mux activation regression. The mechanism is runOnEventThread returning after enqueue while the test uses absence from the delivery queue as if it acknowledged duplicate processing; the duplicate is intentionally never delivered. A future for the actual onInbound operation is the acknowledgement. The natural unchanged-base failures reproduce the exact earlier PR assertion, and controlled ordering demonstrates why it is invalid on both heads.
+NEXT: Cut fix/lane238-fast-message-id from origin/develop, remove temporary probe from test sources (retain it on evidence branch), correct existing test with chained event-thread completion, then verify/mutation-check. No production source or version change is needed.

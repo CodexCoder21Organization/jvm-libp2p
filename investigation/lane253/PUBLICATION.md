@@ -32,3 +32,7 @@ JAVA_OPTS=-Xmx2g timeout 1200 /home/helena/bin/coursier launch \
 ```
 
 The CLI confirmation flag was used only after both target files returned HTTP 404. The readback checks in published-probes.json verified the resulting remote bytes.
+
+## Consumer verification
+
+Consumer source: https://github.com/CodexCoder21Organization/UrlResolver/commit/c6e007aea8158b936362757f159bd99c9eb36714 . Resolver 0.0.1315 POM inspected locally: it directly selects jvm-libp2p snapshot-31. Local Maven build passed in 399426 ms. Test source edits are dependency literals only, with assertions, limits and iteration counts preserved. The first requested test, stressTestActiveQueryReportsResponseReadFailure, passed 1/1. Remaining targeted tests are still running at this checkpoint; results and full completed test logs are under consumer-tests/.

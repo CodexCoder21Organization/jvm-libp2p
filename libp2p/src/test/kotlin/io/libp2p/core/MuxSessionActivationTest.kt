@@ -56,9 +56,11 @@ class MuxSessionActivationTest {
             context.fireChannelActive()
         }
         withPublicationHosts(muxer, { client ->
-            client.addConnectionHandler(ConnectionHandler.create {
-                observed.complete(activated.get())
-            })
+            client.addConnectionHandler(
+                ConnectionHandler.create {
+                    observed.complete(activated.get())
+                }
+            )
         }) { client, server ->
             val connection = client.network.connect(server.peerId, *server.listenAddresses().toTypedArray())
                 .get(5, TimeUnit.SECONDS)
@@ -96,16 +98,18 @@ class MuxSessionActivationTest {
         val reentered = CompletableFuture<StreamPromise<PingController>>()
         val completionCount = AtomicInteger()
         withPublicationHosts(publicationMuxer(muxerName), { client ->
-            client.addConnectionHandler(ConnectionHandler.create { connection ->
-                val opens = List(32) { connection.muxerSession().createStream(Ping()) }
-                opens.first().controller.whenComplete { _, _ ->
-                    completionCount.incrementAndGet()
-                    reentered.complete(connection.muxerSession().createStream(Ping()))
+            client.addConnectionHandler(
+                ConnectionHandler.create { connection ->
+                    val opens = List(32) { connection.muxerSession().createStream(Ping()) }
+                    opens.first().controller.whenComplete { _, _ ->
+                        completionCount.incrementAndGet()
+                        reentered.complete(connection.muxerSession().createStream(Ping()))
+                    }
+                    connection.close()
+                    connection.close()
+                    pending.complete(opens)
                 }
-                connection.close()
-                connection.close()
-                pending.complete(opens)
-            })
+            )
         }) { client, server ->
             client.network.connect(server.peerId, *server.listenAddresses().toTypedArray()).get(5, TimeUnit.SECONDS)
             pending.get(5, TimeUnit.SECONDS).forEach(::assertPublicationClosed)
@@ -181,7 +185,10 @@ private fun withPublicationHosts(
         identity { random() }
         transports { +::TcpTransport }
         secureChannels { add(::NoiseXXSecureChannel) }
-        muxers { +StreamMuxerProtocol.getYamux(); +StreamMuxerProtocol.Mplex }
+        muxers {
+            +StreamMuxerProtocol.getYamux()
+            +StreamMuxerProtocol.Mplex
+        }
         network { listen("/ip4/127.0.0.1/tcp/0") }
         protocols { +Ping() }
     }
@@ -203,8 +210,9 @@ private fun withPublicationHosts(
                 failures += failure
             }
         }
-        if (primary != null) failures.forEach { primary.addSuppressed(it) }
-        else if (failures.isNotEmpty()) {
+        if (primary != null) {
+            failures.forEach { primary.addSuppressed(it) }
+        } else if (failures.isNotEmpty()) {
             val failure = failures.first()
             failures.drop(1).forEach { failure.addSuppressed(it) }
             throw failure

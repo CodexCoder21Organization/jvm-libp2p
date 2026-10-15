@@ -53,13 +53,17 @@ private fun closeDuringMuxPublication(muxer: StreamMuxerProtocol, openBeforeClos
         protocols { +Ping() }
     }
     val published = CompletableFuture<Pair<Connection, StreamPromise<PingController>?>>()
-    client.addConnectionHandler(ConnectionHandler.create { connection ->
-        val pending = if (openBeforeClose) {
-            client.newStream<PingController>(Ping().protocolDescriptor.announceProtocols, connection)
-        } else null
-        connection.close()
-        published.complete(connection to pending)
-    })
+    client.addConnectionHandler(
+        ConnectionHandler.create { connection ->
+            val pending = if (openBeforeClose) {
+                client.newStream<PingController>(Ping().protocolDescriptor.announceProtocols, connection)
+            } else {
+                null
+            }
+            connection.close()
+            published.complete(connection to pending)
+        }
+    )
     var primary: Throwable? = null
     try {
         server.start().get(5, TimeUnit.SECONDS)
@@ -68,7 +72,8 @@ private fun closeDuringMuxPublication(muxer: StreamMuxerProtocol, openBeforeClos
         val (connection, pending) = published.get(5, TimeUnit.SECONDS)
         connection.closeFuture().get(5, TimeUnit.SECONDS)
         val promise = pending ?: client.newStream<PingController>(
-            Ping().protocolDescriptor.announceProtocols, connection
+            Ping().protocolDescriptor.announceProtocols,
+            connection
         )
         val controllerFailure = assertThrows(ExecutionException::class.java) {
             promise.controller.get(5, TimeUnit.SECONDS)
@@ -84,10 +89,15 @@ private fun closeDuringMuxPublication(muxer: StreamMuxerProtocol, openBeforeClos
     } finally {
         val failures = mutableListOf<Throwable>()
         for (node in listOf(client, server)) {
-            try { node.stop().get(5, TimeUnit.SECONDS) } catch (failure: Throwable) { failures += failure }
+            try {
+                node.stop().get(5, TimeUnit.SECONDS)
+            } catch (failure: Throwable) {
+                failures += failure
+            }
         }
-        if (primary != null) failures.forEach { primary.addSuppressed(it) }
-        else if (failures.isNotEmpty()) {
+        if (primary != null) {
+            failures.forEach { primary.addSuppressed(it) }
+        } else if (failures.isNotEmpty()) {
             val failure = failures.first()
             failures.drop(1).forEach { failure.addSuppressed(it) }
             throw failure

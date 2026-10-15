@@ -51,6 +51,7 @@ abstract class AbstractMuxHandler<TData>(
     private val streamMap: MutableMap<MuxId, MuxChannel<TData>> = mutableMapOf()
     var ctx: ChannelHandlerContext? = null
     private val activeFuture = CompletableFuture<Void>()
+
     @Volatile
     private var closed = false
     protected abstract val inboundInitializer: MuxChannelInitializer<TData>
@@ -415,5 +416,7 @@ abstract class AbstractMuxHandler<TData>(
     private fun checkClosed() =
         if (closed || ctx?.channel()?.isOpen == false) {
             throw ConnectionClosedException("Can't create a new stream: connection was closed: " + ctx!!.channel())
-        } else Unit
+        } else {
+            Unit
+        }
 }

@@ -6,7 +6,7 @@
 - DONE: Identical original-test trials on PR/develop; preserve native logs and failure stacks.
 - DONE: Deterministically force suspected ordering on both heads through public API.
 - DONE: Fix the demonstrated cause on own branch; mutation-check fast-ID assertions; fixed 10/10 and neighbours.
-- IN PROGRESS: Independent reviews and REST PR DONE; durable terminal evidence and process/cache/checkout cleanup remain.
+- DONE: Independent reviews, REST PR, durable terminal evidence and process/cache/checkout cleanup.
 
 OBSERVED: Brief/common read. Target head 7a27e4890885592f60ad402af6af30b5578da364, base develop. No nested delegation, CI monitoring, merge, publication, deployment or Handoff service action permitted. New-work cutoff 15:22 UTC (75 minutes from 14:07 launch); hard wall 15:37 UTC. Findings incrementally written here.
 
@@ -127,6 +127,15 @@ BRIEF AUDIT:
 - Independent test-comprehensiveness and code-review passes: DONE; no unresolved findings.
 - REST PR with why/links/appropriate base: DONE. No publication, merge, queue, deployment, CI wait or Handoff action: DONE.
 - Durable logs/XML/source/patches/index/findings: DONE through current checkpoint; final PR/cleanup record being appended.
-- Kill/inspect every owned background process and delete own checkout/cache: IN PROGRESS, required before final response.
+- Kill/inspect every owned background process and delete own checkout/cache: DONE; terminal manifest confirms it.
 
 VERDICT: Pre-existing test completion-contract bug. The fix PR addresses that defect only; this is not a full-module or green/landable verdict for the mux PR. No open diagnostic question remains for this lane.
+
+## 15:02 UTC — terminal cleanup confirmed
+OBSERVED: Required ps inspection confirms no active owned Gradle/Java process remains. Deleted every lane checkout, local evidence copy, scripts and outputs after remote checkpoints. Lane directory is empty; matching .aibuildcaches entries deleted: 0. Shared Gradle/Coursier caches were left alone. Cleanup manifest: r238-cleanup.json. No monitor, background build, subagent, merge/queue, publication, deployment or Handoff action remains.
+
+## 15:02 UTC — DONE final status
+Original request: attribute and fix testFastMessageId failures associated with the mux PR. Completed with a pre-existing completion-contract defect demonstrated on both exact source states, and a test-only fix PR. Corrected test passes 30/30; neighbors 5/5; Java formatting passes; both deliberate product mutations fail independent assertions.
+The correction asserts on the event thread after inbound returns. Both real completion futures are chained under the existing one-second bound. All six assertions and real executor remain, with executor shutdown in finally.
+Fresh PR status: {"url": "https://github.com/CodexCoder21Organization/jvm-libp2p/pull/49", "state": "open", "merged_at": null, "head": "82db409e868292cfbdfb5f445d1da1f9a5e24a8a", "base": "develop"}. No CI/full-module claim; no merge or publication by this lane. Delegated work at a glance: none. Landing sweep: no gate remains running. Blockers/open questions: none. Next steps for this assigned request: none; review/merge remains the owner's separate decision.
+Lessons: await actual completion rather than queue silence; compare exact source states and retain natural base failures; independently mutate each important behavior assertion.

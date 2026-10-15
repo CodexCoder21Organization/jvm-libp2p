@@ -1,0 +1,28 @@
+diff --git a/libp2p/src/test/kotlin/io/libp2p/mux/ChildReadPauseTcpTest.kt b/libp2p/src/test/kotlin/io/libp2p/mux/ChildReadPauseTcpTest.kt
+index b816b720..c79d050b 100644
+--- a/libp2p/src/test/kotlin/io/libp2p/mux/ChildReadPauseTcpTest.kt
++++ b/libp2p/src/test/kotlin/io/libp2p/mux/ChildReadPauseTcpTest.kt
+@@ -132,6 +132,23 @@ class ChildReadPauseTcpTest {
+             muxers { add(mux) }
+             if (listen) network { listen("/ip4/127.0.0.1/tcp/0") }
+             protocols { add(binding) }
++            debug {
++                val role = if (listen) "server" else "client"
++                beforeSecureHandler.addNettyHandler(io.netty.handler.logging.LoggingHandler("r241.$role.raw", io.netty.handler.logging.LogLevel.INFO))
++                beforeSecureHandler.addNettyHandler(object : io.netty.channel.ChannelDuplexHandler() {
++                    override fun close(ctx: ChannelHandlerContext, promise: io.netty.channel.ChannelPromise) {
++                        Exception("r241 first physical close $role ${ctx.channel()}").printStackTrace()
++                        ctx.close(promise)
++                    }
++                    override fun exceptionCaught(ctx: ChannelHandlerContext, cause: Throwable) {
++                        println("r241 root exception $role")
++                        cause.printStackTrace()
++                        ctx.fireExceptionCaught(cause)
++                    }
++                })
++                afterSecureHandler.addNettyHandler(io.netty.handler.logging.LoggingHandler("r241.$role.after", io.netty.handler.logging.LogLevel.INFO))
++                muxFramesHandler.addNettyHandler(io.netty.handler.logging.LoggingHandler("r241.$role.frames", io.netty.handler.logging.LogLevel.INFO))
++            }
+         }
+ 
+         val client = newHost(false)

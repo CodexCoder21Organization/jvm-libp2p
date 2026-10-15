@@ -25,6 +25,50 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
 class MuxSessionActivationTest {
+    @ParameterizedTest(name = "earlyCloseObserverReentrySettlesQueuedOpens({0}, {1})")
+    @org.junit.jupiter.params.provider.CsvSource("yamux,connection", "mplex,connection", "yamux,pipeline", "mplex,pipeline")
+    fun earlyCloseObserverReentrySettlesQueuedOpens(muxerName: String, closer: String) {
+        val pending = CompletableFuture<List<StreamPromise<PingController>>>()
+        val settledAtNestedClose = CompletableFuture<Boolean>()
+        val muxer = StreamMuxerProtocol { multistream, protocols ->
+            publicationMuxer(muxerName).createMuxer(multistream, protocols).also { delegate ->
+                (delegate as StreamMuxerDebug).muxFramesDebugHandler = ChannelVisitor { connection ->
+                    // Subscribe before the mux handler attaches its physical-close observer.
+                    connection.closeFuture().thenRun {
+                        if (pending.isDone) {
+                            connection.close().whenComplete { _, error ->
+                                if (error != null) settledAtNestedClose.completeExceptionally(error)
+                                else settledAtNestedClose.complete(
+                                    pending.getNow(emptyList()).all {
+                                        it.stream.isCompletedExceptionally && it.controller.isCompletedExceptionally
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        withPublicationHosts(muxer, { client ->
+            client.addConnectionHandler(ConnectionHandler.create { connection ->
+                pending.complete(List(32) { connection.muxerSession().createStream(Ping()) })
+                if (closer == "connection") connection.close()
+                else connection.pushHandler(object : ChannelInboundHandlerAdapter() {
+                    override fun handlerAdded(ctx: ChannelHandlerContext) {
+                        ctx.close()
+                    }
+                })
+            })
+        }) { client, server ->
+            client.network.connect(server.peerId, *server.listenAddresses().toTypedArray()).get(5, TimeUnit.SECONDS)
+            assertTrue(
+                settledAtNestedClose.get(5, TimeUnit.SECONDS),
+                "A close requested by an early close observer must await pending stream settlement"
+            )
+            pending.get(5, TimeUnit.SECONDS).forEach(::assertPublicationClosed)
+        }
+    }
+
     @ParameterizedTest(name = "offLoopQueuedOpensSettleBeforeParentCloseCompletes({0})")
     @ValueSource(strings = ["yamux", "mplex"])
     fun offLoopQueuedOpensSettleBeforeParentCloseCompletes(muxerName: String) {

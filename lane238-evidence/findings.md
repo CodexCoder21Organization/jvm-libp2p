@@ -1,9 +1,9 @@
 # Lane 238 — fast message ID attribution
 
 ## 2026-10-15 14:08 UTC — plan
-- IN PROGRESS: Read brief/common/reference docs, fresh clone, confirm exact PR head and no-op rebase.
-- TODO: Read test/router/PR diff; record mechanism and invariant table before changes.
-- TODO: Identical original-test trials on PR/develop; preserve native logs and failure stacks.
+- DONE: Read brief/common/reference docs, fresh clone, confirm exact PR head and no-op rebase.
+- DONE: Read test/router/PR diff; record mechanism and invariant table before changes.
+- IN PROGRESS: Identical original-test trials on PR/develop; preserve native logs and failure stacks.
 - TODO: Deterministically force suspected ordering on both heads through public API.
 - TODO: Fix the demonstrated cause on own branch; mutation-check fast-ID assertions; fixed 10/10 and neighbours.
 - TODO: Independent test/code review, REST PR, durable evidence, process/cache/checkout cleanup.
@@ -42,3 +42,11 @@ expected: 1
 ```
 Saved native XML locally and will push with the comparison evidence. The original assertion is size 1 after an intentionally empty duplicate delivery poll. INFER: This matches the candidate but prior XML has no task-completion marker, so it alone does not prove ordering. The controlled public-API gate remains the deciding experiment.
 CORRECTION: Full first evidence commit URL is https://github.com/CodexCoder21Organization/jvm-libp2p/commit/8bad86281f6571f4e4de22eaca31f7b37fc63ccd .
+
+## 14:17 UTC — planned correction shape, not yet applied
+INFER / REVIEW CONSTRAINT: Merely replacing the duplicate's 100 ms empty poll with a 100 ms future wait would change the failure into a timeout when the event thread is held, while retaining an arbitrary per-duplicate scheduling deadline. The correction should instead run both sets of assertions after their respective onInbound calls on the router event thread, chain those two real completion futures, and await the entire chain using the existing first-message 1-second bound. This removes the invalid 100 ms silence-as-completion assumption without increasing any timeout or total wait budget. Keep separate queued tasks so the first message's queued validation continuation can run before the duplicate, as in the original test. Preserve every payload/count/canonical-ID assertion and the real executor; shut that executor down in finally. Will only implement after the deterministic failing evidence is recorded on both heads.
+
+## 14:21 UTC — unchanged develop naturally reproduces original assertion
+OBSERVED: Identical unchanged-develop 20-task batch completes with **16 passed / 4 failed / 0 skipped** (trials 5, 6, 12, 19), exit 1 in 299.90 seconds including recompilation. Each native XML stack is identical to lane229's PR failure: expected 1, actual 0 at GossipApiTest.java:75, followed by Method.invoke:580 and two ArrayList.forEach:1596 frames. PR-head sample is separately **20 passed / 0 failed / 0 skipped**. Native XML and complete command/output are preserved; no failing trial was rerun away.
+INFER / ATTRIBUTION: The premise that this assertion requires PR 48 is refuted by four natural failures of the unchanged original test on exact develop 3e88aeef. The responsible code path is identical between heads and never instantiates a mux/transport. The narrower task of identifying the completion mechanism remains in progress; native controlled ordering probe now running on develop before any fix.
+PLAN: Original comparison DONE. Deterministic public-API ordering probe IN PROGRESS. Fix, mutation, fixed trials, neighbours, independent reviews and PR remain TODO.

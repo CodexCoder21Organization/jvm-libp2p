@@ -1,0 +1,134 @@
+diff --git a/libp2p/src/test/kotlin/io/libp2p/mux/ChildReadPauseTcpTest.kt b/libp2p/src/test/kotlin/io/libp2p/mux/ChildReadPauseTcpTest.kt
+index b816b720..46351448 100644
+--- a/libp2p/src/test/kotlin/io/libp2p/mux/ChildReadPauseTcpTest.kt
++++ b/libp2p/src/test/kotlin/io/libp2p/mux/ChildReadPauseTcpTest.kt
+@@ -8,17 +8,19 @@ import io.libp2p.core.mux.StreamMuxerProtocol
+ import io.libp2p.etc.util.netty.mux.RemoteWriteClosed
+ import io.libp2p.mux.mplex.MplexFlag
+ import io.libp2p.mux.mplex.MplexFrame
+-import io.libp2p.mux.yamux.YamuxFrame
+ import io.libp2p.mux.yamux.YamuxFlag
++import io.libp2p.mux.yamux.YamuxFrame
+ import io.libp2p.mux.yamux.YamuxType
+ import io.libp2p.protocol.ProtocolHandler
+ import io.libp2p.security.plaintext.PlaintextInsecureChannel
++import io.libp2p.transport.implementation.ConnectionOverNetty
+ import io.libp2p.transport.implementation.StreamOverNetty
+ import io.libp2p.transport.tcp.TcpTransport
+ import io.netty.buffer.ByteBuf
+ import io.netty.buffer.Unpooled
+ import io.netty.channel.ChannelHandlerContext
+ import io.netty.channel.ChannelInboundHandlerAdapter
++import io.netty.channel.FixedRecvByteBufAllocator
+ import io.netty.channel.IoEventLoop
+ import io.netty.channel.MultiThreadIoEventLoopGroup
+ import io.netty.channel.SimpleChannelInboundHandler
+@@ -29,6 +31,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
+ import org.junit.jupiter.api.Assertions.assertFalse
+ import org.junit.jupiter.api.Assertions.assertTrue
+ import org.junit.jupiter.params.ParameterizedTest
++import org.junit.jupiter.params.provider.CsvSource
+ import org.junit.jupiter.params.provider.ValueSource
+ import java.util.concurrent.Callable
+ import java.util.concurrent.CompletableFuture
+@@ -39,9 +42,9 @@ import java.util.concurrent.TimeUnit
+ private const val PAUSE_PROTOCOL = "/test/child-read-pause/1.0.0"
+ 
+ class ChildReadPauseTcpTest {
+-    @ParameterizedTest
+-    @ValueSource(strings = ["mplex", "yamux"])
+-    fun offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume(muxer: String) {
++    @ParameterizedTest(name = "{0}, fragmented transport reads={1}")
++    @CsvSource("mplex, false", "yamux, false", "mplex, true", "yamux, true")
++    fun offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume(muxer: String, fragmentedReads: Boolean) {
+         val expectedMessages = listOf("first complete message", "second complete message", "third complete message")
+         val remoteEndMarker = "<remote-end>"
+         val delivered = ConcurrentLinkedQueue<String>()
+@@ -132,6 +135,16 @@ class ChildReadPauseTcpTest {
+             muxers { add(mux) }
+             if (listen) network { listen("/ip4/127.0.0.1/tcp/0") }
+             protocols { add(binding) }
++            debug {
++                if (listen && fragmentedReads) {
++                    beforeSecureHandler.addHandler {
++                        // Configure before the first socket read: Netty caches its receive handle.
++                        // A frame's final byte then cannot share a transport read with a later frame.
++                        val parent = (it as ConnectionOverNetty).nettyChannel
++                        parent.config().setRecvByteBufAllocator(FixedRecvByteBufAllocator(1).maxMessagesPerRead(1))
++                    }
++                }
++            }
+         }
+ 
+         val client = newHost(false)
+@@ -159,16 +172,18 @@ class ChildReadPauseTcpTest {
+             assertFalse(receiverChannel.eventLoop().inEventLoop(), "the test thread must be outside the child event loop")
+ 
+             // Keep the real TCP receiver from reading until every application write and the remote end
+-            // have been flushed into the socket. The first callback then blocks while the decoder
+-            // forwards this batch through the muxer.
++            // have been flushed into the socket. TCP may still deliver them across several reads.
++            // The first callback blocks while the test pauses the child from outside its I/O loop.
+             receiverParent.config().setAutoRead(false)
+             val senderChannel = (sender as StreamOverNetty).nettyChannel
+             outboundPayloads += expectedMessages.map { Unpooled.copiedBuffer(it, CharsetUtil.UTF_8) }
+-            val writeFutures = senderChannel.eventLoop().submit(Callable {
+-                val writes = outboundPayloads.map { senderChannel.write(it) }
+-                senderChannel.flush()
+-                writes
+-            }).get(5, TimeUnit.SECONDS)
++            val writeFutures = senderChannel.eventLoop().submit(
++                Callable {
++                    val writes = outboundPayloads.map { senderChannel.write(it) }
++                    senderChannel.flush()
++                    writes
++                }
++            ).get(5, TimeUnit.SECONDS)
+             writeFutures.forEach { it.get(5, TimeUnit.SECONDS) }
+             senderChannel.disconnect().get(5, TimeUnit.SECONDS)
+             receiverParent.config().setAutoRead(true)
+@@ -183,17 +198,21 @@ class ChildReadPauseTcpTest {
+ 
+             continueFirstDelivery.countDown()
+             assertTrue(firstDeliveryCompleted.await(5, TimeUnit.SECONDS), "the in-flight payload did not complete")
+-            assertTrue(
+-                payloadFramesForwarded.await(5, TimeUnit.SECONDS),
+-                "not every payload frame reached the muxer while the child was paused"
+-            )
+-            assertTrue(
+-                remoteEndFrameForwarded.await(5, TimeUnit.SECONDS),
+-                "the remote end frame did not reach the muxer while the child was paused"
+-            )
++            // Wait for the in-flight callback and the queued off-loop pause to finish, rather than
++            // waiting for frames that may need another TCP read while parent reads are stopped.
++            receiverChannel.eventLoop().submit(Callable {}).get(5, TimeUnit.SECONDS)
+             assertFalse(receiverParent.config().isAutoRead, "the paused child must stop parent reads")
+ 
+             val beforeResume = delivered.toList()
++            if (fragmentedReads) {
++                assertEquals(listOf(expectedMessages.first()), beforeResume)
++                assertEquals(
++                    (expectedMessages.size - 1).toLong(),
++                    payloadFramesForwarded.count,
++                    "later payload frames must still need another transport read"
++                )
++                assertEquals(1L, remoteEndFrameForwarded.count, "the remote end must still need another transport read")
++            }
+             assertEquals(expectedMessages.first(), beforeResume.first())
+             assertTrue(remoteEndMarker !in beforeResume, "the deferred remote end must wait for resume")
+             assertTrue(
+@@ -203,6 +222,14 @@ class ChildReadPauseTcpTest {
+             assertEquals(expectedMessages.take(beforeResume.size), beforeResume)
+ 
+             receiverChannel.config().setAutoRead(true)
++            assertTrue(
++                payloadFramesForwarded.await(5, TimeUnit.SECONDS),
++                "not every payload frame reached the muxer after reads resumed"
++            )
++            assertTrue(
++                remoteEndFrameForwarded.await(5, TimeUnit.SECONDS),
++                "the remote end frame did not reach the muxer after reads resumed"
++            )
+             assertTrue(deliveredPayloads.await(5, TimeUnit.SECONDS), "queued payloads were not delivered after resume")
+             assertTrue(deliveredRemoteEnd.await(5, TimeUnit.SECONDS), "the deferred remote end was not delivered")
+             receiverChannel.eventLoop().submit(Callable {}).get(5, TimeUnit.SECONDS)

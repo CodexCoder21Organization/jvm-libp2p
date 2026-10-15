@@ -1,0 +1,51 @@
+gradle.projectsEvaluated {
+    def module = gradle.rootProject.project(':libp2p')
+    module.extensions.getByName('spotless').kotlin {
+        target module.file('src/test/kotlin/io/libp2p/mux/ChildReadPauseTcpTest.kt')
+    }
+    def normal = module.tasks.named('test', Test).get()
+    module.tasks.named('compileTestKotlin') { mustRunAfter ':libp2p:spotlessKotlinApply' }
+    def count = Integer.parseInt(System.getProperty('lane.count', '20'))
+    def pattern = System.getProperty('lane.pattern', 'io.libp2p.mux.ChildReadPauseTcpTest.offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume')
+    (1..count).each { iteration ->
+        module.tasks.register("lane269Repeat${iteration}", Test) {
+            dependsOn module.tasks.named('testClasses')
+            testClassesDirs = normal.testClassesDirs
+            classpath = normal.classpath
+            useJUnitPlatform { excludeTags('interop') }
+            filter { includeTestsMatching(pattern) }
+            maxParallelForks = 1
+            maxHeapSize = '512m'
+            testLogging { events 'FAILED'; exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL }
+            outputs.upToDateWhen { false }
+            if (iteration > 1) mustRunAfter ":libp2p:lane269Repeat${iteration - 1}"
+        }
+    }
+    (1..5).each { iteration ->
+        module.tasks.register("lane269Class${iteration}", Test) {
+            dependsOn module.tasks.named('testClasses')
+            testClassesDirs = normal.testClassesDirs
+            classpath = normal.classpath
+            useJUnitPlatform { excludeTags('interop') }
+            filter { includeTestsMatching('io.libp2p.mux.ChildReadPauseTcpTest') }
+            maxParallelForks = 1
+            maxHeapSize = '512m'
+            testLogging { events 'FAILED'; exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL }
+            outputs.upToDateWhen { false }
+            mustRunAfter module.tasks.matching { it.name.startsWith('lane269Repeat') }
+            if (iteration > 1) mustRunAfter ":libp2p:lane269Class${iteration - 1}"
+        }
+    }
+    module.tasks.register('lane269MuxPackage', Test) {
+        dependsOn module.tasks.named('testClasses')
+        testClassesDirs = normal.testClassesDirs
+        classpath = normal.classpath
+        useJUnitPlatform { excludeTags('interop') }
+        filter { includeTestsMatching('io.libp2p.mux.*') }
+        maxParallelForks = 1
+        maxHeapSize = '512m'
+        testLogging { events 'FAILED'; exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL }
+        outputs.upToDateWhen { false }
+        mustRunAfter module.tasks.matching { it.name.startsWith('lane269Repeat') || it.name.startsWith('lane269Class') }
+    }
+}

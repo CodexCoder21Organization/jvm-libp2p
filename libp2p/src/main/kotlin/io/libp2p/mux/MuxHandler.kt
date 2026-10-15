@@ -1,5 +1,6 @@
 package io.libp2p.mux
 
+import io.libp2p.core.ConnectionClosedException
 import io.libp2p.core.Stream
 import io.libp2p.core.StreamHandler
 import io.libp2p.core.StreamPromise
@@ -34,7 +35,17 @@ abstract class MuxHandler(
 
     override fun handlerAdded(ctx: ChannelHandlerContext) {
         super.handlerAdded(ctx)
-        ready?.complete(this)
+        if (ready != null) {
+            ctx.channel().closeFuture().addListener {
+                ready.completeExceptionally(ConnectionClosedException())
+            }
+        }
+    }
+
+    override fun channelActive(ctx: ChannelHandlerContext?) {
+        super.channelActive(ctx)
+        // Publication may synchronously close the parent, so activate before invoking consumers.
+        if (ctx?.channel()?.isOpen == true) ready?.complete(this)
     }
 
     private fun createStream(channel: MuxChannel<ByteBuf>): Stream {
@@ -50,11 +61,12 @@ abstract class MuxHandler(
 
     fun <T> createStream(streamHandler: StreamHandler<T>): StreamPromise<T> {
         val controller = CompletableFuture<T>()
-        val stream = newStream {
+        val muxChannel = newStream {
             streamHandler.handleStream(createStream(it)).forward(controller)
         }
-            .thenApply { it.attr(STREAM).get() }
-            .forwardException(controller)
+        // Observe the owned creation result, independently of the caller's mutable stream future.
+        muxChannel.forwardException(controller)
+        val stream = muxChannel.thenApply { it.attr(STREAM).get() }
         return StreamPromise(stream, controller)
     }
 

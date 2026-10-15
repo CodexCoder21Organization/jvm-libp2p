@@ -58,6 +58,12 @@ Legend:
 
 A `Host.addStreamVisitor` callback may close or reset a newly opened stream. If it closes the stream before protocol negotiation, the stream's protocol future and the caller's controller future complete exceptionally. Closing that child leaves its shared connection and other streams usable.
 
+A connection callback receives an activated mux session. It may open streams or close the connection
+from that callback. Closing the parent fails pending stream opens and subsequent opens with
+`ConnectionClosedException`, including when close occurs during mux initialization.
+With Yamux and Mplex, cancelling or completing the returned stream future does not prevent a pending
+controller from reporting parent closure.
+
 ## Stream muxer write buffering
 
 Yamux enforces the `maxBufferedConnectionWrites` setting across the complete connection write path: application payloads queued in child stream channels, flow-control-buffered payloads, and frames queued on the parent Netty connection. The default is `10 * 1024 * 1024` bytes (10 MiB), configured with `StreamMuxerProtocol.getYamux(maxBufferedConnectionWrites = ...)`.
@@ -78,6 +84,11 @@ Already decoded Mplex payloads have a finite limit of 64 frames and four maximum
 whose close future has completed are removed and skipped during selection, even if the connection's
 asynchronous table-removal continuation has not run yet. A request made in that interval therefore
 starts a fresh transport dial instead of receiving a connection whose muxer is already closed.
+
+Connection close and transport shutdown share one physical close operation for each Netty
+parent channel. Repeated calls wait for that operation and report its original failure if it
+fails; they do not issue another close. Completing or cancelling one caller's returned future
+does not complete the operation or another caller's shutdown future.
 
 ## Gossip simulator
 

@@ -3,13 +3,14 @@ package io.libp2p.etc.util.netty.mux
 import io.libp2p.core.ConnectionClosedException
 import io.libp2p.core.InternalErrorException
 import io.libp2p.core.Libp2pException
-import io.libp2p.etc.types.completedExceptionally
+import io.libp2p.etc.types.forwardException
 import io.libp2p.etc.types.hasCauseOfType
 import io.netty.channel.ChannelFuture
 import io.netty.channel.ChannelHandlerContext
 import io.netty.channel.ChannelInboundHandlerAdapter
 import org.slf4j.LoggerFactory
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.ConcurrentHashMap
 
 typealias MuxChannelInitializer<TData> = (MuxChannel<TData>) -> Unit
 
@@ -51,6 +52,9 @@ abstract class AbstractMuxHandler<TData>(
     private val streamMap: MutableMap<MuxId, MuxChannel<TData>> = mutableMapOf()
     var ctx: ChannelHandlerContext? = null
     private val activeFuture = CompletableFuture<Void>()
+    private val pendingStreams = ConcurrentHashMap.newKeySet<CompletableFuture<MuxChannel<TData>>>()
+
+    @Volatile
     private var closed = false
     protected abstract val inboundInitializer: MuxChannelInitializer<TData>
     private val pendingReadComplete = mutableSetOf<MuxId>()
@@ -94,9 +98,19 @@ abstract class AbstractMuxHandler<TData>(
     override fun handlerAdded(ctx: ChannelHandlerContext) {
         super.handlerAdded(ctx)
         this.ctx = ctx
+        // A close during handler addition can bypass channelUnregistered for this handler.
+        ctx.channel().closeFuture().addListener {
+            val cause = ConnectionClosedException()
+            activeFuture.completeExceptionally(cause)
+            pendingStreams.forEach { it.completeExceptionally(cause) }
+        }
     }
 
     override fun channelActive(ctx: ChannelHandlerContext?) {
+        if (closed || ctx?.channel()?.isOpen == false) {
+            activeFuture.completeExceptionally(ConnectionClosedException())
+            return
+        }
         activeFuture.complete(null)
         super.channelActive(ctx)
     }
@@ -381,28 +395,40 @@ abstract class AbstractMuxHandler<TData>(
     protected abstract fun generateNextId(): MuxId
 
     fun newStream(outboundInitializer: MuxChannelInitializer<TData>): CompletableFuture<MuxChannel<TData>> {
+        val result = CompletableFuture<MuxChannel<TData>>()
         try {
             checkClosed() // if already closed then event loop is already down and async task may never execute
-            return activeFuture.thenApplyAsync(
+            pendingStreams.add(result)
+            result.whenComplete { _, _ -> pendingStreams.remove(result) }
+            // Close may have completed before this open was registered.
+            checkClosed()
+            activeFuture.thenRunAsync(
                 {
-                    checkClosed() // close may happen after above check and before this point
-                    val child = createChild(
-                        generateNextId(),
-                        {
-                            onLocalOpen(it)
-                            outboundInitializer(it)
-                        },
-                        true
-                    )
-                    child
+                    if (!result.isDone) {
+                        checkClosed() // close may happen after above check and before this point
+                        val child = createChild(
+                            generateNextId(),
+                            {
+                                onLocalOpen(it)
+                                outboundInitializer(it)
+                            },
+                            true
+                        )
+                        result.complete(child)
+                    }
                 },
                 getChannelHandlerContext().channel().eventLoop()
-            )
+            ).forwardException(result)
         } catch (e: Exception) {
-            return completedExceptionally(e)
+            result.completeExceptionally(e)
         }
+        return result
     }
 
     private fun checkClosed() =
-        if (closed) throw ConnectionClosedException("Can't create a new stream: connection was closed: " + ctx!!.channel()) else Unit
+        if (closed || ctx?.channel()?.isOpen == false) {
+            throw ConnectionClosedException("Can't create a new stream: connection was closed: " + ctx!!.channel())
+        } else {
+            Unit
+        }
 }

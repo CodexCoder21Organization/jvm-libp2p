@@ -8,8 +8,8 @@ import io.libp2p.core.mux.StreamMuxerProtocol
 import io.libp2p.etc.util.netty.mux.RemoteWriteClosed
 import io.libp2p.mux.mplex.MplexFlag
 import io.libp2p.mux.mplex.MplexFrame
-import io.libp2p.mux.yamux.YamuxFrame
 import io.libp2p.mux.yamux.YamuxFlag
+import io.libp2p.mux.yamux.YamuxFrame
 import io.libp2p.mux.yamux.YamuxType
 import io.libp2p.protocol.ProtocolHandler
 import io.libp2p.security.plaintext.PlaintextInsecureChannel
@@ -177,11 +177,13 @@ class ChildReadPauseTcpTest {
             receiverParent.config().setAutoRead(false)
             val senderChannel = (sender as StreamOverNetty).nettyChannel
             outboundPayloads += expectedMessages.map { Unpooled.copiedBuffer(it, CharsetUtil.UTF_8) }
-            val writeFutures = senderChannel.eventLoop().submit(Callable {
-                val writes = outboundPayloads.map { senderChannel.write(it) }
-                senderChannel.flush()
-                writes
-            }).get(5, TimeUnit.SECONDS)
+            val writeFutures = senderChannel.eventLoop().submit(
+                Callable {
+                    val writes = outboundPayloads.map { senderChannel.write(it) }
+                    senderChannel.flush()
+                    writes
+                }
+            ).get(5, TimeUnit.SECONDS)
             writeFutures.forEach { it.get(5, TimeUnit.SECONDS) }
             senderChannel.disconnect().get(5, TimeUnit.SECONDS)
             receiverParent.config().setAutoRead(true)

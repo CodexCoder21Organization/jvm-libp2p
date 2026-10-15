@@ -35,19 +35,14 @@ class ProtocolSelect<TController>(val protocols: List<ProtocolBinding<TControlle
         // the protocol data may be transmitted during Negotiator pipeline rebuilding
         // and the `active` event is fired after `read` event
         // See https://github.com/libp2p/jvm-libp2p/issues/94
-        activateAndRemoveWhenSelected(ctx)
+        // Negotiator still has an active event pending after forwarding these bytes. Keep
+        // this guard until that event, even if the selected controller completes during read.
+        activateSelectedProtocol(ctx)
         ctx.fireChannelRead(msg)
     }
 
     override fun channelActive(ctx: ChannelHandlerContext) {
-        activateAndRemoveWhenSelected(ctx)
-    }
-
-    private fun activateAndRemoveWhenSelected(ctx: ChannelHandlerContext) {
-        if (!activeFired) {
-            activeFired = true
-            ctx.fireChannelActive()
-        }
+        activateSelectedProtocol(ctx)
         if (!removalArmed) {
             removalArmed = true
             // A selected protocol may finish its own initialization asynchronously. Keep this lifecycle
@@ -57,6 +52,13 @@ class ProtocolSelect<TController>(val protocols: List<ProtocolBinding<TControlle
                     ctx.pipeline().remove(this)
                 }
             }
+        }
+    }
+
+    private fun activateSelectedProtocol(ctx: ChannelHandlerContext) {
+        if (!activeFired) {
+            activeFired = true
+            ctx.fireChannelActive()
         }
     }
 

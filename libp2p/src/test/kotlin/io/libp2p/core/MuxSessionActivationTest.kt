@@ -24,25 +24,30 @@ import java.util.concurrent.atomic.AtomicInteger
 class MuxSessionActivationTest {
     @ParameterizedTest
     @org.junit.jupiter.params.provider.CsvSource(
-        "yamux,cancel", "mplex,cancel",
-        "yamux,fail", "mplex,fail",
-        "yamux,complete", "mplex,complete"
+        "yamux,cancel",
+        "mplex,cancel",
+        "yamux,fail",
+        "mplex,fail",
+        "yamux,complete",
+        "mplex,complete"
     )
     fun callerCompletedStreamFutureDoesNotHideParentCloseFromController(muxerName: String, mutation: String) {
         val published = CompletableFuture<StreamPromise<PingController>>()
         withPublicationHosts(publicationMuxer(muxerName), { client ->
-            client.addConnectionHandler(ConnectionHandler.create { connection ->
-                val pending = connection.muxerSession().createStream(Ping())
-                when (mutation) {
-                    "cancel" -> pending.stream.cancel(false)
-                    "fail" -> pending.stream.completeExceptionally(IllegalStateException("Caller completed its stream future"))
-                    "complete" -> pending.stream.complete(null)
-                    else -> error("Unknown future mutation: $mutation")
+            client.addConnectionHandler(
+                ConnectionHandler.create { connection ->
+                    val pending = connection.muxerSession().createStream(Ping())
+                    when (mutation) {
+                        "cancel" -> pending.stream.cancel(false)
+                        "fail" -> pending.stream.completeExceptionally(IllegalStateException("Caller completed its stream future"))
+                        "complete" -> pending.stream.complete(null)
+                        else -> error("Unknown future mutation: $mutation")
+                    }
+                    connection.close().whenComplete { _, error ->
+                        if (error == null) published.complete(pending) else published.completeExceptionally(error)
+                    }
                 }
-                connection.close().whenComplete { _, error ->
-                    if (error == null) published.complete(pending) else published.completeExceptionally(error)
-                }
-            })
+            )
         }) { client, server ->
             client.network.connect(server.peerId, *server.listenAddresses().toTypedArray()).get(5, TimeUnit.SECONDS)
             val promise = published.get(5, TimeUnit.SECONDS)
@@ -62,7 +67,6 @@ class MuxSessionActivationTest {
             assertEquals(ConnectionClosedException::class.java, failure.cause!!.javaClass)
         }
     }
-
 
     @ParameterizedTest
     @ValueSource(strings = ["yamux", "mplex"])

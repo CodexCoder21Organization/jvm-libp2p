@@ -61,6 +61,8 @@ A `Host.addStreamVisitor` callback may close or reset a newly opened stream. If 
 A connection callback receives an activated mux session. It may open streams or close the connection
 from that callback. Closing the parent fails pending stream opens and subsequent opens with
 `ConnectionClosedException`, including when close occurs during mux initialization.
+With Yamux and Mplex, cancelling or completing the returned stream future does not prevent a pending
+controller from reporting parent closure.
 
 ## Stream muxer write buffering
 

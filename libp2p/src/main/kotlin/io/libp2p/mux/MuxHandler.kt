@@ -61,11 +61,12 @@ abstract class MuxHandler(
 
     fun <T> createStream(streamHandler: StreamHandler<T>): StreamPromise<T> {
         val controller = CompletableFuture<T>()
-        val stream = newStream {
+        val muxChannel = newStream {
             streamHandler.handleStream(createStream(it)).forward(controller)
         }
-            .thenApply { it.attr(STREAM).get() }
-            .forwardException(controller)
+        // Observe the owned creation result, independently of the caller's mutable stream future.
+        muxChannel.forwardException(controller)
+        val stream = muxChannel.thenApply { it.attr(STREAM).get() }
         return StreamPromise(stream, controller)
     }
 

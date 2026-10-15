@@ -1,0 +1,95 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.14.3/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+Build configured without Android submodules.
+    To include Android submodules define a valid SDK location with an ANDROID_HOME environment variable 
+    or by setting the sdk.dir path in your project's local properties file local.properties.
+> Task :spotlessInternalRegisterDependencies
+> Task :libp2p:spotlessKotlin
+> Task :libp2p:spotlessKotlinApply
+> Task :libp2p:spotlessKotlinCheck UP-TO-DATE
+> Task :libp2p:extractIncludeProto UP-TO-DATE
+> Task :libp2p:extractProto UP-TO-DATE
+> Task :libp2p:generateProto UP-TO-DATE
+> Task :libp2p:compileKotlin
+> Task :libp2p:compileJava UP-TO-DATE
+> Task :libp2p:processResources UP-TO-DATE
+> Task :libp2p:classes UP-TO-DATE
+> Task :libp2p:inspectClassesForKotlinIC
+> Task :libp2p:jar
+> Task :tools:schedulers:processResources NO-SOURCE
+> Task :libp2p:extractIncludeTestFixturesProto UP-TO-DATE
+> Task :libp2p:extractTestFixturesProto UP-TO-DATE
+> Task :libp2p:generateTestFixturesProto NO-SOURCE
+> Task :tools:schedulers:compileKotlin UP-TO-DATE
+> Task :tools:schedulers:compileJava UP-TO-DATE
+> Task :tools:schedulers:classes UP-TO-DATE
+> Task :tools:schedulers:inspectClassesForKotlinIC UP-TO-DATE
+> Task :tools:schedulers:jar UP-TO-DATE
+> Task :libp2p:compileTestFixturesKotlin
+> Task :libp2p:compileTestFixturesJava UP-TO-DATE
+> Task :libp2p:processTestFixturesResources NO-SOURCE
+> Task :libp2p:testFixturesClasses UP-TO-DATE
+> Task :libp2p:testFixturesJar UP-TO-DATE
+> Task :libp2p:extractIncludeTestProto UP-TO-DATE
+> Task :libp2p:extractTestProto UP-TO-DATE
+> Task :libp2p:generateTestProto NO-SOURCE
+> Task :libp2p:compileTestKotlin
+> Task :libp2p:compileTestJava
+> Task :libp2p:processTestResources UP-TO-DATE
+> Task :libp2p:testClasses
+> Task :libp2p:lane220ParentCloseComposition
+> Task :libp2p:lane220FinalPackages
+
+PlaintextTcpTest > twoEchosOverSecureConnection() FAILED
+    java.util.concurrent.TimeoutException
+        at java.base/java.util.concurrent.CompletableFuture.timedGet(CompletableFuture.java:1960)
+        at java.base/java.util.concurrent.CompletableFuture.get(CompletableFuture.java:2095)
+        at io.libp2p.core.HostTransportsTest.twoEchosOverSecureConnection(HostTranportsTest.kt:300)
+        at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+        at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+        at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+
+PlaintextTcpTest > unsupportedServerProtocol() FAILED
+    org.opentest4j.AssertionFailedError: Unexpected exception type thrown, expected: <io.libp2p.core.NoSuchProtocolException> but was: <io.libp2p.etc.util.netty.TotalTimeoutException>
+        at app//io.libp2p.core.HostTransportsTest.unsupportedServerProtocol(HostTranportsTest.kt:183)
+        at java.base@21.0.12.1/java.lang.reflect.Method.invoke(Method.java:580)
+        at java.base@21.0.12.1/java.util.ArrayList.forEach(ArrayList.java:1596)
+        at java.base@21.0.12.1/java.util.ArrayList.forEach(ArrayList.java:1596)
+
+        Caused by:
+        io.libp2p.etc.util.netty.TotalTimeoutException
+            at app//io.libp2p.etc.util.netty.TotalTimeoutHandler.onTimeout(TotalTimeoutHandler.kt:66)
+            at app//io.libp2p.etc.util.netty.TotalTimeoutHandler.handlerAdded$lambda-0(TotalTimeoutHandler.kt:45)
+            at app//io.netty.util.concurrent.PromiseTask.runTask(PromiseTask.java:98)
+            at app//io.netty.util.concurrent.ScheduledFutureTask.run(ScheduledFutureTask.java:160)
+            at app//io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:148)
+            at app//io.netty.util.concurrent.AbstractEventExecutor.safeExecute(AbstractEventExecutor.java:141)
+            at app//io.netty.util.concurrent.SingleThreadEventExecutor.runAllTasks(SingleThreadEventExecutor.java:535)
+            at app//io.netty.channel.SingleThreadIoEventLoop.run(SingleThreadIoEventLoop.java:201)
+            at app//io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:1195)
+            at app//io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+            at app//io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+            at java.base@21.0.12.1/java.lang.Thread.run(Thread.java:1583)
+
+PlaintextTcpTest > echoOverSecureConnection() FAILED
+    java.util.concurrent.TimeoutException
+        at java.base/java.util.concurrent.CompletableFuture.timedGet(CompletableFuture.java:1960)
+        at java.base/java.util.concurrent.CompletableFuture.get(CompletableFuture.java:2095)
+        at io.libp2p.core.HostTransportsTest.echoOverSecureConnection(HostTranportsTest.kt:285)
+        at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+        at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+        at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+
+PlaintextTcpTest > largeEchoOverSecureConnection() FAILED
+    java.util.concurrent.TimeoutException
+        at java.base/java.util.concurrent.CompletableFuture.timedGet(CompletableFuture.java:1960)
+        at java.base/java.util.concurrent.CompletableFuture.get(CompletableFuture.java:2095)
+        at io.libp2p.core.TcpTransportHostTest.largeEchoOverSecureConnection(HostTranportsTest.kt:79)
+        at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+        at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+        at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+
+488 tests completed, 4 failed
+
+> Task :libp2p:lane220FinalPackages FAILED
+> Task :libp2p:test

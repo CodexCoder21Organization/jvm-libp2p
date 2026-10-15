@@ -1,0 +1,14 @@
+gradle.projectsEvaluated {
+    def module = gradle.rootProject.project(':libp2p')
+    def normal = module.tasks.named('test', Test).get()
+    module.tasks.register('lane220RemainingTransport', Test) {
+        dependsOn module.tasks.named('testClasses')
+        testClassesDirs = normal.testClassesDirs
+        classpath = normal.classpath
+        useJUnitPlatform { excludeTags('interop') }
+        filter { includeTestsMatching('io.libp2p.transport.PlainNettyTransport*') }
+        maxParallelForks = 1
+        outputs.upToDateWhen { false }
+        testLogging { events 'FAILED'; exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL }
+    }
+}

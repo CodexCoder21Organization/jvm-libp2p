@@ -1,0 +1,102 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.14.3/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+Build configured without Android submodules.
+    To include Android submodules define a valid SDK location with an ANDROID_HOME environment variable 
+    or by setting the sdk.dir path in your project's local properties file local.properties.
+> Task :libp2p:extractIncludeProto UP-TO-DATE
+> Task :libp2p:extractProto UP-TO-DATE
+> Task :libp2p:generateProto UP-TO-DATE
+> Task :libp2p:compileKotlin UP-TO-DATE
+> Task :libp2p:compileJava UP-TO-DATE
+> Task :libp2p:processResources UP-TO-DATE
+> Task :libp2p:classes UP-TO-DATE
+> Task :libp2p:inspectClassesForKotlinIC UP-TO-DATE
+> Task :libp2p:jar UP-TO-DATE
+> Task :tools:schedulers:processResources NO-SOURCE
+> Task :libp2p:extractIncludeTestFixturesProto UP-TO-DATE
+> Task :libp2p:extractTestFixturesProto UP-TO-DATE
+> Task :libp2p:generateTestFixturesProto NO-SOURCE
+> Task :tools:schedulers:compileKotlin UP-TO-DATE
+> Task :tools:schedulers:compileJava UP-TO-DATE
+> Task :tools:schedulers:classes UP-TO-DATE
+> Task :tools:schedulers:inspectClassesForKotlinIC UP-TO-DATE
+> Task :tools:schedulers:jar UP-TO-DATE
+> Task :libp2p:compileTestFixturesKotlin UP-TO-DATE
+> Task :libp2p:compileTestFixturesJava UP-TO-DATE
+> Task :libp2p:processTestFixturesResources NO-SOURCE
+> Task :libp2p:testFixturesClasses UP-TO-DATE
+> Task :libp2p:testFixturesJar UP-TO-DATE
+> Task :libp2p:extractIncludeTestProto UP-TO-DATE
+> Task :libp2p:extractTestProto UP-TO-DATE
+> Task :libp2p:generateTestProto NO-SOURCE
+> Task :libp2p:compileTestKotlin
+> Task :libp2p:compileTestJava UP-TO-DATE
+> Task :libp2p:processTestResources UP-TO-DATE
+> Task :libp2p:testClasses UP-TO-DATE
+> Task :libp2p:lane220RemainingTransport
+> Task :libp2p:test
+
+QuicKuboTestJava > pingKubo() FAILED
+    java.net.ConnectException: Connection refused
+        at java.base/sun.nio.ch.Net.pollConnect(Native Method)
+        at java.base/sun.nio.ch.Net.pollConnectNow(Net.java:694)
+        at java.base/sun.nio.ch.NioSocketImpl.timedFinishConnect(NioSocketImpl.java:542)
+        at java.base/sun.nio.ch.NioSocketImpl.connect(NioSocketImpl.java:592)
+        at java.base/java.net.Socket.connect(Socket.java:751)
+        at java.base/sun.net.NetworkClient.doConnect(NetworkClient.java:178)
+        at java.base/sun.net.www.http.HttpClient.openServer(HttpClient.java:539)
+        at java.base/sun.net.www.http.HttpClient.openServer(HttpClient.java:644)
+        at java.base/sun.net.www.http.HttpClient.<init>(HttpClient.java:290)
+        at java.base/sun.net.www.http.HttpClient.New(HttpClient.java:394)
+        at java.base/sun.net.www.http.HttpClient.New(HttpClient.java:416)
+        at java.base/sun.net.www.protocol.http.HttpURLConnection.getNewHttpClient(HttpURLConnection.java:1327)
+        at java.base/sun.net.www.protocol.http.HttpURLConnection.plainConnect0(HttpURLConnection.java:1260)
+        at java.base/sun.net.www.protocol.http.HttpURLConnection.plainConnect(HttpURLConnection.java:1146)
+        at java.base/sun.net.www.protocol.http.HttpURLConnection.connect(HttpURLConnection.java:1075)
+        at java.base/sun.net.www.protocol.http.HttpURLConnection.getOutputStream0(HttpURLConnection.java:1477)
+        at java.base/sun.net.www.protocol.http.HttpURLConnection.getOutputStream(HttpURLConnection.java:1440)
+        at io.libp2p.transport.quic.QuicKuboTestJava.getKuboPeerId(QuicKuboTestJava.java:65)
+        at io.libp2p.transport.quic.QuicKuboTestJava.pingKubo(QuicKuboTestJava.java:21)
+
+PlaintextTcpTest > multiplePingChannelsOnTheSameConnection() FAILED
+    java.util.concurrent.TimeoutException
+        at java.base/java.util.concurrent.CompletableFuture.timedGet(CompletableFuture.java:1960)
+        at java.base/java.util.concurrent.CompletableFuture.get(CompletableFuture.java:2095)
+        at io.libp2p.core.HostTransportsTest.dialPing(HostTranportsTest.kt:240)
+        at io.libp2p.core.HostTransportsTest.multiplePingChannelsOnTheSameConnection(HostTranportsTest.kt:212)
+        at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+        at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+        at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+
+PlaintextTcpTest > unsupportedServerProtocol() FAILED
+    org.opentest4j.AssertionFailedError: Unexpected exception type thrown, expected: <io.libp2p.core.NoSuchProtocolException> but was: <io.libp2p.etc.util.netty.TotalTimeoutException>
+        at app//io.libp2p.core.HostTransportsTest.unsupportedServerProtocol(HostTranportsTest.kt:183)
+        at java.base@21.0.12.1/java.lang.reflect.Method.invoke(Method.java:580)
+        at java.base@21.0.12.1/java.util.ArrayList.forEach(ArrayList.java:1596)
+        at java.base@21.0.12.1/java.util.ArrayList.forEach(ArrayList.java:1596)
+
+        Caused by:
+        io.libp2p.etc.util.netty.TotalTimeoutException
+            at app//io.libp2p.etc.util.netty.TotalTimeoutHandler.onTimeout(TotalTimeoutHandler.kt:66)
+            at app//io.libp2p.etc.util.netty.TotalTimeoutHandler.handlerAdded$lambda-0(TotalTimeoutHandler.kt:45)
+            at app//io.netty.util.concurrent.PromiseTask.runTask(PromiseTask.java:98)
+            at app//io.netty.util.concurrent.ScheduledFutureTask.run(ScheduledFutureTask.java:160)
+            at app//io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:148)
+            at app//io.netty.util.concurrent.AbstractEventExecutor.safeExecute(AbstractEventExecutor.java:141)
+            at app//io.netty.util.concurrent.SingleThreadEventExecutor.runAllTasks(SingleThreadEventExecutor.java:535)
+            at app//io.netty.channel.SingleThreadIoEventLoop.run(SingleThreadIoEventLoop.java:201)
+            at app//io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:1195)
+            at app//io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+            at app//io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+            at java.base@21.0.12.1/java.lang.Thread.run(Thread.java:1583)
+
+PlaintextTcpTest > largeEchoOverSecureConnection() FAILED
+    java.util.concurrent.TimeoutException
+        at java.base/java.util.concurrent.CompletableFuture.timedGet(CompletableFuture.java:1960)
+        at java.base/java.util.concurrent.CompletableFuture.get(CompletableFuture.java:2095)
+        at io.libp2p.core.TcpTransportHostTest.largeEchoOverSecureConnection(HostTranportsTest.kt:79)
+        at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+        at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+        at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+
+OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended

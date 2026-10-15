@@ -19,6 +19,7 @@ import io.netty.buffer.ByteBuf
 import io.netty.buffer.Unpooled
 import io.netty.channel.ChannelHandlerContext
 import io.netty.channel.ChannelInboundHandlerAdapter
+import io.netty.channel.FixedRecvByteBufAllocator
 import io.netty.channel.IoEventLoop
 import io.netty.channel.MultiThreadIoEventLoopGroup
 import io.netty.channel.SimpleChannelInboundHandler
@@ -29,6 +30,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.CsvSource
 import org.junit.jupiter.params.provider.ValueSource
 import java.util.concurrent.Callable
 import java.util.concurrent.CompletableFuture
@@ -39,9 +41,9 @@ import java.util.concurrent.TimeUnit
 private const val PAUSE_PROTOCOL = "/test/child-read-pause/1.0.0"
 
 class ChildReadPauseTcpTest {
-    @ParameterizedTest
-    @ValueSource(strings = ["mplex", "yamux"])
-    fun offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume(muxer: String) {
+    @ParameterizedTest(name = "{0}, fragmented transport reads={1}")
+    @CsvSource("mplex, false", "yamux, false", "mplex, true", "yamux, true")
+    fun offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume(muxer: String, fragmentedReads: Boolean) {
         val expectedMessages = listOf("first complete message", "second complete message", "third complete message")
         val remoteEndMarker = "<remote-end>"
         val delivered = ConcurrentLinkedQueue<String>()
@@ -161,7 +163,14 @@ class ChildReadPauseTcpTest {
             // Keep the real TCP receiver from reading until every application write and the remote end
             // have been flushed into the socket. The first callback then blocks while the decoder
             // forwards this batch through the muxer.
-            receiverParent.config().setAutoRead(false)
+            receiverParent.eventLoop().submit(Callable {
+                if (fragmentedReads) {
+                    // One byte per read forces the decoder to request another transport read for
+                    // later frames, regardless of how TCP groups the sender's writes.
+                    receiverParent.config().setRecvByteBufAllocator(FixedRecvByteBufAllocator(1).maxMessagesPerRead(1))
+                }
+                receiverParent.config().setAutoRead(false)
+            }).get(5, TimeUnit.SECONDS)
             val senderChannel = (sender as StreamOverNetty).nettyChannel
             outboundPayloads += expectedMessages.map { Unpooled.copiedBuffer(it, CharsetUtil.UTF_8) }
             val writeFutures = senderChannel.eventLoop().submit(Callable {

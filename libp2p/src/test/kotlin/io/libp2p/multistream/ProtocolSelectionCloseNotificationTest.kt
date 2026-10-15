@@ -11,8 +11,10 @@ import io.netty.buffer.Unpooled
 import io.netty.util.CharsetUtil
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource
+import org.junit.jupiter.params.provider.ValueSource
 import java.util.concurrent.CompletableFuture
 
 class ProtocolSelectionCloseNotificationTest {
@@ -61,6 +63,108 @@ class ProtocolSelectionCloseNotificationTest {
             assertFalse(channel.isOpen)
             val expected = if (closeOnActivation) listOf("active", "closed") else listOf("active", "payload", "closed")
             assertEquals(expected, events)
+        } finally {
+            channel.finishAndReleaseAll()
+        }
+    }
+    @ParameterizedTest
+    @ValueSource(booleans = [true, false])
+    fun selectedProtocolReceivesCloseBeforeActivationExactlyOnce(initiator: Boolean) {
+        val events = mutableListOf<String>()
+        val ready = CompletableFuture<Stream>()
+        val protocol = "/test/close-before-activation/1.0.0"
+        val binding = object : StrictProtocolBinding<Stream>(
+            protocol,
+            object : ProtocolHandler<Stream>(Long.MAX_VALUE, Long.MAX_VALUE) {
+                override fun onStartInitiator(stream: Stream): CompletableFuture<Stream> = onStartResponder(stream)
+
+                override fun onStartResponder(stream: Stream): CompletableFuture<Stream> {
+                    stream.pushHandler(object : ProtocolMessageHandler<ByteBuf> {
+                        override fun onActivated(stream: Stream) {
+                            events.add("active")
+                        }
+
+                        override fun onMessage(stream: Stream, msg: ByteBuf) {
+                            events.add("payload")
+                        }
+
+                        override fun onClosed(stream: Stream) {
+                            events.add("closed")
+                            stream.close()
+                        }
+                    })
+                    stream.close()
+                    stream.close()
+                    return ready
+                }
+            }
+        ) {}
+        val channel = TestStreamChannel(initiator, binding)
+        val headerBytes = "/multistream/1.0.0\n".toByteArray(CharsetUtil.UTF_8)
+        val protocolBytes = "$protocol\n".toByteArray(CharsetUtil.UTF_8)
+        val input = Unpooled.buffer().writeUvarint(headerBytes.size).writeBytes(headerBytes)
+            .writeUvarint(protocolBytes.size).writeBytes(protocolBytes)
+            .writeBytes("payload".toByteArray(CharsetUtil.UTF_8))
+        try {
+            channel.writeInbound(input)
+            channel.runPendingTasks()
+            assertFalse(channel.isOpen)
+            assertTrue(channel.controllerFuture.isCompletedExceptionally)
+            assertEquals(listOf("closed"), events)
+            assertEquals(0, input.refCnt(), "closed selection must release buffered input")
+        } finally {
+            channel.finishAndReleaseAll()
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = [true, false])
+    fun selectedProtocolReceivesCloseWhileControllerIsPendingExactlyOnce(initiator: Boolean) {
+        val events = mutableListOf<String>()
+        val ready = CompletableFuture<Stream>()
+        val activated = CompletableFuture<Stream>()
+        val protocol = "/test/close-pending-controller/1.0.0"
+        val binding = object : StrictProtocolBinding<Stream>(
+            protocol,
+            object : ProtocolHandler<Stream>(Long.MAX_VALUE, Long.MAX_VALUE) {
+                override fun onStartInitiator(stream: Stream): CompletableFuture<Stream> = onStartResponder(stream)
+
+                override fun onStartResponder(stream: Stream): CompletableFuture<Stream> {
+                    stream.pushHandler(object : ProtocolMessageHandler<ByteBuf> {
+                        override fun onActivated(stream: Stream) {
+                            events.add("active")
+                            activated.complete(stream)
+                        }
+
+                        override fun onMessage(stream: Stream, msg: ByteBuf) {
+                            events.add("payload")
+                        }
+
+                        override fun onClosed(stream: Stream) {
+                            events.add("closed")
+                            stream.close()
+                        }
+                    })
+                    return ready
+                }
+            }
+        ) {}
+        val channel = TestStreamChannel(initiator, binding)
+        val headerBytes = "/multistream/1.0.0\n".toByteArray(CharsetUtil.UTF_8)
+        val protocolBytes = "$protocol\n".toByteArray(CharsetUtil.UTF_8)
+        try {
+            channel.writeInbound(
+                Unpooled.buffer().writeUvarint(headerBytes.size).writeBytes(headerBytes)
+                    .writeUvarint(protocolBytes.size).writeBytes(protocolBytes)
+            )
+            assertEquals(listOf("active"), events)
+            assertFalse(channel.controllerFuture.isDone)
+            assertTrue(activated.isDone)
+            activated.join().close()
+            channel.runPendingTasks()
+            assertFalse(channel.isOpen)
+            assertTrue(channel.controllerFuture.isCompletedExceptionally)
+            assertEquals(listOf("active", "closed"), events)
         } finally {
             channel.finishAndReleaseAll()
         }

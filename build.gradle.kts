@@ -79,7 +79,8 @@ configure(
     // snapshot-21: exclude connections with completed close futures from both established-connection
     // lookups, so a stream request made during close bookkeeping starts a fresh transport dial.
     // snapshot-31: activate mux sessions before publication and share parent close completion for queued opens.
-    version = "1.3.0-codexcoder21-snapshot-31"
+    // snapshot-32: activate selected protocols once across coalesced records and preserve close callbacks (PR 50)
+    version = "1.3.0-codexcoder21-snapshot-32"
 
     apply(plugin = "kotlin")
     apply(plugin = "idea")

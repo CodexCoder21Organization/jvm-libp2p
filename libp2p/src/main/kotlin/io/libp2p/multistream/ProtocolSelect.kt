@@ -91,5 +91,6 @@ class ProtocolSelect<TController>(val protocols: List<ProtocolBinding<TControlle
         val exception = ConnectionClosedException("Channel closed ${ctx.channel()}")
         selectedFuture.completeExceptionally(exception)
         ctx.channel().attr(PROTOCOL).get()?.completeExceptionally(exception)
+        ctx.fireChannelUnregistered()
     }
 }

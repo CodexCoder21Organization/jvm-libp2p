@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.libp2p.transport.NettyOutboundBufferBackpressureTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-10-15T16:42:46.532Z" hostname="842e6195a2bc" time="6.504">
+  <properties/>
+  <testcase name="normallyDrainingYamuxPeerReceivesBulkPayloadIntact()" classname="io.libp2p.transport.NettyOutboundBufferBackpressureTest" time="0.125"/>
+  <testcase name="peerThatStallsBelowBudgetThenResumesReceivesEveryAcceptedByte()" classname="io.libp2p.transport.NettyOutboundBufferBackpressureTest" time="5.496"/>
+  <testcase name="stalledTcpReceiverFailsInFlightAndSubsequentWritesWithDescriptiveException()" classname="io.libp2p.transport.NettyOutboundBufferBackpressureTest" time="0.485"/>
+  <testcase name="stalledTcpReceiverKeepsSenderParentOutboundBufferBounded()" classname="io.libp2p.transport.NettyOutboundBufferBackpressureTest" time="0.395"/>
+  <system-out><![CDATA[16:42:52.546 [libp2p-nio-worker-6-7] [?[33mWARN?[m] io.netty.channel.DefaultChannelPipeline - An exceptionCaught() event was fired, and it reached at the tail of the pipeline. It usually means the last handler in the pipeline did not handle the exception.
+io.libp2p.mux.YamuxOutboundBufferExceededException: Yamux parent outbound buffer exceeded configured budget; peer=QmeEMsWBtfxEkNhtrJeDBZ31Mmu78wC3gtbyamVSJWNWxp, pendingBytes=10229210, attemptedFrameBytes=262094, projectedPendingBytes=10493784, budgetBytes=10485760, overBudgetDurationMillis=14, channel=[id: 0x0625f616, L:/127.0.0.1:40464 - R:/127.0.0.1:34417]. Closing stalled connection.
+	at io.libp2p.mux.yamux.YamuxHandler.writeAndFlushFrame(YamuxHandler.kt:419)
+	at io.libp2p.mux.yamux.YamuxHandler.access$writeAndFlushFrame(YamuxHandler.kt:36)
+	at io.libp2p.mux.yamux.YamuxHandler$YamuxStreamHandler.drainBufferAndMaybeClose(YamuxHandler.kt:248)
+	at io.libp2p.mux.yamux.YamuxHandler$YamuxStreamHandler.sendData(YamuxHandler.kt:303)
+	at io.libp2p.mux.yamux.YamuxHandler.onChildWrite(YamuxHandler.kt:475)
+	at io.libp2p.mux.yamux.YamuxHandler.onChildWrite(YamuxHandler.kt:36)
+	at io.libp2p.etc.util.netty.mux.MuxChannel.doWrite(MuxChannel.kt:87)
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.flush0(AbstractChannel.java:794)
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.flush(AbstractChannel.java:758)
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.flush(DefaultChannelPipeline.java:1391)
+	at io.netty.channel.AbstractChannelHandlerContext.flush(AbstractChannelHandlerContext.java:754)
+	at io.netty.channel.ChannelOutboundHandlerAdapter.flush(ChannelOutboundHandlerAdapter.java:125)
+	at io.netty.channel.AbstractChannelHandlerContext.write(AbstractChannelHandlerContext.java:819)
+	at io.netty.channel.AbstractChannelHandlerContext$WriteTask.run(AbstractChannelHandlerContext.java:1126)
+	at io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:148)
+	at io.netty.util.concurrent.AbstractEventExecutor.safeExecute(AbstractEventExecutor.java:141)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.runAllTasks(SingleThreadEventExecutor.java:535)
+	at io.netty.channel.SingleThreadIoEventLoop.run(SingleThreadIoEventLoop.java:201)
+	at io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:1195)
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+16:42:52.961 [libp2p-nio-worker-6-9] [?[33mWARN?[m] io.netty.channel.DefaultChannelPipeline - An exceptionCaught() event was fired, and it reached at the tail of the pipeline. It usually means the last handler in the pipeline did not handle the exception.
+io.libp2p.mux.YamuxOutboundBufferExceededException: Yamux parent outbound buffer exceeded configured budget; peer=QmZ9TvDeefVGyG6Z5k8rM8aYQ98PVLMHBtMrsHdQJ7KAkU, pendingBytes=10229210, attemptedFrameBytes=262094, projectedPendingBytes=10493784, budgetBytes=10485760, overBudgetDurationMillis=34, channel=[id: 0xaaa04a02, L:/127.0.0.1:36594 - R:/127.0.0.1:44165]. Closing stalled connection.
+	at io.libp2p.mux.yamux.YamuxHandler.writeAndFlushFrame(YamuxHandler.kt:419)
+	at io.libp2p.mux.yamux.YamuxHandler.access$writeAndFlushFrame(YamuxHandler.kt:36)
+	at io.libp2p.mux.yamux.YamuxHandler$YamuxStreamHandler.drainBufferAndMaybeClose(YamuxHandler.kt:248)
+	at io.libp2p.mux.yamux.YamuxHandler$YamuxStreamHandler.sendData(YamuxHandler.kt:303)
+	at io.libp2p.mux.yamux.YamuxHandler.onChildWrite(YamuxHandler.kt:475)
+	at io.libp2p.mux.yamux.YamuxHandler.onChildWrite(YamuxHandler.kt:36)
+	at io.libp2p.etc.util.netty.mux.MuxChannel.doWrite(MuxChannel.kt:87)
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.flush0(AbstractChannel.java:794)
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.flush(AbstractChannel.java:758)
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.flush(DefaultChannelPipeline.java:1391)
+	at io.netty.channel.AbstractChannelHandlerContext.flush(AbstractChannelHandlerContext.java:754)
+	at io.netty.channel.ChannelOutboundHandlerAdapter.flush(ChannelOutboundHandlerAdapter.java:125)
+	at io.netty.channel.AbstractChannelHandlerContext.write(AbstractChannelHandlerContext.java:819)
+	at io.netty.channel.AbstractChannelHandlerContext$WriteTask.run(AbstractChannelHandlerContext.java:1126)
+	at io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:148)
+	at io.netty.util.concurrent.AbstractEventExecutor.safeExecute(AbstractEventExecutor.java:141)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.runAllTasks(SingleThreadEventExecutor.java:535)
+	at io.netty.channel.SingleThreadIoEventLoop.run(SingleThreadIoEventLoop.java:201)
+	at io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:1195)
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

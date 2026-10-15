@@ -1,0 +1,72 @@
+# Lane 257 findings
+
+2026-10-15 16:20 UTC — RUNNING. Read p257 brief, common rules, previous p252 brief and findings, handoff snapshot, github-repos and status-report skills. No delegation, handoff writes, CI monitoring, merges, publishing or deployment. Stop new work at 17:33 UTC, wall limit 17:48 UTC (start approximately 16:18 UTC).
+
+## Plan
+- [in progress] Fresh clone; read repository instructions and linked reference docs; verify predecessor commits and state the activation/close invariants.
+- [pending] Reproduce public close failures, review/reapply WIP, fix at the cause and checkpoint.
+- [pending] Run ten focused repetitions, original coalesced fixture, 191 neighboring tests and transport tests with a bounded Gradle invocation.
+- [pending] Independent test and code reviews; rebase, commit/push; create REST PR against develop; record counts and clean owned processes, checkout and cache.
+
+## Observed / inferred
+OBSERVED: predecessor findings report a rejected decoder-order candidate, an activation-guard fix, and four public close-callback failures. These remain prior evidence until verified locally. Repository search is in progress.
+
+## 16:21 UTC — verification and invariant table before edits
+OBSERVED: fresh clone at `jvm-libp2p/`, branch `fix/lane257-negotiation-activation-close` starts at 6f79afa8. Fetch/rebase origin/develop is a no-op (base 5c08e2e2). Read README.md and FORK.md; no AGENTS.md found. WIP aec92db7 contains only `ctx.fireChannelUnregistered()`; contrary to the brief's summary, it has no payload-release change. Baseline four-case close test compiling in bounded Gradle, log `out/r257-close-baseline.log`.
+
+The mechanism I am about to fix is: ProtocolSelect consumes channelUnregistered instead of forwarding it to ProtocolMessageHandlerAdapter, losing onClosed; its channelRead also unconditionally forwards decoder leftovers after onActivated synchronously closes the channel. The public callback test forces both orderings for requester/responder. Original duplicate activation is caused by removing the guard before Negotiator's pending channelActive arrives; retain predecessor's guard-lifetime correction.
+
+| Resource | Creator / owner / closer | Terminal / visible contract | Reentry / close / restart |
+|---|---|---|---|
+| Selected protocol stage | Binding / channel event loop / caller or transport | Exactly one activation per selected stage | Guard survives leftover forwarding; synchronous callback reentry sees selected framing; no persisted state |
+| Close notification | Netty channel / pipeline / stream.close | onClosed exactly once for installed protocol | Forward unregister through selection guard, including close before or during activation; repeated close has no second callback |
+| Decoder leftover input | Decoder / current handler / release or downstream | Exactly one delivery or release | Recheck channel after activation; release if callback closed; payload cannot reach closed protocol |
+| Selected controller future | Binding / multistream / success or close | Settles once; close before initialization completes fails it | Keep lifecycle guard until future settles; no restart contract |
+
+Read docs: common.md and handoff.md; p252 brief and r252 findings; README/FORK; Testing TDD, public API, self-contained dependencies, bug-fix workflow, deterministic reproduction, no skipped tests, concurrency sections; Engineering Philosophy reproduce-first/upstream/refutation; Code Review red flags. Full reference sources saved under /tmp/r257-docs for further review. No production edits yet.
+
+## 16:25 UTC — fail-first callback evidence verified
+OBSERVED: bounded baseline Gradle exited 1; 4/4 callback cases fail on 6f79afa8 without any production edit. Activation-close cases expected [active, closed], got [active, payload]; payload-close cases expected [active, payload, closed], got [active, payload]. Full stacks: `out/r257-close-baseline.log` and `out/r257-close-baseline-xml/`. Added four public API cases (before activation and pending-controller close, both roles) without changing any inherited assertion; expanded baseline running in `out/r257-expanded-close-baseline.log`.
+OBSERVED: predecessor's XML independently read: original coalesced baseline 4/4 failed with exact duplicate headers and [active,payload,active]; rejected candidate's reentry tests consume four bytes of selected-protocol framing. The corrected segmented controls and 80/80 guard-pass counts agree with the findings. This verified prior evidence is not being re-derived.
+OBSERVED: first durable checkpoint branch pushed at inherited test head: https://github.com/CodexCoder21Organization/jvm-libp2p/tree/fix/lane257-negotiation-activation-close . Kubo 0.34.1 official archive downloaded, exact workflow checksum verified; isolated lane-owned repo configured with no bootstrap peers or mDNS and loopback-only addresses. Not started yet.
+Plan: repository/context DONE; baseline/fix IN PROGRESS; repetitions/reviews/PR/cleanup PENDING.
+
+## 16:28 UTC — expanded fail-first checkpoint
+OBSERVED: expanded baseline exits 1: 8 cases, 6 failures, 2 passes, zero errors/skips. Both added before-activation cases get [] instead of [closed]. The pending-controller close controls pass already, because completing the selected future removes the armed guard before unregister traverses the pipeline. No claim that these controls reproduce a new defect. Full stacks in `out/r257-expanded-close-baseline.log` and XML directory of the same prefix.
+OBSERVED: added test checkpoint: https://github.com/CodexCoder21Organization/jvm-libp2p/commit/05b7a329 . No existing assertion/bound changed. Initial commit command required configuring the fresh checkout's git author; fixed locally and committed successfully.
+INFER (confirmed mechanism): retain original stage guard lifetime; forward unregister even if completing the controller removes the current context; test channel activity before activation and again before handing buffered input downstream, releasing it after synchronous close. This directly changes the two faulty transitions and introduces no new timing/buffering mechanism.
+
+16:29 UTC — Existing test edit inventory: the inherited callback-close test now saves its original input buffer in a local val and adds `assertEquals(0, input.refCnt(), ...)` after the unchanged exact events assertion. This strengthens release coverage; every prior expected event and bound is unchanged. Added a blank line before the next test (formatting only). Original lane246 coalesced read-pause fixture copied verbatim into test sources as an untracked verification input; it will be removed before the PR commit. Focused fixed build and scoped formatting check running.
+
+## 16:30 UTC — dedicated test review
+OBSERVED: reviewed all three PR test classes and the original lane246 fixture, plus existing early-close/controller tests and AbstractChildChannel's public lifecycle implementation. The new before-activation tests fail first; pending-controller tests are explicit passing controls. Existing exact callback assertions were retained; buffered-input refcount check added. Real TCP fixture forces known input grouping independent of TCP segmentation, counts header writes, and proves the resulting stream carries data. Public ProtocolBinding/ProtocolHandler/ProtocolMessageHandler callbacks drive lifecycle tests through real Multistream/Netty EmbeddedChannel. All per-case resources close in finally. No reflection, mock, skipped test, timeout increase, reduced iteration or delay introduced.
+INFER: coverage now matches every invariant-table row, including callback reentry and repeated close. No persisted resources or restart contract are touched. Variable-size input is forwarded or released once without storage, copying, or a new collection; the change adds constant per-message checks. Neighbor coverage includes controller settlement, child lifecycle, mux publication, plaintext and secio. Scoped spotless check passed. Fixed test result still pending compilation.
+
+## 16:32 UTC — dedicated code review
+OBSERVED: walked ProtocolSelect's success, async-controller, exception, callback reentry, synchronous close, and unregister paths against Negotiator's decoder-removal ordering, MultistreamImpl's close-future observer, ProtocolMessageHandlerAdapter and AbstractChildChannel teardown. The activation flag is set before callbacks; guard removal is armed only on the pending negotiation active event; unregister forwarding remains valid when future completion removes the current context. Buffered bytes are forwarded only while active and otherwise released exactly once. No new interface call, collection, lock, timer or persisted state added. No other implementation/fake contract needs updating.
+INFER: no unresolved source concern. README considered: existing initialization/closure behavior is restored; there is no new API, dependency, setting or setup command to document. Formatting passes on touched files. Initial fixed focused tests still compiling; once green, checkpoint, run strengthened tests again with the close fix removed, then restore exact fixed head for ten repetitions and all requested groups. This negative check is justified by the newly added buffer-release assertion and ensures the changed test still detects the original bug.
+
+## 16:33 UTC — first passing fix checkpoint
+OBSERVED: scoped spotless check and 16 focused cases pass (6 coalesced/segmented/reentry cases, 8 close cases, 2 real TCP mux cases); zero failures/errors/skips. Full XML saved in `out/r257-fixed-focused-xml/`, log `out/r257-fixed-focused.log`. Close fix plus strengthened input-release assertion pushed at https://github.com/CodexCoder21Organization/jvm-libp2p/commit/f74ff5a0 . No changes to Negotiator or frame decoder order.
+OBSERVED: now running the final strengthened close tests against ProtocolSelect from 6f79afa8, with only the new close fix removed. This is a negative test of test effectiveness, not a proposed branch state. Fixed source is both pushed and saved at /tmp/r257-ProtocolSelect.fixed.kt; restore immediately after the bounded command completes. Log `out/r257-final-tests-without-close-fix.log`.
+Plan: close fix DONE with first passing test; final negative check/repetitions/neighbors/transport IN PROGRESS; reviews DONE pending final delta; PR and cleanup PENDING.
+
+## 16:37 UTC — final test effectiveness confirmed; broad verification starting
+OBSERVED: final strengthened tests against ProtocolSelect at 6f79afa8 again produce 6/8 failures, with the exact same lost-close and post-close-payload events. Two pending-controller controls pass. Full traces in `out/r257-final-tests-without-close-fix.log` and XML. Thus the inherited test remains fail-first after its input-refcount strengthening. Restored ProtocolSelect from HEAD f74ff5a0 and byte-compared with the saved passing source; no tracked worktree differences.
+OBSERVED: Kubo 0.34.1 started as a tracked lane-owned process (out/r257-kubo.pid/log) using no bootstrap peers, mDNS disabled, routing none and loopback addresses only. Local API reports readiness. Native final Gradle run will compile once, execute ten fresh sixteen-case tasks, original lane246 fixture both muxers, unchanged prior neighbor filter plus new close cases, and transport package once. Each run bounded by timeout 900, JAVA_OPTS=-Xmx2g, one worker and in-process Kotlin. No CI watch is started.
+
+## 16:39 UTC — progress report
+RUNNING: implementation and deterministic fail-first proof complete; ten-run/broader native verification compiling on pushed f74ff5a0. All pre-build origin/develop rebases remain no-ops. Original lane246 fixture byte-match SHA256 `07b4e339ff65bcdfd10947cbd66a3b6f142ee284f662837322997eed703c1c36`; no edits to its assertions or timing. Kubo API ready at pinned 0.34.1. Remaining: inspect all group XML, address any failures, final delta review and no-op rebase check, REST PR, remote evidence, process/checkout/cache cleanup. No blocker or CI/merge/publish action.
+
+## 16:43 UTC — repeated focused tests complete
+OBSERVED: all ten fresh 128 MiB focused tasks completed without a failed task; first eight XML summaries independently total 128/128 with zero failures/errors/skips. Original lane246 fixture task also completed without FAILED; neighbors running. Exact final per-group XML counts will be collected after terminal Gradle exit. Source remains f74ff5a0, no tracked edits.
+
+## 16:44 UTC — required verification complete
+OBSERVED: final bounded Gradle exits 0 in 5m38s. Ten independent sixteen-case 128 MiB tasks: 160/160 passed, zero failures/errors/skips. Original lane246 fixture: 2/2 passed, both muxers. Neighbor filter: 199/199 passed (prior 191 plus the eight close cases). Transport: 73 discovered, 72 passed, zero failures/errors, one inherited disabled QuicServerTestJava case; this lane did not skip or alter it. Pinned isolated Kubo fixture made pingKubo pass. Scoped spotless check passed.
+OBSERVED: complete native XML copied to `out/r257-verification-xml/`, exact group counts to `out/r257-verification-counts.json`, full log `out/r257-final-verification.log`. Verification-only original fixture removed; tracked worktree clean. Fresh pre-PR fetch/rebase origin/develop is a no-op; exact tested/pushed head f74ff5a0dccefbdfe035ee6a67395acddcd45d2c, base 5c08e2e226692e8f2b214d56fcf9ee405c61fd5e. No source delta after review. Owned Kubo wrapper signaled to stop; terminal wait and process audit still pending.
+
+## Brief item audit
+1. Fresh clone/checkpoint/rebase/WIP inspection — DONE. Rebase always no-op; WIP's correct unregister forwarding retained; decoder-order candidate discarded with preserved fail-first reentry evidence.
+2. Activation/close/input invariants — DONE. Public tests prove once-only activation, close before/during activation, no payload after activation-close, repeated close, input release and pending-controller settlement. Close tests fail 6/8 with source fix removed (two passing controls); 16/16 fixed, then ten independent 16/16 runs.
+3. Required repeated/original/neighbor/transport checks — DONE with counts above; no assertion weakened or timeout raised.
+4. Commit/push — DONE at linked commits; REST PR/evidence push and cleanup IN PROGRESS. No merge/publication/deployment/CI monitoring performed or planned.

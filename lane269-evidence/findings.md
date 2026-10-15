@@ -33,3 +33,85 @@ INFER: Exact forcing mechanism will be FixedRecvByteBufAllocator(1).maxMessagesP
 ## 2026-10-15T17:47:36.460356+00:00 unchanged baseline milestone
 OBSERVED: Unchanged develop ec74179a589bfb7137122f93906e03a24ca19714: 20/20 passed for mplex and 20/20 passed for yamux; zero failures/skips, Gradle exit 0, 8m08s including clean compilation. This does not negate prior lane246's recorded payload-stage failures: that trace forced no read boundary. XML and JSON archived under out/r269-xml/baseline and out/r269-baseline-result.json.
 Next: add only the forced transport-read parameters and allocator; leave the old await-before-resume assertion intact, and run 10 repetitions before applying the prepared ordering correction.
+
+## 2026-10-15T17:50:00.532555+00:00 forced-case setup
+OBSERVED: Committed source-only forced-read case as 5f351a95 (old await-before-resume still intact). CsvSource includes original native reads plus fragmented reads for each muxer; only new allocator/configuration path added. Running 10 native Gradle test tasks against that commit after successful fetch/rebase origin/develop. The first launch was stopped during Gradle configuration because I had attempted rebase with uncommitted changes; no tests ran in that discarded launch. Corrected by committing the fail-first fixture and restarting after a successful rebase.
+OBSERVED: Existing baseline XML also contains ReferenceCountUtil.safeRelease warnings from the unchanged outbound-buffer cleanup; they are not JUnit failures and this work leaves that cleanup untouched.
+
+## 2026-10-15T17:52:44.920706+00:00 forcing experiment refuted and corrected
+OBSERVED: First allocator attempt (configured after negotiation) passed 10/10 native and 10/10 purported fragmented cases for each muxer. It is NOT a reproducer. Netty's actual 4.2.10.Final AbstractChannel.AbstractUnsafe.recvBufAllocHandle() bytecode assigns config.getRecvByteBufAllocator().newHandle() only when recvHandle is null; subsequent reads keep the first handle. Thus changing config after handshake does not change read boundaries. Archived under out/r269-xml/late-allocator.
+OBSERVED: ConnectionBuilder.initChannel installs secure multistream pre-handlers before negotiation; using the existing beforeSecureHandler visitor allows configuring the real TCP parent before its first socket read. Moved the allocator there; restored the original parent auto-read setup unchanged. No test-contract correction applied yet.
+INFER: This corrected setup forces one-byte reads throughout this one receiver connection; the original await-before-resume must now fail on the payload stage.
+
+## 2026-10-15T17:57:28.755297+00:00 first reliable failing reproduction
+OBSERVED: Corrected before-first-read allocator fixture fails both muxers at the original payload-stage await in completed repetitions 1 and 2; native parameters pass in those same runs. Failure text: `not every payload frame reached the muxer while the child was paused ==> expected: <true> but was: <false>` at ChildReadPauseTcpTest.kt:199. Full stack traces in the Gradle log and XML; no initialization failure. Ten-run measurement still active. Fail-first source pushed at b77a4c97 on https://github.com/CodexCoder21Organization/jvm-libp2p/tree/fix/lane269-readpause-test-contract .
+INFER: The forced condition matches the earlier raw trace: first frame delivered, later frames require transport reads that the child's pause stops. This is the await-before-resume test ordering error, not dropped/reordered records. Final proof will require the exact complete ordered list on unchanged production after resume.
+
+## 2026-10-15T17:59:56.870644+00:00 deterministic reproduction complete
+OBSERVED: Corrected allocator fixture b77a4c97, unchanged production: ten runs per parameter completed, counts:
+```json
+{
+  "io.libp2p.mux.ChildReadPauseTcpTest mplex, fragmented transport reads=false": {
+    "pass": 10,
+    "fail": 0,
+    "skip": 0
+  },
+  "io.libp2p.mux.ChildReadPauseTcpTest yamux, fragmented transport reads=false": {
+    "pass": 9,
+    "fail": 1,
+    "skip": 0
+  },
+  "io.libp2p.mux.ChildReadPauseTcpTest mplex, fragmented transport reads=true": {
+    "pass": 0,
+    "fail": 10,
+    "skip": 0
+  },
+  "io.libp2p.mux.ChildReadPauseTcpTest yamux, fragmented transport reads=true": {
+    "pass": 0,
+    "fail": 10,
+    "skip": 0
+  }
+}
+```
+All failures are the original payload-stage await: `org.opentest4j.AssertionFailedError: not every payload frame reached the muxer while the child was paused ==> expected: <true> but was: <false>`; no setup/negotiation errors or skipped cases. Full stack traces are in out/r269-forced-old-result.json and out/r269-xml/forced-old.
+Plan item 2 complete; item 3 in progress. The test-contract fix is still unapplied.
+
+### Full first failure stack trace
+```
+org.opentest4j.AssertionFailedError: not every payload frame reached the muxer while the child was paused ==> expected: <true> but was: <false>
+	at app//org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+	at app//org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+	at app//org.junit.jupiter.api.AssertTrue.failNotTrue(AssertTrue.java:63)
+	at app//org.junit.jupiter.api.AssertTrue.assertTrue(AssertTrue.java:36)
+	at app//org.junit.jupiter.api.Assertions.assertTrue(Assertions.java:214)
+	at app//io.libp2p.mux.ChildReadPauseTcpTest.offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume(ChildReadPauseTcpTest.kt:199)
+	at java.base@21.0.12.1/java.lang.reflect.Method.invoke(Method.java:580)
+	at java.base@21.0.12.1/java.util.Optional.ifPresent(Optional.java:178)
+	at java.base@21.0.12.1/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:184)
+	at java.base@21.0.12.1/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:197)
+	at java.base@21.0.12.1/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:184)
+	at java.base@21.0.12.1/java.util.ArrayList$ArrayListSpliterator.forEachRemaining(ArrayList.java:1708)
+	at java.base@21.0.12.1/java.util.stream.ReferencePipeline$Head.forEach(ReferencePipeline.java:762)
+	at java.base@21.0.12.1/java.util.stream.ReferencePipeline$7$1.accept(ReferencePipeline.java:276)
+	at java.base@21.0.12.1/java.util.ArrayList$ArrayListSpliterator.forEachRemaining(ArrayList.java:1708)
+	at java.base@21.0.12.1/java.util.stream.AbstractPipeline.copyInto(AbstractPipeline.java:509)
+	at java.base@21.0.12.1/java.util.stream.AbstractPipeline.wrapAndCopyInto(AbstractPipeline.java:499)
+	at java.base@21.0.12.1/java.util.stream.ForEachOps$ForEachOp.evaluateSequential(ForEachOps.java:151)
+	at java.base@21.0.12.1/java.util.stream.ForEachOps$ForEachOp$OfRef.evaluateSequential(ForEachOps.java:174)
+	at java.base@21.0.12.1/java.util.stream.AbstractPipeline.evaluate(AbstractPipeline.java:234)
+	at java.base@21.0.12.1/java.util.stream.ReferencePipeline.forEach(ReferencePipeline.java:596)
+	at java.base@21.0.12.1/java.util.stream.ReferencePipeline$7$1.accept(ReferencePipeline.java:276)
+	at java.base@21.0.12.1/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:197)
+	at java.base@21.0.12.1/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:197)
+	at java.base@21.0.12.1/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:197)
+	at java.base@21.0.12.1/java.util.ArrayList$ArrayListSpliterator.forEachRemaining(ArrayList.java:1708)
+	at java.base@21.0.12.1/java.util.stream.AbstractPipeline.copyInto(AbstractPipeline.java:509)
+	at java.base@21.0.12.1/java.util.stream.AbstractPipeline.wrapAndCopyInto(AbstractPipeline.java:499)
+	at java.base@21.0.12.1/java.util.stream.ForEachOps$ForEachOp.evaluateSequential(ForEachOps.java:151)
+	at java.base@21.0.12.1/java.util.stream.ForEachOps$ForEachOp$OfRef.evaluateSequential(ForEachOps.java:174)
+	at java.base@21.0.12.1/java.util.stream.AbstractPipeline.evaluate(AbstractPipeline.java:234)
+	at java.base@21.0.12.1/java.util.stream.ReferencePipeline.forEach(ReferencePipeline.java:596)
+	at java.base@21.0.12.1/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at java.base@21.0.12.1/java.util.ArrayList.forEach(ArrayList.java:1596)
+
+```

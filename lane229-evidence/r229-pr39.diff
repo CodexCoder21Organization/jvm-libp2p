@@ -1,0 +1,565 @@
+diff --git a/FORK.md b/FORK.md
+index 47210de3a..139915715 100644
+--- a/FORK.md
++++ b/FORK.md
+@@ -33,10 +33,12 @@ On top of the upstream `develop` snapshot (which already provides the #412 threa
+ - **`newStream` does not fail a caller for its own pool entry** (snapshot-25) — `Host.newStream(protocols, peer, addr)` selects the connection and creates the stream, so when the connection it selected turns out to be dead it evicts it, awaits the close, and dials once. The redial is refused when only the SUBSTREAM died (`ConnectionClosedException` is raised at substream granularity too) or when a stream has already been published to the caller, so a healthy shared connection is never torn down and a caller is never handed one attempt's stream with another attempt's controller.
+ - **Terminal connection pool exclusion** (snapshot-21) — both established-connection lookups in `NetworkImpl.connect` remove and skip entries whose close future is already complete. Connection-table removal is itself a close-future continuation, so a caller could previously observe the completed future before that continuation ran and receive the closed connection instead of starting a fresh dial.
+ 
++- **One parent close operation** (snapshot-27) — connection borrowers and Netty transport shutdown share one atomically admitted close operation per physical parent. Repeated or re-entrant calls observe the same terminal result; completing one caller's future cannot complete another caller's close. This resolves the held-parent duplicate-close baseline in [the resolver ownership review](https://github.com/CodexCoder21Organization/UrlResolver/pull/1080).
++
+ The patched build is published to [kotlin.directory](https://kotlin.directory) under an **unambiguously non-upstream** Maven coordinate (the `community.kotlin.libp2p` group is owned by CodexCoder21 — we deliberately do **not** publish under `io.libp2p`, which belongs to upstream):
+ 
+ ```
+-community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-25
++community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-27
+ ```
+ 
+ ## When this fork goes away
+diff --git a/README.md b/README.md
+index 51fa2b548..cc6f702b5 100644
+--- a/README.md
++++ b/README.md
+@@ -69,6 +69,11 @@ whose close future has completed are removed and skipped during selection, even
+ asynchronous table-removal continuation has not run yet. A request made in that interval therefore
+ starts a fresh transport dial instead of receiving a connection whose muxer is already closed.
+ 
++Connection close and transport shutdown share one physical close operation for each Netty
++parent channel. Repeated calls wait for that operation and report its original failure if it
++fails; they do not issue another close. Completing or cancelling one caller's returned future
++does not complete the operation or another caller's shutdown future.
++
+ ## Gossip simulator
+ 
+ Deterministic Gossip simulator which may simulate networks as large as 10000 of peers
+diff --git a/build.gradle.kts b/build.gradle.kts
+index bd55ebe7f..c5a522348 100644
+--- a/build.gradle.kts
++++ b/build.gradle.kts
+@@ -78,7 +78,7 @@ configure(
+     // a fresh Noise ephemeral private key injected before every handshake starts.
+     // snapshot-21: exclude connections with completed close futures from both established-connection
+     // lookups, so a stream request made during close bookkeeping starts a fresh transport dial.
+-    version = "1.3.0-codexcoder21-snapshot-25"
++    version = "1.3.0-codexcoder21-snapshot-27"
+ 
+     apply(plugin = "kotlin")
+     apply(plugin = "idea")
+diff --git a/investigations/uO-close-ownership.md b/investigations/uO-close-ownership.md
+new file mode 100644
+index 000000000..042ad97d6
+--- /dev/null
++++ b/investigations/uO-close-ownership.md
+@@ -0,0 +1,22 @@
++# Shared parent close ownership
++
++The buildtest utilization effort led to UrlResolver connection-lifetime review at https://github.com/CodexCoder21Organization/UrlResolver/pull/1080. Its relay shutdown gate observed duplicate close requests on a physical parent.
++
++OBSERVED: The mechanism is NetworkImpl.close invoking Transport.close and Connection.close on the same Netty parent while the first request is still pending. The evidence is the consumer caller trace and testNativeNetworkShutdownClosesParentOnce: holding the first physical close produces exactly five requests from two network shutdowns plus one explicit connection close (expected one). The native ConnectionOverNetty, P2PChannelOverNetty, and PlainNettyTransport files match the published snapshot-26 source. The equivalent upstream public-API test is ParentCloseOwnershipTest.networkAndConnectionShutdownShareOnePendingPhysicalClose. Its initial Gradle build is running; no source fix is applied yet.
++
++| Resource | Creator / owner | Closing rule | Hostile caller proof |
++| --- | --- | --- | --- |
++| Physical parent channel | Transport creates; the channel owns its one close operation | First requester claims the operation before calling handlers; all later connection/transport requests join it | Hold first close and invoke connection plus repeated network shutdown; physical count remains one |
++| Close operation result | Channel retains private completion state; each caller borrows a dependent future | A caller cannot finish or cancel another caller's close; completion reflects the physical operation | Complete one caller's future before releasing held close; both network shutdowns remain pending |
++| Completed parent | Channel close is terminal | Later explicit close does not traverse the pipeline again | Repeat connection and network close after completion; count remains one |
++| Failed close | Operation retains its failed result | Later owners receive the failure; no implicit retry | Injected failure reaches every owner unchanged; baseline requests 3, fixed requests 1 |
++
++INFER: A channel-level operation is needed because Connection.close and transport teardown currently enter through different APIs. A resolver-only delay would hide the upstream duplication and would not fix NetworkImpl's public contract. No production deployment or artifact publication is authorized in this lane; source/test checkpoints remain on remote branches.
++
++OBSERVED (18:53 UTC): The upstream public-API baseline completed: two tests, two failures. Pending-close case expected 1 request and observed 5; failed-close case expected 1 and observed 3. Both fail at counts, not timeouts, and both preserve the exact original transport error. Full console: uO-upstream-baseline.txt. The fixture compilation correction only documented use of Netty's explicit-executor overload; no production source had changed.
++
++The mechanism I am about to fix is independent connection and transport close admission for the same physical channel, and the reproducer that demonstrates it is ParentCloseOwnershipTest with the first channel close held or failed deterministically. The channel will retain one private operation future, installed atomically before handlers can re-enter. Connection close and transport shutdown will join that operation; each caller receives a dependent future so completing a borrowed future cannot finish shutdown for others.
++
++OBSERVED (19:05 UTC): Both upstream test scenarios pass (2 tests, 0 failures) after the source change at https://github.com/CodexCoder21Organization/jvm-libp2p/commit/d80a3253. The source review also strengthened borrower isolation to assert directly against another connection-close future. The just-finished Gradle compilation took its test snapshot before that last assertion was added (confirmed by checking the assertion text in the generated class). The stronger assertion is being exercised in the consumer counting gate; no exact-final-head Gradle pass is claimed. No artifact was published.
++
++OBSERVED (2026-09-07): The resolver counting test passed using the locally staged fixed jar, including the extra independent connection-close future assertion. The real relay shutdown test also passed, followed by five consecutive accepted-RPC withdrawal passes. The production dependency remains snapshot-26; these are explicitly local-artifact results, not release or CI claims. Upstream source work is under review at https://github.com/CodexCoder21Organization/jvm-libp2p/pull/39.
+diff --git a/investigations/uO-upstream-baseline.txt b/investigations/uO-upstream-baseline.txt
+new file mode 100644
+index 000000000..b8de0762c
+--- /dev/null
++++ b/investigations/uO-upstream-baseline.txt
+@@ -0,0 +1,80 @@
++tb.sh: slot 2 acquired 18:47:53 for /tmp/claude-1000/-code/cc161e27-cb11-48c5-89b5-f0960e498312/scratchpad/workspace/uO-1080-shutdown/jvm-libp2p --test io.libp2p.transport.ParentCloseOwnershipTest
++To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.14.3/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
++Daemon will be stopped at the end of the build 
++Build configured without Android submodules.
++    To include Android submodules define a valid SDK location with an ANDROID_HOME environment variable 
++    or by setting the sdk.dir path in your project's local properties file local.properties.
++> Task :libp2p:extractIncludeProto UP-TO-DATE
++> Task :libp2p:extractProto UP-TO-DATE
++> Task :libp2p:generateProto UP-TO-DATE
++> Task :libp2p:compileKotlin UP-TO-DATE
++> Task :libp2p:compileJava UP-TO-DATE
++> Task :libp2p:processResources UP-TO-DATE
++> Task :libp2p:classes UP-TO-DATE
++> Task :libp2p:inspectClassesForKotlinIC UP-TO-DATE
++> Task :libp2p:jar UP-TO-DATE
++> Task :tools:schedulers:processResources NO-SOURCE
++> Task :libp2p:extractIncludeTestFixturesProto UP-TO-DATE
++> Task :libp2p:extractTestFixturesProto UP-TO-DATE
++> Task :libp2p:generateTestFixturesProto NO-SOURCE
++> Task :tools:schedulers:compileKotlin UP-TO-DATE
++> Task :tools:schedulers:compileJava UP-TO-DATE
++> Task :tools:schedulers:classes UP-TO-DATE
++> Task :tools:schedulers:inspectClassesForKotlinIC UP-TO-DATE
++> Task :tools:schedulers:jar UP-TO-DATE
++> Task :libp2p:compileTestFixturesKotlin UP-TO-DATE
++> Task :libp2p:compileTestFixturesJava UP-TO-DATE
++> Task :libp2p:processTestFixturesResources NO-SOURCE
++> Task :libp2p:testFixturesClasses UP-TO-DATE
++> Task :libp2p:testFixturesJar UP-TO-DATE
++> Task :libp2p:extractIncludeTestProto UP-TO-DATE
++> Task :libp2p:extractTestProto UP-TO-DATE
++> Task :libp2p:generateTestProto NO-SOURCE
++> Task :libp2p:compileTestKotlin
++> Task :libp2p:compileTestJava
++> Task :libp2p:processTestResources
++> Task :libp2p:testClasses
++
++> Task :libp2p:test
++
++ParentCloseOwnershipTest > networkAndConnectionShutdownShareOnePendingPhysicalClose() FAILED
++    org.opentest4j.AssertionFailedError: One parent received 5 physical close requests while the first was pending; transport and connection shutdown must share the owner's in-flight close. ==> expected: <1> but was: <5>
++        at app//org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
++        at app//org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
++        at app//org.junit.jupiter.api.AssertEquals.failNotEqual(AssertEquals.java:197)
++        at app//org.junit.jupiter.api.AssertEquals.assertEquals(AssertEquals.java:150)
++        at app//org.junit.jupiter.api.Assertions.assertEquals(Assertions.java:563)
++        at app//io.libp2p.transport.ParentCloseOwnershipTest.networkAndConnectionShutdownShareOnePendingPhysicalClose(ParentCloseOwnershipTest.kt:53)
++
++ParentCloseOwnershipTest > failedCloseIsReturnedToEveryOwnerWithoutAnotherRequest() FAILED
++    org.opentest4j.AssertionFailedError: A failed close is terminal; another owner must observe its result without issuing another physical close. ==> expected: <1> but was: <3>
++        at app//org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
++        at app//org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
++        at app//org.junit.jupiter.api.AssertEquals.failNotEqual(AssertEquals.java:197)
++        at app//org.junit.jupiter.api.AssertEquals.assertEquals(AssertEquals.java:150)
++        at app//org.junit.jupiter.api.Assertions.assertEquals(Assertions.java:563)
++        at app//io.libp2p.transport.ParentCloseOwnershipTest.failedCloseIsReturnedToEveryOwnerWithoutAnotherRequest(ParentCloseOwnershipTest.kt:109)
++
++2 tests completed, 2 failed
++
++> Task :libp2p:test FAILED
++
++[Incubating] Problems report is available at: file:///tmp/claude-1000/-code/cc161e27-cb11-48c5-89b5-f0960e498312/scratchpad/workspace/uO-1080-shutdown/jvm-libp2p/build/reports/problems/problems-report.html
++
++FAILURE: Build failed with an exception.
++
++* What went wrong:
++Execution failed for task ':libp2p:test'.
++> There were failing tests. See the report at: file:///tmp/claude-1000/-code/cc161e27-cb11-48c5-89b5-f0960e498312/scratchpad/workspace/uO-1080-shutdown/jvm-libp2p/libp2p/build/reports/tests/test/index.html
++
++* Try:
++> Run with --scan to get full insights.
++
++Deprecated Gradle features were used in this build, making it incompatible with Gradle 9.0.
++
++You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
++
++For more on this, please refer to https://docs.gradle.org/8.14.3/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
++
++BUILD FAILED in 5m 26s
++23 actionable tasks: 4 executed, 19 up-to-date
+diff --git a/investigations/uO-upstream-fixed.txt b/investigations/uO-upstream-fixed.txt
+new file mode 100644
+index 000000000..a8314e6fe
+--- /dev/null
++++ b/investigations/uO-upstream-fixed.txt
+@@ -0,0 +1,48 @@
++tb.sh: slot 2 acquired 18:55:49 for /tmp/claude-1000/-code/cc161e27-cb11-48c5-89b5-f0960e498312/scratchpad/workspace/uO-1080-shutdown/jvm-libp2p --test io.libp2p.transport.ParentCloseOwnershipTest
++To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.14.3/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
++Daemon will be stopped at the end of the build 
++Build configured without Android submodules.
++    To include Android submodules define a valid SDK location with an ANDROID_HOME environment variable 
++    or by setting the sdk.dir path in your project's local properties file local.properties.
++> Task :libp2p:extractIncludeProto UP-TO-DATE
++> Task :libp2p:extractProto UP-TO-DATE
++> Task :libp2p:generateProto UP-TO-DATE
++> Task :libp2p:compileKotlin
++> Task :libp2p:compileJava UP-TO-DATE
++> Task :libp2p:processResources UP-TO-DATE
++> Task :libp2p:classes UP-TO-DATE
++> Task :libp2p:inspectClassesForKotlinIC
++> Task :libp2p:jar
++> Task :tools:schedulers:processResources NO-SOURCE
++> Task :libp2p:extractIncludeTestFixturesProto UP-TO-DATE
++> Task :libp2p:extractTestFixturesProto UP-TO-DATE
++> Task :libp2p:generateTestFixturesProto NO-SOURCE
++> Task :tools:schedulers:compileKotlin UP-TO-DATE
++> Task :tools:schedulers:compileJava UP-TO-DATE
++> Task :tools:schedulers:classes UP-TO-DATE
++> Task :tools:schedulers:inspectClassesForKotlinIC UP-TO-DATE
++> Task :tools:schedulers:jar UP-TO-DATE
++> Task :libp2p:compileTestFixturesKotlin
++> Task :libp2p:compileTestFixturesJava UP-TO-DATE
++> Task :libp2p:processTestFixturesResources NO-SOURCE
++> Task :libp2p:testFixturesClasses UP-TO-DATE
++> Task :libp2p:testFixturesJar UP-TO-DATE
++> Task :libp2p:extractIncludeTestProto UP-TO-DATE
++> Task :libp2p:extractTestProto UP-TO-DATE
++> Task :libp2p:generateTestProto NO-SOURCE
++> Task :libp2p:compileTestKotlin
++> Task :libp2p:compileTestJava
++> Task :libp2p:processTestResources UP-TO-DATE
++> Task :libp2p:testClasses
++> Task :libp2p:test
++
++[Incubating] Problems report is available at: file:///tmp/claude-1000/-code/cc161e27-cb11-48c5-89b5-f0960e498312/scratchpad/workspace/uO-1080-shutdown/jvm-libp2p/build/reports/problems/problems-report.html
++
++Deprecated Gradle features were used in this build, making it incompatible with Gradle 9.0.
++
++You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
++
++For more on this, please refer to https://docs.gradle.org/8.14.3/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
++
++BUILD SUCCESSFUL in 9m 21s
++23 actionable tasks: 7 executed, 16 up-to-date
+diff --git a/investigations/vE-native-validation.md b/investigations/vE-native-validation.md
+new file mode 100644
+index 000000000..456e22ae3
+--- /dev/null
++++ b/investigations/vE-native-validation.md
+@@ -0,0 +1,3 @@
++# Exact source native validation
++
++OBSERVED (20:51 UTC): Exact upstream source head 6db7505a4bb5f47659b60372d96d9de2299356ed passed io.libp2p.transport.ParentCloseOwnershipTest through tb.sh: 2 tests, 0 failures, 0 errors, 0 skipped. XML time 5.109s; Gradle BUILD SUCCESSFUL in 1m27s. This includes the final future-isolation assertion added after uO's last native run. No additional runtime change followed this test.
+diff --git a/investigations/vE-release.md b/investigations/vE-release.md
+new file mode 100644
+index 000000000..6b6df0e36
+--- /dev/null
++++ b/investigations/vE-release.md
+@@ -0,0 +1,10 @@
++# Snapshot 27 artifact release
++
++OBSERVED: Built from https://github.com/CodexCoder21Organization/jvm-libp2p/commit/62580dfc with the existing source fix and version 1.3.0-codexcoder21-snapshot-27. Gradle :libp2p:jar and :libp2p:generatePomFileForMavenJavaPublication succeeded with one worker and 512 MiB heap. Uploaded only the generated main JAR and full-dependency POM through community.kotlin.maven.artifact.publishing:community-kotlin-maven-artifact-publishing:0.0.5 HTTP publisher. No running service was deployed.
++
++At 2026-09-07 20:00 UTC both served files returned HTTP 200 and matched local SHA-256:
++
++- [JAR](https://kotlin.directory/community/kotlin/libp2p/jvm-libp2p/1.3.0-codexcoder21-snapshot-27/jvm-libp2p-1.3.0-codexcoder21-snapshot-27.jar): `483e5fca32fe3870c7b93c055885b3dce03ceace40d1b1fbfb75ee9320d8106b`
++- [POM](https://kotlin.directory/community/kotlin/libp2p/jvm-libp2p/1.3.0-codexcoder21-snapshot-27/jvm-libp2p-1.3.0-codexcoder21-snapshot-27.pom): `d964de6be86a8bdb93404e84abdac84c3d623b455d031aeab679b2ef228c96e8`
++
++The final native test run remains pending. Consumer adoption and new public ownership tests continue in https://github.com/CodexCoder21Organization/UrlResolver/pull/1080.
+diff --git a/investigations/vE-state.md b/investigations/vE-state.md
+new file mode 100644
+index 000000000..1c6e515fc
+--- /dev/null
++++ b/investigations/vE-state.md
+@@ -0,0 +1,42 @@
++# vE final checkpoint
++
++## STATE
++
++OBSERVED: Time-bounded continuation stopped before all requested validation completed. This is not DONE. The artifact and source work are durable; uncompleted validation below is required before relying on the new proofs.
++
++- Done: published `community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-27`; generated JAR and full-dependency POM both served HTTP 200 with matching local/served hashes (see vE-release.md).
++- Done: resolver build, README, 1,446 direct test pins and packaged-JAR expectations adopt snapshot-27.
++- Done: three new public-API proofs fail first on snapshot-26 at physical-close counts 4, 2, and 4, with expected count 1. Their preceding overlap/unpublished-parent/previous-release-peer assertions passed. Full stacks are committed in the resolver investigations directory.
++- Refuted: the six O6 source guards were missing. All six named tests already existed; they were retained unchanged except artifact selection. Their new-artifact executions remain required below.
++- Done: upstream exact-head testClasses compilation passed (6m24s). This alone is not a native test result.
++- Fixed-artifact passing gates: `testNativeNetworkShutdownClosesParentOnce` (1/1), `testRelayReplacementAdmitsReversePeerExchange` (1/1), `testWithdrawalStaleMuxKeepsAcceptedRpc` (1/1), `testRegistrationResyncEscapesStaleMuxAfterAnnouncement` (1/1).
++- Upstream native exact-head gate: PASS (see local result evidence).
++
++INFER: shared slot waits plus fresh dependency compilation consumed the bounded run window. There is no evidence supporting a fixed-artifact pass for any uncompleted selector. No source fix was guessed from a timeout or queue wait.
++
++## Remaining commands
++
++Use fresh checkouts from the branches below. Run one selector at a time through the supplied local wrapper. Never rerun already recorded passing gates merely for repetition. Fetch/rebase on origin/main (resolver) or origin/develop (upstream) before builds. The old automatic runner has a lane-specific clock cutoff and must not be reused unchanged.
++
++```bash
++/tmp/claude-1000/-code/cc161e27-cb11-48c5-89b5-f0960e498312/scratchpad/util/tb.sh <absolute-UrlResolver-checkout> --test testWithdrawalRecoversFromStaleOpenMux
++/tmp/claude-1000/-code/cc161e27-cb11-48c5-89b5-f0960e498312/scratchpad/util/tb.sh <absolute-UrlResolver-checkout> --test testRecoverySecureSessionFailureIsObservable
++/tmp/claude-1000/-code/cc161e27-cb11-48c5-89b5-f0960e498312/scratchpad/util/tb.sh <absolute-UrlResolver-checkout> --test testConcurrentRecoveryDialSharesOneParent
++/tmp/claude-1000/-code/cc161e27-cb11-48c5-89b5-f0960e498312/scratchpad/util/tb.sh <absolute-UrlResolver-checkout> --test testShutdownClosesUnpublishedRecoveryDialOnce
++/tmp/claude-1000/-code/cc161e27-cb11-48c5-89b5-f0960e498312/scratchpad/util/tb.sh <absolute-UrlResolver-checkout> --test testRecoveryWithPreviousReleasePeer
++/tmp/claude-1000/-code/cc161e27-cb11-48c5-89b5-f0960e498312/scratchpad/util/tb.sh <absolute-UrlResolver-checkout> --test stressTestWithdrawalLossDuringInitialBootstrapHandshake
++/tmp/claude-1000/-code/cc161e27-cb11-48c5-89b5-f0960e498312/scratchpad/util/tb.sh <absolute-UrlResolver-checkout> --test stressTestBootstrapServiceResyncDoesNotGiveUpUnderSaturation
++/tmp/claude-1000/-code/cc161e27-cb11-48c5-89b5-f0960e498312/scratchpad/util/tb.sh <absolute-UrlResolver-checkout> --test testReRegistrationDuringWithdrawalResyncWindowStaysLive
++/tmp/claude-1000/-code/cc161e27-cb11-48c5-89b5-f0960e498312/scratchpad/util/tb.sh <absolute-UrlResolver-checkout> --test testHealthyConfiguredBootstrapRecoveryRemainsPrompt
++/tmp/claude-1000/-code/cc161e27-cb11-48c5-89b5-f0960e498312/scratchpad/util/tb.sh <absolute-UrlResolver-checkout> --test testWithdrawalRetriedAfterPendingDialStall
++/tmp/claude-1000/-code/cc161e27-cb11-48c5-89b5-f0960e498312/scratchpad/util/tb.sh <absolute-UrlResolver-checkout> --test testRegistrationRecoversFromStaleOpenMux
++```
++
++After these results, rebase, confirm both PRs OPEN, push with --force-with-lease, PATCH both bodies via gh api and re-read them. Do not merge, enqueue or deploy.
++
++## Durable branches
++
++- https://github.com/CodexCoder21Organization/UrlResolver/tree/wip/sO-rpc-connection-closure
++- https://github.com/CodexCoder21Organization/jvm-libp2p/tree/wip/uO-single-parent-close
++- https://github.com/CodexCoder21Organization/UrlResolver/pull/1080
++- https://github.com/CodexCoder21Organization/jvm-libp2p/pull/39
+diff --git a/libp2p/src/main/kotlin/io/libp2p/transport/implementation/ConnectionOverNetty.kt b/libp2p/src/main/kotlin/io/libp2p/transport/implementation/ConnectionOverNetty.kt
+index 9572c35a6..f8e4122d4 100644
+--- a/libp2p/src/main/kotlin/io/libp2p/transport/implementation/ConnectionOverNetty.kt
++++ b/libp2p/src/main/kotlin/io/libp2p/transport/implementation/ConnectionOverNetty.kt
+@@ -31,6 +31,8 @@ open class ConnectionOverNetty(
+         secureSession = ss
+     }
+ 
++    override fun close() = closeNettyChannelOnce(nettyChannel)
++
+     override fun muxerSession() = muxerSession
+     override fun secureSession() = secureSession
+     override fun transport() = nettyTransport
+diff --git a/libp2p/src/main/kotlin/io/libp2p/transport/implementation/NettyChannelClose.kt b/libp2p/src/main/kotlin/io/libp2p/transport/implementation/NettyChannelClose.kt
+new file mode 100644
+index 000000000..491d2be5c
+--- /dev/null
++++ b/libp2p/src/main/kotlin/io/libp2p/transport/implementation/NettyChannelClose.kt
+@@ -0,0 +1,29 @@
++package io.libp2p.transport.implementation
++
++import io.libp2p.etc.types.toVoidCompletableFuture
++import io.netty.channel.Channel
++import io.netty.util.AttributeKey
++import java.util.concurrent.CompletableFuture
++
++private val closeOperationKey = AttributeKey.valueOf<CompletableFuture<Unit>>("libp2p.channel.closeOperation")
++
++/** Claims close before invoking handlers, which may re-enter through another owner. */
++internal fun closeNettyChannelOnce(channel: Channel): CompletableFuture<Unit> {
++    val candidate = CompletableFuture<Unit>()
++    val operation = channel.attr(closeOperationKey).setIfAbsent(candidate) ?: candidate
++    if (operation === candidate) {
++        try {
++            if (channel.closeFuture().isDone) {
++                operation.complete(Unit)
++            } else {
++                channel.close().toVoidCompletableFuture().whenComplete { _, failure ->
++                    if (failure == null) operation.complete(Unit) else operation.completeExceptionally(failure)
++                }
++            }
++        } catch (failure: Throwable) {
++            operation.completeExceptionally(failure)
++        }
++    }
++    // Callers own only their observation; cancellation or completion cannot alter the owner.
++    return operation.thenApply { Unit }
++}
+diff --git a/libp2p/src/main/kotlin/io/libp2p/transport/implementation/PlainNettyTransport.kt b/libp2p/src/main/kotlin/io/libp2p/transport/implementation/PlainNettyTransport.kt
+index f5204e87f..055cb094b 100644
+--- a/libp2p/src/main/kotlin/io/libp2p/transport/implementation/PlainNettyTransport.kt
++++ b/libp2p/src/main/kotlin/io/libp2p/transport/implementation/PlainNettyTransport.kt
+@@ -135,10 +135,10 @@ abstract class PlainNettyTransport(
+         }
+ 
+         val unbindsCompleted = listenersToClose
+-            .map { it.close().toVoidCompletableFuture() }
++            .map { closeNettyChannelOnce(it) }
+ 
+         val channelsClosed = channelsToClose
+-            .map { it.close().toVoidCompletableFuture() }
++            .map { closeNettyChannelOnce(it) }
+ 
+         val everythingThatNeedsToClose = unbindsCompleted.union(channelsClosed)
+         val allClosed = CompletableFuture.allOf(*everythingThatNeedsToClose.toTypedArray())
+@@ -233,7 +233,7 @@ abstract class PlainNettyTransport(
+     ): ChannelHandler?
+ 
+     override fun unlisten(addr: Multiaddr): CompletableFuture<Unit> {
+-        return listeners[addr]?.close()?.toVoidCompletableFuture()
++        return listeners[addr]?.let { closeNettyChannelOnce(it) }
+             ?: throw Libp2pException("No listeners on address $addr")
+     } // unlisten
+ 
+@@ -272,7 +272,7 @@ abstract class PlainNettyTransport(
+         // window unrepresentable.
+         synchronized(this@PlainNettyTransport) {
+             if (closed) {
+-                ch.close()
++                closeNettyChannelOnce(ch)
+                 return
+             }
+ 
+diff --git a/libp2p/src/main/kotlin/io/libp2p/transport/quic/QuicTransport.kt b/libp2p/src/main/kotlin/io/libp2p/transport/quic/QuicTransport.kt
+index 3fb8d1b7c..8fffa1d97 100644
+--- a/libp2p/src/main/kotlin/io/libp2p/transport/quic/QuicTransport.kt
++++ b/libp2p/src/main/kotlin/io/libp2p/transport/quic/QuicTransport.kt
+@@ -26,6 +26,7 @@ import io.libp2p.security.tls.getPublicKeyFromCert
+ import io.libp2p.security.tls.verifyAndExtractPeerId
+ import io.libp2p.transport.implementation.ConnectionOverNetty
+ import io.libp2p.transport.implementation.NettyTransport
++import io.libp2p.transport.implementation.closeNettyChannelOnce
+ import io.netty.bootstrap.Bootstrap
+ import io.netty.buffer.AdaptiveByteBufAllocator
+ import io.netty.buffer.ByteBuf
+@@ -132,11 +133,11 @@ class QuicTransport(
+ 
+         val unbindsCompleted = listeners
+             .map { (_, ch) -> ch }
+-            .map { it.close().toVoidCompletableFuture() }
++            .map { closeNettyChannelOnce(it) }
+ 
+         val channelsClosed = channels
+             .toMutableList() // need a copy to avoid potential co-modification problems
+-            .map { it.close().toVoidCompletableFuture() }
++            .map { closeNettyChannelOnce(it) }
+ 
+         val everythingThatNeedsToClose = unbindsCompleted.union(channelsClosed)
+         val allClosed = CompletableFuture.allOf(*everythingThatNeedsToClose.toTypedArray())
+@@ -188,7 +189,7 @@ class QuicTransport(
+     }
+ 
+     override fun unlisten(addr: Multiaddr): CompletableFuture<Unit> {
+-        return listeners[addr]?.close()?.toVoidCompletableFuture()
++        return listeners[addr]?.let { closeNettyChannelOnce(it) }
+             ?: throw Libp2pException("No listeners on address $addr")
+     }
+ 
+@@ -256,7 +257,7 @@ class QuicTransport(
+ 
+     private fun registerChannel(ch: Channel) {
+         if (closed) {
+-            ch.close()
++            closeNettyChannelOnce(ch)
+             return
+         }
+ 
+diff --git a/libp2p/src/test/kotlin/io/libp2p/transport/ParentCloseOwnershipTest.kt b/libp2p/src/test/kotlin/io/libp2p/transport/ParentCloseOwnershipTest.kt
+new file mode 100644
+index 000000000..6fda846b3
+--- /dev/null
++++ b/libp2p/src/test/kotlin/io/libp2p/transport/ParentCloseOwnershipTest.kt
+@@ -0,0 +1,131 @@
++package io.libp2p.transport
++
++import io.libp2p.core.dsl.host
++import io.libp2p.core.mux.StreamMuxerProtocol
++import io.libp2p.security.noise.NoiseXXSecureChannel
++import io.libp2p.transport.implementation.ConnectionOverNetty
++import io.libp2p.transport.tcp.TcpTransport
++import io.netty.channel.ChannelHandlerContext
++import io.netty.channel.ChannelOutboundHandlerAdapter
++import io.netty.channel.ChannelPromise
++import io.netty.util.concurrent.ImmediateEventExecutor
++import org.junit.jupiter.api.Assertions.assertEquals
++import org.junit.jupiter.api.Assertions.assertFalse
++import org.junit.jupiter.api.Assertions.assertSame
++import org.junit.jupiter.api.Assertions.assertThrows
++import org.junit.jupiter.api.Test
++import java.io.IOException
++import java.util.concurrent.ExecutionException
++import java.util.concurrent.CompletableFuture
++import java.util.concurrent.CopyOnWriteArrayList
++import java.util.concurrent.TimeUnit
++import java.util.concurrent.atomic.AtomicBoolean
++import java.util.concurrent.atomic.AtomicInteger
++
++class ParentCloseOwnershipTest {
++    // Netty 4.2 exposes explicit handler execution only through this deprecated overload.
++    @Suppress("DEPRECATION")
++    @Test
++    fun networkAndConnectionShutdownShareOnePendingPhysicalClose() {
++        val server = closeOwnershipHost()
++        val client = closeOwnershipHost()
++        val heldCloses = CopyOnWriteArrayList<Pair<ChannelHandlerContext, ChannelPromise>>()
++        val hold = AtomicBoolean(true)
++        try {
++            server.start().get(5, TimeUnit.SECONDS)
++            client.start().get(5, TimeUnit.SECONDS)
++            val connection = client.network.connect(server.peerId, *server.listenAddresses().toTypedArray())
++                .get(5, TimeUnit.SECONDS) as ConnectionOverNetty
++            connection.nettyChannel.pipeline().addLast(
++                ImmediateEventExecutor.INSTANCE,
++                "hold-parent-close",
++                object : ChannelOutboundHandlerAdapter() {
++                    override fun close(ctx: ChannelHandlerContext, promise: ChannelPromise) {
++                        heldCloses.add(ctx to promise)
++                        if (!hold.get()) ctx.close(promise)
++                    }
++                }
++            )
++            val firstShutdown = client.network.close()
++            val explicitClose = connection.close()
++            val repeatedShutdown = client.network.close()
++            assertFalse(connection.closeFuture().isDone, "The first physical close must remain held until released.")
++            assertEquals(
++                1, heldCloses.size,
++                "One parent received ${heldCloses.size} physical close requests while the first was pending; " +
++                    "transport and connection shutdown must share the owner's in-flight close."
++            )
++            // A caller can complete its CompletableFuture, but cannot complete the
++            // close owned by the transport or release another shutdown caller.
++            val independentClose = connection.close()
++            explicitClose.complete(Unit)
++            assertFalse(independentClose.isDone, "Completing one caller future must not complete another connection-close future.")
++            assertFalse(firstShutdown.isDone, "Completing one caller's future must not finish network shutdown.")
++            assertFalse(repeatedShutdown.isDone, "A later shutdown must still await the physical close.")
++            hold.set(false)
++            heldCloses.toList().forEach { (ctx, promise) -> ctx.close(promise) }
++            CompletableFuture.allOf(firstShutdown, explicitClose, repeatedShutdown, independentClose).get(5, TimeUnit.SECONDS)
++            connection.close().get(5, TimeUnit.SECONDS)
++            client.network.close().get(5, TimeUnit.SECONDS)
++            assertEquals(1, heldCloses.size, "A completed parent close must stay terminal on repeated shutdown.")
++        } finally {
++            hold.set(false)
++            heldCloses.toList().filter { !it.second.isDone }.forEach { (ctx, promise) -> ctx.close(promise) }
++            CompletableFuture.allOf(client.stop(), server.stop()).get(10, TimeUnit.SECONDS)
++        }
++    }
++
++    // Netty 4.2 exposes explicit handler execution only through this deprecated overload.
++    @Suppress("DEPRECATION")
++    @Test
++    fun failedCloseIsReturnedToEveryOwnerWithoutAnotherRequest() {
++        val server = closeOwnershipHost()
++        val client = closeOwnershipHost()
++        var connection: ConnectionOverNetty? = null
++        val requests = AtomicInteger()
++        val failure = IOException("Cannot close the test parent: the injected transport close operation failed.")
++        try {
++            server.start().get(5, TimeUnit.SECONDS)
++            client.start().get(5, TimeUnit.SECONDS)
++            val parent = client.network.connect(server.peerId, *server.listenAddresses().toTypedArray())
++                .get(5, TimeUnit.SECONDS) as ConnectionOverNetty
++            connection = parent
++            parent.nettyChannel.pipeline().addLast(
++                ImmediateEventExecutor.INSTANCE,
++                "fail-parent-close",
++                object : ChannelOutboundHandlerAdapter() {
++                    override fun close(ctx: ChannelHandlerContext, promise: ChannelPromise) {
++                        requests.incrementAndGet()
++                        promise.setFailure(failure)
++                    }
++                }
++            )
++            val first = assertThrows(ExecutionException::class.java) { parent.close().get(5, TimeUnit.SECONDS) }
++            val shutdown = assertThrows(ExecutionException::class.java) { client.network.close().get(5, TimeUnit.SECONDS) }
++            for (reported in listOf(first, shutdown)) {
++                var cause: Throwable = reported
++                while (cause.cause != null) cause = cause.cause!!
++                assertSame(failure, cause, "Every close owner must observe the original transport failure.")
++                assertEquals("Cannot close the test parent: the injected transport close operation failed.", cause.message)
++            }
++            assertEquals(1, requests.get(), "A failed close is terminal; another owner must observe its result without issuing another physical close.")
++        } finally {
++            // Release the fixture's real socket directly after its deliberate API failure.
++            // This is test cleanup, outside the connection/transport close contract under test.
++            connection?.let { parent ->
++                parent.nettyChannel.pipeline().remove("fail-parent-close")
++                parent.nettyChannel.close().get(5, TimeUnit.SECONDS)
++                parent.nettyChannel.eventLoop().submit {}.get(5, TimeUnit.SECONDS)
++            }
++            CompletableFuture.allOf(client.stop(), server.stop()).get(10, TimeUnit.SECONDS)
++        }
++    }
++
++}
++
++private fun closeOwnershipHost() = host {
++    transports { add(::TcpTransport) }
++    secureChannels { add(::NoiseXXSecureChannel) }
++    muxers { add(StreamMuxerProtocol.getYamux()) }
++    network { listen("/ip4/127.0.0.1/tcp/0") }
++}
+diff --git a/scripts/test.bash b/scripts/test.bash
+new file mode 100755
+index 000000000..0cac032dc
+--- /dev/null
++++ b/scripts/test.bash
+@@ -0,0 +1,7 @@
++#!/usr/bin/env bash
++set -euo pipefail
++if [[ $# != 2 || "$1" != --test || "$2" == . ]]; then
++  echo 'Usage: scripts/test.bash --test <test-class-or-method>' >&2
++  exit 2
++fi
++exec ./gradlew --no-daemon --max-workers=1 '-Dorg.gradle.jvmargs=-Xmx512m -XX:MaxMetaspaceSize=384m' -Pkotlin.compiler.execution.strategy=in-process :libp2p:test --tests "$2"

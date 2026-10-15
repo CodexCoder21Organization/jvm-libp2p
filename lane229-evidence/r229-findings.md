@@ -1,0 +1,17 @@
+# Lane 229 findings
+Started 2026-10-15 13:00 UTC; stop new work 14:15 UTC; hard wall 14:30 UTC.
+
+## Plan
+- IN PROGRESS: Read instructions/docs, verify source head and no-op rebase, reconcile full diffs of both PRs.
+- TODO: Five identical branch and unchanged-develop runs of the four plaintext failures; classify each from XML and full logs.
+- TODO: Complete full module in bounded package halves, preserve every result and classify additional failures where possible.
+- TODO: Separate test and code reviews, update PR via REST with reconciliation/classifications/counts/follow-up, explicit-lease push and evidence checkpoint.
+- TODO: Terminate owned processes, verify ps, delete own checkout/cache, final brief audit.
+
+## 13:02 UTC — instructions and prior evidence
+OBSERVED: Read brief, common.md, complete handoff snapshot, lane208 and lane220 findings. No nested agents, Handoff service, merge, publication or deployment authorized. Brief overrides generic status skill's scheduling/handoff/delegation instructions; written lane updates are the reporting mechanism. Repository skill lookup located CodexCoder21Organization/jvm-libp2p, default develop. Prior lane's four failures are PlaintextTcpTest.twoEchosOverSecureConnection, unsupportedServerProtocol, echoOverSecureConnection and largeEchoOverSecureConnection. They remain individually unclassified until this lane's branch/base experiment. Prior full module run was incomplete, not a passing gate.
+
+## 13:09 UTC — source reconciliation complete
+OBSERVED: PR is OPEN at required 7a27e4890885592f60ad402af6af30b5578da364; develop is 3e88aeef2e016a46565be871b367646c10ef6f65. Fetch/rebase is a no-op. Read README.md and FORK.md; no repository AGENTS.md exists. Read full PR diffs, compared the parent-close files directly against current PR39 head 8372d92a15a875855342d5955927f767ee75c80c. ConnectionOverNetty, PlainNettyTransport and QuicTransport implementations are byte-identical to PR39. NettyChannelClose differs only in the already-completed close branch: PR48 registers a close listener rather than completing inline, preserving lane220's proven correction. ParentCloseOwnershipTest differs only in import ordering, line wrapping, and one blank line; both original scenarios and assertions are retained. README's parent-close paragraph is identical. PR39's stale snapshot-27 version/FORK example and investigation logs are not changes to import into the current snapshot-31 PR.
+DECISION: PR39 should be closed by the supervisor as superseded after PR48 lands. Do not rebase PR48 onto PR39: all its functional parent-close changes are already present, while its old version and investigation artifacts would be reintroduced. Keep PR48's additional already-closed listener correction and its four fail-first reentry cases. ParentCloseOwnershipTest still needs a current run before declaring this reconciliation verified. No source edit is required for composition.
+OBSERVED: First native five-task classification is compiling. Both sides use identical filters/settings and independent Test tasks, not retries to green. A bounded process-group wrapper saves command/exit/duration. Native module gate's normal configuration excludes interop; the halves will preserve that same default. The untagged QuicKuboTestJava requires Kubo 0.34.1 per the workflow. Preparing an isolated local Kubo instance, without external bootstrap peers, for that test rather than skipping it.

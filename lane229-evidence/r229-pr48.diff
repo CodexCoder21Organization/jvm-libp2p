@@ -1,0 +1,958 @@
+diff --git a/README.md b/README.md
+index afa52c001..31c2bbf1a 100644
+--- a/README.md
++++ b/README.md
+@@ -58,6 +58,12 @@ Legend:
+ 
+ A `Host.addStreamVisitor` callback may close or reset a newly opened stream. If it closes the stream before protocol negotiation, the stream's protocol future and the caller's controller future complete exceptionally. Closing that child leaves its shared connection and other streams usable.
+ 
++A connection callback receives an activated mux session. It may open streams or close the connection
++from that callback. Closing the parent fails pending stream opens and subsequent opens with
++`ConnectionClosedException`, including when close occurs during mux initialization.
++With Yamux and Mplex, cancelling or completing the returned stream future does not prevent a pending
++controller from reporting parent closure.
++
+ ## Stream muxer write buffering
+ 
+ Yamux enforces the `maxBufferedConnectionWrites` setting across the complete connection write path: application payloads queued in child stream channels, flow-control-buffered payloads, and frames queued on the parent Netty connection. The default is `10 * 1024 * 1024` bytes (10 MiB), configured with `StreamMuxerProtocol.getYamux(maxBufferedConnectionWrites = ...)`.
+@@ -79,6 +85,11 @@ whose close future has completed are removed and skipped during selection, even
+ asynchronous table-removal continuation has not run yet. A request made in that interval therefore
+ starts a fresh transport dial instead of receiving a connection whose muxer is already closed.
+ 
++Connection close and transport shutdown share one physical close operation for each Netty
++parent channel. Repeated calls wait for that operation and report its original failure if it
++fails; they do not issue another close. Completing or cancelling one caller's returned future
++does not complete the operation or another caller's shutdown future.
++
+ ## Gossip simulator
+ 
+ Deterministic Gossip simulator which may simulate networks as large as 10000 of peers
+diff --git a/build.gradle.kts b/build.gradle.kts
+index 2adecd7b3..b0ebf5352 100644
+--- a/build.gradle.kts
++++ b/build.gradle.kts
+@@ -78,7 +78,8 @@ configure(
+     // a fresh Noise ephemeral private key injected before every handshake starts.
+     // snapshot-21: exclude connections with completed close futures from both established-connection
+     // lookups, so a stream request made during close bookkeeping starts a fresh transport dial.
+-    version = "1.3.0-codexcoder21-snapshot-28"
++    // snapshot-31: activate mux sessions before publication and share parent close completion for queued opens.
++    version = "1.3.0-codexcoder21-snapshot-31"
+ 
+     apply(plugin = "kotlin")
+     apply(plugin = "idea")
+diff --git a/libp2p/src/main/kotlin/io/libp2p/etc/util/netty/mux/AbstractMuxHandler.kt b/libp2p/src/main/kotlin/io/libp2p/etc/util/netty/mux/AbstractMuxHandler.kt
+index 9d945131c..49d125d76 100644
+--- a/libp2p/src/main/kotlin/io/libp2p/etc/util/netty/mux/AbstractMuxHandler.kt
++++ b/libp2p/src/main/kotlin/io/libp2p/etc/util/netty/mux/AbstractMuxHandler.kt
+@@ -3,13 +3,14 @@ package io.libp2p.etc.util.netty.mux
+ import io.libp2p.core.ConnectionClosedException
+ import io.libp2p.core.InternalErrorException
+ import io.libp2p.core.Libp2pException
+-import io.libp2p.etc.types.completedExceptionally
++import io.libp2p.etc.types.forwardException
+ import io.libp2p.etc.types.hasCauseOfType
+ import io.netty.channel.ChannelFuture
+ import io.netty.channel.ChannelHandlerContext
+ import io.netty.channel.ChannelInboundHandlerAdapter
+ import org.slf4j.LoggerFactory
+ import java.util.concurrent.CompletableFuture
++import java.util.concurrent.ConcurrentHashMap
+ 
+ typealias MuxChannelInitializer<TData> = (MuxChannel<TData>) -> Unit
+ 
+@@ -51,6 +52,9 @@ abstract class AbstractMuxHandler<TData>(
+     private val streamMap: MutableMap<MuxId, MuxChannel<TData>> = mutableMapOf()
+     var ctx: ChannelHandlerContext? = null
+     private val activeFuture = CompletableFuture<Void>()
++    private val pendingStreams = ConcurrentHashMap.newKeySet<CompletableFuture<MuxChannel<TData>>>()
++
++    @Volatile
+     private var closed = false
+     protected abstract val inboundInitializer: MuxChannelInitializer<TData>
+     private val pendingReadComplete = mutableSetOf<MuxId>()
+@@ -94,9 +98,19 @@ abstract class AbstractMuxHandler<TData>(
+     override fun handlerAdded(ctx: ChannelHandlerContext) {
+         super.handlerAdded(ctx)
+         this.ctx = ctx
++        // A close during handler addition can bypass channelUnregistered for this handler.
++        ctx.channel().closeFuture().addListener {
++            val cause = ConnectionClosedException()
++            activeFuture.completeExceptionally(cause)
++            pendingStreams.forEach { it.completeExceptionally(cause) }
++        }
+     }
+ 
+     override fun channelActive(ctx: ChannelHandlerContext?) {
++        if (closed || ctx?.channel()?.isOpen == false) {
++            activeFuture.completeExceptionally(ConnectionClosedException())
++            return
++        }
+         activeFuture.complete(null)
+         super.channelActive(ctx)
+     }
+@@ -381,28 +395,40 @@ abstract class AbstractMuxHandler<TData>(
+     protected abstract fun generateNextId(): MuxId
+ 
+     fun newStream(outboundInitializer: MuxChannelInitializer<TData>): CompletableFuture<MuxChannel<TData>> {
++        val result = CompletableFuture<MuxChannel<TData>>()
+         try {
+             checkClosed() // if already closed then event loop is already down and async task may never execute
+-            return activeFuture.thenApplyAsync(
++            pendingStreams.add(result)
++            result.whenComplete { _, _ -> pendingStreams.remove(result) }
++            // Close may have completed before this open was registered.
++            checkClosed()
++            activeFuture.thenRunAsync(
+                 {
+-                    checkClosed() // close may happen after above check and before this point
+-                    val child = createChild(
+-                        generateNextId(),
+-                        {
+-                            onLocalOpen(it)
+-                            outboundInitializer(it)
+-                        },
+-                        true
+-                    )
+-                    child
++                    if (!result.isDone) {
++                        checkClosed() // close may happen after above check and before this point
++                        val child = createChild(
++                            generateNextId(),
++                            {
++                                onLocalOpen(it)
++                                outboundInitializer(it)
++                            },
++                            true
++                        )
++                        result.complete(child)
++                    }
+                 },
+                 getChannelHandlerContext().channel().eventLoop()
+-            )
++            ).forwardException(result)
+         } catch (e: Exception) {
+-            return completedExceptionally(e)
++            result.completeExceptionally(e)
+         }
++        return result
+     }
+ 
+     private fun checkClosed() =
+-        if (closed) throw ConnectionClosedException("Can't create a new stream: connection was closed: " + ctx!!.channel()) else Unit
++        if (closed || ctx?.channel()?.isOpen == false) {
++            throw ConnectionClosedException("Can't create a new stream: connection was closed: " + ctx!!.channel())
++        } else {
++            Unit
++        }
+ }
+diff --git a/libp2p/src/main/kotlin/io/libp2p/mux/MuxHandler.kt b/libp2p/src/main/kotlin/io/libp2p/mux/MuxHandler.kt
+index 96323955b..2d0487d80 100644
+--- a/libp2p/src/main/kotlin/io/libp2p/mux/MuxHandler.kt
++++ b/libp2p/src/main/kotlin/io/libp2p/mux/MuxHandler.kt
+@@ -1,5 +1,6 @@
+ package io.libp2p.mux
+ 
++import io.libp2p.core.ConnectionClosedException
+ import io.libp2p.core.Stream
+ import io.libp2p.core.StreamHandler
+ import io.libp2p.core.StreamPromise
+@@ -34,7 +35,17 @@ abstract class MuxHandler(
+ 
+     override fun handlerAdded(ctx: ChannelHandlerContext) {
+         super.handlerAdded(ctx)
+-        ready?.complete(this)
++        if (ready != null) {
++            ctx.channel().closeFuture().addListener {
++                ready.completeExceptionally(ConnectionClosedException())
++            }
++        }
++    }
++
++    override fun channelActive(ctx: ChannelHandlerContext?) {
++        super.channelActive(ctx)
++        // Publication may synchronously close the parent, so activate before invoking consumers.
++        if (ctx?.channel()?.isOpen == true) ready?.complete(this)
+     }
+ 
+     private fun createStream(channel: MuxChannel<ByteBuf>): Stream {
+@@ -50,11 +61,12 @@ abstract class MuxHandler(
+ 
+     fun <T> createStream(streamHandler: StreamHandler<T>): StreamPromise<T> {
+         val controller = CompletableFuture<T>()
+-        val stream = newStream {
++        val muxChannel = newStream {
+             streamHandler.handleStream(createStream(it)).forward(controller)
+         }
+-            .thenApply { it.attr(STREAM).get() }
+-            .forwardException(controller)
++        // Observe the owned creation result, independently of the caller's mutable stream future.
++        muxChannel.forwardException(controller)
++        val stream = muxChannel.thenApply { it.attr(STREAM).get() }
+         return StreamPromise(stream, controller)
+     }
+ 
+diff --git a/libp2p/src/main/kotlin/io/libp2p/transport/implementation/ConnectionOverNetty.kt b/libp2p/src/main/kotlin/io/libp2p/transport/implementation/ConnectionOverNetty.kt
+index 9572c35a6..f8e4122d4 100644
+--- a/libp2p/src/main/kotlin/io/libp2p/transport/implementation/ConnectionOverNetty.kt
++++ b/libp2p/src/main/kotlin/io/libp2p/transport/implementation/ConnectionOverNetty.kt
+@@ -31,6 +31,8 @@ open class ConnectionOverNetty(
+         secureSession = ss
+     }
+ 
++    override fun close() = closeNettyChannelOnce(nettyChannel)
++
+     override fun muxerSession() = muxerSession
+     override fun secureSession() = secureSession
+     override fun transport() = nettyTransport
+diff --git a/libp2p/src/main/kotlin/io/libp2p/transport/implementation/NettyChannelClose.kt b/libp2p/src/main/kotlin/io/libp2p/transport/implementation/NettyChannelClose.kt
+new file mode 100644
+index 000000000..7aa611ca6
+--- /dev/null
++++ b/libp2p/src/main/kotlin/io/libp2p/transport/implementation/NettyChannelClose.kt
+@@ -0,0 +1,30 @@
++package io.libp2p.transport.implementation
++
++import io.libp2p.etc.types.toVoidCompletableFuture
++import io.netty.channel.Channel
++import io.netty.util.AttributeKey
++import java.util.concurrent.CompletableFuture
++
++private val closeOperationKey = AttributeKey.valueOf<CompletableFuture<Unit>>("libp2p.channel.closeOperation")
++
++/** Claims close before invoking handlers, which may re-enter through another owner. */
++internal fun closeNettyChannelOnce(channel: Channel): CompletableFuture<Unit> {
++    val candidate = CompletableFuture<Unit>()
++    val operation = channel.attr(closeOperationKey).setIfAbsent(candidate) ?: candidate
++    if (operation === candidate) {
++        try {
++            if (channel.closeFuture().isDone) {
++                // An early close observer may run before other physical-close listeners finish.
++                channel.closeFuture().addListener { operation.complete(Unit) }
++            } else {
++                channel.close().toVoidCompletableFuture().whenComplete { _, failure ->
++                    if (failure == null) operation.complete(Unit) else operation.completeExceptionally(failure)
++                }
++            }
++        } catch (failure: Throwable) {
++            operation.completeExceptionally(failure)
++        }
++    }
++    // Callers own only their observation; cancellation or completion cannot alter the owner.
++    return operation.thenApply { Unit }
++}
+diff --git a/libp2p/src/main/kotlin/io/libp2p/transport/implementation/PlainNettyTransport.kt b/libp2p/src/main/kotlin/io/libp2p/transport/implementation/PlainNettyTransport.kt
+index f5204e87f..055cb094b 100644
+--- a/libp2p/src/main/kotlin/io/libp2p/transport/implementation/PlainNettyTransport.kt
++++ b/libp2p/src/main/kotlin/io/libp2p/transport/implementation/PlainNettyTransport.kt
+@@ -135,10 +135,10 @@ abstract class PlainNettyTransport(
+         }
+ 
+         val unbindsCompleted = listenersToClose
+-            .map { it.close().toVoidCompletableFuture() }
++            .map { closeNettyChannelOnce(it) }
+ 
+         val channelsClosed = channelsToClose
+-            .map { it.close().toVoidCompletableFuture() }
++            .map { closeNettyChannelOnce(it) }
+ 
+         val everythingThatNeedsToClose = unbindsCompleted.union(channelsClosed)
+         val allClosed = CompletableFuture.allOf(*everythingThatNeedsToClose.toTypedArray())
+@@ -233,7 +233,7 @@ abstract class PlainNettyTransport(
+     ): ChannelHandler?
+ 
+     override fun unlisten(addr: Multiaddr): CompletableFuture<Unit> {
+-        return listeners[addr]?.close()?.toVoidCompletableFuture()
++        return listeners[addr]?.let { closeNettyChannelOnce(it) }
+             ?: throw Libp2pException("No listeners on address $addr")
+     } // unlisten
+ 
+@@ -272,7 +272,7 @@ abstract class PlainNettyTransport(
+         // window unrepresentable.
+         synchronized(this@PlainNettyTransport) {
+             if (closed) {
+-                ch.close()
++                closeNettyChannelOnce(ch)
+                 return
+             }
+ 
+diff --git a/libp2p/src/main/kotlin/io/libp2p/transport/quic/QuicTransport.kt b/libp2p/src/main/kotlin/io/libp2p/transport/quic/QuicTransport.kt
+index 3fb8d1b7c..8fffa1d97 100644
+--- a/libp2p/src/main/kotlin/io/libp2p/transport/quic/QuicTransport.kt
++++ b/libp2p/src/main/kotlin/io/libp2p/transport/quic/QuicTransport.kt
+@@ -26,6 +26,7 @@ import io.libp2p.security.tls.getPublicKeyFromCert
+ import io.libp2p.security.tls.verifyAndExtractPeerId
+ import io.libp2p.transport.implementation.ConnectionOverNetty
+ import io.libp2p.transport.implementation.NettyTransport
++import io.libp2p.transport.implementation.closeNettyChannelOnce
+ import io.netty.bootstrap.Bootstrap
+ import io.netty.buffer.AdaptiveByteBufAllocator
+ import io.netty.buffer.ByteBuf
+@@ -132,11 +133,11 @@ class QuicTransport(
+ 
+         val unbindsCompleted = listeners
+             .map { (_, ch) -> ch }
+-            .map { it.close().toVoidCompletableFuture() }
++            .map { closeNettyChannelOnce(it) }
+ 
+         val channelsClosed = channels
+             .toMutableList() // need a copy to avoid potential co-modification problems
+-            .map { it.close().toVoidCompletableFuture() }
++            .map { closeNettyChannelOnce(it) }
+ 
+         val everythingThatNeedsToClose = unbindsCompleted.union(channelsClosed)
+         val allClosed = CompletableFuture.allOf(*everythingThatNeedsToClose.toTypedArray())
+@@ -188,7 +189,7 @@ class QuicTransport(
+     }
+ 
+     override fun unlisten(addr: Multiaddr): CompletableFuture<Unit> {
+-        return listeners[addr]?.close()?.toVoidCompletableFuture()
++        return listeners[addr]?.let { closeNettyChannelOnce(it) }
+             ?: throw Libp2pException("No listeners on address $addr")
+     }
+ 
+@@ -256,7 +257,7 @@ class QuicTransport(
+ 
+     private fun registerChannel(ch: Channel) {
+         if (closed) {
+-            ch.close()
++            closeNettyChannelOnce(ch)
+             return
+         }
+ 
+diff --git a/libp2p/src/test/kotlin/io/libp2p/core/MuxCloseDuringPublicationTest.kt b/libp2p/src/test/kotlin/io/libp2p/core/MuxCloseDuringPublicationTest.kt
+new file mode 100644
+index 000000000..00002331e
+--- /dev/null
++++ b/libp2p/src/test/kotlin/io/libp2p/core/MuxCloseDuringPublicationTest.kt
+@@ -0,0 +1,106 @@
++package io.libp2p.core
++
++import io.libp2p.core.dsl.host
++import io.libp2p.core.mux.StreamMuxerProtocol
++import io.libp2p.protocol.Ping
++import io.libp2p.protocol.PingController
++import io.libp2p.security.noise.NoiseXXSecureChannel
++import io.libp2p.transport.tcp.TcpTransport
++import org.junit.jupiter.api.Assertions.assertEquals
++import org.junit.jupiter.api.Assertions.assertThrows
++import org.junit.jupiter.api.Test
++import java.util.concurrent.CompletableFuture
++import java.util.concurrent.ExecutionException
++import java.util.concurrent.TimeUnit
++
++class MuxCloseDuringPublicationTest {
++    @Test
++    fun yamuxOpenAfterCloseDuringPublicationReportsClosure() {
++        closeDuringMuxPublication(StreamMuxerProtocol.getYamux(), false)
++    }
++
++    @Test
++    fun mplexOpenAfterCloseDuringPublicationReportsClosure() {
++        closeDuringMuxPublication(StreamMuxerProtocol.Mplex, false)
++    }
++
++    @Test
++    fun yamuxPendingOpenFailsWhenPublicationClosesItsParent() {
++        closeDuringMuxPublication(StreamMuxerProtocol.getYamux(), true)
++    }
++
++    @Test
++    fun mplexPendingOpenFailsWhenPublicationClosesItsParent() {
++        closeDuringMuxPublication(StreamMuxerProtocol.Mplex, true)
++    }
++}
++
++private fun closeDuringMuxPublication(muxer: StreamMuxerProtocol, openBeforeClose: Boolean) {
++    val client = host {
++        identity { random() }
++        transports { +::TcpTransport }
++        secureChannels { add(::NoiseXXSecureChannel) }
++        muxers { +muxer }
++        network { listen("/ip4/127.0.0.1/tcp/0") }
++        protocols { +Ping() }
++    }
++    val server = host {
++        identity { random() }
++        transports { +::TcpTransport }
++        secureChannels { add(::NoiseXXSecureChannel) }
++        muxers { +muxer }
++        network { listen("/ip4/127.0.0.1/tcp/0") }
++        protocols { +Ping() }
++    }
++    val published = CompletableFuture<Pair<Connection, StreamPromise<PingController>?>>()
++    client.addConnectionHandler(
++        ConnectionHandler.create { connection ->
++            val pending = if (openBeforeClose) {
++                client.newStream<PingController>(Ping().protocolDescriptor.announceProtocols, connection)
++            } else {
++                null
++            }
++            connection.close()
++            published.complete(connection to pending)
++        }
++    )
++    var primary: Throwable? = null
++    try {
++        server.start().get(5, TimeUnit.SECONDS)
++        client.start().get(5, TimeUnit.SECONDS)
++        client.network.connect(server.peerId, *server.listenAddresses().toTypedArray()).get(5, TimeUnit.SECONDS)
++        val (connection, pending) = published.get(5, TimeUnit.SECONDS)
++        connection.closeFuture().get(5, TimeUnit.SECONDS)
++        val promise = pending ?: client.newStream<PingController>(
++            Ping().protocolDescriptor.announceProtocols,
++            connection
++        )
++        val controllerFailure = assertThrows(ExecutionException::class.java) {
++            promise.controller.get(5, TimeUnit.SECONDS)
++        }
++        assertEquals(ConnectionClosedException::class.java, controllerFailure.cause!!.javaClass)
++        val streamFailure = assertThrows(ExecutionException::class.java) {
++            promise.stream.get(5, TimeUnit.SECONDS)
++        }
++        assertEquals(ConnectionClosedException::class.java, streamFailure.cause!!.javaClass)
++    } catch (failure: Throwable) {
++        primary = failure
++        throw failure
++    } finally {
++        val failures = mutableListOf<Throwable>()
++        for (node in listOf(client, server)) {
++            try {
++                node.stop().get(5, TimeUnit.SECONDS)
++            } catch (failure: Throwable) {
++                failures += failure
++            }
++        }
++        if (primary != null) {
++            failures.forEach { primary.addSuppressed(it) }
++        } else if (failures.isNotEmpty()) {
++            val failure = failures.first()
++            failures.drop(1).forEach { failure.addSuppressed(it) }
++            throw failure
++        }
++    }
++}
+diff --git a/libp2p/src/test/kotlin/io/libp2p/core/MuxSessionActivationTest.kt b/libp2p/src/test/kotlin/io/libp2p/core/MuxSessionActivationTest.kt
+new file mode 100644
+index 000000000..60bf2d468
+--- /dev/null
++++ b/libp2p/src/test/kotlin/io/libp2p/core/MuxSessionActivationTest.kt
+@@ -0,0 +1,381 @@
++package io.libp2p.core
++
++import io.libp2p.core.dsl.host
++import io.libp2p.core.mux.StreamMuxer
++import io.libp2p.core.mux.StreamMuxerDebug
++import io.libp2p.core.mux.StreamMuxerProtocol
++import io.libp2p.protocol.Ping
++import io.libp2p.protocol.PingController
++import io.libp2p.security.noise.NoiseXXSecureChannel
++import io.libp2p.transport.tcp.TcpTransport
++import io.netty.channel.ChannelHandlerContext
++import io.netty.channel.ChannelInboundHandlerAdapter
++import org.junit.jupiter.api.Assertions.assertEquals
++import org.junit.jupiter.api.Assertions.assertThrows
++import org.junit.jupiter.api.Assertions.assertTrue
++import org.junit.jupiter.params.ParameterizedTest
++import org.junit.jupiter.params.provider.ValueSource
++import java.util.concurrent.Callable
++import java.util.concurrent.CompletableFuture
++import java.util.concurrent.CountDownLatch
++import java.util.concurrent.ExecutionException
++import java.util.concurrent.Executors
++import java.util.concurrent.TimeUnit
++import java.util.concurrent.atomic.AtomicBoolean
++import java.util.concurrent.atomic.AtomicInteger
++
++class MuxSessionActivationTest {
++    @ParameterizedTest(name = "earlyCloseObserverReentrySettlesQueuedOpens({0}, {1})")
++    @org.junit.jupiter.params.provider.CsvSource("yamux,connection", "mplex,connection", "yamux,pipeline", "mplex,pipeline")
++    fun earlyCloseObserverReentrySettlesQueuedOpens(muxerName: String, closer: String) {
++        val pending = CompletableFuture<List<StreamPromise<PingController>>>()
++        val settledAtNestedClose = CompletableFuture<Boolean>()
++        val muxer = StreamMuxerProtocol { multistream, protocols ->
++            publicationMuxer(muxerName).createMuxer(multistream, protocols).also { delegate ->
++                (delegate as StreamMuxerDebug).muxFramesDebugHandler = ChannelVisitor { connection ->
++                    // Subscribe before the mux handler attaches its physical-close observer.
++                    connection.closeFuture().thenRun {
++                        if (pending.isDone) {
++                            connection.close().whenComplete { _, error ->
++                                if (error != null) {
++                                    settledAtNestedClose.completeExceptionally(error)
++                                } else {
++                                    settledAtNestedClose.complete(
++                                        pending.getNow(emptyList()).all {
++                                            it.stream.isCompletedExceptionally && it.controller.isCompletedExceptionally
++                                        }
++                                    )
++                                }
++                            }
++                        }
++                    }
++                }
++            }
++        }
++        withPublicationHosts(muxer, { client ->
++            client.addConnectionHandler(
++                ConnectionHandler.create { connection ->
++                    pending.complete(List(32) { connection.muxerSession().createStream(Ping()) })
++                    if (closer == "connection") {
++                        connection.close()
++                    } else {
++                        connection.pushHandler(object : ChannelInboundHandlerAdapter() {
++                            override fun handlerAdded(ctx: ChannelHandlerContext) {
++                                ctx.close()
++                            }
++                        })
++                    }
++                }
++            )
++        }) { client, server ->
++            client.network.connect(server.peerId, *server.listenAddresses().toTypedArray()).get(5, TimeUnit.SECONDS)
++            assertTrue(
++                settledAtNestedClose.get(5, TimeUnit.SECONDS),
++                "A close requested by an early close observer must await pending stream settlement"
++            )
++            pending.get(5, TimeUnit.SECONDS).forEach(::assertPublicationClosed)
++        }
++    }
++
++    @ParameterizedTest(name = "offLoopQueuedOpensSettleBeforeParentCloseCompletes({0})")
++    @ValueSource(strings = ["yamux", "mplex"])
++    fun offLoopQueuedOpensSettleBeforeParentCloseCompletes(muxerName: String) {
++        val published = CompletableFuture<Connection>()
++        val releasePublication = CountDownLatch(1)
++        val callers = Executors.newFixedThreadPool(8)
++        try {
++            withPublicationHosts(publicationMuxer(muxerName), { client ->
++                client.addConnectionHandler(
++                    ConnectionHandler.create { connection ->
++                        published.complete(connection)
++                        assertTrue(releasePublication.await(5, TimeUnit.SECONDS), "The publication callback was not released")
++                    }
++                )
++            }) { client, server ->
++                try {
++                    val connected = client.network.connect(server.peerId, *server.listenAddresses().toTypedArray())
++                    val connection = published.get(5, TimeUnit.SECONDS)
++                    // The callback holds the event loop while close and real callers queue their work.
++                    // Close is queued first, so every open must settle without executing child creation.
++                    val closed = connection.close()
++                    val opens = callers.invokeAll(
++                        List(64) {
++                            Callable { connection.muxerSession().createStream(Ping()) }
++                        }
++                    ).map { it.get(5, TimeUnit.SECONDS) }
++                    val completions = AtomicInteger()
++                    opens.forEach {
++                        it.stream.whenComplete { _, _ -> completions.incrementAndGet() }
++                        it.controller.whenComplete { _, _ -> completions.incrementAndGet() }
++                    }
++                    val settledAtClose = closed.thenApply {
++                        opens.all { it.stream.isCompletedExceptionally && it.controller.isCompletedExceptionally }
++                    }
++                    releasePublication.countDown()
++                    assertTrue(settledAtClose.get(5, TimeUnit.SECONDS), "Off-loop stream opens must fail before close completes")
++                    connected.get(5, TimeUnit.SECONDS)
++                    opens.forEach(::assertPublicationClosed)
++                    connection.close().get(5, TimeUnit.SECONDS)
++                    assertEquals(128, completions.get(), "Each of the 64 stream and controller futures must complete once")
++                } finally {
++                    releasePublication.countDown()
++                }
++            }
++        } finally {
++            releasePublication.countDown()
++            callers.shutdownNow()
++            assertTrue(callers.awaitTermination(5, TimeUnit.SECONDS), "The stream caller executor did not terminate")
++        }
++    }
++
++    @ParameterizedTest
++    @org.junit.jupiter.params.provider.CsvSource(
++        "yamux,cancel",
++        "mplex,cancel",
++        "yamux,fail",
++        "mplex,fail",
++        "yamux,complete",
++        "mplex,complete"
++    )
++    fun callerCompletedStreamFutureDoesNotHideParentCloseFromController(muxerName: String, mutation: String) {
++        val published = CompletableFuture<StreamPromise<PingController>>()
++        withPublicationHosts(publicationMuxer(muxerName), { client ->
++            client.addConnectionHandler(
++                ConnectionHandler.create { connection ->
++                    val pending = connection.muxerSession().createStream(Ping())
++                    when (mutation) {
++                        "cancel" -> pending.stream.cancel(false)
++                        "fail" -> pending.stream.completeExceptionally(IllegalStateException("Caller completed its stream future"))
++                        "complete" -> pending.stream.complete(null)
++                        else -> error("Unknown future mutation: $mutation")
++                    }
++                    connection.close().whenComplete { _, error ->
++                        if (error == null) published.complete(pending) else published.completeExceptionally(error)
++                    }
++                }
++            )
++        }) { client, server ->
++            client.network.connect(server.peerId, *server.listenAddresses().toTypedArray()).get(5, TimeUnit.SECONDS)
++            val promise = published.get(5, TimeUnit.SECONDS)
++            when (mutation) {
++                "cancel" -> assertThrows(java.util.concurrent.CancellationException::class.java) {
++                    promise.stream.get(5, TimeUnit.SECONDS)
++                }
++                "fail" -> {
++                    val failure = assertThrows(ExecutionException::class.java) { promise.stream.get(5, TimeUnit.SECONDS) }
++                    assertEquals(IllegalStateException::class.java, failure.cause!!.javaClass)
++                    assertEquals("Caller completed its stream future", failure.cause!!.message)
++                }
++                "complete" -> org.junit.jupiter.api.Assertions.assertNull(promise.stream.get(5, TimeUnit.SECONDS))
++            }
++            assertTrue(promise.controller.isDone, "Changing the stream future must not leave its controller pending after close")
++            val failure = assertThrows(ExecutionException::class.java) { promise.controller.get(5, TimeUnit.SECONDS) }
++            assertEquals(ConnectionClosedException::class.java, failure.cause!!.javaClass)
++        }
++    }
++
++    @ParameterizedTest
++    @ValueSource(strings = ["yamux", "mplex"])
++    fun closeDuringHandlerInstallationFailsSessionReadiness(muxerName: String) {
++        val readiness = CompletableFuture<CompletableFuture<out StreamMuxer.Session>>()
++        val muxer = StreamMuxerProtocol { multistream, protocols ->
++            val delegate = publicationMuxer(muxerName).createMuxer(multistream, protocols)
++            (delegate as StreamMuxerDebug).muxFramesDebugHandler = ChannelVisitor { connection ->
++                connection.close()
++            }
++            object : StreamMuxer by delegate {
++                override fun initChannel(ch: P2PChannel, selectedProtocol: String): CompletableFuture<out StreamMuxer.Session> {
++                    return delegate.initChannel(ch, selectedProtocol).also { readiness.complete(it) }
++                }
++            }
++        }
++        withPublicationHosts(muxer) { client, server ->
++            val connected = client.network.connect(server.peerId, *server.listenAddresses().toTypedArray())
++            val session = readiness.get(5, TimeUnit.SECONDS)
++            val failure = assertThrows(ExecutionException::class.java) { session.get(5, TimeUnit.SECONDS) }
++            assertEquals(ConnectionClosedException::class.java, failure.cause!!.javaClass)
++            assertThrows(ExecutionException::class.java) { connected.get(5, TimeUnit.SECONDS) }
++        }
++    }
++
++    @ParameterizedTest
++    @ValueSource(strings = ["yamux", "mplex"])
++    fun sessionIsPublishedAfterActivation(muxerName: String) {
++        val activated = AtomicBoolean()
++        val observed = CompletableFuture<Boolean>()
++        val muxer = observingPublicationMuxer(muxerName) { _, context ->
++            activated.set(true)
++            context.fireChannelActive()
++        }
++        withPublicationHosts(muxer, { client ->
++            client.addConnectionHandler(
++                ConnectionHandler.create {
++                    observed.complete(activated.get())
++                }
++            )
++        }) { client, server ->
++            val connection = client.network.connect(server.peerId, *server.listenAddresses().toTypedArray())
++                .get(5, TimeUnit.SECONDS)
++            assertTrue(observed.get(5, TimeUnit.SECONDS), "The mux lifecycle must activate before publishing its connection")
++            val ping = connection.muxerSession().createStream(Ping()).controller.get(5, TimeUnit.SECONDS)
++            ping.ping().get(5, TimeUnit.SECONDS)
++        }
++    }
++
++    @ParameterizedTest
++    @ValueSource(strings = ["yamux", "mplex"])
++    fun closeBeforeActivationFailsConnectionWithoutPublishingIt(muxerName: String) {
++        val publications = AtomicInteger()
++        val closed = CompletableFuture<Void>()
++        val muxer = observingPublicationMuxer(muxerName) { connection, context ->
++            connection.close().whenComplete { _, error ->
++                if (error == null) closed.complete(null) else closed.completeExceptionally(error)
++            }
++            context.fireChannelActive()
++        }
++        withPublicationHosts(muxer, { client ->
++            client.addConnectionHandler(ConnectionHandler.create { publications.incrementAndGet() })
++        }) { client, server ->
++            val connected = client.network.connect(server.peerId, *server.listenAddresses().toTypedArray())
++            closed.get(5, TimeUnit.SECONDS)
++            assertThrows(ExecutionException::class.java) { connected.get(5, TimeUnit.SECONDS) }
++            assertEquals(0, publications.get(), "A parent closed before activation must never be published")
++        }
++    }
++
++    @ParameterizedTest
++    @ValueSource(strings = ["yamux", "mplex"])
++    fun queuedOpensAndCompletionReentrySettleWhenPublicationClosesParent(muxerName: String) {
++        val pending = CompletableFuture<List<StreamPromise<PingController>>>()
++        val reentered = CompletableFuture<StreamPromise<PingController>>()
++        val completionCount = AtomicInteger()
++        val settledAtClose = CompletableFuture<Boolean>()
++        withPublicationHosts(publicationMuxer(muxerName), { client ->
++            client.addConnectionHandler(
++                ConnectionHandler.create { connection ->
++                    val opens = List(32) { connection.muxerSession().createStream(Ping()) }
++                    opens.first().controller.whenComplete { _, _ ->
++                        completionCount.incrementAndGet()
++                        reentered.complete(connection.muxerSession().createStream(Ping()))
++                    }
++                    connection.close().whenComplete { _, error ->
++                        if (error != null) {
++                            settledAtClose.completeExceptionally(error)
++                        } else {
++                            settledAtClose.complete(opens.all { it.stream.isCompletedExceptionally && it.controller.isCompletedExceptionally })
++                        }
++                    }
++                    connection.close()
++                    pending.complete(opens)
++                }
++            )
++        }) { client, server ->
++            client.network.connect(server.peerId, *server.listenAddresses().toTypedArray()).get(5, TimeUnit.SECONDS)
++            assertTrue(settledAtClose.get(5, TimeUnit.SECONDS), "Pending stream opens must fail before close completes")
++            pending.get(5, TimeUnit.SECONDS).forEach(::assertPublicationClosed)
++            assertPublicationClosed(reentered.get(5, TimeUnit.SECONDS))
++            assertEquals(1, completionCount.get(), "Closing twice must complete each caller once")
++        }
++    }
++
++    @ParameterizedTest
++    @ValueSource(strings = ["yamux", "mplex"])
++    fun closeAfterSuccessfulPingRejectsNewStreams(muxerName: String) {
++        withPublicationHosts(publicationMuxer(muxerName)) { client, server ->
++            val connection = client.network.connect(server.peerId, *server.listenAddresses().toTypedArray())
++                .get(5, TimeUnit.SECONDS)
++            val ping = client.newStream<PingController>(Ping().protocolDescriptor.announceProtocols, connection)
++                .controller.get(5, TimeUnit.SECONDS)
++            ping.ping().get(5, TimeUnit.SECONDS)
++            connection.close().get(5, TimeUnit.SECONDS)
++            connection.closeFuture().get(5, TimeUnit.SECONDS)
++            val direct = connection.muxerSession().createStream(Ping())
++            assertPublicationClosed(direct)
++            assertPublicationClosed(client.newStream(Ping().protocolDescriptor.announceProtocols, connection))
++        }
++    }
++}
++
++private fun publicationMuxer(name: String): StreamMuxerProtocol = when (name) {
++    "yamux" -> StreamMuxerProtocol.getYamux()
++    "mplex" -> StreamMuxerProtocol.Mplex
++    else -> error("Unknown muxer: $name")
++}
++
++private fun observingPublicationMuxer(
++    name: String,
++    onActive: (Connection, ChannelHandlerContext) -> Unit
++): StreamMuxerProtocol = StreamMuxerProtocol { multistream, protocols ->
++    publicationMuxer(name).createMuxer(multistream, protocols).also { muxer ->
++        (muxer as StreamMuxerDebug).muxFramesDebugHandler = ChannelVisitor { connection ->
++            connection.pushHandler(object : ChannelInboundHandlerAdapter() {
++                override fun channelActive(ctx: ChannelHandlerContext) {
++                    onActive(connection, ctx)
++                }
++            })
++        }
++    }
++}
++
++private fun assertPublicationClosed(promise: StreamPromise<PingController>) {
++    val controllerFailure = assertThrows(ExecutionException::class.java) {
++        promise.controller.get(5, TimeUnit.SECONDS)
++    }
++    assertEquals(ConnectionClosedException::class.java, controllerFailure.cause!!.javaClass)
++    val streamFailure = assertThrows(ExecutionException::class.java) {
++        promise.stream.get(5, TimeUnit.SECONDS)
++    }
++    assertEquals(ConnectionClosedException::class.java, streamFailure.cause!!.javaClass)
++}
++
++private fun withPublicationHosts(
++    clientMuxer: StreamMuxerProtocol,
++    configure: (Host) -> Unit = {},
++    body: (Host, Host) -> Unit
++) {
++    val client = host {
++        identity { random() }
++        transports { +::TcpTransport }
++        secureChannels { add(::NoiseXXSecureChannel) }
++        muxers { +clientMuxer }
++        network { listen("/ip4/127.0.0.1/tcp/0") }
++        protocols { +Ping() }
++    }
++    val server = host {
++        identity { random() }
++        transports { +::TcpTransport }
++        secureChannels { add(::NoiseXXSecureChannel) }
++        muxers {
++            +StreamMuxerProtocol.getYamux()
++            +StreamMuxerProtocol.Mplex
++        }
++        network { listen("/ip4/127.0.0.1/tcp/0") }
++        protocols { +Ping() }
++    }
++    var primary: Throwable? = null
++    try {
++        configure(client)
++        server.start().get(5, TimeUnit.SECONDS)
++        client.start().get(5, TimeUnit.SECONDS)
++        body(client, server)
++    } catch (failure: Throwable) {
++        primary = failure
++        throw failure
++    } finally {
++        val failures = mutableListOf<Throwable>()
++        for (node in listOf(client, server)) {
++            try {
++                node.stop().get(5, TimeUnit.SECONDS)
++            } catch (failure: Throwable) {
++                failures += failure
++            }
++        }
++        if (primary != null) {
++            failures.forEach { primary.addSuppressed(it) }
++        } else if (failures.isNotEmpty()) {
++            val failure = failures.first()
++            failures.drop(1).forEach { failure.addSuppressed(it) }
++            throw failure
++        }
++    }
++}
+diff --git a/libp2p/src/test/kotlin/io/libp2p/transport/ParentCloseOwnershipTest.kt b/libp2p/src/test/kotlin/io/libp2p/transport/ParentCloseOwnershipTest.kt
+new file mode 100644
+index 000000000..54e70ffaf
+--- /dev/null
++++ b/libp2p/src/test/kotlin/io/libp2p/transport/ParentCloseOwnershipTest.kt
+@@ -0,0 +1,131 @@
++package io.libp2p.transport
++
++import io.libp2p.core.dsl.host
++import io.libp2p.core.mux.StreamMuxerProtocol
++import io.libp2p.security.noise.NoiseXXSecureChannel
++import io.libp2p.transport.implementation.ConnectionOverNetty
++import io.libp2p.transport.tcp.TcpTransport
++import io.netty.channel.ChannelHandlerContext
++import io.netty.channel.ChannelOutboundHandlerAdapter
++import io.netty.channel.ChannelPromise
++import io.netty.util.concurrent.ImmediateEventExecutor
++import org.junit.jupiter.api.Assertions.assertEquals
++import org.junit.jupiter.api.Assertions.assertFalse
++import org.junit.jupiter.api.Assertions.assertSame
++import org.junit.jupiter.api.Assertions.assertThrows
++import org.junit.jupiter.api.Test
++import java.io.IOException
++import java.util.concurrent.CompletableFuture
++import java.util.concurrent.CopyOnWriteArrayList
++import java.util.concurrent.ExecutionException
++import java.util.concurrent.TimeUnit
++import java.util.concurrent.atomic.AtomicBoolean
++import java.util.concurrent.atomic.AtomicInteger
++
++class ParentCloseOwnershipTest {
++    // Netty 4.2 exposes explicit handler execution only through this deprecated overload.
++    @Suppress("DEPRECATION")
++    @Test
++    fun networkAndConnectionShutdownShareOnePendingPhysicalClose() {
++        val server = closeOwnershipHost()
++        val client = closeOwnershipHost()
++        val heldCloses = CopyOnWriteArrayList<Pair<ChannelHandlerContext, ChannelPromise>>()
++        val hold = AtomicBoolean(true)
++        try {
++            server.start().get(5, TimeUnit.SECONDS)
++            client.start().get(5, TimeUnit.SECONDS)
++            val connection = client.network.connect(server.peerId, *server.listenAddresses().toTypedArray())
++                .get(5, TimeUnit.SECONDS) as ConnectionOverNetty
++            connection.nettyChannel.pipeline().addLast(
++                ImmediateEventExecutor.INSTANCE,
++                "hold-parent-close",
++                object : ChannelOutboundHandlerAdapter() {
++                    override fun close(ctx: ChannelHandlerContext, promise: ChannelPromise) {
++                        heldCloses.add(ctx to promise)
++                        if (!hold.get()) ctx.close(promise)
++                    }
++                }
++            )
++            val firstShutdown = client.network.close()
++            val explicitClose = connection.close()
++            val repeatedShutdown = client.network.close()
++            assertFalse(connection.closeFuture().isDone, "The first physical close must remain held until released.")
++            assertEquals(
++                1,
++                heldCloses.size,
++                "One parent received ${heldCloses.size} physical close requests while the first was pending; " +
++                    "transport and connection shutdown must share the owner's in-flight close."
++            )
++            // A caller can complete its CompletableFuture, but cannot complete the
++            // close owned by the transport or release another shutdown caller.
++            val independentClose = connection.close()
++            explicitClose.complete(Unit)
++            assertFalse(independentClose.isDone, "Completing one caller future must not complete another connection-close future.")
++            assertFalse(firstShutdown.isDone, "Completing one caller's future must not finish network shutdown.")
++            assertFalse(repeatedShutdown.isDone, "A later shutdown must still await the physical close.")
++            hold.set(false)
++            heldCloses.toList().forEach { (ctx, promise) -> ctx.close(promise) }
++            CompletableFuture.allOf(firstShutdown, explicitClose, repeatedShutdown, independentClose).get(5, TimeUnit.SECONDS)
++            connection.close().get(5, TimeUnit.SECONDS)
++            client.network.close().get(5, TimeUnit.SECONDS)
++            assertEquals(1, heldCloses.size, "A completed parent close must stay terminal on repeated shutdown.")
++        } finally {
++            hold.set(false)
++            heldCloses.toList().filter { !it.second.isDone }.forEach { (ctx, promise) -> ctx.close(promise) }
++            CompletableFuture.allOf(client.stop(), server.stop()).get(10, TimeUnit.SECONDS)
++        }
++    }
++
++    // Netty 4.2 exposes explicit handler execution only through this deprecated overload.
++    @Suppress("DEPRECATION")
++    @Test
++    fun failedCloseIsReturnedToEveryOwnerWithoutAnotherRequest() {
++        val server = closeOwnershipHost()
++        val client = closeOwnershipHost()
++        var connection: ConnectionOverNetty? = null
++        val requests = AtomicInteger()
++        val failure = IOException("Cannot close the test parent: the injected transport close operation failed.")
++        try {
++            server.start().get(5, TimeUnit.SECONDS)
++            client.start().get(5, TimeUnit.SECONDS)
++            val parent = client.network.connect(server.peerId, *server.listenAddresses().toTypedArray())
++                .get(5, TimeUnit.SECONDS) as ConnectionOverNetty
++            connection = parent
++            parent.nettyChannel.pipeline().addLast(
++                ImmediateEventExecutor.INSTANCE,
++                "fail-parent-close",
++                object : ChannelOutboundHandlerAdapter() {
++                    override fun close(ctx: ChannelHandlerContext, promise: ChannelPromise) {
++                        requests.incrementAndGet()
++                        promise.setFailure(failure)
++                    }
++                }
++            )
++            val first = assertThrows(ExecutionException::class.java) { parent.close().get(5, TimeUnit.SECONDS) }
++            val shutdown = assertThrows(ExecutionException::class.java) { client.network.close().get(5, TimeUnit.SECONDS) }
++            for (reported in listOf(first, shutdown)) {
++                var cause: Throwable = reported
++                while (cause.cause != null) cause = cause.cause!!
++                assertSame(failure, cause, "Every close owner must observe the original transport failure.")
++                assertEquals("Cannot close the test parent: the injected transport close operation failed.", cause.message)
++            }
++            assertEquals(1, requests.get(), "A failed close is terminal; another owner must observe its result without issuing another physical close.")
++        } finally {
++            // Release the fixture's real socket directly after its deliberate API failure.
++            // This is test cleanup, outside the connection/transport close contract under test.
++            connection?.let { parent ->
++                parent.nettyChannel.pipeline().remove("fail-parent-close")
++                parent.nettyChannel.close().get(5, TimeUnit.SECONDS)
++                parent.nettyChannel.eventLoop().submit {}.get(5, TimeUnit.SECONDS)
++            }
++            CompletableFuture.allOf(client.stop(), server.stop()).get(10, TimeUnit.SECONDS)
++        }
++    }
++}
++
++private fun closeOwnershipHost() = host {
++    transports { add(::TcpTransport) }
++    secureChannels { add(::NoiseXXSecureChannel) }
++    muxers { add(StreamMuxerProtocol.getYamux()) }
++    network { listen("/ip4/127.0.0.1/tcp/0") }
++}

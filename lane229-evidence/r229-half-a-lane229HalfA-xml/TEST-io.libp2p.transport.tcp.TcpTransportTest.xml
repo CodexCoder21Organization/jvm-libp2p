@@ -1,0 +1,372 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.libp2p.transport.tcp.TcpTransportTest" tests="24" skipped="0" failures="0" errors="0" timestamp="2026-10-15T13:30:23.269Z" hostname="842e6195a2bc" time="26.114">
+  <properties/>
+  <testcase name="listen then close transport()" classname="io.libp2p.transport.tcp.TcpTransportTest" time="0.033"/>
+  <testcase name="dial should invoke preHandler before connection handlers()" classname="io.libp2p.transport.tcp.TcpTransportTest" time="0.341"/>
+  <testcase name="cannot dial from a closed transport()" classname="io.libp2p.transport.tcp.TcpTransportTest" time="0.007"/>
+  <testcase name="cannot dial an unresolveable address()" classname="io.libp2p.transport.tcp.TcpTransportTest" time="0.011"/>
+  <testcase name="listen should invoke preHandler before connection handlers()" classname="io.libp2p.transport.tcp.TcpTransportTest" time="2.198"/>
+  <testcase name="cannot listen on closed transport()" classname="io.libp2p.transport.tcp.TcpTransportTest" time="0.01"/>
+  <testcase name="cannot listen on an unresolveable address()" classname="io.libp2p.transport.tcp.TcpTransportTest" time="0.007"/>
+  <testcase name="listen then unlisten()" classname="io.libp2p.transport.tcp.TcpTransportTest" time="0.027"/>
+  <testcase name="dial then close server transport()" classname="io.libp2p.transport.tcp.TcpTransportTest" time="13.911"/>
+  <testcase name="dial then close client transport()" classname="io.libp2p.transport.tcp.TcpTransportTest" time="9.318"/>
+  <testcase name="/dnsaddr/ipfs.io/udp/97" classname="io.libp2p.transport.tcp.TcpTransportTest" time="0.012"/>
+  <testcase name="/ip4/1.2.3.4/tcp/1234/ws" classname="io.libp2p.transport.tcp.TcpTransportTest" time="0.011"/>
+  <testcase name="/ip4/1.2.3.4/udp/42" classname="io.libp2p.transport.tcp.TcpTransportTest" time="0.011"/>
+  <testcase name="/dns4/localhost/tcp/1234/ws" classname="io.libp2p.transport.tcp.TcpTransportTest" time="0.009"/>
+  <testcase name="/dns4/localhost/udp/9999" classname="io.libp2p.transport.tcp.TcpTransportTest" time="0.01"/>
+  <testcase name="/dns6/localhost/udp/9999" classname="io.libp2p.transport.tcp.TcpTransportTest" time="0.008"/>
+  <testcase name="/unix/a/file/named/tcp" classname="io.libp2p.transport.tcp.TcpTransportTest" time="0.008"/>
+  <testcase name="/ip4/1.2.3.4/tcp/1234" classname="io.libp2p.transport.tcp.TcpTransportTest" time="0.01"/>
+  <testcase name="/ip4/0.0.0.0/tcp/1234" classname="io.libp2p.transport.tcp.TcpTransportTest" time="0.013"/>
+  <testcase name="/ip4/1.2.3.4/tcp/0" classname="io.libp2p.transport.tcp.TcpTransportTest" time="0.02"/>
+  <testcase name="/ip4/0.0.0.0/tcp/1234" classname="io.libp2p.transport.tcp.TcpTransportTest" time="0.011"/>
+  <testcase name="/ip6/fe80::6f77:b303:aa6e:a16/tcp/42" classname="io.libp2p.transport.tcp.TcpTransportTest" time="0.007"/>
+  <testcase name="/dns4/localhost/tcp/9999" classname="io.libp2p.transport.tcp.TcpTransportTest" time="0.021"/>
+  <testcase name="/dns6/localhost/tcp/9999" classname="io.libp2p.transport.tcp.TcpTransportTest" time="0.019"/>
+  <system-out><![CDATA[13:30:23.283 [Test worker] [?[32mINFO?[m] test - Bound #0
+13:30:23.287 [Test worker] [?[32mINFO?[m] test - Binding #0
+13:30:23.288 [Test worker] [?[32mINFO?[m] test - Binding #1
+13:30:23.288 [Test worker] [?[32mINFO?[m] test - Binding #2
+13:30:23.288 [Test worker] [?[32mINFO?[m] test - Binding #3
+13:30:23.289 [Test worker] [?[32mINFO?[m] test - Binding #4
+13:30:23.290 [libp2p-nio-boss-744-1] [?[32mINFO?[m] test - Bound #1
+13:30:23.290 [libp2p-nio-boss-744-1] [?[32mINFO?[m] test - Bound #2
+13:30:23.290 [libp2p-nio-boss-744-1] [?[32mINFO?[m] test - Bound #3
+13:30:23.290 [libp2p-nio-boss-744-1] [?[32mINFO?[m] test - Bound #4
+13:30:23.312 [Test worker] [?[32mINFO?[m] test - Binding #0
+13:30:23.314 [libp2p-nio-boss-745-1] [?[32mINFO?[m] test - Bound #0
+13:30:25.895 [Test worker] [?[32mINFO?[m] test - Binding #0
+13:30:25.896 [libp2p-nio-boss-751-1] [?[32mINFO?[m] test - Bound #0
+13:30:25.896 [Test worker] [?[32mINFO?[m] test - Binding #1
+13:30:25.897 [libp2p-nio-boss-751-1] [?[32mINFO?[m] test - Bound #1
+13:30:25.897 [Test worker] [?[32mINFO?[m] test - Binding #2
+13:30:25.900 [libp2p-nio-boss-751-1] [?[32mINFO?[m] test - Bound #2
+13:30:25.900 [Test worker] [?[32mINFO?[m] test - Binding #3
+13:30:25.901 [Test worker] [?[32mINFO?[m] test - Binding #4
+13:30:25.901 [libp2p-nio-boss-751-1] [?[32mINFO?[m] test - Bound #3
+13:30:25.901 [libp2p-nio-boss-751-1] [?[32mINFO?[m] test - Bound #4
+13:30:25.903 [Test worker] [?[32mINFO?[m] test - Unbound #0
+13:30:25.903 [Test worker] [?[32mINFO?[m] test - Unbinding #0
+13:30:25.903 [Test worker] [?[32mINFO?[m] test - Unbinding #1
+13:30:25.903 [Test worker] [?[32mINFO?[m] test - Unbinding #2
+13:30:25.903 [Test worker] [?[32mINFO?[m] test - Unbinding #3
+13:30:25.903 [libp2p-nio-boss-751-1] [?[32mINFO?[m] test - Unbound #1
+13:30:25.903 [Test worker] [?[32mINFO?[m] test - Unbinding #4
+13:30:25.903 [libp2p-nio-boss-751-1] [?[32mINFO?[m] test - Unbound #2
+13:30:25.903 [libp2p-nio-boss-751-1] [?[32mINFO?[m] test - Unbound #3
+13:30:25.903 [libp2p-nio-boss-751-1] [?[32mINFO?[m] test - Unbound #4
+13:30:25.920 [Test worker] [?[32mINFO?[m] test - Server is listening
+13:30:25.921 [Test worker] [?[32mINFO?[m] test - Connecting #1
+13:30:25.923 [Test worker] [?[32mINFO?[m] test - Connecting #2
+13:30:25.924 [Test worker] [?[32mINFO?[m] test - Connecting #3
+13:30:25.924 [Test worker] [?[32mINFO?[m] test - Connecting #4
+13:30:25.927 [Test worker] [?[32mINFO?[m] test - Connecting #5
+13:30:25.928 [Test worker] [?[32mINFO?[m] test - Connecting #6
+13:30:25.928 [Test worker] [?[32mINFO?[m] test - Connecting #7
+13:30:25.928 [Test worker] [?[32mINFO?[m] test - Connecting #8
+13:30:25.928 [Test worker] [?[32mINFO?[m] test - Connecting #9
+13:30:25.929 [Test worker] [?[32mINFO?[m] test - Connecting #10
+13:30:25.929 [Test worker] [?[32mINFO?[m] test - Connecting #11
+13:30:25.929 [Test worker] [?[32mINFO?[m] test - Connecting #12
+13:30:25.929 [Test worker] [?[32mINFO?[m] test - Connecting #13
+13:30:25.929 [Test worker] [?[32mINFO?[m] test - Connecting #14
+13:30:25.929 [Test worker] [?[32mINFO?[m] test - Connecting #15
+13:30:25.930 [Test worker] [?[32mINFO?[m] test - Connecting #16
+13:30:25.930 [Test worker] [?[32mINFO?[m] test - Connecting #17
+13:30:25.930 [Test worker] [?[32mINFO?[m] test - Connecting #18
+13:30:25.934 [Test worker] [?[32mINFO?[m] test - Connecting #19
+13:30:25.935 [Test worker] [?[32mINFO?[m] test - Connecting #20
+13:30:25.935 [Test worker] [?[32mINFO?[m] test - Connecting #21
+13:30:25.935 [Test worker] [?[32mINFO?[m] test - Connecting #22
+13:30:25.935 [Test worker] [?[32mINFO?[m] test - Connecting #23
+13:30:25.935 [Test worker] [?[32mINFO?[m] test - Connecting #24
+13:30:25.936 [Test worker] [?[32mINFO?[m] test - Connecting #25
+13:30:25.936 [Test worker] [?[32mINFO?[m] test - Connecting #26
+13:30:25.936 [Test worker] [?[32mINFO?[m] test - Connecting #27
+13:30:25.936 [Test worker] [?[32mINFO?[m] test - Connecting #28
+13:30:25.936 [Test worker] [?[32mINFO?[m] test - Connecting #29
+13:30:25.936 [Test worker] [?[32mINFO?[m] test - Connecting #30
+13:30:25.936 [Test worker] [?[32mINFO?[m] test - Connecting #31
+13:30:25.937 [Test worker] [?[32mINFO?[m] test - Connecting #32
+13:30:25.937 [Test worker] [?[32mINFO?[m] test - Connecting #33
+13:30:25.937 [Test worker] [?[32mINFO?[m] test - Connecting #34
+13:30:25.937 [Test worker] [?[32mINFO?[m] test - Connecting #35
+13:30:25.937 [Test worker] [?[32mINFO?[m] test - Connecting #36
+13:30:25.937 [Test worker] [?[32mINFO?[m] test - Connecting #37
+13:30:25.937 [Test worker] [?[32mINFO?[m] test - Connecting #38
+13:30:25.937 [Test worker] [?[32mINFO?[m] test - Connecting #39
+13:30:25.938 [Test worker] [?[32mINFO?[m] test - Connecting #40
+13:30:25.938 [Test worker] [?[32mINFO?[m] test - Connecting #41
+13:30:25.939 [Test worker] [?[32mINFO?[m] test - Connecting #42
+13:30:25.939 [Test worker] [?[32mINFO?[m] test - Connecting #43
+13:30:25.939 [Test worker] [?[32mINFO?[m] test - Connecting #44
+13:30:25.939 [Test worker] [?[32mINFO?[m] test - Connecting #45
+13:30:25.939 [Test worker] [?[32mINFO?[m] test - Connecting #46
+13:30:25.939 [Test worker] [?[32mINFO?[m] test - Connecting #47
+13:30:25.940 [Test worker] [?[32mINFO?[m] test - Connecting #48
+13:30:25.940 [Test worker] [?[32mINFO?[m] test - Connecting #49
+13:30:25.940 [Test worker] [?[32mINFO?[m] test - Connecting #50
+13:30:27.485 [libp2p-nio-worker-3-9] [?[32mINFO?[m] test - Connected #13: P2PChannelOverNetty(nettyChannel=[id: 0x92e90f71, L:/127.0.0.1:45186 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:27.489 [libp2p-nio-worker-3-9] [?[32mINFO?[m] test - Connected #29: P2PChannelOverNetty(nettyChannel=[id: 0xce468d11, L:/127.0.0.1:45200 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:27.492 [libp2p-nio-worker-3-9] [?[32mINFO?[m] test - Connected #45: P2PChannelOverNetty(nettyChannel=[id: 0x859cf1f4, L:/127.0.0.1:45206 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:28.433 [libp2p-nio-worker-3-10] [?[32mINFO?[m] test - Connected #14: P2PChannelOverNetty(nettyChannel=[id: 0xb2b3e174, L:/127.0.0.1:45220 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:28.434 [libp2p-nio-worker-3-10] [?[32mINFO?[m] test - Connected #30: P2PChannelOverNetty(nettyChannel=[id: 0x6fb427f4, L:/127.0.0.1:45222 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:28.434 [libp2p-nio-worker-3-10] [?[32mINFO?[m] test - Connected #46: P2PChannelOverNetty(nettyChannel=[id: 0x26910282, L:/127.0.0.1:45228 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:28.656 [libp2p-nio-worker-3-16] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0x5ca16cf8, L:/127.0.0.1:21100 - R:/127.0.0.1:45200], isInitiator=false)
+13:30:28.657 [libp2p-nio-worker-3-16] [?[32mINFO?[m] test - Connected #4: P2PChannelOverNetty(nettyChannel=[id: 0xa43c0633, L:/127.0.0.1:45210 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:28.657 [libp2p-nio-worker-3-16] [?[32mINFO?[m] test - Connected #20: P2PChannelOverNetty(nettyChannel=[id: 0xbd12d5bb, L:/127.0.0.1:45246 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:28.657 [libp2p-nio-worker-3-16] [?[32mINFO?[m] test - Connected #36: P2PChannelOverNetty(nettyChannel=[id: 0x735cdda7, L:/127.0.0.1:45248 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:29.149 [libp2p-nio-worker-3-4] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0x4d26048f, L:/127.0.0.1:21100 - R:/127.0.0.1:45222], isInitiator=false)
+13:30:29.160 [libp2p-nio-worker-3-4] [?[32mINFO?[m] test - Connected #8: P2PChannelOverNetty(nettyChannel=[id: 0x80a073bb, L:/127.0.0.1:45232 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:29.160 [libp2p-nio-worker-3-4] [?[32mINFO?[m] test - Connected #24: P2PChannelOverNetty(nettyChannel=[id: 0x13413cfb, L:/127.0.0.1:45234 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:29.160 [libp2p-nio-worker-3-4] [?[32mINFO?[m] test - Connected #40: P2PChannelOverNetty(nettyChannel=[id: 0xfe73f149, L:/127.0.0.1:45252 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:29.193 [libp2p-nio-worker-3-12] [?[32mINFO?[m] test - Connected #16: P2PChannelOverNetty(nettyChannel=[id: 0xdace552f, L:/127.0.0.1:45254 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:29.193 [libp2p-nio-worker-3-12] [?[32mINFO?[m] test - Connected #32: P2PChannelOverNetty(nettyChannel=[id: 0x47986a81, L:/127.0.0.1:45268 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:29.193 [libp2p-nio-worker-3-12] [?[32mINFO?[m] test - Connected #48: P2PChannelOverNetty(nettyChannel=[id: 0x62878827, L:/127.0.0.1:45280 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:29.384 [libp2p-nio-worker-3-9] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0xd5596d0d, L:/127.0.0.1:21100 - R:/127.0.0.1:45248], isInitiator=false)
+13:30:30.175 [libp2p-nio-worker-3-12] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0xf8ba04e1, L:/127.0.0.1:21100 - R:/127.0.0.1:45268], isInitiator=false)
+13:30:30.242 [libp2p-nio-worker-3-10] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0x3b525247, L:/127.0.0.1:21100 - R:/127.0.0.1:45252], isInitiator=false)
+13:30:30.495 [libp2p-nio-worker-3-2] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0x0ba6485f, L:/127.0.0.1:21100 - R:/127.0.0.1:45210], isInitiator=false)
+13:30:30.626 [libp2p-nio-worker-3-16] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0xe496ca21, L:/127.0.0.1:21100 - R:/127.0.0.1:45308], isInitiator=false)
+13:30:30.679 [libp2p-nio-worker-3-1] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0x1f00d824, L:/127.0.0.1:21100 - R:/127.0.0.1:45206], isInitiator=false)
+13:30:30.772 [libp2p-nio-worker-3-8] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0x7fa5ad3b, L:/127.0.0.1:21100 - R:/127.0.0.1:45246], isInitiator=false)
+13:30:30.870 [libp2p-nio-worker-3-11] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0x239f2ac6, L:/127.0.0.1:21100 - R:/127.0.0.1:45254], isInitiator=false)
+13:30:30.959 [libp2p-nio-worker-3-4] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0xcdf2986c, L:/127.0.0.1:21100 - R:/127.0.0.1:45334], isInitiator=false)
+13:30:30.973 [libp2p-nio-worker-3-13] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0x8ed07f47, L:/127.0.0.1:21100 - R:/127.0.0.1:45280], isInitiator=false)
+13:30:31.251 [libp2p-nio-worker-3-2] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0x75469414, L:/127.0.0.1:21100 - R:/127.0.0.1:45314], isInitiator=false)
+13:30:31.252 [libp2p-nio-worker-3-2] [?[32mINFO?[m] test - Connected #6: P2PChannelOverNetty(nettyChannel=[id: 0x37ac2175, L:/127.0.0.1:45284 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:31.252 [libp2p-nio-worker-3-2] [?[32mINFO?[m] test - Connected #22: P2PChannelOverNetty(nettyChannel=[id: 0x688dd660, L:/127.0.0.1:45292 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:31.252 [libp2p-nio-worker-3-2] [?[32mINFO?[m] test - Connected #38: P2PChannelOverNetty(nettyChannel=[id: 0x498a110f, L:/127.0.0.1:45380 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:31.466 [libp2p-nio-worker-3-5] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0xc7e8d73a, L:/127.0.0.1:21100 - R:/127.0.0.1:45228], isInitiator=false)
+13:30:31.532 [libp2p-nio-worker-3-15] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0xb8765243, L:/127.0.0.1:21100 - R:/127.0.0.1:45186], isInitiator=false)
+13:30:31.589 [libp2p-nio-worker-3-8] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0xb77b210b, L:/127.0.0.1:21100 - R:/127.0.0.1:45380], isInitiator=false)
+13:30:31.590 [libp2p-nio-worker-3-8] [?[32mINFO?[m] test - Connected #12: P2PChannelOverNetty(nettyChannel=[id: 0x08cbaf7d, L:/127.0.0.1:45308 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:31.591 [libp2p-nio-worker-3-8] [?[32mINFO?[m] test - Connected #28: P2PChannelOverNetty(nettyChannel=[id: 0x55f8c953, L:/127.0.0.1:45416 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:31.591 [libp2p-nio-worker-3-8] [?[32mINFO?[m] test - Connected #44: P2PChannelOverNetty(nettyChannel=[id: 0x5f855072, L:/127.0.0.1:45424 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:31.771 [libp2p-nio-worker-3-4] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0x80442a7c, L:/127.0.0.1:21100 - R:/127.0.0.1:41256], isInitiator=false)
+13:30:31.783 [libp2p-nio-worker-3-15] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0xf66bdeee, L:/127.0.0.1:21100 - R:/127.0.0.1:45292], isInitiator=false)
+13:30:31.788 [libp2p-nio-worker-3-11] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0xcdb5a5c5, L:/127.0.0.1:21100 - R:/127.0.0.1:45416], isInitiator=false)
+13:30:31.789 [libp2p-nio-worker-3-11] [?[32mINFO?[m] test - Connected #15: P2PChannelOverNetty(nettyChannel=[id: 0x0ef928e8, L:/127.0.0.1:45314 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:31.789 [libp2p-nio-worker-3-11] [?[32mINFO?[m] test - Connected #31: P2PChannelOverNetty(nettyChannel=[id: 0xf547789f, L:/127.0.0.1:45330 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:31.796 [libp2p-nio-worker-3-11] [?[32mINFO?[m] test - Connected #47: P2PChannelOverNetty(nettyChannel=[id: 0x124c59b1, L:/127.0.0.1:45436 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:31.903 [libp2p-nio-worker-3-12] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0xee28126b, L:/127.0.0.1:21100 - R:/127.0.0.1:45424], isInitiator=false)
+13:30:31.949 [libp2p-nio-worker-3-16] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0xcdac7ef1, L:/127.0.0.1:21100 - R:/127.0.0.1:45454], isInitiator=false)
+13:30:32.157 [libp2p-nio-worker-3-14] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0x7eb9d14d, L:/127.0.0.1:21100 - R:/127.0.0.1:45284], isInitiator=false)
+13:30:32.165 [libp2p-nio-worker-3-13] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0xe9d2ad9a, L:/127.0.0.1:21100 - R:/127.0.0.1:45436], isInitiator=false)
+13:30:32.168 [libp2p-nio-worker-3-13] [?[32mINFO?[m] test - Connected #1: P2PChannelOverNetty(nettyChannel=[id: 0x55002bb1, L:/127.0.0.1:45350 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:32.168 [libp2p-nio-worker-3-13] [?[32mINFO?[m] test - Connected #17: P2PChannelOverNetty(nettyChannel=[id: 0xa7414477, L:/127.0.0.1:45364 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:32.168 [libp2p-nio-worker-3-13] [?[32mINFO?[m] test - Connected #33: P2PChannelOverNetty(nettyChannel=[id: 0x2996a6ec, L:/127.0.0.1:45454 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:32.169 [libp2p-nio-worker-3-13] [?[32mINFO?[m] test - Connected #49: P2PChannelOverNetty(nettyChannel=[id: 0x35f4742e, L:/127.0.0.1:45470 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:32.496 [libp2p-nio-worker-3-6] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0x7332ce80, L:/127.0.0.1:21100 - R:/127.0.0.1:45232], isInitiator=false)
+13:30:32.596 [libp2p-nio-worker-3-5] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0xc6b83601, L:/127.0.0.1:21100 - R:/127.0.0.1:45342], isInitiator=false)
+13:30:32.662 [libp2p-nio-worker-3-2] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0x44965ae3, L:/127.0.0.1:21100 - R:/127.0.0.1:41240], isInitiator=false)
+13:30:32.663 [libp2p-nio-worker-3-3] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0x69b8a287, L:/127.0.0.1:21100 - R:/127.0.0.1:45220], isInitiator=false)
+13:30:32.725 [libp2p-nio-worker-3-15] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0x54c91f4a, L:/127.0.0.1:21100 - R:/127.0.0.1:45440], isInitiator=false)
+13:30:32.726 [libp2p-nio-worker-3-15] [?[32mINFO?[m] test - Connected #3: P2PChannelOverNetty(nettyChannel=[id: 0xaa99ad51, L:/127.0.0.1:41256 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:32.726 [libp2p-nio-worker-3-15] [?[32mINFO?[m] test - Connected #19: P2PChannelOverNetty(nettyChannel=[id: 0x4a237409, L:/127.0.0.1:41266 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:32.726 [libp2p-nio-worker-3-15] [?[32mINFO?[m] test - Connected #35: P2PChannelOverNetty(nettyChannel=[id: 0x64937e65, L:/127.0.0.1:41290 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:32.970 [libp2p-nio-worker-3-14] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0xd2a052eb, L:/127.0.0.1:21100 - R:/127.0.0.1:45438], isInitiator=false)
+13:30:32.974 [libp2p-nio-worker-3-14] [?[32mINFO?[m] test - Connected #2: P2PChannelOverNetty(nettyChannel=[id: 0x6f9462da, L:/127.0.0.1:45438 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:32.974 [libp2p-nio-worker-3-14] [?[32mINFO?[m] test - Connected #18: P2PChannelOverNetty(nettyChannel=[id: 0x8d653973, L:/127.0.0.1:45440 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:32.974 [libp2p-nio-worker-3-14] [?[32mINFO?[m] test - Connected #34: P2PChannelOverNetty(nettyChannel=[id: 0x7160761a, L:/127.0.0.1:41292 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:32.974 [libp2p-nio-worker-3-14] [?[32mINFO?[m] test - Connected #50: P2PChannelOverNetty(nettyChannel=[id: 0xf543dc1d, L:/127.0.0.1:41302 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:33.010 [libp2p-nio-worker-3-3] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0x82500769, L:/127.0.0.1:21100 - R:/127.0.0.1:45330], isInitiator=false)
+13:30:33.044 [libp2p-nio-worker-3-9] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0xc5cb0097, L:/127.0.0.1:21100 - R:/127.0.0.1:45392], isInitiator=false)
+13:30:33.198 [libp2p-nio-worker-3-8] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0x1808c16b, L:/127.0.0.1:21100 - R:/127.0.0.1:41290], isInitiator=false)
+13:30:33.195 [libp2p-nio-worker-3-5] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0x14e29411, L:/127.0.0.1:21100 - R:/127.0.0.1:41266], isInitiator=false)
+13:30:33.198 [libp2p-nio-worker-3-5] [?[32mINFO?[m] test - Connected #9: P2PChannelOverNetty(nettyChannel=[id: 0xe7196199, L:/127.0.0.1:45334 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:33.199 [libp2p-nio-worker-3-5] [?[32mINFO?[m] test - Connected #25: P2PChannelOverNetty(nettyChannel=[id: 0x57e68e2e, L:/127.0.0.1:41240 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:33.199 [libp2p-nio-worker-3-5] [?[32mINFO?[m] test - Connected #41: P2PChannelOverNetty(nettyChannel=[id: 0x21dd8f56, L:/127.0.0.1:41252 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:33.248 [libp2p-nio-worker-3-3] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0xc018b8d6, L:/127.0.0.1:21100 - R:/127.0.0.1:41252], isInitiator=false)
+13:30:33.248 [libp2p-nio-worker-3-3] [?[32mINFO?[m] test - Connected #7: P2PChannelOverNetty(nettyChannel=[id: 0x06a4d3fb, L:/127.0.0.1:45342 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:33.248 [libp2p-nio-worker-3-3] [?[32mINFO?[m] test - Connected #23: P2PChannelOverNetty(nettyChannel=[id: 0xe96e33a4, L:/127.0.0.1:41308 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:33.248 [libp2p-nio-worker-3-3] [?[32mINFO?[m] test - Connected #39: P2PChannelOverNetty(nettyChannel=[id: 0xdfc9ddbd, L:/127.0.0.1:41324 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:33.269 [libp2p-nio-worker-3-6] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0xfa07ebd8, L:/127.0.0.1:21100 - R:/127.0.0.1:45350], isInitiator=false)
+13:30:33.400 [libp2p-nio-worker-3-12] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0x28ffeca4, L:/127.0.0.1:21100 - R:/127.0.0.1:41324], isInitiator=false)
+13:30:33.506 [libp2p-nio-worker-3-13] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0x71ee063b, L:/127.0.0.1:21100 - R:/127.0.0.1:41328], isInitiator=false)
+13:30:33.517 [libp2p-nio-worker-3-1] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0x309a3258, L:/127.0.0.1:21100 - R:/127.0.0.1:45310], isInitiator=false)
+13:30:33.518 [libp2p-nio-worker-3-10] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0x685ba992, L:/127.0.0.1:21100 - R:/127.0.0.1:45402], isInitiator=false)
+13:30:33.682 [libp2p-nio-worker-3-1] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0xec752c90, L:/127.0.0.1:21100 - R:/127.0.0.1:45470], isInitiator=false)
+13:30:33.686 [libp2p-nio-worker-3-1] [?[32mINFO?[m] test - Connected #5: P2PChannelOverNetty(nettyChannel=[id: 0x92afd002, L:/127.0.0.1:45310 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:33.686 [libp2p-nio-worker-3-1] [?[32mINFO?[m] test - Connected #21: P2PChannelOverNetty(nettyChannel=[id: 0xa02dbad4, L:/127.0.0.1:45392 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:33.687 [libp2p-nio-worker-3-1] [?[32mINFO?[m] test - Connected #37: P2PChannelOverNetty(nettyChannel=[id: 0x0cae802f, L:/127.0.0.1:45402 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:33.716 [libp2p-nio-worker-3-9] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0x72adcbf6, L:/127.0.0.1:21100 - R:/127.0.0.1:41292], isInitiator=false)
+13:30:33.732 [libp2p-nio-worker-3-11] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0x2d33e8a3, L:/127.0.0.1:21100 - R:/127.0.0.1:41308], isInitiator=false)
+13:30:33.810 [libp2p-nio-worker-3-7] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0xc4ea4bca, L:/127.0.0.1:21100 - R:/127.0.0.1:45234], isInitiator=false)
+13:30:33.829 [libp2p-nio-worker-3-6] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0x249f3eef, L:/127.0.0.1:21100 - R:/127.0.0.1:41274], isInitiator=false)
+13:30:33.829 [libp2p-nio-worker-3-6] [?[32mINFO?[m] test - Connected #10: P2PChannelOverNetty(nettyChannel=[id: 0x9855efa8, L:/127.0.0.1:41274 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:33.830 [libp2p-nio-worker-3-6] [?[32mINFO?[m] test - Connected #26: P2PChannelOverNetty(nettyChannel=[id: 0xdd4632b1, L:/127.0.0.1:41278 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:33.830 [libp2p-nio-worker-3-6] [?[32mINFO?[m] test - Connected #42: P2PChannelOverNetty(nettyChannel=[id: 0x9fb2aa3f, L:/127.0.0.1:41338 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:34.060 [libp2p-nio-worker-3-14] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0x691df1a6, L:/127.0.0.1:21100 - R:/127.0.0.1:41338], isInitiator=false)
+13:30:34.521 [libp2p-nio-worker-3-10] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0x897f16e9, L:/127.0.0.1:21100 - R:/127.0.0.1:41302], isInitiator=false)
+13:30:35.025 [libp2p-nio-worker-3-7] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0x28ecdafe, L:/127.0.0.1:21100 - R:/127.0.0.1:45364], isInitiator=false)
+13:30:35.794 [libp2p-nio-worker-3-7] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0x0ad73b2f, L:/127.0.0.1:21100 - R:/127.0.0.1:41278], isInitiator=false)
+13:30:35.796 [libp2p-nio-worker-3-7] [?[32mINFO?[m] test - Connected #11: P2PChannelOverNetty(nettyChannel=[id: 0x4d4bf68f, L:/127.0.0.1:41328 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:35.796 [libp2p-nio-worker-3-7] [?[32mINFO?[m] test - Connected #27: P2PChannelOverNetty(nettyChannel=[id: 0x15862ebd, L:/127.0.0.1:41340 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:35.796 [libp2p-nio-worker-3-7] [?[32mINFO?[m] test - Connected #43: P2PChannelOverNetty(nettyChannel=[id: 0x0bec655d, L:/127.0.0.1:41344 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:35.796 [Test worker] [?[32mINFO?[m] test - The negotiations succeeded.
+13:30:36.020 [libp2p-nio-worker-3-16] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0xbbdd4f70, L:/127.0.0.1:21100 - R:/127.0.0.1:41344], isInitiator=false)
+13:30:37.007 [libp2p-nio-worker-3-15] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0xdc8a93c1, L:/127.0.0.1:21100 - R:/127.0.0.1:41340], isInitiator=false)
+13:30:37.798 [Test worker] [?[32mINFO?[m] test - Closing now
+13:30:37.818 [Test worker] [?[32mINFO?[m] test - Server transport closed
+13:30:39.821 [Test worker] [?[32mINFO?[m] test - Client transport closed
+13:30:39.843 [Test worker] [?[32mINFO?[m] test - Server is listening
+13:30:39.843 [Test worker] [?[32mINFO?[m] test - Connecting #1
+13:30:39.843 [Test worker] [?[32mINFO?[m] test - Connecting #2
+13:30:39.846 [Test worker] [?[32mINFO?[m] test - Connecting #3
+13:30:39.846 [Test worker] [?[32mINFO?[m] test - Connecting #4
+13:30:39.847 [Test worker] [?[32mINFO?[m] test - Connecting #5
+13:30:39.850 [Test worker] [?[32mINFO?[m] test - Connecting #6
+13:30:39.850 [Test worker] [?[32mINFO?[m] test - Connecting #7
+13:30:39.850 [Test worker] [?[32mINFO?[m] test - Connecting #8
+13:30:39.851 [Test worker] [?[32mINFO?[m] test - Connecting #9
+13:30:39.851 [Test worker] [?[32mINFO?[m] test - Connecting #10
+13:30:39.851 [Test worker] [?[32mINFO?[m] test - Connecting #11
+13:30:39.861 [Test worker] [?[32mINFO?[m] test - Connecting #12
+13:30:39.862 [Test worker] [?[32mINFO?[m] test - Connecting #13
+13:30:39.862 [Test worker] [?[32mINFO?[m] test - Connecting #14
+13:30:39.862 [Test worker] [?[32mINFO?[m] test - Connecting #15
+13:30:39.863 [Test worker] [?[32mINFO?[m] test - Connecting #16
+13:30:39.864 [Test worker] [?[32mINFO?[m] test - Connecting #17
+13:30:39.864 [Test worker] [?[32mINFO?[m] test - Connecting #18
+13:30:39.864 [Test worker] [?[32mINFO?[m] test - Connecting #19
+13:30:39.864 [Test worker] [?[32mINFO?[m] test - Connecting #20
+13:30:39.864 [Test worker] [?[32mINFO?[m] test - Connecting #21
+13:30:39.864 [Test worker] [?[32mINFO?[m] test - Connecting #22
+13:30:39.865 [Test worker] [?[32mINFO?[m] test - Connecting #23
+13:30:39.865 [Test worker] [?[32mINFO?[m] test - Connecting #24
+13:30:39.865 [Test worker] [?[32mINFO?[m] test - Connecting #25
+13:30:39.865 [Test worker] [?[32mINFO?[m] test - Connecting #26
+13:30:39.865 [Test worker] [?[32mINFO?[m] test - Connecting #27
+13:30:39.865 [Test worker] [?[32mINFO?[m] test - Connecting #28
+13:30:39.865 [Test worker] [?[32mINFO?[m] test - Connecting #29
+13:30:39.865 [Test worker] [?[32mINFO?[m] test - Connecting #30
+13:30:39.881 [Test worker] [?[32mINFO?[m] test - Connecting #31
+13:30:39.882 [Test worker] [?[32mINFO?[m] test - Connecting #32
+13:30:39.882 [Test worker] [?[32mINFO?[m] test - Connecting #33
+13:30:39.882 [Test worker] [?[32mINFO?[m] test - Connecting #34
+13:30:39.895 [Test worker] [?[32mINFO?[m] test - Connecting #35
+13:30:39.896 [Test worker] [?[32mINFO?[m] test - Connecting #36
+13:30:39.896 [Test worker] [?[32mINFO?[m] test - Connecting #37
+13:30:39.896 [Test worker] [?[32mINFO?[m] test - Connecting #38
+13:30:39.896 [Test worker] [?[32mINFO?[m] test - Connecting #39
+13:30:39.896 [Test worker] [?[32mINFO?[m] test - Connecting #40
+13:30:39.896 [Test worker] [?[32mINFO?[m] test - Connecting #41
+13:30:39.896 [Test worker] [?[32mINFO?[m] test - Connecting #42
+13:30:39.897 [Test worker] [?[32mINFO?[m] test - Connecting #43
+13:30:39.897 [Test worker] [?[32mINFO?[m] test - Connecting #44
+13:30:39.897 [Test worker] [?[32mINFO?[m] test - Connecting #45
+13:30:39.897 [Test worker] [?[32mINFO?[m] test - Connecting #46
+13:30:39.897 [Test worker] [?[32mINFO?[m] test - Connecting #47
+13:30:39.897 [Test worker] [?[32mINFO?[m] test - Connecting #48
+13:30:39.897 [Test worker] [?[32mINFO?[m] test - Connecting #49
+13:30:39.897 [Test worker] [?[32mINFO?[m] test - Connecting #50
+13:30:41.875 [libp2p-nio-worker-3-7] [?[32mINFO?[m] test - Connected #7: P2PChannelOverNetty(nettyChannel=[id: 0xced5347b, L:/127.0.0.1:48520 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:41.877 [libp2p-nio-worker-3-7] [?[32mINFO?[m] test - Connected #23: P2PChannelOverNetty(nettyChannel=[id: 0xb36f84fd, L:/127.0.0.1:48522 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:41.880 [libp2p-nio-worker-3-7] [?[32mINFO?[m] test - Connected #39: P2PChannelOverNetty(nettyChannel=[id: 0x2eb27d3e, L:/127.0.0.1:48532 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:41.888 [libp2p-nio-worker-3-14] [?[32mINFO?[m] test - Connected #14: P2PChannelOverNetty(nettyChannel=[id: 0xe7e37fa2, L:/127.0.0.1:48540 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:41.889 [libp2p-nio-worker-3-14] [?[32mINFO?[m] test - Connected #30: P2PChannelOverNetty(nettyChannel=[id: 0xbc6d1fdd, L:/127.0.0.1:48546 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:41.889 [libp2p-nio-worker-3-14] [?[32mINFO?[m] test - Connected #46: P2PChannelOverNetty(nettyChannel=[id: 0xccac5f88, L:/127.0.0.1:48550 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:42.000 [libp2p-nio-worker-3-16] [?[32mINFO?[m] test - Connected #16: P2PChannelOverNetty(nettyChannel=[id: 0x378fdeec, L:/127.0.0.1:48566 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:42.001 [libp2p-nio-worker-3-16] [?[32mINFO?[m] test - Connected #32: P2PChannelOverNetty(nettyChannel=[id: 0xa846aa71, L:/127.0.0.1:48572 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:42.001 [libp2p-nio-worker-3-16] [?[32mINFO?[m] test - Connected #48: P2PChannelOverNetty(nettyChannel=[id: 0x753b9623, L:/127.0.0.1:48586 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:42.598 [libp2p-nio-worker-3-7] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0xfe8ac537, L:/127.0.0.1:21100 - R:/127.0.0.1:48546], isInitiator=false)
+13:30:42.634 [libp2p-nio-worker-3-16] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0x2b81aa90, L:/127.0.0.1:21100 - R:/127.0.0.1:48632], isInitiator=false)
+13:30:42.856 [libp2p-nio-worker-3-8] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0xe64c7392, L:/127.0.0.1:21100 - R:/127.0.0.1:48550], isInitiator=false)
+13:30:42.856 [libp2p-nio-worker-3-8] [?[32mINFO?[m] test - Connected #8: P2PChannelOverNetty(nettyChannel=[id: 0x1340a7de, L:/127.0.0.1:48602 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:42.857 [libp2p-nio-worker-3-8] [?[32mINFO?[m] test - Connected #24: P2PChannelOverNetty(nettyChannel=[id: 0xc2b3af80, L:/127.0.0.1:48612 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:42.857 [libp2p-nio-worker-3-8] [?[32mINFO?[m] test - Connected #40: P2PChannelOverNetty(nettyChannel=[id: 0x031b7090, L:/127.0.0.1:48706 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:43.039 [libp2p-nio-worker-3-3] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0x8dcf582e, L:/127.0.0.1:21100 - R:/127.0.0.1:48520], isInitiator=false)
+13:30:43.115 [libp2p-nio-worker-3-12] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0x76ae370f, L:/127.0.0.1:21100 - R:/127.0.0.1:48602], isInitiator=false)
+13:30:43.116 [libp2p-nio-worker-3-12] [?[32mINFO?[m] test - Connected #12: P2PChannelOverNetty(nettyChannel=[id: 0xe745bb50, L:/127.0.0.1:48632 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:43.116 [libp2p-nio-worker-3-12] [?[32mINFO?[m] test - Connected #28: P2PChannelOverNetty(nettyChannel=[id: 0xbc4c0d97, L:/127.0.0.1:48644 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:43.116 [libp2p-nio-worker-3-12] [?[32mINFO?[m] test - Connected #44: P2PChannelOverNetty(nettyChannel=[id: 0x86103574, L:/127.0.0.1:48718 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:43.159 [libp2p-nio-worker-3-13] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0xc9e5c67d, L:/127.0.0.1:21100 - R:/127.0.0.1:48612], isInitiator=false)
+13:30:43.160 [libp2p-nio-worker-3-13] [?[32mINFO?[m] test - Connected #13: P2PChannelOverNetty(nettyChannel=[id: 0x84c7cdbf, L:/127.0.0.1:48680 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:43.162 [libp2p-nio-worker-3-13] [?[32mINFO?[m] test - Connected #29: P2PChannelOverNetty(nettyChannel=[id: 0x1b813c5a, L:/127.0.0.1:48724 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:43.162 [libp2p-nio-worker-3-13] [?[32mINFO?[m] test - Connected #45: P2PChannelOverNetty(nettyChannel=[id: 0x462afbdf, L:/127.0.0.1:48738 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:43.423 [libp2p-nio-worker-3-7] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0xb0c4febe, L:/127.0.0.1:21100 - R:/127.0.0.1:48692], isInitiator=false)
+13:30:43.475 [libp2p-nio-worker-3-5] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0x6f112935, L:/127.0.0.1:21100 - R:/127.0.0.1:48532], isInitiator=false)
+13:30:43.507 [libp2p-nio-worker-3-14] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0x065265d2, L:/127.0.0.1:21100 - R:/127.0.0.1:48616], isInitiator=false)
+13:30:43.516 [libp2p-nio-worker-3-15] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0xeee54fb2, L:/127.0.0.1:21100 - R:/127.0.0.1:48620], isInitiator=false)
+13:30:43.520 [libp2p-nio-worker-3-15] [?[32mINFO?[m] test - Connected #15: P2PChannelOverNetty(nettyChannel=[id: 0x0789b2a4, L:/127.0.0.1:48648 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:43.521 [libp2p-nio-worker-3-15] [?[32mINFO?[m] test - Connected #31: P2PChannelOverNetty(nettyChannel=[id: 0x5c433368, L:/127.0.0.1:48652 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:43.521 [libp2p-nio-worker-3-15] [?[32mINFO?[m] test - Connected #47: P2PChannelOverNetty(nettyChannel=[id: 0x220be5b4, L:/127.0.0.1:48758 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:43.527 [libp2p-nio-worker-3-8] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0x60dfa400, L:/127.0.0.1:21100 - R:/127.0.0.1:48706], isInitiator=false)
+13:30:43.607 [libp2p-nio-worker-3-11] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0x140d8a45, L:/127.0.0.1:21100 - R:/127.0.0.1:48586], isInitiator=false)
+13:30:43.623 [libp2p-nio-worker-3-5] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0x3f856faa, L:/127.0.0.1:21100 - R:/127.0.0.1:48670], isInitiator=false)
+13:30:43.624 [libp2p-nio-worker-3-5] [?[32mINFO?[m] test - Connected #5: P2PChannelOverNetty(nettyChannel=[id: 0xff3bfde5, L:/127.0.0.1:48616 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:43.624 [libp2p-nio-worker-3-5] [?[32mINFO?[m] test - Connected #21: P2PChannelOverNetty(nettyChannel=[id: 0x6e963ef2, L:/127.0.0.1:48620 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:43.624 [libp2p-nio-worker-3-5] [?[32mINFO?[m] test - Connected #37: P2PChannelOverNetty(nettyChannel=[id: 0x8775a030, L:/127.0.0.1:48754 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:43.655 [libp2p-nio-worker-3-14] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0xd8f22ef5, L:/127.0.0.1:21100 - R:/127.0.0.1:48754], isInitiator=false)
+13:30:44.057 [libp2p-nio-worker-3-13] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0xeb51def4, L:/127.0.0.1:21100 - R:/127.0.0.1:48746], isInitiator=false)
+13:30:44.086 [libp2p-nio-worker-3-9] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0x8624eee3, L:/127.0.0.1:21100 - R:/127.0.0.1:48566], isInitiator=false)
+13:30:44.317 [libp2p-nio-worker-3-9] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0x917be895, L:/127.0.0.1:21100 - R:/127.0.0.1:48718], isInitiator=false)
+13:30:44.317 [libp2p-nio-worker-3-9] [?[32mINFO?[m] test - Connected #9: P2PChannelOverNetty(nettyChannel=[id: 0xf1b3f02f, L:/127.0.0.1:48692 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:44.317 [libp2p-nio-worker-3-9] [?[32mINFO?[m] test - Connected #25: P2PChannelOverNetty(nettyChannel=[id: 0x9efb2a5f, L:/127.0.0.1:48774 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:44.317 [libp2p-nio-worker-3-9] [?[32mINFO?[m] test - Connected #41: P2PChannelOverNetty(nettyChannel=[id: 0xe4b973a6, L:/127.0.0.1:48782 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:44.351 [libp2p-nio-worker-3-3] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0xc66cfa21, L:/127.0.0.1:21100 - R:/127.0.0.1:48652], isInitiator=false)
+13:30:44.352 [libp2p-nio-worker-3-3] [?[32mINFO?[m] test - Connected #3: P2PChannelOverNetty(nettyChannel=[id: 0xcc63cdd0, L:/127.0.0.1:48656 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:44.352 [libp2p-nio-worker-3-3] [?[32mINFO?[m] test - Connected #19: P2PChannelOverNetty(nettyChannel=[id: 0x1ca0711d, L:/127.0.0.1:48670 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:44.353 [libp2p-nio-worker-3-3] [?[32mINFO?[m] test - Connected #35: P2PChannelOverNetty(nettyChannel=[id: 0x3029b4fb, L:/127.0.0.1:48806 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:44.538 [libp2p-nio-worker-3-16] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0x3bc20769, L:/127.0.0.1:21100 - R:/127.0.0.1:48774], isInitiator=false)
+13:30:44.671 [libp2p-nio-worker-3-12] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0x2c59c5aa, L:/127.0.0.1:21100 - R:/127.0.0.1:48742], isInitiator=false)
+13:30:44.761 [libp2p-nio-worker-3-10] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0x32c083d8, L:/127.0.0.1:21100 - R:/127.0.0.1:48572], isInitiator=false)
+13:30:45.121 [libp2p-nio-worker-3-6] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0x5c64534a, L:/127.0.0.1:21100 - R:/127.0.0.1:48540], isInitiator=false)
+13:30:45.310 [libp2p-nio-worker-3-2] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0x95f69e89, L:/127.0.0.1:21100 - R:/127.0.0.1:48648], isInitiator=false)
+13:30:45.374 [libp2p-nio-worker-3-3] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0xe93154b0, L:/127.0.0.1:21100 - R:/127.0.0.1:48806], isInitiator=false)
+13:30:45.860 [libp2p-nio-worker-3-6] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0x2922428e, L:/127.0.0.1:21100 - R:/127.0.0.1:48680], isInitiator=false)
+13:30:45.877 [libp2p-nio-worker-3-2] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0x7c38cd9a, L:/127.0.0.1:21100 - R:/127.0.0.1:48794], isInitiator=false)
+13:30:45.879 [libp2p-nio-worker-3-2] [?[32mINFO?[m] test - Connected #2: P2PChannelOverNetty(nettyChannel=[id: 0x68995109, L:/127.0.0.1:48828 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:45.879 [libp2p-nio-worker-3-2] [?[32mINFO?[m] test - Connected #18: P2PChannelOverNetty(nettyChannel=[id: 0xb4914d26, L:/127.0.0.1:48830 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:45.879 [libp2p-nio-worker-3-2] [?[32mINFO?[m] test - Connected #34: P2PChannelOverNetty(nettyChannel=[id: 0x255d59da, L:/127.0.0.1:48840 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:45.879 [libp2p-nio-worker-3-2] [?[32mINFO?[m] test - Connected #50: P2PChannelOverNetty(nettyChannel=[id: 0x1bc95305, L:/127.0.0.1:48868 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:45.918 [libp2p-nio-worker-3-4] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0xdc0ffd8c, L:/127.0.0.1:21100 - R:/127.0.0.1:48522], isInitiator=false)
+13:30:46.027 [libp2p-nio-worker-3-15] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0x5edbfd83, L:/127.0.0.1:21100 - R:/127.0.0.1:48758], isInitiator=false)
+13:30:46.064 [libp2p-nio-worker-3-8] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0x1b703a6f, L:/127.0.0.1:21100 - R:/127.0.0.1:48840], isInitiator=false)
+13:30:46.137 [libp2p-nio-worker-3-5] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0x63c6aad2, L:/127.0.0.1:21100 - R:/127.0.0.1:48822], isInitiator=false)
+13:30:46.148 [libp2p-nio-worker-3-10] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0x6a640a8b, L:/127.0.0.1:21100 - R:/127.0.0.1:48724], isInitiator=false)
+13:30:46.205 [libp2p-nio-worker-3-6] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0xef7b5a30, L:/127.0.0.1:21100 - R:/127.0.0.1:48828], isInitiator=false)
+13:30:46.205 [libp2p-nio-worker-3-6] [?[32mINFO?[m] test - Connected #6: P2PChannelOverNetty(nettyChannel=[id: 0xa0e289ff, L:/127.0.0.1:48808 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:46.206 [libp2p-nio-worker-3-6] [?[32mINFO?[m] test - Connected #22: P2PChannelOverNetty(nettyChannel=[id: 0x5f9048ce, L:/127.0.0.1:48848 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:46.206 [libp2p-nio-worker-3-6] [?[32mINFO?[m] test - Connected #38: P2PChannelOverNetty(nettyChannel=[id: 0x2e44f755, L:/127.0.0.1:48864 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:46.218 [libp2p-nio-worker-3-7] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0x2efcb420, L:/127.0.0.1:21100 - R:/127.0.0.1:48830], isInitiator=false)
+13:30:46.319 [libp2p-nio-worker-3-11] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0x39f04568, L:/127.0.0.1:21100 - R:/127.0.0.1:48738], isInitiator=false)
+13:30:46.394 [libp2p-nio-worker-3-9] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0x6a6418fd, L:/127.0.0.1:21100 - R:/127.0.0.1:48848], isInitiator=false)
+13:30:46.544 [libp2p-nio-worker-3-4] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0xcdaff0ec, L:/127.0.0.1:21100 - R:/127.0.0.1:48656], isInitiator=false)
+13:30:46.566 [libp2p-nio-worker-3-10] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0xd7fc0ffd, L:/127.0.0.1:21100 - R:/127.0.0.1:48864], isInitiator=false)
+13:30:46.567 [libp2p-nio-worker-3-10] [?[32mINFO?[m] test - Connected #10: P2PChannelOverNetty(nettyChannel=[id: 0xa46219fd, L:/127.0.0.1:48794 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:46.567 [libp2p-nio-worker-3-10] [?[32mINFO?[m] test - Connected #26: P2PChannelOverNetty(nettyChannel=[id: 0x00ab3f45, L:/127.0.0.1:48872 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:46.567 [libp2p-nio-worker-3-10] [?[32mINFO?[m] test - Connected #42: P2PChannelOverNetty(nettyChannel=[id: 0x68750464, L:/127.0.0.1:48884 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:46.602 [libp2p-nio-worker-3-12] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0x1453b723, L:/127.0.0.1:21100 - R:/127.0.0.1:48872], isInitiator=false)
+13:30:46.607 [libp2p-nio-worker-3-13] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0xa99a62ba, L:/127.0.0.1:21100 - R:/127.0.0.1:48884], isInitiator=false)
+13:30:46.820 [libp2p-nio-worker-3-11] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0xecd630aa, L:/127.0.0.1:21100 - R:/127.0.0.1:48868], isInitiator=false)
+13:30:46.823 [libp2p-nio-worker-3-11] [?[32mINFO?[m] test - Connected #11: P2PChannelOverNetty(nettyChannel=[id: 0xbcfda240, L:/127.0.0.1:48742 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:46.823 [libp2p-nio-worker-3-11] [?[32mINFO?[m] test - Connected #27: P2PChannelOverNetty(nettyChannel=[id: 0x0fd79a55, L:/127.0.0.1:48746 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:46.823 [libp2p-nio-worker-3-11] [?[32mINFO?[m] test - Connected #43: P2PChannelOverNetty(nettyChannel=[id: 0xfb118c1c, L:/127.0.0.1:48886 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:47.166 [libp2p-nio-worker-3-14] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0x53df8e15, L:/127.0.0.1:21100 - R:/127.0.0.1:48886], isInitiator=false)
+13:30:47.307 [libp2p-nio-worker-3-15] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0x484926a4, L:/127.0.0.1:21100 - R:/127.0.0.1:48896], isInitiator=false)
+13:30:47.474 [libp2p-nio-worker-3-4] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0x8b1d62a8, L:/127.0.0.1:21100 - R:/127.0.0.1:48808], isInitiator=false)
+13:30:47.488 [libp2p-nio-worker-3-4] [?[32mINFO?[m] test - Connected #4: P2PChannelOverNetty(nettyChannel=[id: 0x8f89a5c1, L:/127.0.0.1:48822 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:47.488 [libp2p-nio-worker-3-4] [?[32mINFO?[m] test - Connected #20: P2PChannelOverNetty(nettyChannel=[id: 0x417640ec, L:/127.0.0.1:48896 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:47.488 [libp2p-nio-worker-3-4] [?[32mINFO?[m] test - Connected #36: P2PChannelOverNetty(nettyChannel=[id: 0x3177b996, L:/127.0.0.1:48904 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:47.553 [libp2p-nio-worker-3-1] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0x68100368, L:/127.0.0.1:21100 - R:/127.0.0.1:48644], isInitiator=false)
+13:30:47.702 [libp2p-nio-worker-3-16] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0x5dc87d16, L:/127.0.0.1:21100 - R:/127.0.0.1:48900], isInitiator=false)
+13:30:47.937 [libp2p-nio-worker-3-1] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0x801815f7, L:/127.0.0.1:21100 - R:/127.0.0.1:48782], isInitiator=false)
+13:30:48.011 [libp2p-nio-worker-3-3] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0xe6b7c30c, L:/127.0.0.1:21100 - R:/127.0.0.1:48920], isInitiator=false)
+13:30:48.119 [libp2p-nio-worker-3-1] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0xbc518606, L:/127.0.0.1:21100 - R:/127.0.0.1:48904], isInitiator=false)
+13:30:48.120 [libp2p-nio-worker-3-1] [?[32mINFO?[m] test - Connected #1: P2PChannelOverNetty(nettyChannel=[id: 0x9d0f5ed0, L:/127.0.0.1:48900 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:48.121 [libp2p-nio-worker-3-1] [?[32mINFO?[m] test - Connected #17: P2PChannelOverNetty(nettyChannel=[id: 0x89b4d2c6, L:/127.0.0.1:48908 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:48.121 [libp2p-nio-worker-3-1] [?[32mINFO?[m] test - Connected #33: P2PChannelOverNetty(nettyChannel=[id: 0x0e67cc39, L:/127.0.0.1:48920 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:48.121 [libp2p-nio-worker-3-1] [?[32mINFO?[m] test - Connected #49: P2PChannelOverNetty(nettyChannel=[id: 0x7a541cd5, L:/127.0.0.1:48924 - R:/127.0.0.1:21100], isInitiator=true) (null)
+13:30:48.122 [Test worker] [?[32mINFO?[m] test - The negotiations succeeded.
+13:30:48.171 [libp2p-nio-worker-3-4] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0xa27916c8, L:/127.0.0.1:21100 - R:/127.0.0.1:48924], isInitiator=false)
+13:30:48.228 [libp2p-nio-worker-3-2] [?[32mINFO?[m] test - Inbound connection P2PChannelOverNetty(nettyChannel=[id: 0x03f06f36, L:/127.0.0.1:21100 - R:/127.0.0.1:48908], isInitiator=false)
+13:30:49.122 [Test worker] [?[32mINFO?[m] test - Closing now
+13:30:49.139 [Test worker] [?[32mINFO?[m] test - Client transport closed
+13:30:49.154 [Test worker] [?[32mINFO?[m] test - Server transport closed
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -20,3 +20,15 @@ Publisher 0.0.6 exited 0 and reported the complete coordinate above. Immediately
 
 Main jar SHA-256: `38d6d6695241b7cef23dc0a65f45424593341a52d875945fc6bcd78b2a55904e`.
 POM SHA-256: `e0248f44065179184ac294364c12c014d7f54066f361ced56e7947eef927ec04`.
+
+Verification time: 2026-10-15 15:50 UTC. Upload command (from lane root):
+
+```bash
+JAVA_OPTS=-Xmx2g timeout 1200 /home/helena/bin/coursier launch \
+  community.kotlin.maven.artifact.publishing:community-kotlin-maven-artifact-publishing:0.0.6 \
+  -r https://kotlin.directory -- \
+  --artifact-dir "$PWD/staged-artifacts/jvm-libp2p" \
+  --api-url https://api.kotlin.directory/upload --force
+```
+
+The CLI confirmation flag was used only after both target files returned HTTP 404. The readback checks in published-probes.json verified the resulting remote bytes.

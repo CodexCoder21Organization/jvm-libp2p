@@ -107,8 +107,11 @@ class MuxSessionActivationTest {
                         reentered.complete(connection.muxerSession().createStream(Ping()))
                     }
                     connection.close().whenComplete { _, error ->
-                        if (error != null) settledAtClose.completeExceptionally(error)
-                        else settledAtClose.complete(opens.all { it.stream.isCompletedExceptionally && it.controller.isCompletedExceptionally })
+                        if (error != null) {
+                            settledAtClose.completeExceptionally(error)
+                        } else {
+                            settledAtClose.complete(opens.all { it.stream.isCompletedExceptionally && it.controller.isCompletedExceptionally })
+                        }
                     }
                     connection.close()
                     pending.complete(opens)

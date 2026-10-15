@@ -6,8 +6,8 @@ Plan:
 - [completed] Read linked context/docs and repository instructions; clone exact head and confirm develop rebase is a no-op.
 - [completed] Map invariants to public tests and verify fail-first behavior by reverting production changes alone.
 - [completed] Review callback ordering, buffer ownership, re-entry, and QUIC; add/fix missing coverage or blocking defects.
-- [in progress] Run new tests with paranoid leak detection and unchanged neighbouring suites; update PR review paragraph; push with lease if changed.
-- [pending] Record verdict, invariant table, final head; stop owned processes and remove checkout/cache.
+- [completed] Run new tests with paranoid leak detection and unchanged neighbouring suites; update PR review paragraph; push with lease if changed.
+- [in progress] Record verdict, invariant table, final head; stop owned processes and remove checkout/cache.
 
 Constraints: no nested agents, no remote builds, Gradle timeout 900 / JAVA_OPTS=-Xmx2g / one build JVM at a time. Stop new work by 17:49 UTC, hard end by 18:04 UTC. Supervisor owns CI and handoff service. Version snapshot-31 is intentionally unchanged in this lane.
 
@@ -53,3 +53,17 @@ OBSERVED: unchanged-base security/mux/QUIC probe has finished compilation and is
 ## 17:17 UTC — broad warnings reproduced on unchanged base
 OBSERVED: unchanged develop probe exits 1: 219 discovered, 216 passed, 1 connection-setup failure (ChildReadPauseTcpTest.serverConsumerCanPauseAndResumeRealMuxedStream, Yamux), 2 inherited disabled cases. Full failure trace and all native XML saved to base-leak-check-xml/; this is not re-run to seek green. That same unchanged four-case class passed on 47a254c9. The single base failure's nested cause is ConnectionClosedException during controller setup; no additional mechanism is asserted from that alone.
 OBSERVED: base emits 41 leak-warning records. Matching Created-at roots independently reproduce the reviewed-head warnings from SecureChannelTestBase, SecIoHandshake/TestChannel, MplexFrameCodecTest and Netty Quiche.allocateNativeOrder. Thus those warnings predate the PR. The separate MultistreamTest/early-close outbound-buffer warning family was not exercised by this first probe; a second narrow base probe runs those two classes plus plaintext, solely to capture that family's allocation proof. It preserves the first base failure in a separate report and does not replace or suppress it.
+
+## Final invariant-to-test dispositions
+| Brief invariant | Public-API proof | Fail-first / control disposition | Fixed result |
+|---|---|---|---|
+| 1. Exactly one successor activation (one/many reads, both roles/muxers) | selectedProtocolActivatesBeforeBufferedPayloadExactlyOnce; selectedStageActivatesOnceWhenPlaintextRecordsArriveTogether; activationCallbackWritesOnceAndPreservesFollowingInput | Full production revert fails both generic coalesced roles, both real TCP muxers and both outgoing-write roles; bytewise cases are passing controls | PASS, all ten fresh tasks |
+| 2. Ordered, complete, once-only leftovers | exact active/payload sequence; bytewise input; incoming reentry binary bytes; outgoing callback test exact leftover [1,2,3] + later [4,5],[6,7] and refCnt zero | Mixed event sequence fails on extra activation; open-channel byte order and incoming-reentry are honest baseline controls, not falsely claimed input-loss reproducers | PASS, exact bytes and ownership |
+| 3. onClosed exactly once before/during/immediately after activation | before-activation two roles; activation/payload callback close four rows; after-activation four role/controller-ready-or-pending rows, repeated and reentrant close | Isolated close-fix revert fails six; four after-activation rows pass as controls; no previous assertion weakened | PASS, 100 close cases across ten tasks |
+| 4. No payload after activation callback closes | closeOnActivation=true exact [active,closed], both roles; original buffer refCnt zero | Full revert delivers [active,payload,closed]; isolated close revert delivers [active,payload] | PASS, both roles across ten tasks |
+| 5. Existing negotiator/multistream, secio/noise, mux, ChildReadPause suites unchanged | Native neighbour filters plus shared QUIC stream selection | No existing source in these suites edited; two disabled cases inherited and verified on base | PASS: 288 passed, 0 failed/errors, 2 inherited disabled; 46 Noise + 4 ChildReadPause passed |
+
+
+## 17:20 UTC — final review recorded; cleanup in progress
+OBSERVED: final narrow unchanged-base probe passes 13/13 and reproduces all remaining multistream outbound-buffer warning roots (nine reports). Together the two base probes reproduce every allocation family from the broad reviewed-head run. The hypothesis that these wider warnings were introduced by this PR is refuted; no whole-suite leak-free claim is made. Full reports and attribution are in leak-attribution.md and base probe XML.
+OBSERVED: restored source branch at exact tested/pushed 47a254c95c416f78000a151f2a269e9b557e7f91, fetched/rebased origin/develop (no-op), clean worktree, production identical to f74ff5a0. REST PATCH recorded the Review (lane 261) paragraph while preserving the why-first opening and footer. PR is OPEN at that exact head. No merge, queue, publication, deployment, CI watch, nested delegation or handoff-service write. All brief items complete except process/checkout/cache cleanup now in progress.

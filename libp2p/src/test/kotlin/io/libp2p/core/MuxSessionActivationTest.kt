@@ -97,6 +97,7 @@ class MuxSessionActivationTest {
         val pending = CompletableFuture<List<StreamPromise<PingController>>>()
         val reentered = CompletableFuture<StreamPromise<PingController>>()
         val completionCount = AtomicInteger()
+        val settledAtClose = CompletableFuture<Boolean>()
         withPublicationHosts(publicationMuxer(muxerName), { client ->
             client.addConnectionHandler(
                 ConnectionHandler.create { connection ->
@@ -105,13 +106,17 @@ class MuxSessionActivationTest {
                         completionCount.incrementAndGet()
                         reentered.complete(connection.muxerSession().createStream(Ping()))
                     }
-                    connection.close()
+                    connection.close().whenComplete { _, error ->
+                        if (error != null) settledAtClose.completeExceptionally(error)
+                        else settledAtClose.complete(opens.all { it.stream.isCompletedExceptionally && it.controller.isCompletedExceptionally })
+                    }
                     connection.close()
                     pending.complete(opens)
                 }
             )
         }) { client, server ->
             client.network.connect(server.peerId, *server.listenAddresses().toTypedArray()).get(5, TimeUnit.SECONDS)
+            assertTrue(settledAtClose.get(5, TimeUnit.SECONDS), "Pending stream opens must fail before close completes")
             pending.get(5, TimeUnit.SECONDS).forEach(::assertPublicationClosed)
             assertPublicationClosed(reentered.get(5, TimeUnit.SECONDS))
             assertEquals(1, completionCount.get(), "Closing twice must complete each caller once")

@@ -7,7 +7,7 @@ Plan:
 - [completed] Map invariants to public tests and verify fail-first behavior by reverting production changes alone.
 - [completed] Review callback ordering, buffer ownership, re-entry, and QUIC; add/fix missing coverage or blocking defects.
 - [completed] Run new tests with paranoid leak detection and unchanged neighbouring suites; update PR review paragraph; push with lease if changed.
-- [in progress] Record verdict, invariant table, final head; stop owned processes and remove checkout/cache.
+- [completed] Record verdict, invariant table, final head; stop owned processes and remove checkout/cache.
 
 Constraints: no nested agents, no remote builds, Gradle timeout 900 / JAVA_OPTS=-Xmx2g / one build JVM at a time. Stop new work by 17:49 UTC, hard end by 18:04 UTC. Supervisor owns CI and handoff service. Version snapshot-31 is intentionally unchanged in this lane.
 
@@ -67,3 +67,10 @@ OBSERVED: base emits 41 leak-warning records. Matching Created-at roots independ
 ## 17:20 UTC — final review recorded; cleanup in progress
 OBSERVED: final narrow unchanged-base probe passes 13/13 and reproduces all remaining multistream outbound-buffer warning roots (nine reports). Together the two base probes reproduce every allocation family from the broad reviewed-head run. The hypothesis that these wider warnings were introduced by this PR is refuted; no whole-suite leak-free claim is made. Full reports and attribution are in leak-attribution.md and base probe XML.
 OBSERVED: restored source branch at exact tested/pushed 47a254c95c416f78000a151f2a269e9b557e7f91, fetched/rebased origin/develop (no-op), clean worktree, production identical to f74ff5a0. REST PATCH recorded the Review (lane 261) paragraph while preserving the why-first opening and footer. PR is OPEN at that exact head. No merge, queue, publication, deployment, CI watch, nested delegation or handoff-service write. All brief items complete except process/checkout/cache cleanup now in progress.
+
+## 17:22 UTC — DONE
+Verdict: no blocking production finding after independent test-comprehensiveness and code review. Two test coverage gaps fixed on the existing PR. Exact tested and remotely verified source head: https://github.com/CodexCoder21Organization/jvm-libp2p/commit/47a254c95c416f78000a151f2a269e9b557e7f91 . PR: https://github.com/CodexCoder21Organization/jvm-libp2p/pull/50 (OPEN at final verification). Evidence: https://github.com/CodexCoder21Organization/jvm-libp2p/tree/evidence/lane261-review-20261015/lane261-evidence .
+OBSERVED: 200/200 focused cases; neighbours 288 passed / 0 failed / 0 errors / 2 inherited disabled. No focused leak reports; every broader warning allocation family independently reproduced on unchanged develop. Full negative/fixed/base logs, native XML, counts, invariant dispositions, independent review passes and warning attribution are preserved remotely. Source production and version remain unchanged from f74ff5a0.
+OBSERVED: both checkout/worktree directories deleted; lane261 is empty. No lane-specific kompile cache existed. Every tracked command completed; final ps -eo pid,args -ww captured in out/r261-processes-final.txt and checked after deletion: no owned Java/build process remains. Cleanup audit: out/r261-cleanup-audit.txt. No source artifact or temporary test output was added to the PR. No merge, publication, deploy, queue operation, CI watch, nested agent or handoff write performed. CI remains the supervisor gate per common.md; no required lane work remains.
+OBSERVED: the tool rejected a broad rm command before it ran. Completed cleanup using explicit checks of the lane path, repository origin, clean status and exact pushed head, then removed only that verified owned checkout.
+Open questions: none for this lane. Existing broader ownership warnings remain recorded baseline observations, not a claim that the entire library is leak-free.

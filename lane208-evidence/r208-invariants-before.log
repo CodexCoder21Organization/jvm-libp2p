@@ -1,0 +1,155 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.14.3/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+Build configured without Android submodules.
+    To include Android submodules define a valid SDK location with an ANDROID_HOME environment variable 
+    or by setting the sdk.dir path in your project's local properties file local.properties.
+> Task :libp2p:extractIncludeProto UP-TO-DATE
+> Task :libp2p:extractProto UP-TO-DATE
+> Task :libp2p:generateProto UP-TO-DATE
+> Task :libp2p:compileKotlin UP-TO-DATE
+> Task :libp2p:compileJava UP-TO-DATE
+> Task :libp2p:processResources UP-TO-DATE
+> Task :libp2p:classes UP-TO-DATE
+> Task :libp2p:inspectClassesForKotlinIC UP-TO-DATE
+> Task :libp2p:jar UP-TO-DATE
+> Task :tools:schedulers:processResources NO-SOURCE
+> Task :libp2p:extractIncludeTestFixturesProto UP-TO-DATE
+> Task :libp2p:extractTestFixturesProto UP-TO-DATE
+> Task :libp2p:generateTestFixturesProto NO-SOURCE
+> Task :tools:schedulers:compileKotlin UP-TO-DATE
+> Task :tools:schedulers:compileJava UP-TO-DATE
+> Task :tools:schedulers:classes UP-TO-DATE
+> Task :tools:schedulers:inspectClassesForKotlinIC UP-TO-DATE
+> Task :tools:schedulers:jar UP-TO-DATE
+> Task :libp2p:compileTestFixturesKotlin UP-TO-DATE
+> Task :libp2p:compileTestFixturesJava UP-TO-DATE
+> Task :libp2p:processTestFixturesResources NO-SOURCE
+> Task :libp2p:testFixturesClasses UP-TO-DATE
+> Task :libp2p:testFixturesJar UP-TO-DATE
+> Task :libp2p:extractIncludeTestProto UP-TO-DATE
+> Task :libp2p:extractTestProto UP-TO-DATE
+> Task :libp2p:generateTestProto NO-SOURCE
+> Task :libp2p:compileTestKotlin
+> Task :libp2p:compileTestJava UP-TO-DATE
+> Task :libp2p:processTestResources UP-TO-DATE
+> Task :libp2p:testClasses UP-TO-DATE
+
+> Task :libp2p:test
+
+MuxSessionActivationTest > sessionIsPublishedAfterActivation(String) > [1] yamux FAILED
+    org.opentest4j.AssertionFailedError: The mux lifecycle must activate before publishing its connection ==> expected: <true> but was: <false>
+        at app//org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+        at app//org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+        at app//org.junit.jupiter.api.AssertTrue.failNotTrue(AssertTrue.java:63)
+        at app//org.junit.jupiter.api.AssertTrue.assertTrue(AssertTrue.java:36)
+        at app//org.junit.jupiter.api.Assertions.assertTrue(Assertions.java:214)
+        at app//io.libp2p.core.MuxSessionActivationTest$sessionIsPublishedAfterActivation$2.invoke(MuxSessionActivationTest.kt:40)
+        at app//io.libp2p.core.MuxSessionActivationTest$sessionIsPublishedAfterActivation$2.invoke(MuxSessionActivationTest.kt:33)
+        at app//io.libp2p.core.MuxSessionActivationTestKt.withPublicationHosts(MuxSessionActivationTest.kt:168)
+        at app//io.libp2p.core.MuxSessionActivationTestKt.access$withPublicationHosts(MuxSessionActivationTest.kt:1)
+        at app//io.libp2p.core.MuxSessionActivationTest.sessionIsPublishedAfterActivation(MuxSessionActivationTest.kt:33)
+
+MuxSessionActivationTest > sessionIsPublishedAfterActivation(String) > [2] mplex FAILED
+    org.opentest4j.AssertionFailedError: The mux lifecycle must activate before publishing its connection ==> expected: <true> but was: <false>
+        at app//org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+        at app//org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+        at app//org.junit.jupiter.api.AssertTrue.failNotTrue(AssertTrue.java:63)
+        at app//org.junit.jupiter.api.AssertTrue.assertTrue(AssertTrue.java:36)
+        at app//org.junit.jupiter.api.Assertions.assertTrue(Assertions.java:214)
+        at app//io.libp2p.core.MuxSessionActivationTest$sessionIsPublishedAfterActivation$2.invoke(MuxSessionActivationTest.kt:40)
+        at app//io.libp2p.core.MuxSessionActivationTest$sessionIsPublishedAfterActivation$2.invoke(MuxSessionActivationTest.kt:33)
+        at app//io.libp2p.core.MuxSessionActivationTestKt.withPublicationHosts(MuxSessionActivationTest.kt:168)
+        at app//io.libp2p.core.MuxSessionActivationTestKt.access$withPublicationHosts(MuxSessionActivationTest.kt:1)
+        at app//io.libp2p.core.MuxSessionActivationTest.sessionIsPublishedAfterActivation(MuxSessionActivationTest.kt:33)
+
+MuxSessionActivationTest > queuedOpensAndCompletionReentrySettleWhenPublicationClosesParent(String) > [1] yamux FAILED
+    org.opentest4j.AssertionFailedError: Unexpected exception type thrown, expected: <java.util.concurrent.ExecutionException> but was: <java.util.concurrent.TimeoutException>
+        at app//org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+        at app//org.junit.jupiter.api.AssertThrows.assertThrows(AssertThrows.java:67)
+        at app//org.junit.jupiter.api.AssertThrows.assertThrows(AssertThrows.java:35)
+        at app//org.junit.jupiter.api.Assertions.assertThrows(Assertions.java:3128)
+        at app//io.libp2p.core.MuxSessionActivationTestKt.assertPublicationClosed(MuxSessionActivationTest.kt:132)
+        at app//io.libp2p.core.MuxSessionActivationTestKt.access$assertPublicationClosed(MuxSessionActivationTest.kt:1)
+        at app//io.libp2p.core.MuxSessionActivationTest$queuedOpensAndCompletionReentrySettleWhenPublicationClosesParent$2.invoke(MuxSessionActivationTest.kt:86)
+        at app//io.libp2p.core.MuxSessionActivationTest$queuedOpensAndCompletionReentrySettleWhenPublicationClosesParent$2.invoke(MuxSessionActivationTest.kt:73)
+        at app//io.libp2p.core.MuxSessionActivationTestKt.withPublicationHosts(MuxSessionActivationTest.kt:168)
+        at app//io.libp2p.core.MuxSessionActivationTestKt.access$withPublicationHosts(MuxSessionActivationTest.kt:1)
+        at app//io.libp2p.core.MuxSessionActivationTest.queuedOpensAndCompletionReentrySettleWhenPublicationClosesParent(MuxSessionActivationTest.kt:73)
+
+        Caused by:
+        java.util.concurrent.TimeoutException
+            at java.base/java.util.concurrent.CompletableFuture.timedGet(CompletableFuture.java:1960)
+            at java.base/java.util.concurrent.CompletableFuture.get(CompletableFuture.java:2095)
+            at io.libp2p.core.MuxSessionActivationTestKt.assertPublicationClosed$lambda-3(MuxSessionActivationTest.kt:133)
+            at org.junit.jupiter.api.AssertThrows.assertThrows(AssertThrows.java:53)
+            ... 9 more
+
+MuxSessionActivationTest > queuedOpensAndCompletionReentrySettleWhenPublicationClosesParent(String) > [2] mplex FAILED
+    org.opentest4j.AssertionFailedError: Unexpected exception type thrown, expected: <java.util.concurrent.ExecutionException> but was: <java.util.concurrent.TimeoutException>
+        at app//org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+        at app//org.junit.jupiter.api.AssertThrows.assertThrows(AssertThrows.java:67)
+        at app//org.junit.jupiter.api.AssertThrows.assertThrows(AssertThrows.java:35)
+        at app//org.junit.jupiter.api.Assertions.assertThrows(Assertions.java:3128)
+        at app//io.libp2p.core.MuxSessionActivationTestKt.assertPublicationClosed(MuxSessionActivationTest.kt:132)
+        at app//io.libp2p.core.MuxSessionActivationTestKt.access$assertPublicationClosed(MuxSessionActivationTest.kt:1)
+        at app//io.libp2p.core.MuxSessionActivationTest$queuedOpensAndCompletionReentrySettleWhenPublicationClosesParent$2.invoke(MuxSessionActivationTest.kt:86)
+        at app//io.libp2p.core.MuxSessionActivationTest$queuedOpensAndCompletionReentrySettleWhenPublicationClosesParent$2.invoke(MuxSessionActivationTest.kt:73)
+        at app//io.libp2p.core.MuxSessionActivationTestKt.withPublicationHosts(MuxSessionActivationTest.kt:168)
+        at app//io.libp2p.core.MuxSessionActivationTestKt.access$withPublicationHosts(MuxSessionActivationTest.kt:1)
+        at app//io.libp2p.core.MuxSessionActivationTest.queuedOpensAndCompletionReentrySettleWhenPublicationClosesParent(MuxSessionActivationTest.kt:73)
+
+        Caused by:
+        java.util.concurrent.TimeoutException
+            at java.base/java.util.concurrent.CompletableFuture.timedGet(CompletableFuture.java:1960)
+            at java.base/java.util.concurrent.CompletableFuture.get(CompletableFuture.java:2095)
+            at io.libp2p.core.MuxSessionActivationTestKt.assertPublicationClosed$lambda-3(MuxSessionActivationTest.kt:133)
+            at org.junit.jupiter.api.AssertThrows.assertThrows(AssertThrows.java:53)
+            ... 9 more
+
+MuxSessionActivationTest > closeBeforeActivationFailsConnectionWithoutPublishingIt(String) > [1] yamux FAILED
+    org.opentest4j.AssertionFailedError: Expected java.util.concurrent.ExecutionException to be thrown, but nothing was thrown.
+        at app//org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:152)
+        at app//org.junit.jupiter.api.AssertThrows.assertThrows(AssertThrows.java:73)
+        at app//org.junit.jupiter.api.AssertThrows.assertThrows(AssertThrows.java:35)
+        at app//org.junit.jupiter.api.Assertions.assertThrows(Assertions.java:3128)
+        at app//io.libp2p.core.MuxSessionActivationTest$closeBeforeActivationFailsConnectionWithoutPublishingIt$2.invoke(MuxSessionActivationTest.kt:62)
+        at app//io.libp2p.core.MuxSessionActivationTest$closeBeforeActivationFailsConnectionWithoutPublishingIt$2.invoke(MuxSessionActivationTest.kt:57)
+        at app//io.libp2p.core.MuxSessionActivationTestKt.withPublicationHosts(MuxSessionActivationTest.kt:168)
+        at app//io.libp2p.core.MuxSessionActivationTestKt.access$withPublicationHosts(MuxSessionActivationTest.kt:1)
+        at app//io.libp2p.core.MuxSessionActivationTest.closeBeforeActivationFailsConnectionWithoutPublishingIt(MuxSessionActivationTest.kt:57)
+
+MuxSessionActivationTest > closeBeforeActivationFailsConnectionWithoutPublishingIt(String) > [2] mplex FAILED
+    org.opentest4j.AssertionFailedError: Expected java.util.concurrent.ExecutionException to be thrown, but nothing was thrown.
+        at app//org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:152)
+        at app//org.junit.jupiter.api.AssertThrows.assertThrows(AssertThrows.java:73)
+        at app//org.junit.jupiter.api.AssertThrows.assertThrows(AssertThrows.java:35)
+        at app//org.junit.jupiter.api.Assertions.assertThrows(Assertions.java:3128)
+        at app//io.libp2p.core.MuxSessionActivationTest$closeBeforeActivationFailsConnectionWithoutPublishingIt$2.invoke(MuxSessionActivationTest.kt:62)
+        at app//io.libp2p.core.MuxSessionActivationTest$closeBeforeActivationFailsConnectionWithoutPublishingIt$2.invoke(MuxSessionActivationTest.kt:57)
+        at app//io.libp2p.core.MuxSessionActivationTestKt.withPublicationHosts(MuxSessionActivationTest.kt:168)
+        at app//io.libp2p.core.MuxSessionActivationTestKt.access$withPublicationHosts(MuxSessionActivationTest.kt:1)
+        at app//io.libp2p.core.MuxSessionActivationTest.closeBeforeActivationFailsConnectionWithoutPublishingIt(MuxSessionActivationTest.kt:57)
+
+8 tests completed, 6 failed
+
+> Task :libp2p:test FAILED
+
+[Incubating] Problems report is available at: file:///tmp/claude-1000/-code/bc9e914b-1f43-4800-9ffc-3e16c08ce74e/scratchpad/workspace/lane208/jvm-libp2p/build/reports/problems/problems-report.html
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':libp2p:test'.
+> There were failing tests. See the report at: file:///tmp/claude-1000/-code/bc9e914b-1f43-4800-9ffc-3e16c08ce74e/scratchpad/workspace/lane208/jvm-libp2p/libp2p/build/reports/tests/test/index.html
+
+* Try:
+> Run with --scan to get full insights.
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 9.0.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/8.14.3/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD FAILED in 3m 18s
+23 actionable tasks: 2 executed, 21 up-to-date

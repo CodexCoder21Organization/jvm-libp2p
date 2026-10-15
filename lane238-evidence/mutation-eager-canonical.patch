@@ -1,0 +1,12 @@
+diff --git a/libp2p/src/main/kotlin/io/libp2p/pubsub/SeenCache.kt b/libp2p/src/main/kotlin/io/libp2p/pubsub/SeenCache.kt
+index 9136899a..23caa8b3 100644
+--- a/libp2p/src/main/kotlin/io/libp2p/pubsub/SeenCache.kt
++++ b/libp2p/src/main/kotlin/io/libp2p/pubsub/SeenCache.kt
+@@ -123,6 +123,7 @@ class FastIdSeenCache<TValue>(private val fastIdFunction: (PubsubMessage) -> Any
+     }
+ 
+     override fun get(msg: PubsubMessage): TValue? {
++        msg.messageId
+         val slowId = fastIdMap[fastIdFunction(msg)] ?: msg.messageId
+         return slowIdMap[slowId]
+     }

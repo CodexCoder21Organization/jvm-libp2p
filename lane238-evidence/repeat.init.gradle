@@ -1,0 +1,17 @@
+gradle.projectsEvaluated {
+    def p = gradle.rootProject.project(':libp2p')
+    def original = p.tasks.named('test', Test).get()
+    (1..20).each { n ->
+        p.tasks.register("lane238Trial${n}", Test) {
+            testClassesDirs = original.testClassesDirs
+            classpath = original.classpath
+            dependsOn p.tasks.named('testClasses')
+            useJUnitPlatform { excludeTags 'interop' }
+            filter { includeTestsMatching 'io.libp2p.pubsub.GossipApiTest.testFastMessageId' }
+            maxParallelForks = 1
+            maxHeapSize = '256m'
+            outputs.upToDateWhen { false }
+            testLogging { events 'passed', 'failed'; exceptionFormat 'full'; showStandardStreams = true }
+        }
+    }
+}

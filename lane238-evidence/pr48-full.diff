@@ -1,0 +1,279 @@
+diff --git a/libp2p/src/main/kotlin/io/libp2p/etc/util/netty/mux/AbstractMuxHandler.kt b/libp2p/src/main/kotlin/io/libp2p/etc/util/netty/mux/AbstractMuxHandler.kt
+index 9d945131..49d125d7 100644
+--- a/libp2p/src/main/kotlin/io/libp2p/etc/util/netty/mux/AbstractMuxHandler.kt
++++ b/libp2p/src/main/kotlin/io/libp2p/etc/util/netty/mux/AbstractMuxHandler.kt
+@@ -3,13 +3,14 @@ package io.libp2p.etc.util.netty.mux
+ import io.libp2p.core.ConnectionClosedException
+ import io.libp2p.core.InternalErrorException
+ import io.libp2p.core.Libp2pException
+-import io.libp2p.etc.types.completedExceptionally
++import io.libp2p.etc.types.forwardException
+ import io.libp2p.etc.types.hasCauseOfType
+ import io.netty.channel.ChannelFuture
+ import io.netty.channel.ChannelHandlerContext
+ import io.netty.channel.ChannelInboundHandlerAdapter
+ import org.slf4j.LoggerFactory
+ import java.util.concurrent.CompletableFuture
++import java.util.concurrent.ConcurrentHashMap
+ 
+ typealias MuxChannelInitializer<TData> = (MuxChannel<TData>) -> Unit
+ 
+@@ -51,6 +52,9 @@ abstract class AbstractMuxHandler<TData>(
+     private val streamMap: MutableMap<MuxId, MuxChannel<TData>> = mutableMapOf()
+     var ctx: ChannelHandlerContext? = null
+     private val activeFuture = CompletableFuture<Void>()
++    private val pendingStreams = ConcurrentHashMap.newKeySet<CompletableFuture<MuxChannel<TData>>>()
++
++    @Volatile
+     private var closed = false
+     protected abstract val inboundInitializer: MuxChannelInitializer<TData>
+     private val pendingReadComplete = mutableSetOf<MuxId>()
+@@ -94,9 +98,19 @@ abstract class AbstractMuxHandler<TData>(
+     override fun handlerAdded(ctx: ChannelHandlerContext) {
+         super.handlerAdded(ctx)
+         this.ctx = ctx
++        // A close during handler addition can bypass channelUnregistered for this handler.
++        ctx.channel().closeFuture().addListener {
++            val cause = ConnectionClosedException()
++            activeFuture.completeExceptionally(cause)
++            pendingStreams.forEach { it.completeExceptionally(cause) }
++        }
+     }
+ 
+     override fun channelActive(ctx: ChannelHandlerContext?) {
++        if (closed || ctx?.channel()?.isOpen == false) {
++            activeFuture.completeExceptionally(ConnectionClosedException())
++            return
++        }
+         activeFuture.complete(null)
+         super.channelActive(ctx)
+     }
+@@ -381,28 +395,40 @@ abstract class AbstractMuxHandler<TData>(
+     protected abstract fun generateNextId(): MuxId
+ 
+     fun newStream(outboundInitializer: MuxChannelInitializer<TData>): CompletableFuture<MuxChannel<TData>> {
++        val result = CompletableFuture<MuxChannel<TData>>()
+         try {
+             checkClosed() // if already closed then event loop is already down and async task may never execute
+-            return activeFuture.thenApplyAsync(
++            pendingStreams.add(result)
++            result.whenComplete { _, _ -> pendingStreams.remove(result) }
++            // Close may have completed before this open was registered.
++            checkClosed()
++            activeFuture.thenRunAsync(
+                 {
+-                    checkClosed() // close may happen after above check and before this point
+-                    val child = createChild(
+-                        generateNextId(),
+-                        {
+-                            onLocalOpen(it)
+-                            outboundInitializer(it)
+-                        },
+-                        true
+-                    )
+-                    child
++                    if (!result.isDone) {
++                        checkClosed() // close may happen after above check and before this point
++                        val child = createChild(
++                            generateNextId(),
++                            {
++                                onLocalOpen(it)
++                                outboundInitializer(it)
++                            },
++                            true
++                        )
++                        result.complete(child)
++                    }
+                 },
+                 getChannelHandlerContext().channel().eventLoop()
+-            )
++            ).forwardException(result)
+         } catch (e: Exception) {
+-            return completedExceptionally(e)
++            result.completeExceptionally(e)
+         }
++        return result
+     }
+ 
+     private fun checkClosed() =
+-        if (closed) throw ConnectionClosedException("Can't create a new stream: connection was closed: " + ctx!!.channel()) else Unit
++        if (closed || ctx?.channel()?.isOpen == false) {
++            throw ConnectionClosedException("Can't create a new stream: connection was closed: " + ctx!!.channel())
++        } else {
++            Unit
++        }
+ }
+diff --git a/libp2p/src/main/kotlin/io/libp2p/mux/MuxHandler.kt b/libp2p/src/main/kotlin/io/libp2p/mux/MuxHandler.kt
+index 96323955..2d0487d8 100644
+--- a/libp2p/src/main/kotlin/io/libp2p/mux/MuxHandler.kt
++++ b/libp2p/src/main/kotlin/io/libp2p/mux/MuxHandler.kt
+@@ -1,5 +1,6 @@
+ package io.libp2p.mux
+ 
++import io.libp2p.core.ConnectionClosedException
+ import io.libp2p.core.Stream
+ import io.libp2p.core.StreamHandler
+ import io.libp2p.core.StreamPromise
+@@ -34,7 +35,17 @@ abstract class MuxHandler(
+ 
+     override fun handlerAdded(ctx: ChannelHandlerContext) {
+         super.handlerAdded(ctx)
+-        ready?.complete(this)
++        if (ready != null) {
++            ctx.channel().closeFuture().addListener {
++                ready.completeExceptionally(ConnectionClosedException())
++            }
++        }
++    }
++
++    override fun channelActive(ctx: ChannelHandlerContext?) {
++        super.channelActive(ctx)
++        // Publication may synchronously close the parent, so activate before invoking consumers.
++        if (ctx?.channel()?.isOpen == true) ready?.complete(this)
+     }
+ 
+     private fun createStream(channel: MuxChannel<ByteBuf>): Stream {
+@@ -50,11 +61,12 @@ abstract class MuxHandler(
+ 
+     fun <T> createStream(streamHandler: StreamHandler<T>): StreamPromise<T> {
+         val controller = CompletableFuture<T>()
+-        val stream = newStream {
++        val muxChannel = newStream {
+             streamHandler.handleStream(createStream(it)).forward(controller)
+         }
+-            .thenApply { it.attr(STREAM).get() }
+-            .forwardException(controller)
++        // Observe the owned creation result, independently of the caller's mutable stream future.
++        muxChannel.forwardException(controller)
++        val stream = muxChannel.thenApply { it.attr(STREAM).get() }
+         return StreamPromise(stream, controller)
+     }
+ 
+diff --git a/libp2p/src/main/kotlin/io/libp2p/transport/implementation/ConnectionOverNetty.kt b/libp2p/src/main/kotlin/io/libp2p/transport/implementation/ConnectionOverNetty.kt
+index 9572c35a..f8e4122d 100644
+--- a/libp2p/src/main/kotlin/io/libp2p/transport/implementation/ConnectionOverNetty.kt
++++ b/libp2p/src/main/kotlin/io/libp2p/transport/implementation/ConnectionOverNetty.kt
+@@ -31,6 +31,8 @@ open class ConnectionOverNetty(
+         secureSession = ss
+     }
+ 
++    override fun close() = closeNettyChannelOnce(nettyChannel)
++
+     override fun muxerSession() = muxerSession
+     override fun secureSession() = secureSession
+     override fun transport() = nettyTransport
+diff --git a/libp2p/src/main/kotlin/io/libp2p/transport/implementation/NettyChannelClose.kt b/libp2p/src/main/kotlin/io/libp2p/transport/implementation/NettyChannelClose.kt
+new file mode 100644
+index 00000000..7aa611ca
+--- /dev/null
++++ b/libp2p/src/main/kotlin/io/libp2p/transport/implementation/NettyChannelClose.kt
+@@ -0,0 +1,30 @@
++package io.libp2p.transport.implementation
++
++import io.libp2p.etc.types.toVoidCompletableFuture
++import io.netty.channel.Channel
++import io.netty.util.AttributeKey
++import java.util.concurrent.CompletableFuture
++
++private val closeOperationKey = AttributeKey.valueOf<CompletableFuture<Unit>>("libp2p.channel.closeOperation")
++
++/** Claims close before invoking handlers, which may re-enter through another owner. */
++internal fun closeNettyChannelOnce(channel: Channel): CompletableFuture<Unit> {
++    val candidate = CompletableFuture<Unit>()
++    val operation = channel.attr(closeOperationKey).setIfAbsent(candidate) ?: candidate
++    if (operation === candidate) {
++        try {
++            if (channel.closeFuture().isDone) {
++                // An early close observer may run before other physical-close listeners finish.
++                channel.closeFuture().addListener { operation.complete(Unit) }
++            } else {
++                channel.close().toVoidCompletableFuture().whenComplete { _, failure ->
++                    if (failure == null) operation.complete(Unit) else operation.completeExceptionally(failure)
++                }
++            }
++        } catch (failure: Throwable) {
++            operation.completeExceptionally(failure)
++        }
++    }
++    // Callers own only their observation; cancellation or completion cannot alter the owner.
++    return operation.thenApply { Unit }
++}
+diff --git a/libp2p/src/main/kotlin/io/libp2p/transport/implementation/PlainNettyTransport.kt b/libp2p/src/main/kotlin/io/libp2p/transport/implementation/PlainNettyTransport.kt
+index f5204e87..055cb094 100644
+--- a/libp2p/src/main/kotlin/io/libp2p/transport/implementation/PlainNettyTransport.kt
++++ b/libp2p/src/main/kotlin/io/libp2p/transport/implementation/PlainNettyTransport.kt
+@@ -135,10 +135,10 @@ abstract class PlainNettyTransport(
+         }
+ 
+         val unbindsCompleted = listenersToClose
+-            .map { it.close().toVoidCompletableFuture() }
++            .map { closeNettyChannelOnce(it) }
+ 
+         val channelsClosed = channelsToClose
+-            .map { it.close().toVoidCompletableFuture() }
++            .map { closeNettyChannelOnce(it) }
+ 
+         val everythingThatNeedsToClose = unbindsCompleted.union(channelsClosed)
+         val allClosed = CompletableFuture.allOf(*everythingThatNeedsToClose.toTypedArray())
+@@ -233,7 +233,7 @@ abstract class PlainNettyTransport(
+     ): ChannelHandler?
+ 
+     override fun unlisten(addr: Multiaddr): CompletableFuture<Unit> {
+-        return listeners[addr]?.close()?.toVoidCompletableFuture()
++        return listeners[addr]?.let { closeNettyChannelOnce(it) }
+             ?: throw Libp2pException("No listeners on address $addr")
+     } // unlisten
+ 
+@@ -272,7 +272,7 @@ abstract class PlainNettyTransport(
+         // window unrepresentable.
+         synchronized(this@PlainNettyTransport) {
+             if (closed) {
+-                ch.close()
++                closeNettyChannelOnce(ch)
+                 return
+             }
+ 
+diff --git a/libp2p/src/main/kotlin/io/libp2p/transport/quic/QuicTransport.kt b/libp2p/src/main/kotlin/io/libp2p/transport/quic/QuicTransport.kt
+index 3fb8d1b7..8fffa1d9 100644
+--- a/libp2p/src/main/kotlin/io/libp2p/transport/quic/QuicTransport.kt
++++ b/libp2p/src/main/kotlin/io/libp2p/transport/quic/QuicTransport.kt
+@@ -26,6 +26,7 @@ import io.libp2p.security.tls.getPublicKeyFromCert
+ import io.libp2p.security.tls.verifyAndExtractPeerId
+ import io.libp2p.transport.implementation.ConnectionOverNetty
+ import io.libp2p.transport.implementation.NettyTransport
++import io.libp2p.transport.implementation.closeNettyChannelOnce
+ import io.netty.bootstrap.Bootstrap
+ import io.netty.buffer.AdaptiveByteBufAllocator
+ import io.netty.buffer.ByteBuf
+@@ -132,11 +133,11 @@ class QuicTransport(
+ 
+         val unbindsCompleted = listeners
+             .map { (_, ch) -> ch }
+-            .map { it.close().toVoidCompletableFuture() }
++            .map { closeNettyChannelOnce(it) }
+ 
+         val channelsClosed = channels
+             .toMutableList() // need a copy to avoid potential co-modification problems
+-            .map { it.close().toVoidCompletableFuture() }
++            .map { closeNettyChannelOnce(it) }
+ 
+         val everythingThatNeedsToClose = unbindsCompleted.union(channelsClosed)
+         val allClosed = CompletableFuture.allOf(*everythingThatNeedsToClose.toTypedArray())
+@@ -188,7 +189,7 @@ class QuicTransport(
+     }
+ 
+     override fun unlisten(addr: Multiaddr): CompletableFuture<Unit> {
+-        return listeners[addr]?.close()?.toVoidCompletableFuture()
++        return listeners[addr]?.let { closeNettyChannelOnce(it) }
+             ?: throw Libp2pException("No listeners on address $addr")
+     }
+ 
+@@ -256,7 +257,7 @@ class QuicTransport(
+ 
+     private fun registerChannel(ch: Channel) {
+         if (closed) {
+-            ch.close()
++            closeNettyChannelOnce(ch)
+             return
+         }
+ 

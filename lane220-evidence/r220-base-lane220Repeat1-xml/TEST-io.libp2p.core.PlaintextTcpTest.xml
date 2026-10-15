@@ -1,0 +1,1358 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.libp2p.core.PlaintextTcpTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-10-15T11:58:20.256Z" hostname="842e6195a2bc" time="0.786">
+  <properties/>
+  <testcase name="multiplePingChannelsOnTheSameConnection()" classname="io.libp2p.core.PlaintextTcpTest" time="0.655"/>
+  <testcase name="echoOverSecureConnection()" classname="io.libp2p.core.PlaintextTcpTest" time="0.108"/>
+  <system-out><![CDATA[Client started
+Server started
+11:58:20.317 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] USER_EVENT: ProtocolNegotiationSucceeded(proto=/mplex/6.7.0)
+11:58:20.318 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] ACTIVE
+11:58:20.320 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ COMPLETE
+11:58:20.320 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] USER_EVENT: ProtocolNegotiationSucceeded(proto=/mplex/6.7.0)
+11:58:20.321 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] ACTIVE
+11:58:20.321 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ COMPLETE
+11:58:20.336 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] WRITE, MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/16/true, flag=OPEN(init), data=EmptyByteBufBE), 0B
+11:58:20.339 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] FLUSH
+11:58:20.343 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ, MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/16/false, flag=OPEN(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 0, cap: 0/0, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 7, widx: 7, cap: 1024))), 0B
+11:58:20.351 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/16/true, flag=DATA(init), data=AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 20, cap: 256)), 20B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 13 2f 6d 75 6c 74 69 73 74 72 65 61 6d 2f 31 2e |./multistream/1.|
+|00000010| 30 2e 30 0a                                     |0.0.            |
++--------+-------------------------------------------------+----------------+
+11:58:20.352 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] FLUSH
+11:58:20.356 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/16/false, flag=DATA(resp), data=AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 20, cap: 256)), 20B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 13 2f 6d 75 6c 74 69 73 74 72 65 61 6d 2f 31 2e |./multistream/1.|
+|00000010| 30 2e 30 0a                                     |0.0.            |
++--------+-------------------------------------------------+----------------+
+11:58:20.356 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/16/true, flag=DATA(init), data=AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 18, cap: 256)), 18B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 11 2f 69 70 66 73 2f 70 69 6e 67 2f 31 2e 30 2e |./ipfs/ping/1.0.|
+|00000010| 30 0a                                           |0.              |
++--------+-------------------------------------------------+----------------+
+11:58:20.357 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] FLUSH
+11:58:20.357 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] FLUSH
+11:58:20.357 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ COMPLETE
+Ping stream created
+11:58:20.359 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/16/true, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 20, cap: 20/20, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 27, widx: 27, cap: 1024))), 20B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 13 2f 6d 75 6c 74 69 73 74 72 65 61 6d 2f 31 2e |./multistream/1.|
+|00000010| 30 2e 30 0a                                     |0.0.            |
++--------+-------------------------------------------------+----------------+
+11:58:20.364 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ COMPLETE
+11:58:20.367 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/16/false, flag=DATA(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 20, cap: 20/20, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 27, widx: 52, cap: 512))), 20B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 13 2f 6d 75 6c 74 69 73 74 72 65 61 6d 2f 31 2e |./multistream/1.|
+|00000010| 30 2e 30 0a                                     |0.0.            |
++--------+-------------------------------------------------+----------------+
+11:58:20.370 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/16/false, flag=DATA(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 18, cap: 18/18, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 52, widx: 52, cap: 512))), 18B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 11 2f 69 70 66 73 2f 70 69 6e 67 2f 31 2e 30 2e |./ipfs/ping/1.0.|
+|00000010| 30 0a                                           |0.              |
++--------+-------------------------------------------------+----------------+
+11:58:20.382 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/16/false, flag=DATA(resp), data=AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 18, cap: 256)), 18B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 11 2f 69 70 66 73 2f 70 69 6e 67 2f 31 2e 30 2e |./ipfs/ping/1.0.|
+|00000010| 30 0a                                           |0.              |
++--------+-------------------------------------------------+----------------+
+11:58:20.386 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] FLUSH
+11:58:20.392 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/16/true, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 18, cap: 18/18, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 25, widx: 25, cap: 512))), 18B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 11 2f 69 70 66 73 2f 70 69 6e 67 2f 31 2e 30 2e |./ipfs/ping/1.0.|
+|00000010| 30 0a                                           |0.              |
++--------+-------------------------------------------------+----------------+
+11:58:20.398 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ COMPLETE
+Ping controller created
+11:58:20.400 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ COMPLETE
+11:58:20.402 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] WRITE, MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/17/true, flag=OPEN(init), data=EmptyByteBufBE), 0B
+11:58:20.403 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] FLUSH
+11:58:20.406 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ, MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/17/false, flag=OPEN(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 0, cap: 0/0, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 7, widx: 7, cap: 512))), 0B
+11:58:20.407 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/17/true, flag=DATA(init), data=SimpleLeakAwareByteBuf(AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 20, cap: 256))), 20B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 13 2f 6d 75 6c 74 69 73 74 72 65 61 6d 2f 31 2e |./multistream/1.|
+|00000010| 30 2e 30 0a                                     |0.0.            |
++--------+-------------------------------------------------+----------------+
+11:58:20.408 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] FLUSH
+11:58:20.408 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/17/false, flag=DATA(resp), data=AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 20, cap: 256)), 20B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 13 2f 6d 75 6c 74 69 73 74 72 65 61 6d 2f 31 2e |./multistream/1.|
+|00000010| 30 2e 30 0a                                     |0.0.            |
++--------+-------------------------------------------------+----------------+
+11:58:20.409 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] FLUSH
+11:58:20.413 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/17/true, flag=DATA(init), data=AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 18, cap: 256)), 18B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 11 2f 69 70 66 73 2f 70 69 6e 67 2f 31 2e 30 2e |./ipfs/ping/1.0.|
+|00000010| 30 0a                                           |0.              |
++--------+-------------------------------------------------+----------------+
+11:58:20.420 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ COMPLETE
+11:58:20.420 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] FLUSH
+Ping stream created
+11:58:20.425 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/17/true, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 20, cap: 20/20, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 27, widx: 27, cap: 512))), 20B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 13 2f 6d 75 6c 74 69 73 74 72 65 61 6d 2f 31 2e |./multistream/1.|
+|00000010| 30 2e 30 0a                                     |0.0.            |
++--------+-------------------------------------------------+----------------+
+11:58:20.427 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ COMPLETE
+11:58:20.428 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/17/false, flag=DATA(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 20, cap: 20/20, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 27, widx: 52, cap: 496))), 20B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 13 2f 6d 75 6c 74 69 73 74 72 65 61 6d 2f 31 2e |./multistream/1.|
+|00000010| 30 2e 30 0a                                     |0.0.            |
++--------+-------------------------------------------------+----------------+
+11:58:20.433 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/17/false, flag=DATA(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 18, cap: 18/18, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 52, widx: 52, cap: 496))), 18B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 11 2f 69 70 66 73 2f 70 69 6e 67 2f 31 2e 30 2e |./ipfs/ping/1.0.|
+|00000010| 30 0a                                           |0.              |
++--------+-------------------------------------------------+----------------+
+11:58:20.441 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/17/false, flag=DATA(resp), data=AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 18, cap: 256)), 18B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 11 2f 69 70 66 73 2f 70 69 6e 67 2f 31 2e 30 2e |./ipfs/ping/1.0.|
+|00000010| 30 0a                                           |0.              |
++--------+-------------------------------------------------+----------------+
+11:58:20.441 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] FLUSH
+11:58:20.446 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/17/true, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 18, cap: 18/18, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 25, widx: 25, cap: 496))), 18B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 11 2f 69 70 66 73 2f 70 69 6e 67 2f 31 2e 30 2e |./ipfs/ping/1.0.|
+|00000010| 30 0a                                           |0.              |
++--------+-------------------------------------------------+----------------+
+Ping controller created
+11:58:20.449 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ COMPLETE
+11:58:20.450 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] WRITE, MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/18/true, flag=OPEN(init), data=EmptyByteBufBE), 0B
+11:58:20.451 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] FLUSH
+11:58:20.453 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ COMPLETE
+11:58:20.456 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ, MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/18/false, flag=OPEN(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 0, cap: 0/0, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 7, widx: 7, cap: 496))), 0B
+11:58:20.458 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/18/true, flag=DATA(init), data=AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 20, cap: 256)), 20B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 13 2f 6d 75 6c 74 69 73 74 72 65 61 6d 2f 31 2e |./multistream/1.|
+|00000010| 30 2e 30 0a                                     |0.0.            |
++--------+-------------------------------------------------+----------------+
+11:58:20.458 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] FLUSH
+11:58:20.459 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/18/false, flag=DATA(resp), data=AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 20, cap: 256)), 20B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 13 2f 6d 75 6c 74 69 73 74 72 65 61 6d 2f 31 2e |./multistream/1.|
+|00000010| 30 2e 30 0a                                     |0.0.            |
++--------+-------------------------------------------------+----------------+
+11:58:20.464 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] FLUSH
+11:58:20.464 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/18/true, flag=DATA(init), data=AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 18, cap: 256)), 18B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 11 2f 69 70 66 73 2f 70 69 6e 67 2f 31 2e 30 2e |./ipfs/ping/1.0.|
+|00000010| 30 0a                                           |0.              |
++--------+-------------------------------------------------+----------------+
+11:58:20.465 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ COMPLETE
+11:58:20.465 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] FLUSH
+11:58:20.466 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/18/false, flag=DATA(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 20, cap: 20/20, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 27, widx: 52, cap: 480))), 20B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 13 2f 6d 75 6c 74 69 73 74 72 65 61 6d 2f 31 2e |./multistream/1.|
+|00000010| 30 2e 30 0a                                     |0.0.            |
++--------+-------------------------------------------------+----------------+
+11:58:20.467 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/18/true, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 20, cap: 20/20, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 27, widx: 27, cap: 496))), 20B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 13 2f 6d 75 6c 74 69 73 74 72 65 61 6d 2f 31 2e |./multistream/1.|
+|00000010| 30 2e 30 0a                                     |0.0.            |
++--------+-------------------------------------------------+----------------+
+11:58:20.467 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ COMPLETE
+Ping stream created
+11:58:20.471 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/18/false, flag=DATA(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 18, cap: 18/18, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 52, widx: 52, cap: 480))), 18B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 11 2f 69 70 66 73 2f 70 69 6e 67 2f 31 2e 30 2e |./ipfs/ping/1.0.|
+|00000010| 30 0a                                           |0.              |
++--------+-------------------------------------------------+----------------+
+11:58:20.477 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/18/false, flag=DATA(resp), data=AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 18, cap: 256)), 18B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 11 2f 69 70 66 73 2f 70 69 6e 67 2f 31 2e 30 2e |./ipfs/ping/1.0.|
+|00000010| 30 0a                                           |0.              |
++--------+-------------------------------------------------+----------------+
+11:58:20.479 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] FLUSH
+11:58:20.487 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/18/true, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 18, cap: 18/18, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 25, widx: 25, cap: 480))), 18B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 11 2f 69 70 66 73 2f 70 69 6e 67 2f 31 2e 30 2e |./ipfs/ping/1.0.|
+|00000010| 30 0a                                           |0.              |
++--------+-------------------------------------------------+----------------+
+11:58:20.487 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ COMPLETE
+Ping controller created
+11:58:20.488 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ COMPLETE
+11:58:20.496 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/16/true, flag=DATA(init), data=UnpooledHeapByteBuf(ridx: 0, widx: 32, cap: 32/32)), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| a4 da a1 42 14 fe c5 91 7f 65 c6 03 a6 e3 93 49 |...B.....e.....I|
+|00000010| af 2f 21 fb 72 45 ca 79 14 72 c9 ab 85 d5 54 57 |./!.rE.y.r....TW|
++--------+-------------------------------------------------+----------------+
+11:58:20.499 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] FLUSH
+11:58:20.501 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/16/false, flag=DATA(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 480))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| a4 da a1 42 14 fe c5 91 7f 65 c6 03 a6 e3 93 49 |...B.....e.....I|
+|00000010| af 2f 21 fb 72 45 ca 79 14 72 c9 ab 85 d5 54 57 |./!.rE.y.r....TW|
++--------+-------------------------------------------------+----------------+
+11:58:20.506 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/16/false, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 480))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| a4 da a1 42 14 fe c5 91 7f 65 c6 03 a6 e3 93 49 |...B.....e.....I|
+|00000010| af 2f 21 fb 72 45 ca 79 14 72 c9 ab 85 d5 54 57 |./!.rE.y.r....TW|
++--------+-------------------------------------------------+----------------+
+11:58:20.507 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] FLUSH
+11:58:20.510 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/16/true, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 480))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| a4 da a1 42 14 fe c5 91 7f 65 c6 03 a6 e3 93 49 |...B.....e.....I|
+|00000010| af 2f 21 fb 72 45 ca 79 14 72 c9 ab 85 d5 54 57 |./!.rE.y.r....TW|
++--------+-------------------------------------------------+----------------+
+11:58:20.510 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ COMPLETE
+11:58:20.511 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ COMPLETE
+Ping 0/1 is 21ms
+11:58:20.537 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/17/true, flag=DATA(init), data=UnpooledHeapByteBuf(ridx: 0, widx: 32, cap: 32/32)), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| b2 3c d0 38 9d 58 57 0a 41 b3 d0 69 c0 92 db 32 |.<.8.XW.A..i...2|
+|00000010| ff a9 52 b0 20 62 11 ec d6 f3 98 e4 46 86 32 4d |..R. b......F.2M|
++--------+-------------------------------------------------+----------------+
+11:58:20.538 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] FLUSH
+11:58:20.543 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/17/false, flag=DATA(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 464))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| b2 3c d0 38 9d 58 57 0a 41 b3 d0 69 c0 92 db 32 |.<.8.XW.A..i...2|
+|00000010| ff a9 52 b0 20 62 11 ec d6 f3 98 e4 46 86 32 4d |..R. b......F.2M|
++--------+-------------------------------------------------+----------------+
+11:58:20.548 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/17/false, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 464))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| b2 3c d0 38 9d 58 57 0a 41 b3 d0 69 c0 92 db 32 |.<.8.XW.A..i...2|
+|00000010| ff a9 52 b0 20 62 11 ec d6 f3 98 e4 46 86 32 4d |..R. b......F.2M|
++--------+-------------------------------------------------+----------------+
+11:58:20.548 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] FLUSH
+11:58:20.549 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ COMPLETE
+11:58:20.554 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/17/true, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 464))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| b2 3c d0 38 9d 58 57 0a 41 b3 d0 69 c0 92 db 32 |.<.8.XW.A..i...2|
+|00000010| ff a9 52 b0 20 62 11 ec d6 f3 98 e4 46 86 32 4d |..R. b......F.2M|
++--------+-------------------------------------------------+----------------+
+Ping 1/1 is 20ms
+11:58:20.555 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ COMPLETE
+11:58:20.557 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/18/true, flag=DATA(init), data=UnpooledHeapByteBuf(ridx: 0, widx: 32, cap: 32/32)), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 5a 3b e9 2a d3 14 23 98 2b a2 79 91 63 f2 1c e5 |Z;.*..#.+.y.c...|
+|00000010| bb 2e 7d c2 4c 1d e9 74 89 56 42 20 55 01 57 97 |..}.L..t.VB U.W.|
++--------+-------------------------------------------------+----------------+
+11:58:20.560 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] FLUSH
+11:58:20.561 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/18/false, flag=DATA(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 464))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 5a 3b e9 2a d3 14 23 98 2b a2 79 91 63 f2 1c e5 |Z;.*..#.+.y.c...|
+|00000010| bb 2e 7d c2 4c 1d e9 74 89 56 42 20 55 01 57 97 |..}.L..t.VB U.W.|
++--------+-------------------------------------------------+----------------+
+11:58:20.562 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/18/false, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 464))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 5a 3b e9 2a d3 14 23 98 2b a2 79 91 63 f2 1c e5 |Z;.*..#.+.y.c...|
+|00000010| bb 2e 7d c2 4c 1d e9 74 89 56 42 20 55 01 57 97 |..}.L..t.VB U.W.|
++--------+-------------------------------------------------+----------------+
+11:58:20.569 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] FLUSH
+11:58:20.571 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ COMPLETE
+11:58:20.574 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/18/true, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 464))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 5a 3b e9 2a d3 14 23 98 2b a2 79 91 63 f2 1c e5 |Z;.*..#.+.y.c...|
+|00000010| bb 2e 7d c2 4c 1d e9 74 89 56 42 20 55 01 57 97 |..}.L..t.VB U.W.|
++--------+-------------------------------------------------+----------------+
+11:58:20.575 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ COMPLETE
+Ping 2/1 is 19ms
+11:58:20.578 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/16/true, flag=DATA(init), data=UnpooledHeapByteBuf(ridx: 0, widx: 32, cap: 32/32)), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 51 43 3c 7c 95 b6 5e c8 c8 db ff 6e 1e cb 6d 5e |QC<|..^....n..m^|
+|00000010| ca ac 3f 84 1f 56 72 57 38 9e 76 90 9b 64 b1 46 |..?..VrW8.v..d.F|
++--------+-------------------------------------------------+----------------+
+11:58:20.578 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] FLUSH
+11:58:20.584 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/16/false, flag=DATA(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 448))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 51 43 3c 7c 95 b6 5e c8 c8 db ff 6e 1e cb 6d 5e |QC<|..^....n..m^|
+|00000010| ca ac 3f 84 1f 56 72 57 38 9e 76 90 9b 64 b1 46 |..?..VrW8.v..d.F|
++--------+-------------------------------------------------+----------------+
+11:58:20.585 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/16/false, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 448))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 51 43 3c 7c 95 b6 5e c8 c8 db ff 6e 1e cb 6d 5e |QC<|..^....n..m^|
+|00000010| ca ac 3f 84 1f 56 72 57 38 9e 76 90 9b 64 b1 46 |..?..VrW8.v..d.F|
++--------+-------------------------------------------------+----------------+
+11:58:20.586 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] FLUSH
+11:58:20.586 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ COMPLETE
+11:58:20.587 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/16/true, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 448))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 51 43 3c 7c 95 b6 5e c8 c8 db ff 6e 1e cb 6d 5e |QC<|..^....n..m^|
+|00000010| ca ac 3f 84 1f 56 72 57 38 9e 76 90 9b 64 b1 46 |..?..VrW8.v..d.F|
++--------+-------------------------------------------------+----------------+
+Ping 0/2 is 10ms
+11:58:20.587 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ COMPLETE
+11:58:20.588 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/17/true, flag=DATA(init), data=UnpooledHeapByteBuf(ridx: 0, widx: 32, cap: 32/32)), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| d1 76 98 83 f5 a2 64 60 c4 a4 9a b4 d5 4b 50 18 |.v....d`.....KP.|
+|00000010| d8 1c c0 66 34 2c c3 21 54 78 2b ac 96 c5 cc 7a |...f4,.!Tx+....z|
++--------+-------------------------------------------------+----------------+
+11:58:20.590 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] FLUSH
+11:58:20.593 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/17/false, flag=DATA(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 448))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| d1 76 98 83 f5 a2 64 60 c4 a4 9a b4 d5 4b 50 18 |.v....d`.....KP.|
+|00000010| d8 1c c0 66 34 2c c3 21 54 78 2b ac 96 c5 cc 7a |...f4,.!Tx+....z|
++--------+-------------------------------------------------+----------------+
+11:58:20.595 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/17/false, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 448))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| d1 76 98 83 f5 a2 64 60 c4 a4 9a b4 d5 4b 50 18 |.v....d`.....KP.|
+|00000010| d8 1c c0 66 34 2c c3 21 54 78 2b ac 96 c5 cc 7a |...f4,.!Tx+....z|
++--------+-------------------------------------------------+----------------+
+11:58:20.597 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] FLUSH
+11:58:20.598 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ COMPLETE
+11:58:20.600 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/17/true, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 448))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| d1 76 98 83 f5 a2 64 60 c4 a4 9a b4 d5 4b 50 18 |.v....d`.....KP.|
+|00000010| d8 1c c0 66 34 2c c3 21 54 78 2b ac 96 c5 cc 7a |...f4,.!Tx+....z|
++--------+-------------------------------------------------+----------------+
+11:58:20.601 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ COMPLETE
+Ping 1/2 is 14ms
+11:58:20.604 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/18/true, flag=DATA(init), data=UnpooledHeapByteBuf(ridx: 0, widx: 32, cap: 32/32)), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 17 5a 14 85 ba 92 b3 22 73 9d 1c c2 3f 00 f2 be |.Z....."s...?...|
+|00000010| d3 75 f1 ce 1c 1a 5b bb 32 84 d9 14 d8 0f 78 c8 |.u....[.2.....x.|
++--------+-------------------------------------------------+----------------+
+11:58:20.605 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] FLUSH
+11:58:20.606 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/18/false, flag=DATA(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 432))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 17 5a 14 85 ba 92 b3 22 73 9d 1c c2 3f 00 f2 be |.Z....."s...?...|
+|00000010| d3 75 f1 ce 1c 1a 5b bb 32 84 d9 14 d8 0f 78 c8 |.u....[.2.....x.|
++--------+-------------------------------------------------+----------------+
+11:58:20.607 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/18/false, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 432))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 17 5a 14 85 ba 92 b3 22 73 9d 1c c2 3f 00 f2 be |.Z....."s...?...|
+|00000010| d3 75 f1 ce 1c 1a 5b bb 32 84 d9 14 d8 0f 78 c8 |.u....[.2.....x.|
++--------+-------------------------------------------------+----------------+
+11:58:20.607 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] FLUSH
+11:58:20.607 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ COMPLETE
+11:58:20.611 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/18/true, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 432))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 17 5a 14 85 ba 92 b3 22 73 9d 1c c2 3f 00 f2 be |.Z....."s...?...|
+|00000010| d3 75 f1 ce 1c 1a 5b bb 32 84 d9 14 d8 0f 78 c8 |.u....[.2.....x.|
++--------+-------------------------------------------------+----------------+
+11:58:20.612 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ COMPLETE
+Ping 2/2 is 9ms
+11:58:20.617 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/16/true, flag=DATA(init), data=UnpooledHeapByteBuf(ridx: 0, widx: 32, cap: 32/32)), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| e3 8f 6e 57 dd d4 79 e8 4b 12 fe f0 69 17 e3 0b |..nW..y.K...i...|
+|00000010| 6f b1 f3 dc dd df 0f b3 88 2b 0b cd 87 33 1b 61 |o........+...3.a|
++--------+-------------------------------------------------+----------------+
+11:58:20.622 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] FLUSH
+11:58:20.625 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/16/false, flag=DATA(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 432))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| e3 8f 6e 57 dd d4 79 e8 4b 12 fe f0 69 17 e3 0b |..nW..y.K...i...|
+|00000010| 6f b1 f3 dc dd df 0f b3 88 2b 0b cd 87 33 1b 61 |o........+...3.a|
++--------+-------------------------------------------------+----------------+
+11:58:20.626 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/16/false, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 432))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| e3 8f 6e 57 dd d4 79 e8 4b 12 fe f0 69 17 e3 0b |..nW..y.K...i...|
+|00000010| 6f b1 f3 dc dd df 0f b3 88 2b 0b cd 87 33 1b 61 |o........+...3.a|
++--------+-------------------------------------------------+----------------+
+11:58:20.627 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] FLUSH
+11:58:20.627 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ COMPLETE
+11:58:20.631 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/16/true, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 432))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| e3 8f 6e 57 dd d4 79 e8 4b 12 fe f0 69 17 e3 0b |..nW..y.K...i...|
+|00000010| 6f b1 f3 dc dd df 0f b3 88 2b 0b cd 87 33 1b 61 |o........+...3.a|
++--------+-------------------------------------------------+----------------+
+Ping 0/3 is 21ms
+11:58:20.634 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ COMPLETE
+11:58:20.638 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/17/true, flag=DATA(init), data=UnpooledHeapByteBuf(ridx: 0, widx: 32, cap: 32/32)), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| fb a5 19 89 0f 61 56 87 65 dc 30 ec 31 fa ff 7c |.....aV.e.0.1..||
+|00000010| a3 e0 bf e8 6f 3d bd d4 f4 0a be c3 dc a3 13 45 |....o=.........E|
++--------+-------------------------------------------------+----------------+
+11:58:20.642 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] FLUSH
+11:58:20.648 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/17/false, flag=DATA(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 416))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| fb a5 19 89 0f 61 56 87 65 dc 30 ec 31 fa ff 7c |.....aV.e.0.1..||
+|00000010| a3 e0 bf e8 6f 3d bd d4 f4 0a be c3 dc a3 13 45 |....o=.........E|
++--------+-------------------------------------------------+----------------+
+11:58:20.651 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/17/false, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 416))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| fb a5 19 89 0f 61 56 87 65 dc 30 ec 31 fa ff 7c |.....aV.e.0.1..||
+|00000010| a3 e0 bf e8 6f 3d bd d4 f4 0a be c3 dc a3 13 45 |....o=.........E|
++--------+-------------------------------------------------+----------------+
+11:58:20.654 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] FLUSH
+11:58:20.655 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ COMPLETE
+11:58:20.655 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/17/true, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 416))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| fb a5 19 89 0f 61 56 87 65 dc 30 ec 31 fa ff 7c |.....aV.e.0.1..||
+|00000010| a3 e0 bf e8 6f 3d bd d4 f4 0a be c3 dc a3 13 45 |....o=.........E|
++--------+-------------------------------------------------+----------------+
+11:58:20.656 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ COMPLETE
+Ping 1/3 is 20ms
+11:58:20.659 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/18/true, flag=DATA(init), data=UnpooledHeapByteBuf(ridx: 0, widx: 32, cap: 32/32)), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| a7 f1 44 89 32 ba 39 86 00 d2 5f 8d cb 31 87 3d |..D.2.9..._..1.=|
+|00000010| 2a 50 92 eb 3e 7d 41 0e 75 ea 58 e6 a4 25 b2 fc |*P..>}A.u.X..%..|
++--------+-------------------------------------------------+----------------+
+11:58:20.661 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] FLUSH
+11:58:20.665 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/18/false, flag=DATA(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 416))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| a7 f1 44 89 32 ba 39 86 00 d2 5f 8d cb 31 87 3d |..D.2.9..._..1.=|
+|00000010| 2a 50 92 eb 3e 7d 41 0e 75 ea 58 e6 a4 25 b2 fc |*P..>}A.u.X..%..|
++--------+-------------------------------------------------+----------------+
+11:58:20.665 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/18/false, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 416))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| a7 f1 44 89 32 ba 39 86 00 d2 5f 8d cb 31 87 3d |..D.2.9..._..1.=|
+|00000010| 2a 50 92 eb 3e 7d 41 0e 75 ea 58 e6 a4 25 b2 fc |*P..>}A.u.X..%..|
++--------+-------------------------------------------------+----------------+
+11:58:20.666 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] FLUSH
+11:58:20.666 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ COMPLETE
+11:58:20.667 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/18/true, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 416))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| a7 f1 44 89 32 ba 39 86 00 d2 5f 8d cb 31 87 3d |..D.2.9..._..1.=|
+|00000010| 2a 50 92 eb 3e 7d 41 0e 75 ea 58 e6 a4 25 b2 fc |*P..>}A.u.X..%..|
++--------+-------------------------------------------------+----------------+
+11:58:20.667 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ COMPLETE
+Ping 2/3 is 9ms
+11:58:20.669 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/16/true, flag=DATA(init), data=UnpooledHeapByteBuf(ridx: 0, widx: 32, cap: 32/32)), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 36 7c 74 d1 dc a0 90 57 fe c6 7b 8b 40 9e 95 9c |6|t....W..{.@...|
+|00000010| 03 bd c4 c9 ab ce 90 52 f0 45 38 a1 c2 ed b3 6c |.......R.E8....l|
++--------+-------------------------------------------------+----------------+
+11:58:20.670 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] FLUSH
+11:58:20.673 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/16/false, flag=DATA(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 400))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 36 7c 74 d1 dc a0 90 57 fe c6 7b 8b 40 9e 95 9c |6|t....W..{.@...|
+|00000010| 03 bd c4 c9 ab ce 90 52 f0 45 38 a1 c2 ed b3 6c |.......R.E8....l|
++--------+-------------------------------------------------+----------------+
+11:58:20.674 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/16/false, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 400))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 36 7c 74 d1 dc a0 90 57 fe c6 7b 8b 40 9e 95 9c |6|t....W..{.@...|
+|00000010| 03 bd c4 c9 ab ce 90 52 f0 45 38 a1 c2 ed b3 6c |.......R.E8....l|
++--------+-------------------------------------------------+----------------+
+11:58:20.675 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] FLUSH
+11:58:20.675 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ COMPLETE
+11:58:20.676 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/16/true, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 400))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 36 7c 74 d1 dc a0 90 57 fe c6 7b 8b 40 9e 95 9c |6|t....W..{.@...|
+|00000010| 03 bd c4 c9 ab ce 90 52 f0 45 38 a1 c2 ed b3 6c |.......R.E8....l|
++--------+-------------------------------------------------+----------------+
+11:58:20.677 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ COMPLETE
+Ping 0/4 is 8ms
+11:58:20.679 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/17/true, flag=DATA(init), data=UnpooledHeapByteBuf(ridx: 0, widx: 32, cap: 32/32)), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 79 ff 79 4c d7 95 22 aa 66 1d b8 20 ea fc 82 d9 |y.yL..".f.. ....|
+|00000010| f2 98 0a 75 8b 70 e9 78 ac 65 13 f5 ab 0f 51 5c |...u.p.x.e....Q\|
++--------+-------------------------------------------------+----------------+
+11:58:20.680 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] FLUSH
+11:58:20.685 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/17/false, flag=DATA(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 400))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 79 ff 79 4c d7 95 22 aa 66 1d b8 20 ea fc 82 d9 |y.yL..".f.. ....|
+|00000010| f2 98 0a 75 8b 70 e9 78 ac 65 13 f5 ab 0f 51 5c |...u.p.x.e....Q\|
++--------+-------------------------------------------------+----------------+
+11:58:20.686 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/17/false, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 400))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 79 ff 79 4c d7 95 22 aa 66 1d b8 20 ea fc 82 d9 |y.yL..".f.. ....|
+|00000010| f2 98 0a 75 8b 70 e9 78 ac 65 13 f5 ab 0f 51 5c |...u.p.x.e....Q\|
++--------+-------------------------------------------------+----------------+
+11:58:20.686 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] FLUSH
+11:58:20.687 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ COMPLETE
+11:58:20.688 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/17/true, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 400))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 79 ff 79 4c d7 95 22 aa 66 1d b8 20 ea fc 82 d9 |y.yL..".f.. ....|
+|00000010| f2 98 0a 75 8b 70 e9 78 ac 65 13 f5 ab 0f 51 5c |...u.p.x.e....Q\|
++--------+-------------------------------------------------+----------------+
+11:58:20.688 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ COMPLETE
+Ping 1/4 is 10ms
+11:58:20.693 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/18/true, flag=DATA(init), data=UnpooledHeapByteBuf(ridx: 0, widx: 32, cap: 32/32)), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 43 f2 e0 3f a3 2c 4e 65 e0 e5 58 b0 fa be d8 e3 |C..?.,Ne..X.....|
+|00000010| fc 5e 41 2b a6 ab 72 0d d6 06 bc 0d e8 3b 3a 2c |.^A+..r......;:,|
++--------+-------------------------------------------------+----------------+
+11:58:20.694 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] FLUSH
+11:58:20.696 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/18/false, flag=DATA(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 384))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 43 f2 e0 3f a3 2c 4e 65 e0 e5 58 b0 fa be d8 e3 |C..?.,Ne..X.....|
+|00000010| fc 5e 41 2b a6 ab 72 0d d6 06 bc 0d e8 3b 3a 2c |.^A+..r......;:,|
++--------+-------------------------------------------------+----------------+
+11:58:20.697 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/18/false, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 384))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 43 f2 e0 3f a3 2c 4e 65 e0 e5 58 b0 fa be d8 e3 |C..?.,Ne..X.....|
+|00000010| fc 5e 41 2b a6 ab 72 0d d6 06 bc 0d e8 3b 3a 2c |.^A+..r......;:,|
++--------+-------------------------------------------------+----------------+
+11:58:20.701 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] FLUSH
+11:58:20.701 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ COMPLETE
+11:58:20.702 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/18/true, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 384))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 43 f2 e0 3f a3 2c 4e 65 e0 e5 58 b0 fa be d8 e3 |C..?.,Ne..X.....|
+|00000010| fc 5e 41 2b a6 ab 72 0d d6 06 bc 0d e8 3b 3a 2c |.^A+..r......;:,|
++--------+-------------------------------------------------+----------------+
+11:58:20.703 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ COMPLETE
+Ping 2/4 is 11ms
+11:58:20.708 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/16/true, flag=DATA(init), data=UnpooledHeapByteBuf(ridx: 0, widx: 32, cap: 32/32)), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| ef a4 1f cd f3 2d 8d 10 3c 90 f4 5e f2 2f dd e9 |.....-..<..^./..|
+|00000010| ef f7 46 aa 39 9d d0 a7 fe 93 fa 94 98 ce 1f 0f |..F.9...........|
++--------+-------------------------------------------------+----------------+
+11:58:20.708 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] FLUSH
+11:58:20.709 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/16/false, flag=DATA(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 384))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| ef a4 1f cd f3 2d 8d 10 3c 90 f4 5e f2 2f dd e9 |.....-..<..^./..|
+|00000010| ef f7 46 aa 39 9d d0 a7 fe 93 fa 94 98 ce 1f 0f |..F.9...........|
++--------+-------------------------------------------------+----------------+
+11:58:20.709 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/16/false, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 384))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| ef a4 1f cd f3 2d 8d 10 3c 90 f4 5e f2 2f dd e9 |.....-..<..^./..|
+|00000010| ef f7 46 aa 39 9d d0 a7 fe 93 fa 94 98 ce 1f 0f |..F.9...........|
++--------+-------------------------------------------------+----------------+
+11:58:20.710 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] FLUSH
+11:58:20.710 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ COMPLETE
+11:58:20.711 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/16/true, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 384))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| ef a4 1f cd f3 2d 8d 10 3c 90 f4 5e f2 2f dd e9 |.....-..<..^./..|
+|00000010| ef f7 46 aa 39 9d d0 a7 fe 93 fa 94 98 ce 1f 0f |..F.9...........|
++--------+-------------------------------------------------+----------------+
+11:58:20.711 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ COMPLETE
+Ping 0/5 is 4ms
+11:58:20.713 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/17/true, flag=DATA(init), data=UnpooledHeapByteBuf(ridx: 0, widx: 32, cap: 32/32)), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| d9 6d 1f b8 2c 8a 6a b9 eb 2b 0b 82 2b ec ec 35 |.m..,.j..+..+..5|
+|00000010| d8 2e 88 0d 75 d1 76 a3 98 ed 88 d2 eb 2d 9c cd |....u.v......-..|
++--------+-------------------------------------------------+----------------+
+11:58:20.714 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] FLUSH
+11:58:20.718 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/17/false, flag=DATA(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 368))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| d9 6d 1f b8 2c 8a 6a b9 eb 2b 0b 82 2b ec ec 35 |.m..,.j..+..+..5|
+|00000010| d8 2e 88 0d 75 d1 76 a3 98 ed 88 d2 eb 2d 9c cd |....u.v......-..|
++--------+-------------------------------------------------+----------------+
+11:58:20.718 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/17/false, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 368))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| d9 6d 1f b8 2c 8a 6a b9 eb 2b 0b 82 2b ec ec 35 |.m..,.j..+..+..5|
+|00000010| d8 2e 88 0d 75 d1 76 a3 98 ed 88 d2 eb 2d 9c cd |....u.v......-..|
++--------+-------------------------------------------------+----------------+
+11:58:20.719 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] FLUSH
+11:58:20.719 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ COMPLETE
+11:58:20.723 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/17/true, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 368))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| d9 6d 1f b8 2c 8a 6a b9 eb 2b 0b 82 2b ec ec 35 |.m..,.j..+..+..5|
+|00000010| d8 2e 88 0d 75 d1 76 a3 98 ed 88 d2 eb 2d 9c cd |....u.v......-..|
++--------+-------------------------------------------------+----------------+
+Ping 1/5 is 11ms
+11:58:20.723 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ COMPLETE
+11:58:20.724 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/18/true, flag=DATA(init), data=UnpooledHeapByteBuf(ridx: 0, widx: 32, cap: 32/32)), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| e3 e5 ed 80 e9 1b 54 e6 84 38 15 c6 51 a7 1c e8 |......T..8..Q...|
+|00000010| 8a 35 39 2e fd ad c3 04 7c c2 6d 08 a8 78 9b c0 |.59.....|.m..x..|
++--------+-------------------------------------------------+----------------+
+11:58:20.727 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] FLUSH
+11:58:20.730 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/18/false, flag=DATA(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 368))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| e3 e5 ed 80 e9 1b 54 e6 84 38 15 c6 51 a7 1c e8 |......T..8..Q...|
+|00000010| 8a 35 39 2e fd ad c3 04 7c c2 6d 08 a8 78 9b c0 |.59.....|.m..x..|
++--------+-------------------------------------------------+----------------+
+11:58:20.732 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/18/false, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 368))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| e3 e5 ed 80 e9 1b 54 e6 84 38 15 c6 51 a7 1c e8 |......T..8..Q...|
+|00000010| 8a 35 39 2e fd ad c3 04 7c c2 6d 08 a8 78 9b c0 |.59.....|.m..x..|
++--------+-------------------------------------------------+----------------+
+11:58:20.732 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] FLUSH
+11:58:20.732 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ COMPLETE
+11:58:20.734 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/18/true, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 368))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| e3 e5 ed 80 e9 1b 54 e6 84 38 15 c6 51 a7 1c e8 |......T..8..Q...|
+|00000010| 8a 35 39 2e fd ad c3 04 7c c2 6d 08 a8 78 9b c0 |.59.....|.m..x..|
++--------+-------------------------------------------------+----------------+
+11:58:20.734 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ COMPLETE
+Ping 2/5 is 11ms
+11:58:20.736 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/16/true, flag=DATA(init), data=UnpooledHeapByteBuf(ridx: 0, widx: 32, cap: 32/32)), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| f2 34 a9 06 79 3a f2 c7 41 06 6c ec e1 42 dd 8e |.4..y:..A.l..B..|
+|00000010| 1e 39 6a cb 6c ac 2e ed 67 78 3a 61 a8 84 9a 36 |.9j.l...gx:a...6|
++--------+-------------------------------------------------+----------------+
+11:58:20.740 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] FLUSH
+11:58:20.742 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/16/false, flag=DATA(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 352))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| f2 34 a9 06 79 3a f2 c7 41 06 6c ec e1 42 dd 8e |.4..y:..A.l..B..|
+|00000010| 1e 39 6a cb 6c ac 2e ed 67 78 3a 61 a8 84 9a 36 |.9j.l...gx:a...6|
++--------+-------------------------------------------------+----------------+
+11:58:20.745 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/16/false, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 352))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| f2 34 a9 06 79 3a f2 c7 41 06 6c ec e1 42 dd 8e |.4..y:..A.l..B..|
+|00000010| 1e 39 6a cb 6c ac 2e ed 67 78 3a 61 a8 84 9a 36 |.9j.l...gx:a...6|
++--------+-------------------------------------------------+----------------+
+11:58:20.745 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] FLUSH
+11:58:20.749 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/16/true, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 352))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| f2 34 a9 06 79 3a f2 c7 41 06 6c ec e1 42 dd 8e |.4..y:..A.l..B..|
+|00000010| 1e 39 6a cb 6c ac 2e ed 67 78 3a 61 a8 84 9a 36 |.9j.l...gx:a...6|
++--------+-------------------------------------------------+----------------+
+11:58:20.752 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ COMPLETE
+11:58:20.753 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ COMPLETE
+Ping 0/6 is 18ms
+11:58:20.754 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/17/true, flag=DATA(init), data=UnpooledHeapByteBuf(ridx: 0, widx: 32, cap: 32/32)), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 6f 6e f9 d9 5f 1c ef a5 7f a6 ad 0c b2 34 9c 7e |on.._........4.~|
+|00000010| 6d 06 6a 73 cd 64 13 40 78 a4 ed 33 58 2d 57 e9 |m.js.d.@x..3X-W.|
++--------+-------------------------------------------------+----------------+
+11:58:20.755 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] FLUSH
+11:58:20.757 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/17/false, flag=DATA(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 352))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 6f 6e f9 d9 5f 1c ef a5 7f a6 ad 0c b2 34 9c 7e |on.._........4.~|
+|00000010| 6d 06 6a 73 cd 64 13 40 78 a4 ed 33 58 2d 57 e9 |m.js.d.@x..3X-W.|
++--------+-------------------------------------------------+----------------+
+11:58:20.758 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/17/false, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 352))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 6f 6e f9 d9 5f 1c ef a5 7f a6 ad 0c b2 34 9c 7e |on.._........4.~|
+|00000010| 6d 06 6a 73 cd 64 13 40 78 a4 ed 33 58 2d 57 e9 |m.js.d.@x..3X-W.|
++--------+-------------------------------------------------+----------------+
+11:58:20.758 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] FLUSH
+11:58:20.758 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ COMPLETE
+11:58:20.759 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/17/true, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 352))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 6f 6e f9 d9 5f 1c ef a5 7f a6 ad 0c b2 34 9c 7e |on.._........4.~|
+|00000010| 6d 06 6a 73 cd 64 13 40 78 a4 ed 33 58 2d 57 e9 |m.js.d.@x..3X-W.|
++--------+-------------------------------------------------+----------------+
+11:58:20.760 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ COMPLETE
+Ping 1/6 is 7ms
+11:58:20.764 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/18/true, flag=DATA(init), data=UnpooledHeapByteBuf(ridx: 0, widx: 32, cap: 32/32)), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| c7 fd a8 1d d2 09 58 77 42 6c 7e 57 69 3d 9a 0d |......XwBl~Wi=..|
+|00000010| 98 be 28 24 21 68 e3 00 b3 13 7c 57 3b f2 cb 82 |..($!h....|W;...|
++--------+-------------------------------------------------+----------------+
+11:58:20.764 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] FLUSH
+11:58:20.765 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/18/false, flag=DATA(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 336))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| c7 fd a8 1d d2 09 58 77 42 6c 7e 57 69 3d 9a 0d |......XwBl~Wi=..|
+|00000010| 98 be 28 24 21 68 e3 00 b3 13 7c 57 3b f2 cb 82 |..($!h....|W;...|
++--------+-------------------------------------------------+----------------+
+11:58:20.767 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/18/false, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 336))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| c7 fd a8 1d d2 09 58 77 42 6c 7e 57 69 3d 9a 0d |......XwBl~Wi=..|
+|00000010| 98 be 28 24 21 68 e3 00 b3 13 7c 57 3b f2 cb 82 |..($!h....|W;...|
++--------+-------------------------------------------------+----------------+
+11:58:20.767 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] FLUSH
+11:58:20.767 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ COMPLETE
+11:58:20.768 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/18/true, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 336))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| c7 fd a8 1d d2 09 58 77 42 6c 7e 57 69 3d 9a 0d |......XwBl~Wi=..|
+|00000010| 98 be 28 24 21 68 e3 00 b3 13 7c 57 3b f2 cb 82 |..($!h....|W;...|
++--------+-------------------------------------------------+----------------+
+11:58:20.769 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ COMPLETE
+Ping 2/6 is 6ms
+11:58:20.770 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/16/true, flag=DATA(init), data=UnpooledHeapByteBuf(ridx: 0, widx: 32, cap: 32/32)), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| eb 22 2e 54 3b 5f 02 b2 ae fc c9 72 03 6f 72 86 |.".T;_.....r.or.|
+|00000010| 81 9b 8c dc dd ea c8 82 82 63 42 be 66 e5 90 71 |.........cB.f..q|
++--------+-------------------------------------------------+----------------+
+11:58:20.770 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] FLUSH
+11:58:20.771 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/16/false, flag=DATA(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 336))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| eb 22 2e 54 3b 5f 02 b2 ae fc c9 72 03 6f 72 86 |.".T;_.....r.or.|
+|00000010| 81 9b 8c dc dd ea c8 82 82 63 42 be 66 e5 90 71 |.........cB.f..q|
++--------+-------------------------------------------------+----------------+
+11:58:20.775 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/16/false, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 336))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| eb 22 2e 54 3b 5f 02 b2 ae fc c9 72 03 6f 72 86 |.".T;_.....r.or.|
+|00000010| 81 9b 8c dc dd ea c8 82 82 63 42 be 66 e5 90 71 |.........cB.f..q|
++--------+-------------------------------------------------+----------------+
+11:58:20.775 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] FLUSH
+11:58:20.776 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ COMPLETE
+11:58:20.777 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/16/true, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 336))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| eb 22 2e 54 3b 5f 02 b2 ae fc c9 72 03 6f 72 86 |.".T;_.....r.or.|
+|00000010| 81 9b 8c dc dd ea c8 82 82 63 42 be 66 e5 90 71 |.........cB.f..q|
++--------+-------------------------------------------------+----------------+
+11:58:20.778 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ COMPLETE
+Ping 0/7 is 9ms
+11:58:20.779 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/17/true, flag=DATA(init), data=UnpooledHeapByteBuf(ridx: 0, widx: 32, cap: 32/32)), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| d1 7e 37 c1 b9 5f 9e 9f 8f ef e5 a9 4f 83 0b b9 |.~7.._......O...|
+|00000010| 4f c4 ea e4 69 3f 04 b9 2e 2a e1 97 03 ea fb 75 |O...i?...*.....u|
++--------+-------------------------------------------------+----------------+
+11:58:20.780 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] FLUSH
+11:58:20.781 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/17/false, flag=DATA(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 320))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| d1 7e 37 c1 b9 5f 9e 9f 8f ef e5 a9 4f 83 0b b9 |.~7.._......O...|
+|00000010| 4f c4 ea e4 69 3f 04 b9 2e 2a e1 97 03 ea fb 75 |O...i?...*.....u|
++--------+-------------------------------------------------+----------------+
+11:58:20.783 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/17/false, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 320))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| d1 7e 37 c1 b9 5f 9e 9f 8f ef e5 a9 4f 83 0b b9 |.~7.._......O...|
+|00000010| 4f c4 ea e4 69 3f 04 b9 2e 2a e1 97 03 ea fb 75 |O...i?...*.....u|
++--------+-------------------------------------------------+----------------+
+11:58:20.783 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] FLUSH
+11:58:20.784 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ COMPLETE
+11:58:20.785 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/17/true, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 320))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| d1 7e 37 c1 b9 5f 9e 9f 8f ef e5 a9 4f 83 0b b9 |.~7.._......O...|
+|00000010| 4f c4 ea e4 69 3f 04 b9 2e 2a e1 97 03 ea fb 75 |O...i?...*.....u|
++--------+-------------------------------------------------+----------------+
+Ping 1/7 is 8ms
+11:58:20.786 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ COMPLETE
+11:58:20.787 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/18/true, flag=DATA(init), data=UnpooledHeapByteBuf(ridx: 0, widx: 32, cap: 32/32)), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| f1 af 8d 16 a0 d7 61 f2 d2 ff 37 56 71 82 ed 8e |......a...7Vq...|
+|00000010| ee 31 16 69 a2 20 8e d6 6a af 45 c6 ce 42 9a 62 |.1.i. ..j.E..B.b|
++--------+-------------------------------------------------+----------------+
+11:58:20.788 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] FLUSH
+11:58:20.790 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/18/false, flag=DATA(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 320))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| f1 af 8d 16 a0 d7 61 f2 d2 ff 37 56 71 82 ed 8e |......a...7Vq...|
+|00000010| ee 31 16 69 a2 20 8e d6 6a af 45 c6 ce 42 9a 62 |.1.i. ..j.E..B.b|
++--------+-------------------------------------------------+----------------+
+11:58:20.791 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/18/false, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 320))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| f1 af 8d 16 a0 d7 61 f2 d2 ff 37 56 71 82 ed 8e |......a...7Vq...|
+|00000010| ee 31 16 69 a2 20 8e d6 6a af 45 c6 ce 42 9a 62 |.1.i. ..j.E..B.b|
++--------+-------------------------------------------------+----------------+
+11:58:20.792 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] FLUSH
+11:58:20.792 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/18/true, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 320))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| f1 af 8d 16 a0 d7 61 f2 d2 ff 37 56 71 82 ed 8e |......a...7Vq...|
+|00000010| ee 31 16 69 a2 20 8e d6 6a af 45 c6 ce 42 9a 62 |.1.i. ..j.E..B.b|
++--------+-------------------------------------------------+----------------+
+11:58:20.792 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ COMPLETE
+Ping 2/7 is 6ms
+11:58:20.793 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ COMPLETE
+11:58:20.793 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/16/true, flag=DATA(init), data=UnpooledHeapByteBuf(ridx: 0, widx: 32, cap: 32/32)), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| c8 fe db fb f5 8e 74 e6 0a cc 41 17 61 b9 35 ed |......t...A.a.5.|
+|00000010| 8d a3 b6 1a 58 cc c8 f2 c9 34 e1 88 9b 70 dd 83 |....X....4...p..|
++--------+-------------------------------------------------+----------------+
+11:58:20.794 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] FLUSH
+11:58:20.795 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/16/false, flag=DATA(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 304))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| c8 fe db fb f5 8e 74 e6 0a cc 41 17 61 b9 35 ed |......t...A.a.5.|
+|00000010| 8d a3 b6 1a 58 cc c8 f2 c9 34 e1 88 9b 70 dd 83 |....X....4...p..|
++--------+-------------------------------------------------+----------------+
+11:58:20.795 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/16/false, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 304))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| c8 fe db fb f5 8e 74 e6 0a cc 41 17 61 b9 35 ed |......t...A.a.5.|
+|00000010| 8d a3 b6 1a 58 cc c8 f2 c9 34 e1 88 9b 70 dd 83 |....X....4...p..|
++--------+-------------------------------------------------+----------------+
+11:58:20.795 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] FLUSH
+11:58:20.796 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/16/true, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 304))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| c8 fe db fb f5 8e 74 e6 0a cc 41 17 61 b9 35 ed |......t...A.a.5.|
+|00000010| 8d a3 b6 1a 58 cc c8 f2 c9 34 e1 88 9b 70 dd 83 |....X....4...p..|
++--------+-------------------------------------------------+----------------+
+11:58:20.796 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ COMPLETE
+11:58:20.797 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ COMPLETE
+Ping 0/8 is 4ms
+11:58:20.799 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/17/true, flag=DATA(init), data=UnpooledHeapByteBuf(ridx: 0, widx: 32, cap: 32/32)), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 58 1a 32 a1 f4 8b 88 f8 ec 26 34 ab 6a 00 a3 7b |X.2......&4.j..{|
+|00000010| 1e a3 d9 f6 d1 ed 49 98 43 ce 50 df ce 60 15 04 |......I.C.P..`..|
++--------+-------------------------------------------------+----------------+
+11:58:20.799 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] FLUSH
+11:58:20.800 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/17/false, flag=DATA(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 304))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 58 1a 32 a1 f4 8b 88 f8 ec 26 34 ab 6a 00 a3 7b |X.2......&4.j..{|
+|00000010| 1e a3 d9 f6 d1 ed 49 98 43 ce 50 df ce 60 15 04 |......I.C.P..`..|
++--------+-------------------------------------------------+----------------+
+11:58:20.800 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/17/false, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 304))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 58 1a 32 a1 f4 8b 88 f8 ec 26 34 ab 6a 00 a3 7b |X.2......&4.j..{|
+|00000010| 1e a3 d9 f6 d1 ed 49 98 43 ce 50 df ce 60 15 04 |......I.C.P..`..|
++--------+-------------------------------------------------+----------------+
+11:58:20.800 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] FLUSH
+11:58:20.801 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ COMPLETE
+11:58:20.801 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/17/true, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 304))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 58 1a 32 a1 f4 8b 88 f8 ec 26 34 ab 6a 00 a3 7b |X.2......&4.j..{|
+|00000010| 1e a3 d9 f6 d1 ed 49 98 43 ce 50 df ce 60 15 04 |......I.C.P..`..|
++--------+-------------------------------------------------+----------------+
+11:58:20.801 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ COMPLETE
+Ping 1/8 is 4ms
+11:58:20.805 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/18/true, flag=DATA(init), data=UnpooledHeapByteBuf(ridx: 0, widx: 32, cap: 32/32)), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| a6 e4 50 f4 8b 25 48 1d d3 f7 6b 7b ab 51 74 9d |..P..%H...k{.Qt.|
+|00000010| d9 99 ef f5 44 58 07 fa b5 ca f7 4a e1 eb 11 6a |....DX.....J...j|
++--------+-------------------------------------------------+----------------+
+11:58:20.806 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] FLUSH
+11:58:20.808 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/18/false, flag=DATA(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 288))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| a6 e4 50 f4 8b 25 48 1d d3 f7 6b 7b ab 51 74 9d |..P..%H...k{.Qt.|
+|00000010| d9 99 ef f5 44 58 07 fa b5 ca f7 4a e1 eb 11 6a |....DX.....J...j|
++--------+-------------------------------------------------+----------------+
+11:58:20.808 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/18/false, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 288))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| a6 e4 50 f4 8b 25 48 1d d3 f7 6b 7b ab 51 74 9d |..P..%H...k{.Qt.|
+|00000010| d9 99 ef f5 44 58 07 fa b5 ca f7 4a e1 eb 11 6a |....DX.....J...j|
++--------+-------------------------------------------------+----------------+
+11:58:20.809 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] FLUSH
+11:58:20.809 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ COMPLETE
+11:58:20.810 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/18/true, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 288))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| a6 e4 50 f4 8b 25 48 1d d3 f7 6b 7b ab 51 74 9d |..P..%H...k{.Qt.|
+|00000010| d9 99 ef f5 44 58 07 fa b5 ca f7 4a e1 eb 11 6a |....DX.....J...j|
++--------+-------------------------------------------------+----------------+
+11:58:20.810 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ COMPLETE
+Ping 2/8 is 6ms
+11:58:20.812 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/16/true, flag=DATA(init), data=UnpooledHeapByteBuf(ridx: 0, widx: 32, cap: 32/32)), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 3b 4f 14 41 dc e5 83 70 3d ab 7a 3a 99 af 13 06 |;O.A...p=.z:....|
+|00000010| b9 f4 a6 61 5f 91 70 0a 5d ac 4e 45 e1 a3 05 02 |...a_.p.].NE....|
++--------+-------------------------------------------------+----------------+
+11:58:20.813 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] FLUSH
+11:58:20.814 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/16/false, flag=DATA(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 288))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 3b 4f 14 41 dc e5 83 70 3d ab 7a 3a 99 af 13 06 |;O.A...p=.z:....|
+|00000010| b9 f4 a6 61 5f 91 70 0a 5d ac 4e 45 e1 a3 05 02 |...a_.p.].NE....|
++--------+-------------------------------------------------+----------------+
+11:58:20.815 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/16/false, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 288))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 3b 4f 14 41 dc e5 83 70 3d ab 7a 3a 99 af 13 06 |;O.A...p=.z:....|
+|00000010| b9 f4 a6 61 5f 91 70 0a 5d ac 4e 45 e1 a3 05 02 |...a_.p.].NE....|
++--------+-------------------------------------------------+----------------+
+11:58:20.815 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] FLUSH
+11:58:20.815 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ COMPLETE
+11:58:20.816 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/16/true, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 288))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 3b 4f 14 41 dc e5 83 70 3d ab 7a 3a 99 af 13 06 |;O.A...p=.z:....|
+|00000010| b9 f4 a6 61 5f 91 70 0a 5d ac 4e 45 e1 a3 05 02 |...a_.p.].NE....|
++--------+-------------------------------------------------+----------------+
+11:58:20.816 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ COMPLETE
+Ping 0/9 is 5ms
+11:58:20.818 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/17/true, flag=DATA(init), data=UnpooledHeapByteBuf(ridx: 0, widx: 32, cap: 32/32)), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| a4 47 8c fd bf 3c 4a 86 4b 33 9c 43 7b 5b c7 d8 |.G...<J.K3.C{[..|
+|00000010| fd 58 57 c8 c2 2b 3f d7 61 b1 e8 f6 f2 f2 83 99 |.XW..+?.a.......|
++--------+-------------------------------------------------+----------------+
+11:58:20.818 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] FLUSH
+11:58:20.820 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/17/false, flag=DATA(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 272))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| a4 47 8c fd bf 3c 4a 86 4b 33 9c 43 7b 5b c7 d8 |.G...<J.K3.C{[..|
+|00000010| fd 58 57 c8 c2 2b 3f d7 61 b1 e8 f6 f2 f2 83 99 |.XW..+?.a.......|
++--------+-------------------------------------------------+----------------+
+11:58:20.821 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/17/false, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 272))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| a4 47 8c fd bf 3c 4a 86 4b 33 9c 43 7b 5b c7 d8 |.G...<J.K3.C{[..|
+|00000010| fd 58 57 c8 c2 2b 3f d7 61 b1 e8 f6 f2 f2 83 99 |.XW..+?.a.......|
++--------+-------------------------------------------------+----------------+
+11:58:20.821 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] FLUSH
+11:58:20.821 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ COMPLETE
+11:58:20.825 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/17/true, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 272))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| a4 47 8c fd bf 3c 4a 86 4b 33 9c 43 7b 5b c7 d8 |.G...<J.K3.C{[..|
+|00000010| fd 58 57 c8 c2 2b 3f d7 61 b1 e8 f6 f2 f2 83 99 |.XW..+?.a.......|
++--------+-------------------------------------------------+----------------+
+11:58:20.825 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ COMPLETE
+Ping 1/9 is 8ms
+11:58:20.833 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/18/true, flag=DATA(init), data=UnpooledHeapByteBuf(ridx: 0, widx: 32, cap: 32/32)), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| f3 b3 96 42 3d 02 53 e3 45 98 bc c5 ed 5b e3 2f |...B=.S.E....[./|
+|00000010| a9 e8 ee 09 82 f1 07 5c 49 ec 71 79 c7 89 b4 78 |.......\I.qy...x|
++--------+-------------------------------------------------+----------------+
+11:58:20.834 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] FLUSH
+11:58:20.840 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/18/false, flag=DATA(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 272))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| f3 b3 96 42 3d 02 53 e3 45 98 bc c5 ed 5b e3 2f |...B=.S.E....[./|
+|00000010| a9 e8 ee 09 82 f1 07 5c 49 ec 71 79 c7 89 b4 78 |.......\I.qy...x|
++--------+-------------------------------------------------+----------------+
+11:58:20.841 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/18/false, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 272))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| f3 b3 96 42 3d 02 53 e3 45 98 bc c5 ed 5b e3 2f |...B=.S.E....[./|
+|00000010| a9 e8 ee 09 82 f1 07 5c 49 ec 71 79 c7 89 b4 78 |.......\I.qy...x|
++--------+-------------------------------------------------+----------------+
+11:58:20.841 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] FLUSH
+11:58:20.842 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ COMPLETE
+11:58:20.845 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/18/true, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 272))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| f3 b3 96 42 3d 02 53 e3 45 98 bc c5 ed 5b e3 2f |...B=.S.E....[./|
+|00000010| a9 e8 ee 09 82 f1 07 5c 49 ec 71 79 c7 89 b4 78 |.......\I.qy...x|
++--------+-------------------------------------------------+----------------+
+Ping 2/9 is 20ms
+11:58:20.847 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ COMPLETE
+11:58:20.849 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/16/true, flag=DATA(init), data=UnpooledHeapByteBuf(ridx: 0, widx: 32, cap: 32/32)), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 3b 7f 0c fa 16 c9 68 a5 14 19 6f 26 5e 53 35 3d |;.....h...o&^S5=|
+|00000010| 02 97 93 c6 a7 de d6 74 81 ec 27 35 2a 1e 16 ec |.......t..'5*...|
++--------+-------------------------------------------------+----------------+
+11:58:20.849 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] FLUSH
+11:58:20.851 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/16/false, flag=DATA(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 256))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 3b 7f 0c fa 16 c9 68 a5 14 19 6f 26 5e 53 35 3d |;.....h...o&^S5=|
+|00000010| 02 97 93 c6 a7 de d6 74 81 ec 27 35 2a 1e 16 ec |.......t..'5*...|
++--------+-------------------------------------------------+----------------+
+11:58:20.853 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/16/false, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 256))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 3b 7f 0c fa 16 c9 68 a5 14 19 6f 26 5e 53 35 3d |;.....h...o&^S5=|
+|00000010| 02 97 93 c6 a7 de d6 74 81 ec 27 35 2a 1e 16 ec |.......t..'5*...|
++--------+-------------------------------------------------+----------------+
+11:58:20.853 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] FLUSH
+11:58:20.856 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/16/true, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 256))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 3b 7f 0c fa 16 c9 68 a5 14 19 6f 26 5e 53 35 3d |;.....h...o&^S5=|
+|00000010| 02 97 93 c6 a7 de d6 74 81 ec 27 35 2a 1e 16 ec |.......t..'5*...|
++--------+-------------------------------------------------+----------------+
+Ping 0/10 is 12ms
+11:58:20.860 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ COMPLETE
+11:58:20.860 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ COMPLETE
+11:58:20.862 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/17/true, flag=DATA(init), data=UnpooledHeapByteBuf(ridx: 0, widx: 32, cap: 32/32)), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 17 b6 d3 1b 3c 01 ba 0f c7 db 78 73 92 a6 a4 f2 |....<.....xs....|
+|00000010| 16 8d 6a 8b ae eb 5f b9 d9 f6 8e b8 7a 79 6a 03 |..j..._.....zyj.|
++--------+-------------------------------------------------+----------------+
+11:58:20.864 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] FLUSH
+11:58:20.866 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/17/false, flag=DATA(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 256))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 17 b6 d3 1b 3c 01 ba 0f c7 db 78 73 92 a6 a4 f2 |....<.....xs....|
+|00000010| 16 8d 6a 8b ae eb 5f b9 d9 f6 8e b8 7a 79 6a 03 |..j..._.....zyj.|
++--------+-------------------------------------------------+----------------+
+11:58:20.866 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/17/false, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 256))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 17 b6 d3 1b 3c 01 ba 0f c7 db 78 73 92 a6 a4 f2 |....<.....xs....|
+|00000010| 16 8d 6a 8b ae eb 5f b9 d9 f6 8e b8 7a 79 6a 03 |..j..._.....zyj.|
++--------+-------------------------------------------------+----------------+
+11:58:20.867 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] FLUSH
+11:58:20.867 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ COMPLETE
+11:58:20.868 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/17/true, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 256))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 17 b6 d3 1b 3c 01 ba 0f c7 db 78 73 92 a6 a4 f2 |....<.....xs....|
+|00000010| 16 8d 6a 8b ae eb 5f b9 d9 f6 8e b8 7a 79 6a 03 |..j..._.....zyj.|
++--------+-------------------------------------------------+----------------+
+Ping 1/10 is 9ms
+11:58:20.870 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ COMPLETE
+11:58:20.871 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/18/true, flag=DATA(init), data=UnpooledHeapByteBuf(ridx: 0, widx: 32, cap: 32/32)), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 24 b3 68 6b 56 ea 3b 82 0e 2e d1 2b 20 f3 40 47 |$.hkV.;....+ .@G|
+|00000010| 32 9e 37 76 07 a8 8e d0 04 ce 65 bf 28 d7 a5 63 |2.7v......e.(..c|
++--------+-------------------------------------------------+----------------+
+11:58:20.873 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] FLUSH
+11:58:20.874 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/18/false, flag=DATA(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 240))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 24 b3 68 6b 56 ea 3b 82 0e 2e d1 2b 20 f3 40 47 |$.hkV.;....+ .@G|
+|00000010| 32 9e 37 76 07 a8 8e d0 04 ce 65 bf 28 d7 a5 63 |2.7v......e.(..c|
++--------+-------------------------------------------------+----------------+
+11:58:20.876 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000a-ebf9a611a96e9477-72971d38/18/false, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 240))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 24 b3 68 6b 56 ea 3b 82 0e 2e d1 2b 20 f3 40 47 |$.hkV.;....+ .@G|
+|00000010| 32 9e 37 76 07 a8 8e d0 04 ce 65 bf 28 d7 a5 63 |2.7v......e.(..c|
++--------+-------------------------------------------------+----------------+
+11:58:20.879 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] FLUSH
+11:58:20.879 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ COMPLETE
+11:58:20.881 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-00000009-fa4b4511a96e946a-f6ef1244/18/true, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 32, cap: 32/32, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 39, widx: 39, cap: 240))), 32B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 24 b3 68 6b 56 ea 3b 82 0e 2e d1 2b 20 f3 40 47 |$.hkV.;....+ .@G|
+|00000010| 32 9e 37 76 07 a8 8e d0 04 ce 65 bf 28 d7 a5 63 |2.7v......e.(..c|
++--------+-------------------------------------------------+----------------+
+11:58:20.881 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] READ COMPLETE
+Ping 2/10 is 11ms
+11:58:20.892 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 - R:/127.0.0.1:4002] CLOSE
+11:58:20.897 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 - R:/127.0.0.1:50956] READ COMPLETE
+11:58:20.898 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 ! R:/127.0.0.1:4002] CLOSE
+11:58:20.899 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 ! R:/127.0.0.1:4002] INACTIVE
+11:58:20.899 [libp2p-nio-worker-3-7] [?[32mINFO?[m] client-host - [id: 0xf6ef1244, L:/127.0.0.1:50956 ! R:/127.0.0.1:4002] UNREGISTERED
+11:58:20.900 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 ! R:/127.0.0.1:50956] INACTIVE
+11:58:20.901 [libp2p-nio-worker-3-8] [?[32mINFO?[m] server-host - [id: 0x72971d38, L:/127.0.0.1:4002 ! R:/127.0.0.1:50956] UNREGISTERED
+Client Host stopped
+Server Host stopped
+Client started
+Server started
+11:58:20.971 [libp2p-nio-worker-3-10] [?[32mINFO?[m] server-host - [id: 0x2f933c99, L:/127.0.0.1:4002 - R:/127.0.0.1:50960] USER_EVENT: ProtocolNegotiationSucceeded(proto=/mplex/6.7.0)
+11:58:20.974 [libp2p-nio-worker-3-9] [?[32mINFO?[m] client-host - [id: 0xe4be6a32, L:/127.0.0.1:50960 - R:/127.0.0.1:4002] USER_EVENT: ProtocolNegotiationSucceeded(proto=/mplex/6.7.0)
+11:58:20.974 [libp2p-nio-worker-3-9] [?[32mINFO?[m] client-host - [id: 0xe4be6a32, L:/127.0.0.1:50960 - R:/127.0.0.1:4002] ACTIVE
+11:58:20.975 [libp2p-nio-worker-3-9] [?[32mINFO?[m] client-host - [id: 0xe4be6a32, L:/127.0.0.1:50960 - R:/127.0.0.1:4002] READ COMPLETE
+11:58:20.975 [libp2p-nio-worker-3-10] [?[32mINFO?[m] server-host - [id: 0x2f933c99, L:/127.0.0.1:4002 - R:/127.0.0.1:50960] ACTIVE
+11:58:20.975 [libp2p-nio-worker-3-10] [?[32mINFO?[m] server-host - [id: 0x2f933c99, L:/127.0.0.1:4002 - R:/127.0.0.1:50960] READ COMPLETE
+11:58:20.975 [libp2p-nio-worker-3-9] [?[32mINFO?[m] client-host - [id: 0xe4be6a32, L:/127.0.0.1:50960 - R:/127.0.0.1:4002] WRITE, MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000c-c7c66f0da96e970f-e4be6a32/16/true, flag=OPEN(init), data=EmptyByteBufBE), 0B
+11:58:20.975 [libp2p-nio-worker-3-9] [?[32mINFO?[m] client-host - [id: 0xe4be6a32, L:/127.0.0.1:50960 - R:/127.0.0.1:4002] FLUSH
+11:58:20.982 [libp2p-nio-worker-3-10] [?[32mINFO?[m] server-host - [id: 0x2f933c99, L:/127.0.0.1:4002 - R:/127.0.0.1:50960] READ, MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000d-67488a0da96e9715-2f933c99/16/false, flag=OPEN(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 0, cap: 0/0, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 7, widx: 7, cap: 1024))), 0B
+11:58:20.983 [libp2p-nio-worker-3-10] [?[32mINFO?[m] server-host - [id: 0x2f933c99, L:/127.0.0.1:4002 - R:/127.0.0.1:50960] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000d-67488a0da96e9715-2f933c99/16/false, flag=DATA(resp), data=AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 20, cap: 256)), 20B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 13 2f 6d 75 6c 74 69 73 74 72 65 61 6d 2f 31 2e |./multistream/1.|
+|00000010| 30 2e 30 0a                                     |0.0.            |
++--------+-------------------------------------------------+----------------+
+11:58:20.985 [libp2p-nio-worker-3-9] [?[32mINFO?[m] client-host - [id: 0xe4be6a32, L:/127.0.0.1:50960 - R:/127.0.0.1:4002] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000c-c7c66f0da96e970f-e4be6a32/16/true, flag=DATA(init), data=AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 20, cap: 256)), 20B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 13 2f 6d 75 6c 74 69 73 74 72 65 61 6d 2f 31 2e |./multistream/1.|
+|00000010| 30 2e 30 0a                                     |0.0.            |
++--------+-------------------------------------------------+----------------+
+11:58:20.986 [libp2p-nio-worker-3-9] [?[32mINFO?[m] client-host - [id: 0xe4be6a32, L:/127.0.0.1:50960 - R:/127.0.0.1:4002] FLUSH
+11:58:20.989 [libp2p-nio-worker-3-9] [?[32mINFO?[m] client-host - [id: 0xe4be6a32, L:/127.0.0.1:50960 - R:/127.0.0.1:4002] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000c-c7c66f0da96e970f-e4be6a32/16/true, flag=DATA(init), data=AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 12, cap: 256)), 12B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 0b 2f 74 65 73 74 2f 65 63 68 6f 0a             |./test/echo.    |
++--------+-------------------------------------------------+----------------+
+11:58:20.991 [libp2p-nio-worker-3-9] [?[32mINFO?[m] client-host - [id: 0xe4be6a32, L:/127.0.0.1:50960 - R:/127.0.0.1:4002] FLUSH
+11:58:20.990 [libp2p-nio-worker-3-10] [?[32mINFO?[m] server-host - [id: 0x2f933c99, L:/127.0.0.1:4002 - R:/127.0.0.1:50960] FLUSH
+11:58:20.994 [libp2p-nio-worker-3-10] [?[32mINFO?[m] server-host - [id: 0x2f933c99, L:/127.0.0.1:4002 - R:/127.0.0.1:50960] READ COMPLETE
+11:58:20.995 [libp2p-nio-worker-3-10] [?[32mINFO?[m] server-host - [id: 0x2f933c99, L:/127.0.0.1:4002 - R:/127.0.0.1:50960] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000d-67488a0da96e9715-2f933c99/16/false, flag=DATA(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 20, cap: 20/20, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 27, widx: 46, cap: 512))), 20B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 13 2f 6d 75 6c 74 69 73 74 72 65 61 6d 2f 31 2e |./multistream/1.|
+|00000010| 30 2e 30 0a                                     |0.0.            |
++--------+-------------------------------------------------+----------------+
+11:58:20.996 [libp2p-nio-worker-3-10] [?[32mINFO?[m] server-host - [id: 0x2f933c99, L:/127.0.0.1:4002 - R:/127.0.0.1:50960] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000d-67488a0da96e9715-2f933c99/16/false, flag=DATA(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 12, cap: 12/12, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 46, widx: 46, cap: 512))), 12B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 0b 2f 74 65 73 74 2f 65 63 68 6f 0a             |./test/echo.    |
++--------+-------------------------------------------------+----------------+
+11:58:20.996 [libp2p-nio-worker-3-10] [?[32mINFO?[m] server-host - [id: 0x2f933c99, L:/127.0.0.1:4002 - R:/127.0.0.1:50960] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000d-67488a0da96e9715-2f933c99/16/false, flag=DATA(resp), data=AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 12, cap: 256)), 12B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 0b 2f 74 65 73 74 2f 65 63 68 6f 0a             |./test/echo.    |
++--------+-------------------------------------------------+----------------+
+11:58:20.996 [libp2p-nio-worker-3-10] [?[32mINFO?[m] server-host - [id: 0x2f933c99, L:/127.0.0.1:4002 - R:/127.0.0.1:50960] FLUSH
+11:58:20.998 [libp2p-nio-worker-3-10] [?[32mINFO?[m] server-host - [id: 0x2f933c99, L:/127.0.0.1:4002 - R:/127.0.0.1:50960] READ COMPLETE
+11:58:21.000 [libp2p-nio-worker-3-9] [?[32mINFO?[m] client-host - [id: 0xe4be6a32, L:/127.0.0.1:50960 - R:/127.0.0.1:4002] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000c-c7c66f0da96e970f-e4be6a32/16/true, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 20, cap: 20/20, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 27, widx: 27, cap: 512))), 20B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 13 2f 6d 75 6c 74 69 73 74 72 65 61 6d 2f 31 2e |./multistream/1.|
+|00000010| 30 2e 30 0a                                     |0.0.            |
++--------+-------------------------------------------------+----------------+
+11:58:21.000 [libp2p-nio-worker-3-9] [?[32mINFO?[m] client-host - [id: 0xe4be6a32, L:/127.0.0.1:50960 - R:/127.0.0.1:4002] READ COMPLETE
+11:58:21.001 [libp2p-nio-worker-3-9] [?[32mINFO?[m] client-host - [id: 0xe4be6a32, L:/127.0.0.1:50960 - R:/127.0.0.1:4002] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000c-c7c66f0da96e970f-e4be6a32/16/true, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 12, cap: 12/12, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 19, widx: 19, cap: 512))), 12B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 0b 2f 74 65 73 74 2f 65 63 68 6f 0a             |./test/echo.    |
++--------+-------------------------------------------------+----------------+
+11:58:21.004 [libp2p-nio-worker-3-9] [?[32mINFO?[m] client-host - [id: 0xe4be6a32, L:/127.0.0.1:50960 - R:/127.0.0.1:4002] READ COMPLETE
+11:58:21.009 [libp2p-nio-worker-3-9] [?[32mINFO?[m] client-host - [id: 0xe4be6a32, L:/127.0.0.1:50960 - R:/127.0.0.1:4002] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000c-c7c66f0da96e970f-e4be6a32/16/true, flag=DATA(init), data=UnpooledHeapByteBuf(ridx: 0, widx: 5, cap: 5/5)), 5B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 68 65 6c 6c 6f                                  |hello           |
++--------+-------------------------------------------------+----------------+
+11:58:21.013 [libp2p-nio-worker-3-9] [?[32mINFO?[m] client-host - [id: 0xe4be6a32, L:/127.0.0.1:50960 - R:/127.0.0.1:4002] FLUSH
+11:58:21.022 [libp2p-nio-worker-3-10] [?[32mINFO?[m] server-host - [id: 0x2f933c99, L:/127.0.0.1:4002 - R:/127.0.0.1:50960] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000d-67488a0da96e9715-2f933c99/16/false, flag=DATA(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 5, cap: 5/5, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 12, widx: 12, cap: 512))), 5B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 68 65 6c 6c 6f                                  |hello           |
++--------+-------------------------------------------------+----------------+
+11:58:21.022 [libp2p-nio-worker-3-10] [?[32mINFO?[m] server-host - [id: 0x2f933c99, L:/127.0.0.1:4002 - R:/127.0.0.1:50960] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000d-67488a0da96e9715-2f933c99/16/false, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 5, cap: 5/5, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 12, widx: 12, cap: 512))), 5B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 68 65 6c 6c 6f                                  |hello           |
++--------+-------------------------------------------------+----------------+
+11:58:21.023 [libp2p-nio-worker-3-10] [?[32mINFO?[m] server-host - [id: 0x2f933c99, L:/127.0.0.1:4002 - R:/127.0.0.1:50960] FLUSH
+11:58:21.023 [libp2p-nio-worker-3-10] [?[32mINFO?[m] server-host - [id: 0x2f933c99, L:/127.0.0.1:4002 - R:/127.0.0.1:50960] READ COMPLETE
+11:58:21.025 [libp2p-nio-worker-3-9] [?[32mINFO?[m] client-host - [id: 0xe4be6a32, L:/127.0.0.1:50960 - R:/127.0.0.1:4002] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000c-c7c66f0da96e970f-e4be6a32/16/true, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 5, cap: 5/5, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 12, widx: 12, cap: 496))), 5B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 68 65 6c 6c 6f                                  |hello           |
++--------+-------------------------------------------------+----------------+
+11:58:21.026 [libp2p-nio-worker-3-9] [?[32mINFO?[m] client-host - [id: 0xe4be6a32, L:/127.0.0.1:50960 - R:/127.0.0.1:4002] READ COMPLETE
+11:58:21.028 [libp2p-nio-worker-3-9] [?[32mINFO?[m] client-host - [id: 0xe4be6a32, L:/127.0.0.1:50960 - R:/127.0.0.1:4002] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000c-c7c66f0da96e970f-e4be6a32/16/true, flag=DATA(init), data=UnpooledHeapByteBuf(ridx: 0, widx: 5, cap: 5/5)), 5B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 77 6f 72 6c 64                                  |world           |
++--------+-------------------------------------------------+----------------+
+11:58:21.029 [libp2p-nio-worker-3-9] [?[32mINFO?[m] client-host - [id: 0xe4be6a32, L:/127.0.0.1:50960 - R:/127.0.0.1:4002] FLUSH
+11:58:21.029 [libp2p-nio-worker-3-10] [?[32mINFO?[m] server-host - [id: 0x2f933c99, L:/127.0.0.1:4002 - R:/127.0.0.1:50960] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000d-67488a0da96e9715-2f933c99/16/false, flag=DATA(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 5, cap: 5/5, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 12, widx: 12, cap: 496))), 5B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 77 6f 72 6c 64                                  |world           |
++--------+-------------------------------------------------+----------------+
+11:58:21.030 [libp2p-nio-worker-3-10] [?[32mINFO?[m] server-host - [id: 0x2f933c99, L:/127.0.0.1:4002 - R:/127.0.0.1:50960] WRITE: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000d-67488a0da96e9715-2f933c99/16/false, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 5, cap: 5/5, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 12, widx: 12, cap: 496))), 5B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 77 6f 72 6c 64                                  |world           |
++--------+-------------------------------------------------+----------------+
+11:58:21.030 [libp2p-nio-worker-3-10] [?[32mINFO?[m] server-host - [id: 0x2f933c99, L:/127.0.0.1:4002 - R:/127.0.0.1:50960] FLUSH
+11:58:21.030 [libp2p-nio-worker-3-10] [?[32mINFO?[m] server-host - [id: 0x2f933c99, L:/127.0.0.1:4002 - R:/127.0.0.1:50960] READ COMPLETE
+11:58:21.031 [libp2p-nio-worker-3-9] [?[32mINFO?[m] client-host - [id: 0xe4be6a32, L:/127.0.0.1:50960 - R:/127.0.0.1:4002] READ: MplexFrame(id=3289a6fffe3e2e6b-00028565-0000000c-c7c66f0da96e970f-e4be6a32/16/true, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 5, cap: 5/5, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 12, widx: 12, cap: 496))), 5B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 77 6f 72 6c 64                                  |world           |
++--------+-------------------------------------------------+----------------+
+11:58:21.031 [libp2p-nio-worker-3-9] [?[32mINFO?[m] client-host - [id: 0xe4be6a32, L:/127.0.0.1:50960 - R:/127.0.0.1:4002] READ COMPLETE
+11:58:21.035 [libp2p-nio-worker-3-9] [?[32mINFO?[m] client-host - [id: 0xe4be6a32, L:/127.0.0.1:50960 - R:/127.0.0.1:4002] CLOSE
+11:58:21.038 [libp2p-nio-worker-3-10] [?[32mINFO?[m] server-host - [id: 0x2f933c99, L:/127.0.0.1:4002 - R:/127.0.0.1:50960] READ COMPLETE
+11:58:21.038 [libp2p-nio-worker-3-9] [?[32mINFO?[m] client-host - [id: 0xe4be6a32, L:/127.0.0.1:50960 ! R:/127.0.0.1:4002] CLOSE
+11:58:21.039 [libp2p-nio-worker-3-9] [?[32mINFO?[m] client-host - [id: 0xe4be6a32, L:/127.0.0.1:50960 ! R:/127.0.0.1:4002] INACTIVE
+11:58:21.039 [libp2p-nio-worker-3-9] [?[32mINFO?[m] client-host - [id: 0xe4be6a32, L:/127.0.0.1:50960 ! R:/127.0.0.1:4002] UNREGISTERED
+11:58:21.039 [libp2p-nio-worker-3-10] [?[32mINFO?[m] server-host - [id: 0x2f933c99, L:/127.0.0.1:4002 ! R:/127.0.0.1:50960] INACTIVE
+11:58:21.039 [libp2p-nio-worker-3-10] [?[32mINFO?[m] server-host - [id: 0x2f933c99, L:/127.0.0.1:4002 ! R:/127.0.0.1:50960] UNREGISTERED
+Client Host stopped
+Server Host stopped
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

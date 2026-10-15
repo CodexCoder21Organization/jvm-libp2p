@@ -1,8 +1,8 @@
 diff --git a/libp2p/src/test/kotlin/io/libp2p/mux/ChildReadPauseTcpTest.kt b/libp2p/src/test/kotlin/io/libp2p/mux/ChildReadPauseTcpTest.kt
-index b816b720..c79d050b 100644
+index b816b720..12d314db 100644
 --- a/libp2p/src/test/kotlin/io/libp2p/mux/ChildReadPauseTcpTest.kt
 +++ b/libp2p/src/test/kotlin/io/libp2p/mux/ChildReadPauseTcpTest.kt
-@@ -132,6 +132,23 @@ class ChildReadPauseTcpTest {
+@@ -132,6 +132,24 @@ class ChildReadPauseTcpTest {
              muxers { add(mux) }
              if (listen) network { listen("/ip4/127.0.0.1/tcp/0") }
              protocols { add(binding) }
@@ -14,6 +14,7 @@ index b816b720..c79d050b 100644
 +                        Exception("r241 first physical close $role ${ctx.channel()}").printStackTrace()
 +                        ctx.close(promise)
 +                    }
++                    @Suppress("OVERRIDE_DEPRECATION")
 +                    override fun exceptionCaught(ctx: ChannelHandlerContext, cause: Throwable) {
 +                        println("r241 root exception $role")
 +                        cause.printStackTrace()

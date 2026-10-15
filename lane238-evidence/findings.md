@@ -23,3 +23,22 @@ INFER / PREDECLARED MECHANISM: The mechanism I am about to test is an absent com
 | Peer stub | Test fixture holds no real mux/transport, closes completed futures | PR mux activation cannot be called through this test's fixture |
 
 Plan: initial identical batches of 20 original-test trials on exact PR/develop; all outcomes retained. Then deterministic queue gate on both, fail-first checkpoint, fix/10-trial/mutation/neighbor verification. Compilation runs with JAVA_OPTS=-Xmx2g, Gradle no-daemon/one worker/in-process Kotlin, 900-second process-group bound. No code changed yet.
+
+## 14:14 UTC — compile and source checkpoint
+OBSERVED: Cold PR testClasses completed exit 0 in 254.74 seconds. First evidence checkpoint pushed: https://github.com/CodexCoder21Organization/jvm-libp2p/commit/8bad8628b (abbreviated URL pending full SHA capture; branch is https://github.com/CodexCoder21Organization/jvm-libp2p/tree/evidence/lane238-fast-message-id-20261015/lane238-evidence). PR REST read confirms OPEN at exact head, base develop. Diff of pubsub, P2PService, original test, peer stub and versions.gradle between heads is empty. The first batch of 20 unchanged PR-head trials is now running, one fork at a time. This is a fixed comparison, not a retry-until-green gate.
+OBSERVED: Gradle no-daemon starts a single-use daemon in its own process group despite the launcher JAVA_OPTS. Subsequent wrapper tracks descendants and every owned process group and explicitly sets daemon heap -Xmx2g. Initial compile finished and its daemon exited normally; no overlapping lane build was started.
+
+## 14:16 UTC — original PR sample and prior full stack
+OBSERVED: Exact PR-head original test passes 20/20 fixed native Gradle Test tasks (20 fresh test JVMs, 77.22 seconds including Gradle startup). This sample does not reproduce or erase lane229's failure. Unchanged develop 3e88aeef now runs the same 20-task invocation and options; branch switch requires source recompilation, one warm workspace retained.
+OBSERVED: Retrieved both failing native XML records from lane229 evidence: broader trial 3 and full half B. Both full failure stacks are:
+```
+org.opentest4j.AssertionFailedError:
+expected: 1
+ but was: 0
+    at app//io.libp2p.pubsub.GossipApiTest.testFastMessageId(GossipApiTest.java:75)
+    at java.base@21.0.12.1/java.lang.reflect.Method.invoke(Method.java:580)
+    at java.base@21.0.12.1/java.util.ArrayList.forEach(ArrayList.java:1596)
+    at java.base@21.0.12.1/java.util.ArrayList.forEach(ArrayList.java:1596)
+```
+Saved native XML locally and will push with the comparison evidence. The original assertion is size 1 after an intentionally empty duplicate delivery poll. INFER: This matches the candidate but prior XML has no task-completion marker, so it alone does not prove ordering. The controlled public-API gate remains the deciding experiment.
+CORRECTION: Full first evidence commit URL is https://github.com/CodexCoder21Organization/jvm-libp2p/commit/8bad86281f6571f4e4de22eaca31f7b37fc63ccd .

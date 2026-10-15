@@ -5,8 +5,8 @@
 - DONE: Read test/router/PR diff; record mechanism and invariant table before changes.
 - DONE: Identical original-test trials on PR/develop; preserve native logs and failure stacks.
 - DONE: Deterministically force suspected ordering on both heads through public API.
-- IN PROGRESS: Fix the demonstrated cause on own branch; mutation-check fast-ID assertions; fixed 10/10 and neighbours.
-- TODO: Independent test/code review, REST PR, durable evidence, process/cache/checkout cleanup.
+- DONE: Fix the demonstrated cause on own branch; mutation-check fast-ID assertions; fixed 10/10 and neighbours.
+- IN PROGRESS: Independent reviews and REST PR DONE; durable terminal evidence and process/cache/checkout cleanup remain.
 
 OBSERVED: Brief/common read. Target head 7a27e4890885592f60ad402af6af30b5578da364, base develop. No nested delegation, CI monitoring, merge, publication, deployment or Handoff service action permitted. New-work cutoff 15:22 UTC (75 minutes from 14:07 launch); hard wall 15:37 UTC. Findings incrementally written here.
 
@@ -113,3 +113,20 @@ OBSERVED: Repository .gitignore ignores *.log, so earlier directory adds had pre
 ## 14:59 UTC — exact-head final verification complete
 OBSERVED: After restoring product source, final gate exits 0 in 216.56 seconds: **5/5 passed, 0 failures/errors/skips** (complete GossipApiTest plus three FastIdSeenCacheTest cases), and **spotlessJavaCheck PASS**. No-op fetch/rebase preceded this gate. Fresh ls-remote confirms develop remains 3e88aeef and source branch remains https://github.com/CodexCoder21Organization/jvm-libp2p/commit/82db409e868292cfbdfb5f445d1da1f9a5e24a8a . Working tree is clean, git diff --check passes, and the entire source diff is only GossipApiTest.java. No diagnostic script, evidence, log, generated file, compiled output or dependency/version change is in the source branch.
 PLAN: All analysis, reproductions, correction, 30 trials, two independent mutation assertions, neighbor/style checks and independent reviews DONE. REST PR, terminal evidence/process inspection and checkout/cache cleanup remain. GitHub Actions is unavailable per brief; no CI wait, full-module claim, merge, queue, artifact publication or deployment is authorized or performed.
+
+## 15:00 UTC — REST PR created; brief audit
+OBSERVED: Created https://github.com/CodexCoder21Organization/jvm-libp2p/pull/49 via REST. Response is OPEN, base develop, head 82db409e868292cfbdfb5f445d1da1f9a5e24a8a; returned description matches submitted why-first body byte-for-byte, including required footer. Fresh head-branch PR list was empty immediately before creation. Source/evidence working trees are clean. No PR is merged or enqueued by this lane.
+BRIEF AUDIT:
+- Exact requested PR head, no-op rebase, README/FORK/project instructions and relevant reference docs: DONE.
+- Read original test/router/stub/dependencies/PR diff; mechanism/invariant table before code: DONE.
+- Identical original 20-trial comparison: DONE (PR 20/0; develop 16/4). This lane did not see a natural PR-head failure in its 20-trial sample; earlier exact-head native failures were retrieved and preserved rather than claimed as new runs. The implied PR-only attribution is REFUTED by four unchanged-develop failures and identical exercised-source objects.
+- Force original assertion before actual completion through public router API on both heads: DONE (10/10 failures each, completion controls 10/10 passes each).
+- Own branch from develop; source PR branch untouched; fix test completion at cause: DONE.
+- Preserve assertions and mutation-check fast-ID behavior: DONE (independent native duplicate-delivery and canonical-ID assertion failures under deliberate product changes; both mutations restored).
+- Fixed test minimum 10/10: DONE (30/30); GossipApiTest neighbors once: DONE (complete five-case API/cache gate 5/5); Java formatting: DONE.
+- Independent test-comprehensiveness and code-review passes: DONE; no unresolved findings.
+- REST PR with why/links/appropriate base: DONE. No publication, merge, queue, deployment, CI wait or Handoff action: DONE.
+- Durable logs/XML/source/patches/index/findings: DONE through current checkpoint; final PR/cleanup record being appended.
+- Kill/inspect every owned background process and delete own checkout/cache: IN PROGRESS, required before final response.
+
+VERDICT: Pre-existing test completion-contract bug. The fix PR addresses that defect only; this is not a full-module or green/landable verdict for the mux PR. No open diagnostic question remains for this lane.

@@ -13,3 +13,10 @@ The fork does not record commit metadata in its jar. The manifest contains only 
 Pre-upload probes: main POM HTTP 404; main jar HTTP 404, repeated immediately before publication. No existing version may be replaced.
 
 Publication pending at this checkpoint. SHA256SUMS and artifact-files.json record every locally generated payload and distinguish the two upload inputs.
+
+## Published and verified
+
+Publisher 0.0.6 exited 0 and reported the complete coordinate above. Immediately read back both payloads from kotlin.directory: HTTP 200 for each and SHA-256 exactly matches the staged file. See published-probes.json for full URLs, sizes and checksums, and publish.log for publisher output. No other module or version was published; existing bytes were never replaced.
+
+Main jar SHA-256: `38d6d6695241b7cef23dc0a65f45424593341a52d875945fc6bcd78b2a55904e`.
+POM SHA-256: `e0248f44065179184ac294364c12c014d7f54066f361ced56e7947eef927ec04`.

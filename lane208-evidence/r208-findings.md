@@ -5,9 +5,9 @@ Started 2026-10-15 10:20 UTC. Stop new work at 11:35 UTC; hard wall 11:50 UTC.
 ## Plan
 - [done] Read context, fork instructions and prior evidence; rebase reproducer and confirm 3/3 failures.
 - [done] Record lifecycle invariant table; add public API tests and collect fail-first results.
-- [in progress] Fix lifecycle ordering; prove 10/10 and run mux/yamux/connection packages.
-- [pending] Review tests and implementation independently; push and open non-draft REST PR; document publishing command and next version.
-- [pending] Stop own processes, verify process list, clean checkout, final report.
+- [partial] Final suite 200/200; broader packages 482/485, two failures unclassified.
+- [done] Reviewed, pushed, opened non-draft REST PR; snapshot-31 procedure recorded.
+- [done] Process audit and clean checkout removal; final report.
 
 ## 10:20 UTC — initial context
 OBSERVED: Brief names existing reproducer branch and restricts this lane to opening the upstream PR. common.md requires no nested delegation, no handoff writes, no publishing, no merging, and no CI monitoring by this lane. Findings and logs stay outside the source checkout.
@@ -157,3 +157,11 @@ cp "$release_m2/jvm-libp2p-$release_version.jar" "$release_m2/jvm-libp2p-$releas
 ```
 
 Only stage main JAR and full transitive POM; exclude Gradle .module metadata. No Maven artifact, merge, enqueue or deployment was performed in this lane.
+
+## PR artifact
+https://github.com/CodexCoder21Organization/jvm-libp2p/pull/48 — OPEN, non-draft; head 1b4d3a10782f448cec5de1e7af35cc859bd7f518. Evidence: https://github.com/CodexCoder21Organization/jvm-libp2p/tree/evidence/lane208-mux-publication-20261015/lane208-evidence .
+
+## 2026-10-15 11:36 UTC — terminal checkpoint
+PR https://github.com/CodexCoder21Organization/jvm-libp2p/pull/48 is OPEN/non-draft at 1b4d3a10782f448cec5de1e7af35cc859bd7f518. Source: https://github.com/CodexCoder21Organization/jvm-libp2p/tree/fix/lane208-mux-session-activation . Final target proof 200/200. Broader validation INCOMPLETE: 482/485; echo timeout and malformed framing proven on unchanged base; other two failures unclassified. No merge, publication or deploy.
+Cleanup: corrected the initial process filter, which matched its own shell source, to inspect the executable instead. ps -eo pid,args -ww confirms no own Java/test workers. Clean checkout deleted; no kompile cache created. Full process listing stays local. Source/evidence are pushed; no background task remains.
+Brief audit: reproduction 3/3 DONE; invariants and fail-first cases DONE; owning correction/10-run gate DONE; broader green gate NOT DONE; non-draft PR/version/publishing procedure DONE; durable evidence/cleanup DONE. Next: force coalesced plaintext/root-mux negotiation and early child data, trace root bytes reaching MplexFrameCodec, classify multiple-ping and child-read-pause failures, fix deterministically and make broader verification green. No new source work was started after the cutoff.

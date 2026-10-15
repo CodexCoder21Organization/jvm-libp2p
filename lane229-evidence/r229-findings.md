@@ -72,3 +72,24 @@ OBSERVED: Unchanged develop 3e88aeef completes the identical five-task command i
 
 REFUTED INFERENCE: The brief's suggested rule that a failure occurring only in a five-trial branch sample must be introduced is not supported for echo: the identical source base already emitted the identical test failure and byte-for-byte malformed frame. Five base passes do not invalidate that observed base failure. This is not a green retry verdict or a claim of absence/unchanged frequency; all 40 fresh results and the prior failing base XML are preserved. No speculative source fix is made. The known repeated-activation protocol defect is explicitly left as the follow-up the brief requested.
 PLAN: source/reconciliation DONE; requested four-test comparison DONE with the evidence-backed qualification above; full module verification IN PROGRESS; final PR update/push/cleanup TODO. Restored exact source head 7a27e489, fresh fetch/rebase remains no-op, and began focused 28-case gate before the complementary module halves.
+
+## 13:20 UTC — 20-minute checkpoint
+OBSERVED: Classification XML and all forty fresh trials are pushed through evidence commit cb1c2a4b. Focused exact-head verification is currently compiling. Source remains untouched at 7a27e489; separate module halves are the next dependent steps. No other JVM build runs in this lane; Kubo is idle until its QUIC test. Source reconciliation and the four classifications are complete; runtime gate, PR paragraph, explicit-lease push and cleanup remain. Stop-new-work/hard-wall remain 14:15/14:30 UTC.
+
+## Independent invariant coverage inventory (no new implementation)
+| Resource | Creation / owner / closer | Terminal state, caller surface and reentry | Public test coverage |
+|---|---|---|---|
+| TCP/QUIC parent close | Transport creates; channel attribute owns first close; Connection and transport join | One success/failure retained; later callers borrow independent futures; reentry cannot issue a second physical close; no persisted restart state | ParentCloseOwnershipTest's pending and failed-close scenarios |
+| Already-closed physical parent | Native channel owns close future; first library close observer joins it | Completion must not run ahead of pending physical-close listeners when an early observer reenters; no restart record | earlyCloseObserverReentrySettlesQueuedOpens, explicit/pipeline × both muxers |
+| Mux readiness/activation | StreamMuxer creates readiness; MuxHandler owns publication | Publish activated open session, or fail on close during installation/preactivation; callbacks may close immediately | sessionIsPublishedAfterActivation; closeDuringHandlerInstallationFailsSessionReadiness; closeBeforeActivationFailsConnectionWithoutPublishingIt; original four publication tests |
+| Queued stream creation | AbstractMuxHandler privately owns result registry and event-loop work | Every result settles/removes on success/failure; closure rejects registered and racing callers; callbacks can reenter without a held callback lock | queuedOpensAndCompletionReentrySettleWhenPublicationClosesParent; offLoopQueuedOpensSettleBeforeParentCloseCompletes (64 callers / exact 128 completions) |
+| Caller stream/controller views | MuxHandler owns creation source; caller owns mutable stream view | Caller cancel/fail/complete cannot suppress controller close; closed parent rejects later streams | callerCompletedStreamFutureDoesNotHideParentCloseFromController, 3 mutations × both muxers; closeAfterSuccessfulPingRejectsNewStreams control |
+
+No state in this change survives a process restart; no persisted record shape changes. Each defect row has lane220's fail-first evidence; normal ping controls intentionally also pass on old code. Current final-head native verification is pending.
+
+## 13:24 UTC — focused gate progress
+OBSERVED: Restored PR production and fixture compilation completed; compileTestKotlin is still running. No focused runtime verdict exists yet. Command remains bounded at 720 seconds; no internal timeout/count has changed. Evidence branch contains classification milestone; no source branch edit exists. Both module halves remain pending on the compiled final head.
+
+## 13:27 UTC — focused gate complete
+OBSERVED: Exact unchanged PR head 7a27e489 completes the focused lifecycle/ownership command successfully in 512.51 seconds including recompilation. Raw XML confirms **28/28 pass, zero failures/errors/skips**: original publication 4/4, expanded session activation/reentry 22/22, and PR39's two original parent-ownership cases 2/2. This verifies the source reconciliation's required native tests and retains the already-closed listener correction. Full XML, command, output and summary saved with r229-lifecycle prefix. Source remains clean; fresh fetch/rebase remains a no-op before Half A.
+PLAN: reconciliation and requested comparison DONE; focused lifecycle/ownership DONE; full module halves IN PROGRESS; PR update/lease push/cleanup TODO.

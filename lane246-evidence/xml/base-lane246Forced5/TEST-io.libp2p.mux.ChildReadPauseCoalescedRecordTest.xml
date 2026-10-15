@@ -1,0 +1,1467 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.libp2p.mux.ChildReadPauseCoalescedRecordTest" tests="2" skipped="0" failures="2" errors="0" timestamp="2026-10-15T15:23:29.855Z" hostname="842e6195a2bc" time="8.246">
+  <properties/>
+  <testcase name="[1] mplex" classname="io.libp2p.mux.ChildReadPauseCoalescedRecordTest" time="7.919">
+    <failure message="java.util.concurrent.TimeoutException" type="java.util.concurrent.TimeoutException">java.util.concurrent.TimeoutException
+	at java.base/java.util.concurrent.CompletableFuture.timedGet(CompletableFuture.java:1960)
+	at java.base/java.util.concurrent.CompletableFuture.get(CompletableFuture.java:2095)
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest.offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume(ChildReadPauseCoalescedRecordTest.kt:211)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at java.base/java.util.Optional.ifPresent(Optional.java:178)
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:184)
+	at java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:197)
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:184)
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:184)
+	at java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:197)
+	at java.base/java.util.Spliterators$ArraySpliterator.forEachRemaining(Spliterators.java:1024)
+	at java.base/java.util.stream.AbstractPipeline.copyInto(AbstractPipeline.java:509)
+	at java.base/java.util.stream.AbstractPipeline.wrapAndCopyInto(AbstractPipeline.java:499)
+	at java.base/java.util.stream.ForEachOps$ForEachOp.evaluateSequential(ForEachOps.java:151)
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.evaluateSequential(ForEachOps.java:174)
+	at java.base/java.util.stream.AbstractPipeline.evaluate(AbstractPipeline.java:234)
+	at java.base/java.util.stream.ReferencePipeline.forEach(ReferencePipeline.java:596)
+	at java.base/java.util.stream.ReferencePipeline$7$1.accept(ReferencePipeline.java:276)
+	at java.base/java.util.ArrayList$ArrayListSpliterator.forEachRemaining(ArrayList.java:1708)
+	at java.base/java.util.stream.AbstractPipeline.copyInto(AbstractPipeline.java:509)
+	at java.base/java.util.stream.AbstractPipeline.wrapAndCopyInto(AbstractPipeline.java:499)
+	at java.base/java.util.stream.ForEachOps$ForEachOp.evaluateSequential(ForEachOps.java:151)
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.evaluateSequential(ForEachOps.java:174)
+	at java.base/java.util.stream.AbstractPipeline.evaluate(AbstractPipeline.java:234)
+	at java.base/java.util.stream.ReferencePipeline.forEach(ReferencePipeline.java:596)
+	at java.base/java.util.stream.ReferencePipeline$7$1.accept(ReferencePipeline.java:276)
+	at java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:197)
+	at java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:197)
+	at java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:197)
+	at java.base/java.util.ArrayList$ArrayListSpliterator.forEachRemaining(ArrayList.java:1708)
+	at java.base/java.util.stream.AbstractPipeline.copyInto(AbstractPipeline.java:509)
+	at java.base/java.util.stream.AbstractPipeline.wrapAndCopyInto(AbstractPipeline.java:499)
+	at java.base/java.util.stream.ForEachOps$ForEachOp.evaluateSequential(ForEachOps.java:151)
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.evaluateSequential(ForEachOps.java:174)
+	at java.base/java.util.stream.AbstractPipeline.evaluate(AbstractPipeline.java:234)
+	at java.base/java.util.stream.ReferencePipeline.forEach(ReferencePipeline.java:596)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+</failure>
+  </testcase>
+  <testcase name="[2] yamux" classname="io.libp2p.mux.ChildReadPauseCoalescedRecordTest" time="0.324">
+    <failure message="java.util.concurrent.ExecutionException: io.libp2p.core.ConnectionClosedException: Channel closed [id: 0xb22bbf7e/1, L:Mux[/127.0.0.1:58174-3289a6fffe3e2e6b-0007bbe5-00000004-a9a1a16e79fa87c2-b22bbf7e/1] ! R:Mux[/127.0.0.1:34799-3289a6fffe3e2e6b-0007bbe5-00000004-a9a1a16e79fa87c2-b22bbf7e/1]]" type="java.util.concurrent.ExecutionException">java.util.concurrent.ExecutionException: io.libp2p.core.ConnectionClosedException: Channel closed [id: 0xb22bbf7e/1, L:Mux[/127.0.0.1:58174-3289a6fffe3e2e6b-0007bbe5-00000004-a9a1a16e79fa87c2-b22bbf7e/1] ! R:Mux[/127.0.0.1:34799-3289a6fffe3e2e6b-0007bbe5-00000004-a9a1a16e79fa87c2-b22bbf7e/1]]
+	at java.base/java.util.concurrent.CompletableFuture.reportGet(CompletableFuture.java:396)
+	at java.base/java.util.concurrent.CompletableFuture.get(CompletableFuture.java:2096)
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest.offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume(ChildReadPauseCoalescedRecordTest.kt:211)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at java.base/java.util.Optional.ifPresent(Optional.java:178)
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:184)
+	at java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:197)
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:184)
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:184)
+	at java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:197)
+	at java.base/java.util.Spliterators$ArraySpliterator.forEachRemaining(Spliterators.java:1024)
+	at java.base/java.util.stream.AbstractPipeline.copyInto(AbstractPipeline.java:509)
+	at java.base/java.util.stream.AbstractPipeline.wrapAndCopyInto(AbstractPipeline.java:499)
+	at java.base/java.util.stream.ForEachOps$ForEachOp.evaluateSequential(ForEachOps.java:151)
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.evaluateSequential(ForEachOps.java:174)
+	at java.base/java.util.stream.AbstractPipeline.evaluate(AbstractPipeline.java:234)
+	at java.base/java.util.stream.ReferencePipeline.forEach(ReferencePipeline.java:596)
+	at java.base/java.util.stream.ReferencePipeline$7$1.accept(ReferencePipeline.java:276)
+	at java.base/java.util.ArrayList$ArrayListSpliterator.forEachRemaining(ArrayList.java:1708)
+	at java.base/java.util.stream.AbstractPipeline.copyInto(AbstractPipeline.java:509)
+	at java.base/java.util.stream.AbstractPipeline.wrapAndCopyInto(AbstractPipeline.java:499)
+	at java.base/java.util.stream.ForEachOps$ForEachOp.evaluateSequential(ForEachOps.java:151)
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.evaluateSequential(ForEachOps.java:174)
+	at java.base/java.util.stream.AbstractPipeline.evaluate(AbstractPipeline.java:234)
+	at java.base/java.util.stream.ReferencePipeline.forEach(ReferencePipeline.java:596)
+	at java.base/java.util.stream.ReferencePipeline$7$1.accept(ReferencePipeline.java:276)
+	at java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:197)
+	at java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:197)
+	at java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:197)
+	at java.base/java.util.ArrayList$ArrayListSpliterator.forEachRemaining(ArrayList.java:1708)
+	at java.base/java.util.stream.AbstractPipeline.copyInto(AbstractPipeline.java:509)
+	at java.base/java.util.stream.AbstractPipeline.wrapAndCopyInto(AbstractPipeline.java:499)
+	at java.base/java.util.stream.ForEachOps$ForEachOp.evaluateSequential(ForEachOps.java:151)
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.evaluateSequential(ForEachOps.java:174)
+	at java.base/java.util.stream.AbstractPipeline.evaluate(AbstractPipeline.java:234)
+	at java.base/java.util.stream.ReferencePipeline.forEach(ReferencePipeline.java:596)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+Caused by: io.libp2p.core.ConnectionClosedException: Channel closed [id: 0xb22bbf7e/1, L:Mux[/127.0.0.1:58174-3289a6fffe3e2e6b-0007bbe5-00000004-a9a1a16e79fa87c2-b22bbf7e/1] ! R:Mux[/127.0.0.1:34799-3289a6fffe3e2e6b-0007bbe5-00000004-a9a1a16e79fa87c2-b22bbf7e/1]]
+	at app//io.libp2p.multistream.ProtocolSelect.channelUnregistered(ProtocolSelect.kt:89)
+	at app//io.netty.channel.AbstractChannelHandlerContext.fireChannelUnregistered(AbstractChannelHandlerContext.java:191)
+	at app//io.netty.channel.DefaultChannelPipeline$HeadContext.channelUnregistered(DefaultChannelPipeline.java:1407)
+	at app//io.netty.channel.DefaultChannelPipeline.fireChannelUnregistered(DefaultChannelPipeline.java:780)
+	at app//io.libp2p.etc.util.netty.AbstractChildChannel.completeTeardown(AbstractChildChannel.kt:184)
+	at app//io.libp2p.etc.util.netty.AbstractChildChannel.doClose(AbstractChildChannel.kt:155)
+	at app//io.libp2p.etc.util.netty.mux.MuxChannel.doClose(MuxChannel.kt:146)
+	at app//io.netty.channel.AbstractChannel$AbstractUnsafe.doClose0(AbstractChannel.java:617)
+	at app//io.netty.channel.AbstractChannel$AbstractUnsafe.close(AbstractChannel.java:594)
+	at app//io.netty.channel.AbstractChannel$AbstractUnsafe.close(AbstractChannel.java:489)
+	at app//io.netty.channel.DefaultChannelPipeline$HeadContext.close(DefaultChannelPipeline.java:1371)
+	at app//io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:633)
+	at app//io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:453)
+	at app//io.netty.channel.DefaultChannelPipeline.close(DefaultChannelPipeline.java:978)
+	at app//io.netty.channel.Channel.close(Channel.java:312)
+	at app//io.libp2p.etc.util.netty.AbstractChildChannel.closeImpl(AbstractChildChannel.kt:56)
+	at app//io.libp2p.etc.util.netty.AbstractChildChannel.parentCloseListener$lambda-0(AbstractChildChannel.kt:33)
+	at app//io.netty.util.concurrent.DefaultPromise.notifyListener0(DefaultPromise.java:604)
+	at app//io.netty.util.concurrent.DefaultPromise.notifyListeners0(DefaultPromise.java:597)
+	at app//io.netty.util.concurrent.DefaultPromise.notifyListenersNow(DefaultPromise.java:573)
+	at app//io.netty.util.concurrent.DefaultPromise.notifyListeners(DefaultPromise.java:506)
+	at app//io.netty.util.concurrent.DefaultPromise.setValue0(DefaultPromise.java:650)
+	at app//io.netty.util.concurrent.DefaultPromise.setSuccess0(DefaultPromise.java:639)
+	at app//io.netty.util.concurrent.DefaultPromise.trySuccess(DefaultPromise.java:119)
+	at app//io.netty.channel.DefaultChannelPromise.trySuccess(DefaultChannelPromise.java:84)
+	at app//io.netty.channel.AbstractChannel$CloseFuture.setClosed(AbstractChannel.java:1044)
+	at app//io.netty.channel.AbstractChannel$AbstractUnsafe.doClose0(AbstractChannel.java:618)
+	at app//io.netty.channel.AbstractChannel$AbstractUnsafe.close(AbstractChannel.java:594)
+	at app//io.netty.channel.AbstractChannel$AbstractUnsafe.handleWriteError(AbstractChannel.java:813)
+	at app//io.netty.channel.AbstractChannel$AbstractUnsafe.flush0(AbstractChannel.java:796)
+	at app//io.netty.channel.nio.AbstractNioChannel$AbstractNioUnsafe.flush0(AbstractNioChannel.java:404)
+	at app//io.netty.channel.AbstractChannel$AbstractUnsafe.flush(AbstractChannel.java:758)
+	at app//io.netty.channel.DefaultChannelPipeline$HeadContext.flush(DefaultChannelPipeline.java:1391)
+	at app//io.netty.channel.AbstractChannelHandlerContext.flush(AbstractChannelHandlerContext.java:754)
+	at app//io.netty.channel.ChannelDuplexHandler.flush(ChannelDuplexHandler.java:127)
+	at app//io.netty.channel.AbstractChannelHandlerContext.write(AbstractChannelHandlerContext.java:817)
+	at app//io.netty.channel.AbstractChannelHandlerContext.writeAndFlush(AbstractChannelHandlerContext.java:776)
+	at app//io.netty.channel.AbstractChannelHandlerContext.writeAndFlush(AbstractChannelHandlerContext.java:859)
+	at app//io.libp2p.mux.yamux.YamuxHandler.writeAndFlushFrame(YamuxHandler.kt:437)
+	at app//io.libp2p.mux.yamux.YamuxHandler.access$writeAndFlushFrame(YamuxHandler.kt:36)
+	at app//io.libp2p.mux.yamux.YamuxHandler$YamuxStreamHandler.drainBufferAndMaybeClose(YamuxHandler.kt:248)
+	at app//io.libp2p.mux.yamux.YamuxHandler$YamuxStreamHandler.sendData(YamuxHandler.kt:303)
+	at app//io.libp2p.mux.yamux.YamuxHandler.onChildWrite(YamuxHandler.kt:475)
+	at app//io.libp2p.mux.yamux.YamuxHandler.onChildWrite(YamuxHandler.kt:36)
+	at app//io.libp2p.etc.util.netty.mux.MuxChannel.doWrite(MuxChannel.kt:87)
+	at app//io.netty.channel.AbstractChannel$AbstractUnsafe.flush0(AbstractChannel.java:794)
+	at app//io.netty.channel.AbstractChannel$AbstractUnsafe.flush(AbstractChannel.java:758)
+	at app//io.netty.channel.DefaultChannelPipeline$HeadContext.flush(DefaultChannelPipeline.java:1391)
+	at app//io.netty.channel.AbstractChannelHandlerContext.flush(AbstractChannelHandlerContext.java:754)
+	at app//io.libp2p.multistream.Negotiator$GenericHandler.channelActive(Negotiator.kt:92)
+	at app//io.netty.channel.AbstractChannelHandlerContext.fireChannelActive(AbstractChannelHandlerContext.java:221)
+	at app//io.netty.channel.DefaultChannelPipeline$HeadContext.channelActive(DefaultChannelPipeline.java:1417)
+	at app//io.netty.channel.DefaultChannelPipeline.fireChannelActive(DefaultChannelPipeline.java:862)
+	at app//io.netty.channel.AbstractChannel$AbstractUnsafe.lambda$register0$0(AbstractChannel.java:389)
+	at app//io.netty.util.concurrent.DefaultPromise.notifyListener0(DefaultPromise.java:604)
+	at app//io.netty.util.concurrent.DefaultPromise.notifyListenersNow(DefaultPromise.java:571)
+	at app//io.netty.util.concurrent.DefaultPromise.notifyListeners(DefaultPromise.java:506)
+	at app//io.netty.util.concurrent.DefaultPromise.setValue0(DefaultPromise.java:650)
+	at app//io.netty.util.concurrent.DefaultPromise.setSuccess0(DefaultPromise.java:639)
+	at app//io.netty.util.concurrent.DefaultPromise.setSuccess(DefaultPromise.java:111)
+	at app//io.netty.channel.DefaultChannelPromise.setSuccess(DefaultChannelPromise.java:78)
+	at app//io.netty.channel.DefaultChannelPromise.setSuccess(DefaultChannelPromise.java:73)
+	at app//io.netty.channel.AbstractChannel.doRegister(AbstractChannel.java:960)
+	at app//io.netty.channel.AbstractChannel$AbstractUnsafe.register0(AbstractChannel.java:405)
+	at app//io.netty.channel.AbstractChannel$AbstractUnsafe.register(AbstractChannel.java:346)
+	at app//io.netty.channel.SingleThreadEventLoop.register(SingleThreadEventLoop.java:119)
+	at app//io.netty.channel.SingleThreadEventLoop.register(SingleThreadEventLoop.java:113)
+	at app//io.libp2p.etc.util.netty.mux.AbstractMuxHandler.createChild(AbstractMuxHandler.kt:375)
+	at app//io.libp2p.etc.util.netty.mux.AbstractMuxHandler.newStream$lambda-9(AbstractMuxHandler.kt:389)
+	at java.base@21.0.12.1/java.util.concurrent.CompletableFuture$UniApply.tryFire(CompletableFuture.java:646)
+	at java.base@21.0.12.1/java.util.concurrent.CompletableFuture$Completion.run(CompletableFuture.java:482)
+	at app//io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:148)
+	at app//io.netty.util.concurrent.AbstractEventExecutor.safeExecute(AbstractEventExecutor.java:141)
+	at app//io.netty.util.concurrent.SingleThreadEventExecutor.runAllTasks(SingleThreadEventExecutor.java:535)
+	at app//io.netty.channel.SingleThreadIoEventLoop.run(SingleThreadIoEventLoop.java:201)
+	at app//io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:1195)
+	at app//io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+	at app//io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+	at java.base@21.0.12.1/java.lang.Thread.run(Thread.java:1583)
+	Suppressed: io.libp2p.core.ConnectionClosedException: Channel closed [id: 0xd69e41b4/1, L:Mux[/127.0.0.1:58182-3289a6fffe3e2e6b-0007bbe5-00000006-1428a51e79fa886c-d69e41b4/1] ! R:Mux[/127.0.0.1:34799-3289a6fffe3e2e6b-0007bbe5-00000006-1428a51e79fa886c-d69e41b4/1]]
+		... 79 more
+</failure>
+  </testcase>
+  <system-out><![CDATA[R241 TRACE mplex
+2194194759936590 server.raw 9cb8e309 ACTIVE 1
+2194194743338251 client.raw 9fd2ef57 ACTIVE 1
+2194194990251982 client.raw 9fd2ef57 WRITE 132f6d756c746973747265616d2f312e302e300a
+2194194995277274 server.raw 9cb8e309 WRITE 132f6d756c746973747265616d2f312e302e300a
+2194194995724891 client.raw 9fd2ef57 WRITE 112f706c61696e746578742f322e302e300a
+2194195001707139 client.raw 9fd2ef57 READ 132f6d756c746973747265616d2f312e302e300a
+2194195001766484 server.raw 9cb8e309 READ 132f6d756c746973747265616d2f312e302e300a112f706c61696e746578742f322e302e300a
+2194195054616601 server.raw 9cb8e309 WRITE 112f706c61696e746578742f322e302e300a000000850a221220ada4304084f8c1aee7249ab3e62caeeb27932c18a02be035bf4ea96dd1477fdf125f0803125b3059301306072a8648ce3d020106082a8648ce3d030107034200046d758cdb8ec065ddf1f5638846de854d7480aced91a9d3d002db0fdf0e8acc0dc4fb0e7897f80aefd4a74250f1a780057e5b168714defc15818f92cee6f83209
+2194195065325353 client.raw 9fd2ef57 READ 112f706c61696e746578742f322e302e300a000000850a221220ada4304084f8c1aee7249ab3e62caeeb27932c18a02be035bf4ea96dd1477fdf125f0803125b3059301306072a8648ce3d020106082a8648ce3d030107034200046d758cdb8ec065ddf1f5638846de854d7480aced91a9d3d002db0fdf0e8acc0dc4fb0e7897f80aefd4a74250f1a780057e5b168714defc15818f92cee6f83209
+2194195079626557 client.raw 9fd2ef57 WRITE 00000085
+2194195084131990 client.raw 9fd2ef57 WRITE 0a221220411cb892fa580723bc01567ef2ed0e367ad6c77b8ff532e9635ddf8045edf759125f0803125b3059301306072a8648ce3d020106082a8648ce3d030107034200047460d9db7e5e1b5a017aec426faa21534a7dfbb8d9c7f84371ec250984f262e419ab69cb8c128f71a5a07a96ddac4b71cb2a13c8a9d5ac13cb9f84b074ce2fde
+2194195094968942 server.raw 9cb8e309 READ 000000850a221220411cb892fa580723bc01567ef2ed0e367ad6c77b8ff532e9635ddf8045edf759125f0803125b3059301306072a8648ce3d020106082a8648ce3d030107034200047460d9db7e5e1b5a017aec426faa21534a7dfbb8d9c7f84371ec250984f262e419ab69cb8c128f71a5a07a96ddac4b71cb2a13c8a9d5ac13cb9f84b074ce2fde
+2194195097310143 client.after 9fd2ef57 ACTIVE 1
+2194195103584719 client.after 9fd2ef57 WRITE 132f6d756c746973747265616d2f312e302e300a
+2194195103718166 client.raw 9fd2ef57 WRITE 00000014
+2194195103797384 client.raw 9fd2ef57 WRITE 132f6d756c746973747265616d2f312e302e300a
+2194195104048637 client.after 9fd2ef57 WRITE 0d2f6d706c65782f362e372e300a
+2194195104126702 client.raw 9fd2ef57 WRITE 0000000e
+2194195104193202 client.raw 9fd2ef57 WRITE 0d2f6d706c65782f362e372e300a
+2194195106762959 server.after 9cb8e309 ACTIVE 1
+2194195107247106 server.after 9cb8e309 WRITE 132f6d756c746973747265616d2f312e302e300a
+2194195107346804 server.raw 9cb8e309 WRITE 00000014
+2194195107427768 server.raw 9cb8e309 WRITE 132f6d756c746973747265616d2f312e302e300a
+2194195108358749 server.raw 9cb8e309 READ 00000014132f6d756c746973747265616d2f312e302e300a0000000e0d2f6d706c65782f362e372e300a
+2194195108468118 server.after 9cb8e309 READ 132f6d756c746973747265616d2f312e302e300a
+2194195111248822 server.after 9cb8e309 READ 0d2f6d706c65782f362e372e300a
+2194195111605687 server.after 9cb8e309 WRITE 0d2f6d706c65782f362e372e300a
+2194195111700387 server.raw 9cb8e309 WRITE 0000000e
+2194195111779261 server.raw 9cb8e309 WRITE 0d2f6d706c65782f362e372e300a
+2194195115405021 client.after 9fd2ef57 ACTIVE 2
+java.lang.Exception: Repeated activation
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.channelActive(ChildReadPauseCoalescedRecordTest.kt:166)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelActive(AbstractChannelHandlerContext.java:221)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelActive(AbstractChannelHandlerContext.java:229)
+	at io.libp2p.multistream.Negotiator$GenericHandler.channelRead0(Negotiator.kt:121)
+	at io.libp2p.multistream.Negotiator$GenericHandler.channelRead0(Negotiator.kt:75)
+	at io.netty.channel.SimpleChannelInboundHandler.channelRead(SimpleChannelInboundHandler.java:99)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:357)
+	at io.netty.handler.codec.MessageToMessageDecoder.channelRead(MessageToMessageDecoder.java:107)
+	at io.netty.handler.codec.MessageToMessageCodec.channelRead(MessageToMessageCodec.java:120)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:355)
+	at io.netty.handler.codec.MessageToMessageDecoder.channelRead(MessageToMessageDecoder.java:107)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:357)
+	at io.netty.handler.codec.ByteToMessageDecoder.fireChannelRead(ByteToMessageDecoder.java:361)
+	at io.netty.handler.codec.ByteToMessageDecoder.fireChannelRead(ByteToMessageDecoder.java:348)
+	at io.netty.handler.codec.ByteToMessageDecoder.callDecode(ByteToMessageDecoder.java:470)
+	at io.netty.handler.codec.ByteToMessageDecoder.channelRead(ByteToMessageDecoder.java:296)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:357)
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.channelRead(ChildReadPauseCoalescedRecordTest.kt:171)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:355)
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.channelRead(DefaultChannelPipeline.java:1429)
+	at io.netty.channel.DefaultChannelPipeline.fireChannelRead(DefaultChannelPipeline.java:918)
+	at io.netty.channel.nio.AbstractNioByteChannel$NioByteUnsafe.read(AbstractNioByteChannel.java:176)
+	at io.netty.channel.nio.AbstractNioChannel$AbstractNioUnsafe.handle(AbstractNioChannel.java:445)
+	at io.netty.channel.nio.NioIoHandler$DefaultNioRegistration.handle(NioIoHandler.java:388)
+	at io.netty.channel.nio.NioIoHandler.processSelectedKey(NioIoHandler.java:596)
+	at io.netty.channel.nio.NioIoHandler.processSelectedKeysOptimized(NioIoHandler.java:571)
+	at io.netty.channel.nio.NioIoHandler.processSelectedKeys(NioIoHandler.java:512)
+	at io.netty.channel.nio.NioIoHandler.run(NioIoHandler.java:484)
+	at io.netty.channel.SingleThreadIoEventLoop.runIo(SingleThreadIoEventLoop.java:225)
+	at io.netty.channel.SingleThreadIoEventLoop.run(SingleThreadIoEventLoop.java:196)
+	at io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:1195)
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+
+2194195115861331 client.after 9fd2ef57 WRITE 132f6d756c746973747265616d2f312e302e300a
+2194195115970227 client.raw 9fd2ef57 WRITE 00000014
+2194195116060533 client.raw 9fd2ef57 WRITE 132f6d756c746973747265616d2f312e302e300a
+2194195116277231 client.after 9fd2ef57 WRITE 0d2f6d706c65782f362e372e300a
+2194195116338071 client.raw 9fd2ef57 WRITE 0000000e
+2194195116385034 client.raw 9fd2ef57 WRITE 0d2f6d706c65782f362e372e300a
+2194195116849401 client.raw 9fd2ef57 READ 00000014132f6d756c746973747265616d2f312e302e300a0000000e0d2f6d706c65782f362e372e300a
+2194195119833022 client.after 9fd2ef57 READ 132f6d756c746973747265616d2f312e302e300a
+2194195120096974 client.after 9fd2ef57 READ 0d2f6d706c65782f362e372e300a
+2194195131990607 server.frames 9cb8e309 ACTIVE 1
+2194195134758354 server.raw 9cb8e309 READ 00000014132f6d756c746973747265616d2f312e302e300a0000000e0d2f6d706c65782f362e372e300a
+2194195134934265 server.after 9cb8e309 READ 132f6d756c746973747265616d2f312e302e300a
+2194195135250428 server.after 9cb8e309 READ 0d2f6d706c65782f362e372e300a
+2194195153117378 client.frames 9fd2ef57 ACTIVE 1
+2194195213682582 client.frames 9fd2ef57 WRITE MplexFrame(id=3289a6fffe3e2e6b-0007bbe5-00000001-ea3ae91c99fab372-9fd2ef57/16/true, flag=OPEN(init), data=EmptyByteBufBE)
+2194195213969858 client.after 9fd2ef57 WRITE 800100
+2194195217267592 client.raw 9fd2ef57 WRITE 00000003
+2194195217359992 client.raw 9fd2ef57 WRITE 800100
+2194195220513530 server.raw 9cb8e309 READ 00000003800100
+2194195220620080 server.after 9cb8e309 READ 800100
+2194195226602963 client.frames 9fd2ef57 WRITE MplexFrame(id=3289a6fffe3e2e6b-0007bbe5-00000001-ea3ae91c99fab372-9fd2ef57/16/true, flag=DATA(init), data=AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 20, cap: 256))
+2194195226780528 client.after 9fd2ef57 WRITE 820114132f6d756c746973747265616d2f312e302e300a
+2194195226877690 client.raw 9fd2ef57 WRITE 00000017
+2194195226952088 client.raw 9fd2ef57 WRITE 820114132f6d756c746973747265616d2f312e302e300a
+2194195227393457 server.raw 9cb8e309 READ 00000017820114132f6d756c746973747265616d2f312e302e300a
+2194195227455050 client.frames 9fd2ef57 WRITE MplexFrame(id=3289a6fffe3e2e6b-0007bbe5-00000001-ea3ae91c99fab372-9fd2ef57/16/true, flag=DATA(init), data=AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 30, cap: 256))
+2194195227524582 server.after 9cb8e309 READ 820114132f6d756c746973747265616d2f312e302e300a
+2194195227604550 client.after 9fd2ef57 WRITE 82011e1d2f746573742f6368696c642d726561642d70617573652f312e302e300a
+2194195227739438 server.frames 9cb8e309 READ MplexFrame(id=3289a6fffe3e2e6b-0007bbe5-00000002-046c99c299fab40a-9cb8e309/2/true, flag=CLOSE(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 47, cap: 47/47, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 49, widx: 60, cap: 64)))
+2194195227701450 client.raw 9fd2ef57 WRITE 00000021
+2194195227827419 client.raw 9fd2ef57 WRITE 82011e1d2f746573742f6368696c642d726561642d70617573652f312e302e300a
+2194195228420663 server.raw 9cb8e309 READ 0000002182011e1d2f746573742f6368696c642d726561642d70617573652f312e302e300a
+2194195228509505 server.after 9cb8e309 READ 82011e1d2f746573742f6368696c642d726561642d70617573652f312e302e300a
+2194199618552738 client.frames 9fd2ef57 CLOSE
+java.lang.Exception: Physical close client.frames
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.close(ChildReadPauseCoalescedRecordTest.kt:178)
+	at io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:635)
+	at io.netty.channel.AbstractChannelHandlerContext.lambda$close$6(AbstractChannelHandlerContext.java:649)
+	at io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:148)
+	at io.netty.util.concurrent.AbstractEventExecutor.safeExecute(AbstractEventExecutor.java:141)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.runAllTasks(SingleThreadEventExecutor.java:535)
+	at io.netty.channel.SingleThreadIoEventLoop.run(SingleThreadIoEventLoop.java:201)
+	at io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:1195)
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+
+2194199618849147 client.after 9fd2ef57 CLOSE
+java.lang.Exception: Physical close client.after
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.close(ChildReadPauseCoalescedRecordTest.kt:178)
+	at io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:635)
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.close(ChildReadPauseCoalescedRecordTest.kt:179)
+	at io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:635)
+	at io.netty.channel.AbstractChannelHandlerContext.lambda$close$6(AbstractChannelHandlerContext.java:649)
+	at io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:148)
+	at io.netty.util.concurrent.AbstractEventExecutor.safeExecute(AbstractEventExecutor.java:141)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.runAllTasks(SingleThreadEventExecutor.java:535)
+	at io.netty.channel.SingleThreadIoEventLoop.run(SingleThreadIoEventLoop.java:201)
+	at io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:1195)
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+
+2194199619096370 client.raw 9fd2ef57 CLOSE
+java.lang.Exception: Physical close client.raw
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.close(ChildReadPauseCoalescedRecordTest.kt:178)
+	at io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:635)
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.close(ChildReadPauseCoalescedRecordTest.kt:179)
+	at io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:635)
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.close(ChildReadPauseCoalescedRecordTest.kt:179)
+	at io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:635)
+	at io.netty.channel.AbstractChannelHandlerContext.lambda$close$6(AbstractChannelHandlerContext.java:649)
+	at io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:148)
+	at io.netty.util.concurrent.AbstractEventExecutor.safeExecute(AbstractEventExecutor.java:141)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.runAllTasks(SingleThreadEventExecutor.java:535)
+	at io.netty.channel.SingleThreadIoEventLoop.run(SingleThreadIoEventLoop.java:201)
+	at io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:1195)
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+
+2194199621354222 server.raw 9cb8e309 INACTIVE
+2194199621420157 server.after 9cb8e309 INACTIVE
+2194199621501539 server.frames 9cb8e309 INACTIVE
+2194199649346963 client.frames 9fd2ef57 CLOSE
+java.lang.Exception: Physical close client.frames
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.close(ChildReadPauseCoalescedRecordTest.kt:178)
+	at io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:635)
+	at io.netty.channel.AbstractChannelHandlerContext.lambda$close$6(AbstractChannelHandlerContext.java:649)
+	at io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:148)
+	at io.netty.util.concurrent.AbstractEventExecutor.safeExecute(AbstractEventExecutor.java:141)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.runAllTasks(SingleThreadEventExecutor.java:535)
+	at io.netty.channel.SingleThreadIoEventLoop.run(SingleThreadIoEventLoop.java:201)
+	at io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:1195)
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+
+2194199649467546 client.after 9fd2ef57 CLOSE
+java.lang.Exception: Physical close client.after
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.close(ChildReadPauseCoalescedRecordTest.kt:178)
+	at io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:635)
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.close(ChildReadPauseCoalescedRecordTest.kt:179)
+	at io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:635)
+	at io.netty.channel.AbstractChannelHandlerContext.lambda$close$6(AbstractChannelHandlerContext.java:649)
+	at io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:148)
+	at io.netty.util.concurrent.AbstractEventExecutor.safeExecute(AbstractEventExecutor.java:141)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.runAllTasks(SingleThreadEventExecutor.java:535)
+	at io.netty.channel.SingleThreadIoEventLoop.run(SingleThreadIoEventLoop.java:201)
+	at io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:1195)
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+
+2194199649557246 client.raw 9fd2ef57 CLOSE
+java.lang.Exception: Physical close client.raw
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.close(ChildReadPauseCoalescedRecordTest.kt:178)
+	at io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:635)
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.close(ChildReadPauseCoalescedRecordTest.kt:179)
+	at io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:635)
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.close(ChildReadPauseCoalescedRecordTest.kt:179)
+	at io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:635)
+	at io.netty.channel.AbstractChannelHandlerContext.lambda$close$6(AbstractChannelHandlerContext.java:649)
+	at io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:148)
+	at io.netty.util.concurrent.AbstractEventExecutor.safeExecute(AbstractEventExecutor.java:141)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.runAllTasks(SingleThreadEventExecutor.java:535)
+	at io.netty.channel.SingleThreadIoEventLoop.run(SingleThreadIoEventLoop.java:201)
+	at io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:1195)
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+
+2194199649651198 client.raw 9fd2ef57 INACTIVE
+2194199649668407 client.after 9fd2ef57 INACTIVE
+2194199649677578 client.frames 9fd2ef57 INACTIVE
+R241 TRACE yamux
+2194199794403619 client.raw b22bbf7e ACTIVE 1
+2194199794826889 client.raw b22bbf7e WRITE 132f6d756c746973747265616d2f312e302e300a
+2194199799631311 server.raw 436cdf05 ACTIVE 1
+2194199799797085 client.raw b22bbf7e WRITE 112f706c61696e746578742f322e302e300a
+2194199800029245 server.raw 436cdf05 WRITE 132f6d756c746973747265616d2f312e302e300a
+2194199800462305 client.raw b22bbf7e READ 132f6d756c746973747265616d2f312e302e300a
+2194199800561369 server.raw 436cdf05 READ 132f6d756c746973747265616d2f312e302e300a112f706c61696e746578742f322e302e300a
+2194199813230896 server.raw 436cdf05 WRITE 112f706c61696e746578742f322e302e300a000000850a2212202e7381f87b644a8a02e5f2c625b8bc6af64236f8c1f3a2b92799445b106b41f9125f0803125b3059301306072a8648ce3d020106082a8648ce3d0301070342000450c9181a90d52a475dc5401bcf1fdf67ec91aad05e44dda5b2542a6b725aa0bf49a2bc1a8688d6e632ca39212ab4e584720a11a809729e9f5bd721f45fd85bae
+2194199817416646 client.raw b22bbf7e READ 112f706c61696e746578742f322e302e300a000000850a2212202e7381f87b644a8a02e5f2c625b8bc6af64236f8c1f3a2b92799445b106b41f9125f0803125b3059301306072a8648ce3d020106082a8648ce3d0301070342000450c9181a90d52a475dc5401bcf1fdf67ec91aad05e44dda5b2542a6b725aa0bf49a2bc1a8688d6e632ca39212ab4e584720a11a809729e9f5bd721f45fd85bae
+2194199826331447 client.raw b22bbf7e WRITE 00000085
+2194199826580244 client.raw b22bbf7e WRITE 0a2212200fbaede7aaab8fd624e231512f045e8cced9a6820862537a145541446ebd55fe125f0803125b3059301306072a8648ce3d020106082a8648ce3d03010703420004dc64803fa177d2a1ec293192a7e030e8483d9bc1334bd6c8f65dd252d5d6d96fac4dba03d0e2a3c2b2bae98f4e98b2f43eaffaffe6cfe9b44d9aa00f4eea7813
+2194199828989256 server.raw 436cdf05 READ 000000850a2212200fbaede7aaab8fd624e231512f045e8cced9a6820862537a145541446ebd55fe125f0803125b3059301306072a8648ce3d020106082a8648ce3d03010703420004dc64803fa177d2a1ec293192a7e030e8483d9bc1334bd6c8f65dd252d5d6d96fac4dba03d0e2a3c2b2bae98f4e98b2f43eaffaffe6cfe9b44d9aa00f4eea7813
+2194199837841760 client.after b22bbf7e ACTIVE 1
+2194199838288420 client.after b22bbf7e WRITE 132f6d756c746973747265616d2f312e302e300a
+2194199839823468 client.raw b22bbf7e WRITE 00000014
+2194199840113880 server.after 436cdf05 ACTIVE 1
+2194199844130992 client.raw b22bbf7e WRITE 132f6d756c746973747265616d2f312e302e300a
+2194199844619314 client.after b22bbf7e WRITE 0d2f79616d75782f312e302e300a
+2194199844708268 client.raw b22bbf7e WRITE 0000000e
+2194199844752301 client.raw b22bbf7e WRITE 0d2f79616d75782f312e302e300a
+2194199846523912 server.after 436cdf05 WRITE 132f6d756c746973747265616d2f312e302e300a
+2194199846642560 server.raw 436cdf05 WRITE 00000014
+2194199846707038 server.raw 436cdf05 WRITE 132f6d756c746973747265616d2f312e302e300a
+2194199848844736 client.after b22bbf7e ACTIVE 2
+java.lang.Exception: Repeated activation
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.channelActive(ChildReadPauseCoalescedRecordTest.kt:166)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelActive(AbstractChannelHandlerContext.java:221)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelActive(AbstractChannelHandlerContext.java:229)
+	at io.libp2p.multistream.Negotiator$GenericHandler.channelRead0(Negotiator.kt:121)
+	at io.libp2p.multistream.Negotiator$GenericHandler.channelRead0(Negotiator.kt:75)
+	at io.netty.channel.SimpleChannelInboundHandler.channelRead(SimpleChannelInboundHandler.java:99)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:357)
+	at io.netty.handler.codec.MessageToMessageDecoder.channelRead(MessageToMessageDecoder.java:107)
+	at io.netty.handler.codec.MessageToMessageCodec.channelRead(MessageToMessageCodec.java:120)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:355)
+	at io.netty.handler.codec.MessageToMessageDecoder.channelRead(MessageToMessageDecoder.java:107)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:357)
+	at io.netty.handler.codec.ByteToMessageDecoder.fireChannelRead(ByteToMessageDecoder.java:361)
+	at io.netty.handler.codec.ByteToMessageDecoder.fireChannelRead(ByteToMessageDecoder.java:348)
+	at io.netty.handler.codec.ByteToMessageDecoder.callDecode(ByteToMessageDecoder.java:470)
+	at io.netty.handler.codec.ByteToMessageDecoder.channelRead(ByteToMessageDecoder.java:296)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:357)
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.channelRead(ChildReadPauseCoalescedRecordTest.kt:171)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:355)
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.channelRead(DefaultChannelPipeline.java:1429)
+	at io.netty.channel.DefaultChannelPipeline.fireChannelRead(DefaultChannelPipeline.java:918)
+	at io.netty.channel.nio.AbstractNioByteChannel$NioByteUnsafe.read(AbstractNioByteChannel.java:176)
+	at io.netty.channel.nio.AbstractNioChannel$AbstractNioUnsafe.handle(AbstractNioChannel.java:445)
+	at io.netty.channel.nio.NioIoHandler$DefaultNioRegistration.handle(NioIoHandler.java:388)
+	at io.netty.channel.nio.NioIoHandler.processSelectedKey(NioIoHandler.java:596)
+	at io.netty.channel.nio.NioIoHandler.processSelectedKeysOptimized(NioIoHandler.java:571)
+	at io.netty.channel.nio.NioIoHandler.processSelectedKeys(NioIoHandler.java:512)
+	at io.netty.channel.nio.NioIoHandler.run(NioIoHandler.java:484)
+	at io.netty.channel.SingleThreadIoEventLoop.runIo(SingleThreadIoEventLoop.java:225)
+	at io.netty.channel.SingleThreadIoEventLoop.run(SingleThreadIoEventLoop.java:196)
+	at io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:1195)
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+
+2194199849215507 client.after b22bbf7e WRITE 132f6d756c746973747265616d2f312e302e300a
+2194199849293522 client.raw b22bbf7e WRITE 00000014
+2194199849343538 client.raw b22bbf7e WRITE 132f6d756c746973747265616d2f312e302e300a
+2194199852533846 server.raw 436cdf05 READ 00000014132f6d756c746973747265616d2f312e302e300a0000000e0d2f79616d75782f312e302e300a
+2194199852746255 server.after 436cdf05 READ 132f6d756c746973747265616d2f312e302e300a
+2194199854595070 server.after 436cdf05 READ 0d2f79616d75782f312e302e300a
+2194199855259931 server.after 436cdf05 WRITE 0d2f79616d75782f312e302e300a
+2194199855370235 server.raw 436cdf05 WRITE 0000000e
+2194199855442190 server.raw 436cdf05 WRITE 0d2f79616d75782f312e302e300a
+2194199856586816 client.after b22bbf7e WRITE 0d2f79616d75782f312e302e300a
+2194199856677725 client.raw b22bbf7e WRITE 0000000e
+2194199856731556 client.raw b22bbf7e WRITE 0d2f79616d75782f312e302e300a
+2194199857749579 client.raw b22bbf7e READ 00000014132f6d756c746973747265616d2f312e302e300a0000000e0d2f79616d75782f312e302e300a
+2194199857853270 client.after b22bbf7e READ 132f6d756c746973747265616d2f312e302e300a
+2194199857980963 client.after b22bbf7e READ 0d2f79616d75782f312e302e300a
+2194199897496341 server.frames 436cdf05 ACTIVE 1
+2194199897956070 server.raw 436cdf05 READ 00000014132f6d756c746973747265616d2f312e302e300a0000000e0d2f79616d75782f312e302e300a
+2194199898154863 server.after 436cdf05 READ 132f6d756c746973747265616d2f312e302e300a
+2194199899475868 client.frames b22bbf7e ACTIVE 1
+2194199906111448 server.frames 436cdf05 EXCEPTION
+io.netty.handler.codec.DecoderException: io.libp2p.mux.InvalidFrameMuxerException: Invalid Yamux type value: 47
+	at io.netty.handler.codec.ByteToMessageDecoder.callDecode(ByteToMessageDecoder.java:515)
+	at io.netty.handler.codec.ByteToMessageDecoder.channelRead(ByteToMessageDecoder.java:296)
+	at io.netty.handler.codec.ByteToMessageCodec.channelRead(ByteToMessageCodec.java:103)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:355)
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.channelRead(ChildReadPauseCoalescedRecordTest.kt:171)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:355)
+	at io.netty.handler.codec.ByteToMessageDecoder.fireChannelRead(ByteToMessageDecoder.java:361)
+	at io.netty.handler.codec.ByteToMessageDecoder.fireChannelRead(ByteToMessageDecoder.java:348)
+	at io.netty.handler.codec.ByteToMessageDecoder.callDecode(ByteToMessageDecoder.java:470)
+	at io.netty.handler.codec.ByteToMessageDecoder.channelRead(ByteToMessageDecoder.java:296)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:357)
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.channelRead(ChildReadPauseCoalescedRecordTest.kt:171)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:355)
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.channelRead(DefaultChannelPipeline.java:1429)
+	at io.netty.channel.DefaultChannelPipeline.fireChannelRead(DefaultChannelPipeline.java:918)
+	at io.netty.channel.nio.AbstractNioByteChannel$NioByteUnsafe.read(AbstractNioByteChannel.java:176)
+	at io.netty.channel.nio.AbstractNioChannel$AbstractNioUnsafe.handle(AbstractNioChannel.java:445)
+	at io.netty.channel.nio.NioIoHandler$DefaultNioRegistration.handle(NioIoHandler.java:388)
+	at io.netty.channel.nio.NioIoHandler.processSelectedKey(NioIoHandler.java:596)
+	at io.netty.channel.nio.NioIoHandler.processSelectedKeysOptimized(NioIoHandler.java:571)
+	at io.netty.channel.nio.NioIoHandler.processSelectedKeys(NioIoHandler.java:512)
+	at io.netty.channel.nio.NioIoHandler.run(NioIoHandler.java:484)
+	at io.netty.channel.SingleThreadIoEventLoop.runIo(SingleThreadIoEventLoop.java:225)
+	at io.netty.channel.SingleThreadIoEventLoop.run(SingleThreadIoEventLoop.java:196)
+	at io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:1195)
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+Caused by: io.libp2p.mux.InvalidFrameMuxerException: Invalid Yamux type value: 47
+	at io.libp2p.mux.yamux.YamuxType$Companion.fromInt(YamuxType.kt:18)
+	at io.libp2p.mux.yamux.YamuxFrameCodec.decode(YamuxFrameCodec.kt:50)
+	at io.netty.handler.codec.ByteToMessageCodec$1.decode(ByteToMessageCodec.java:42)
+	at io.netty.handler.codec.ByteToMessageDecoder.decodeRemovalReentryProtection(ByteToMessageDecoder.java:545)
+	at io.netty.handler.codec.ByteToMessageDecoder.callDecode(ByteToMessageDecoder.java:484)
+	... 27 more
+
+2194199908795903 server.after 436cdf05 CLOSE
+java.lang.Exception: Physical close server.after
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.close(ChildReadPauseCoalescedRecordTest.kt:178)
+	at io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:635)
+	at io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:453)
+	at io.libp2p.mux.yamux.YamuxFrameCodec.exceptionCaught(YamuxFrameCodec.kt:93)
+	at io.netty.channel.AbstractChannelHandlerContext.invokeExceptionCaught(AbstractChannelHandlerContext.java:290)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:360)
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.channelRead(ChildReadPauseCoalescedRecordTest.kt:171)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:355)
+	at io.netty.handler.codec.ByteToMessageDecoder.fireChannelRead(ByteToMessageDecoder.java:361)
+	at io.netty.handler.codec.ByteToMessageDecoder.fireChannelRead(ByteToMessageDecoder.java:348)
+	at io.netty.handler.codec.ByteToMessageDecoder.callDecode(ByteToMessageDecoder.java:470)
+	at io.netty.handler.codec.ByteToMessageDecoder.channelRead(ByteToMessageDecoder.java:296)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:357)
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.channelRead(ChildReadPauseCoalescedRecordTest.kt:171)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:355)
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.channelRead(DefaultChannelPipeline.java:1429)
+	at io.netty.channel.DefaultChannelPipeline.fireChannelRead(DefaultChannelPipeline.java:918)
+	at io.netty.channel.nio.AbstractNioByteChannel$NioByteUnsafe.read(AbstractNioByteChannel.java:176)
+	at io.netty.channel.nio.AbstractNioChannel$AbstractNioUnsafe.handle(AbstractNioChannel.java:445)
+	at io.netty.channel.nio.NioIoHandler$DefaultNioRegistration.handle(NioIoHandler.java:388)
+	at io.netty.channel.nio.NioIoHandler.processSelectedKey(NioIoHandler.java:596)
+	at io.netty.channel.nio.NioIoHandler.processSelectedKeysOptimized(NioIoHandler.java:571)
+	at io.netty.channel.nio.NioIoHandler.processSelectedKeys(NioIoHandler.java:512)
+	at io.netty.channel.nio.NioIoHandler.run(NioIoHandler.java:484)
+	at io.netty.channel.SingleThreadIoEventLoop.runIo(SingleThreadIoEventLoop.java:225)
+	at io.netty.channel.SingleThreadIoEventLoop.run(SingleThreadIoEventLoop.java:196)
+	at io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:1195)
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+
+2194199909137115 server.raw 436cdf05 CLOSE
+java.lang.Exception: Physical close server.raw
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.close(ChildReadPauseCoalescedRecordTest.kt:178)
+	at io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:635)
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.close(ChildReadPauseCoalescedRecordTest.kt:179)
+	at io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:635)
+	at io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:453)
+	at io.libp2p.mux.yamux.YamuxFrameCodec.exceptionCaught(YamuxFrameCodec.kt:93)
+	at io.netty.channel.AbstractChannelHandlerContext.invokeExceptionCaught(AbstractChannelHandlerContext.java:290)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:360)
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.channelRead(ChildReadPauseCoalescedRecordTest.kt:171)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:355)
+	at io.netty.handler.codec.ByteToMessageDecoder.fireChannelRead(ByteToMessageDecoder.java:361)
+	at io.netty.handler.codec.ByteToMessageDecoder.fireChannelRead(ByteToMessageDecoder.java:348)
+	at io.netty.handler.codec.ByteToMessageDecoder.callDecode(ByteToMessageDecoder.java:470)
+	at io.netty.handler.codec.ByteToMessageDecoder.channelRead(ByteToMessageDecoder.java:296)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:357)
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.channelRead(ChildReadPauseCoalescedRecordTest.kt:171)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:355)
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.channelRead(DefaultChannelPipeline.java:1429)
+	at io.netty.channel.DefaultChannelPipeline.fireChannelRead(DefaultChannelPipeline.java:918)
+	at io.netty.channel.nio.AbstractNioByteChannel$NioByteUnsafe.read(AbstractNioByteChannel.java:176)
+	at io.netty.channel.nio.AbstractNioChannel$AbstractNioUnsafe.handle(AbstractNioChannel.java:445)
+	at io.netty.channel.nio.NioIoHandler$DefaultNioRegistration.handle(NioIoHandler.java:388)
+	at io.netty.channel.nio.NioIoHandler.processSelectedKey(NioIoHandler.java:596)
+	at io.netty.channel.nio.NioIoHandler.processSelectedKeysOptimized(NioIoHandler.java:571)
+	at io.netty.channel.nio.NioIoHandler.processSelectedKeys(NioIoHandler.java:512)
+	at io.netty.channel.nio.NioIoHandler.run(NioIoHandler.java:484)
+	at io.netty.channel.SingleThreadIoEventLoop.runIo(SingleThreadIoEventLoop.java:225)
+	at io.netty.channel.SingleThreadIoEventLoop.run(SingleThreadIoEventLoop.java:196)
+	at io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:1195)
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+
+2194199909723474 server.after 436cdf05 READ 0d2f79616d75782f312e302e300a
+2194199910306998 server.frames 436cdf05 EXCEPTION
+io.netty.handler.codec.DecoderException: io.libp2p.mux.InvalidFrameMuxerException: Invalid Yamux type value: 117
+	at io.netty.handler.codec.ByteToMessageDecoder.callDecode(ByteToMessageDecoder.java:515)
+	at io.netty.handler.codec.ByteToMessageDecoder.channelRead(ByteToMessageDecoder.java:296)
+	at io.netty.handler.codec.ByteToMessageCodec.channelRead(ByteToMessageCodec.java:103)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:355)
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.channelRead(ChildReadPauseCoalescedRecordTest.kt:171)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:355)
+	at io.netty.handler.codec.ByteToMessageDecoder.fireChannelRead(ByteToMessageDecoder.java:361)
+	at io.netty.handler.codec.ByteToMessageDecoder.channelRead(ByteToMessageDecoder.java:325)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:357)
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.channelRead(ChildReadPauseCoalescedRecordTest.kt:171)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:355)
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.channelRead(DefaultChannelPipeline.java:1429)
+	at io.netty.channel.DefaultChannelPipeline.fireChannelRead(DefaultChannelPipeline.java:918)
+	at io.netty.channel.nio.AbstractNioByteChannel$NioByteUnsafe.read(AbstractNioByteChannel.java:176)
+	at io.netty.channel.nio.AbstractNioChannel$AbstractNioUnsafe.handle(AbstractNioChannel.java:445)
+	at io.netty.channel.nio.NioIoHandler$DefaultNioRegistration.handle(NioIoHandler.java:388)
+	at io.netty.channel.nio.NioIoHandler.processSelectedKey(NioIoHandler.java:596)
+	at io.netty.channel.nio.NioIoHandler.processSelectedKeysOptimized(NioIoHandler.java:571)
+	at io.netty.channel.nio.NioIoHandler.processSelectedKeys(NioIoHandler.java:512)
+	at io.netty.channel.nio.NioIoHandler.run(NioIoHandler.java:484)
+	at io.netty.channel.SingleThreadIoEventLoop.runIo(SingleThreadIoEventLoop.java:225)
+	at io.netty.channel.SingleThreadIoEventLoop.run(SingleThreadIoEventLoop.java:196)
+	at io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:1195)
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+Caused by: io.libp2p.mux.InvalidFrameMuxerException: Invalid Yamux type value: 117
+	at io.libp2p.mux.yamux.YamuxType$Companion.fromInt(YamuxType.kt:18)
+	at io.libp2p.mux.yamux.YamuxFrameCodec.decode(YamuxFrameCodec.kt:50)
+	at io.netty.handler.codec.ByteToMessageCodec$1.decode(ByteToMessageCodec.java:42)
+	at io.netty.handler.codec.ByteToMessageDecoder.decodeRemovalReentryProtection(ByteToMessageDecoder.java:545)
+	at io.netty.handler.codec.ByteToMessageDecoder.callDecode(ByteToMessageDecoder.java:484)
+	... 25 more
+
+2194199916504385 server.after 436cdf05 CLOSE
+java.lang.Exception: Physical close server.after
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.close(ChildReadPauseCoalescedRecordTest.kt:178)
+	at io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:635)
+	at io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:453)
+	at io.libp2p.mux.yamux.YamuxFrameCodec.exceptionCaught(YamuxFrameCodec.kt:93)
+	at io.netty.channel.AbstractChannelHandlerContext.invokeExceptionCaught(AbstractChannelHandlerContext.java:290)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:360)
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.channelRead(ChildReadPauseCoalescedRecordTest.kt:171)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:355)
+	at io.netty.handler.codec.ByteToMessageDecoder.fireChannelRead(ByteToMessageDecoder.java:361)
+	at io.netty.handler.codec.ByteToMessageDecoder.channelRead(ByteToMessageDecoder.java:325)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:357)
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.channelRead(ChildReadPauseCoalescedRecordTest.kt:171)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:355)
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.channelRead(DefaultChannelPipeline.java:1429)
+	at io.netty.channel.DefaultChannelPipeline.fireChannelRead(DefaultChannelPipeline.java:918)
+	at io.netty.channel.nio.AbstractNioByteChannel$NioByteUnsafe.read(AbstractNioByteChannel.java:176)
+	at io.netty.channel.nio.AbstractNioChannel$AbstractNioUnsafe.handle(AbstractNioChannel.java:445)
+	at io.netty.channel.nio.NioIoHandler$DefaultNioRegistration.handle(NioIoHandler.java:388)
+	at io.netty.channel.nio.NioIoHandler.processSelectedKey(NioIoHandler.java:596)
+	at io.netty.channel.nio.NioIoHandler.processSelectedKeysOptimized(NioIoHandler.java:571)
+	at io.netty.channel.nio.NioIoHandler.processSelectedKeys(NioIoHandler.java:512)
+	at io.netty.channel.nio.NioIoHandler.run(NioIoHandler.java:484)
+	at io.netty.channel.SingleThreadIoEventLoop.runIo(SingleThreadIoEventLoop.java:225)
+	at io.netty.channel.SingleThreadIoEventLoop.run(SingleThreadIoEventLoop.java:196)
+	at io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:1195)
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+
+2194199919233361 server.raw 436cdf05 CLOSE
+java.lang.Exception: Physical close server.raw
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.close(ChildReadPauseCoalescedRecordTest.kt:178)
+	at io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:635)
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.close(ChildReadPauseCoalescedRecordTest.kt:179)
+	at io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:635)
+	at io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:453)
+	at io.libp2p.mux.yamux.YamuxFrameCodec.exceptionCaught(YamuxFrameCodec.kt:93)
+	at io.netty.channel.AbstractChannelHandlerContext.invokeExceptionCaught(AbstractChannelHandlerContext.java:290)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:360)
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.channelRead(ChildReadPauseCoalescedRecordTest.kt:171)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:355)
+	at io.netty.handler.codec.ByteToMessageDecoder.fireChannelRead(ByteToMessageDecoder.java:361)
+	at io.netty.handler.codec.ByteToMessageDecoder.channelRead(ByteToMessageDecoder.java:325)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:357)
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.channelRead(ChildReadPauseCoalescedRecordTest.kt:171)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:355)
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.channelRead(DefaultChannelPipeline.java:1429)
+	at io.netty.channel.DefaultChannelPipeline.fireChannelRead(DefaultChannelPipeline.java:918)
+	at io.netty.channel.nio.AbstractNioByteChannel$NioByteUnsafe.read(AbstractNioByteChannel.java:176)
+	at io.netty.channel.nio.AbstractNioChannel$AbstractNioUnsafe.handle(AbstractNioChannel.java:445)
+	at io.netty.channel.nio.NioIoHandler$DefaultNioRegistration.handle(NioIoHandler.java:388)
+	at io.netty.channel.nio.NioIoHandler.processSelectedKey(NioIoHandler.java:596)
+	at io.netty.channel.nio.NioIoHandler.processSelectedKeysOptimized(NioIoHandler.java:571)
+	at io.netty.channel.nio.NioIoHandler.processSelectedKeys(NioIoHandler.java:512)
+	at io.netty.channel.nio.NioIoHandler.run(NioIoHandler.java:484)
+	at io.netty.channel.SingleThreadIoEventLoop.runIo(SingleThreadIoEventLoop.java:225)
+	at io.netty.channel.SingleThreadIoEventLoop.run(SingleThreadIoEventLoop.java:196)
+	at io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:1195)
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+
+2194199919478933 server.raw 436cdf05 INACTIVE
+2194199919512184 server.after 436cdf05 INACTIVE
+2194199919689211 server.frames 436cdf05 INACTIVE
+2194199919979403 server.frames 436cdf05 EXCEPTION
+io.netty.handler.codec.DecoderException: io.libp2p.mux.InvalidFrameMuxerException: Invalid Yamux type value: 116
+	at io.netty.handler.codec.ByteToMessageDecoder.callDecode(ByteToMessageDecoder.java:515)
+	at io.netty.handler.codec.ByteToMessageDecoder.channelInputClosed(ByteToMessageDecoder.java:442)
+	at io.netty.handler.codec.ByteToMessageDecoder.channelInputClosed(ByteToMessageDecoder.java:409)
+	at io.netty.handler.codec.ByteToMessageDecoder.channelInactive(ByteToMessageDecoder.java:392)
+	at io.netty.handler.codec.ByteToMessageCodec.channelInactive(ByteToMessageCodec.java:118)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:251)
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.channelInactive(ChildReadPauseCoalescedRecordTest.kt:188)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:251)
+	at io.netty.handler.codec.ByteToMessageDecoder.channelInputClosed(ByteToMessageDecoder.java:427)
+	at io.netty.handler.codec.ByteToMessageDecoder.channelInactive(ByteToMessageDecoder.java:392)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:251)
+	at io.libp2p.mux.ForcedPlaintextWriteBatch.channelInactive(ChildReadPauseCoalescedRecordTest.kt:333)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:251)
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.channelInactive(ChildReadPauseCoalescedRecordTest.kt:188)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:251)
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.channelInactive(DefaultChannelPipeline.java:1424)
+	at io.netty.channel.DefaultChannelPipeline.fireChannelInactive(DefaultChannelPipeline.java:876)
+	at io.netty.channel.AbstractChannel$AbstractUnsafe$6.run(AbstractChannel.java:676)
+	at io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:148)
+	at io.netty.util.concurrent.AbstractEventExecutor.safeExecute(AbstractEventExecutor.java:141)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.runAllTasks(SingleThreadEventExecutor.java:535)
+	at io.netty.channel.SingleThreadIoEventLoop.run(SingleThreadIoEventLoop.java:201)
+	at io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:1195)
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+Caused by: io.libp2p.mux.InvalidFrameMuxerException: Invalid Yamux type value: 116
+	at io.libp2p.mux.yamux.YamuxType$Companion.fromInt(YamuxType.kt:18)
+	at io.libp2p.mux.yamux.YamuxFrameCodec.decode(YamuxFrameCodec.kt:50)
+	at io.netty.handler.codec.ByteToMessageCodec$1.decode(ByteToMessageCodec.java:42)
+	at io.netty.handler.codec.ByteToMessageDecoder.decodeRemovalReentryProtection(ByteToMessageDecoder.java:545)
+	at io.netty.handler.codec.ByteToMessageDecoder.callDecode(ByteToMessageDecoder.java:484)
+	... 25 more
+
+2194199920320265 server.after 436cdf05 CLOSE
+java.lang.Exception: Physical close server.after
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.close(ChildReadPauseCoalescedRecordTest.kt:178)
+	at io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:635)
+	at io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:453)
+	at io.libp2p.mux.yamux.YamuxFrameCodec.exceptionCaught(YamuxFrameCodec.kt:93)
+	at io.netty.channel.AbstractChannelHandlerContext.invokeExceptionCaught(AbstractChannelHandlerContext.java:290)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:256)
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.channelInactive(ChildReadPauseCoalescedRecordTest.kt:188)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:251)
+	at io.netty.handler.codec.ByteToMessageDecoder.channelInputClosed(ByteToMessageDecoder.java:427)
+	at io.netty.handler.codec.ByteToMessageDecoder.channelInactive(ByteToMessageDecoder.java:392)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:251)
+	at io.libp2p.mux.ForcedPlaintextWriteBatch.channelInactive(ChildReadPauseCoalescedRecordTest.kt:333)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:251)
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.channelInactive(ChildReadPauseCoalescedRecordTest.kt:188)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:251)
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.channelInactive(DefaultChannelPipeline.java:1424)
+	at io.netty.channel.DefaultChannelPipeline.fireChannelInactive(DefaultChannelPipeline.java:876)
+	at io.netty.channel.AbstractChannel$AbstractUnsafe$6.run(AbstractChannel.java:676)
+	at io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:148)
+	at io.netty.util.concurrent.AbstractEventExecutor.safeExecute(AbstractEventExecutor.java:141)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.runAllTasks(SingleThreadEventExecutor.java:535)
+	at io.netty.channel.SingleThreadIoEventLoop.run(SingleThreadIoEventLoop.java:201)
+	at io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:1195)
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+
+2194199920560694 server.raw 436cdf05 CLOSE
+java.lang.Exception: Physical close server.raw
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.close(ChildReadPauseCoalescedRecordTest.kt:178)
+	at io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:635)
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.close(ChildReadPauseCoalescedRecordTest.kt:179)
+	at io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:635)
+	at io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:453)
+	at io.libp2p.mux.yamux.YamuxFrameCodec.exceptionCaught(YamuxFrameCodec.kt:93)
+	at io.netty.channel.AbstractChannelHandlerContext.invokeExceptionCaught(AbstractChannelHandlerContext.java:290)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:256)
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.channelInactive(ChildReadPauseCoalescedRecordTest.kt:188)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:251)
+	at io.netty.handler.codec.ByteToMessageDecoder.channelInputClosed(ByteToMessageDecoder.java:427)
+	at io.netty.handler.codec.ByteToMessageDecoder.channelInactive(ByteToMessageDecoder.java:392)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:251)
+	at io.libp2p.mux.ForcedPlaintextWriteBatch.channelInactive(ChildReadPauseCoalescedRecordTest.kt:333)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:251)
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.channelInactive(ChildReadPauseCoalescedRecordTest.kt:188)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:251)
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.channelInactive(DefaultChannelPipeline.java:1424)
+	at io.netty.channel.DefaultChannelPipeline.fireChannelInactive(DefaultChannelPipeline.java:876)
+	at io.netty.channel.AbstractChannel$AbstractUnsafe$6.run(AbstractChannel.java:676)
+	at io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:148)
+	at io.netty.util.concurrent.AbstractEventExecutor.safeExecute(AbstractEventExecutor.java:141)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.runAllTasks(SingleThreadEventExecutor.java:535)
+	at io.netty.channel.SingleThreadIoEventLoop.run(SingleThreadIoEventLoop.java:201)
+	at io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:1195)
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+
+2194199940252399 client.frames b22bbf7e WRITE YamuxFrame(id=3289a6fffe3e2e6b-0007bbe5-00000004-a9a1a16e79fa87c2-b22bbf7e/1, type=DATA, flags=SYN, length=0)
+2194199940583661 client.after b22bbf7e WRITE 000000010000000100000000
+2194199940682496 client.raw b22bbf7e WRITE 0000000c
+2194199940755100 client.raw b22bbf7e WRITE 000000010000000100000000
+2194199946052590 client.frames b22bbf7e WRITE YamuxFrame(id=3289a6fffe3e2e6b-0007bbe5-00000004-a9a1a16e79fa87c2-b22bbf7e/1, type=DATA, flags=, length=20, len=20, UnpooledSlicedByteBuf(ridx: 0, widx: 20, cap: 20/20, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 20, cap: 256)))
+2194199946322588 client.after b22bbf7e WRITE 000000000000000100000014132f6d756c746973747265616d2f312e302e300a
+2194199948781465 client.raw b22bbf7e WRITE 00000020
+2194199948976951 client.raw b22bbf7e WRITE 000000000000000100000014132f6d756c746973747265616d2f312e302e300a
+2194199956429473 client.frames b22bbf7e CLOSE
+java.lang.Exception: Physical close client.frames
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.close(ChildReadPauseCoalescedRecordTest.kt:178)
+	at io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:635)
+	at io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:453)
+	at io.netty.channel.DefaultChannelPipeline.close(DefaultChannelPipeline.java:978)
+	at io.netty.channel.Channel.close(Channel.java:312)
+	at io.libp2p.transport.implementation.P2PChannelOverNetty.close(P2PChannelOverNetty.kt:33)
+	at io.libp2p.host.HostImpl.attemptNewStream$lambda-8$lambda-7(HostImpl.kt:163)
+	at java.base/java.util.concurrent.CompletableFuture.uniWhenComplete(CompletableFuture.java:863)
+	at java.base/java.util.concurrent.CompletableFuture$UniWhenComplete.tryFire(CompletableFuture.java:841)
+	at java.base/java.util.concurrent.CompletableFuture.postComplete(CompletableFuture.java:510)
+	at java.base/java.util.concurrent.CompletableFuture.completeExceptionally(CompletableFuture.java:2194)
+	at io.libp2p.etc.types.AsyncExtKt.bind$lambda-0(AsyncExt.kt:13)
+	at java.base/java.util.concurrent.CompletableFuture.uniWhenComplete(CompletableFuture.java:863)
+	at java.base/java.util.concurrent.CompletableFuture$UniWhenComplete.tryFire(CompletableFuture.java:841)
+	at java.base/java.util.concurrent.CompletableFuture.postComplete(CompletableFuture.java:510)
+	at java.base/java.util.concurrent.CompletableFuture.completeExceptionally(CompletableFuture.java:2194)
+	at io.libp2p.multistream.ProtocolSelect.channelUnregistered(ProtocolSelect.kt:90)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelUnregistered(AbstractChannelHandlerContext.java:191)
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.channelUnregistered(DefaultChannelPipeline.java:1407)
+	at io.netty.channel.DefaultChannelPipeline.fireChannelUnregistered(DefaultChannelPipeline.java:780)
+	at io.libp2p.etc.util.netty.AbstractChildChannel.completeTeardown(AbstractChildChannel.kt:184)
+	at io.libp2p.etc.util.netty.AbstractChildChannel.doClose(AbstractChildChannel.kt:155)
+	at io.libp2p.etc.util.netty.mux.MuxChannel.doClose(MuxChannel.kt:146)
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.doClose0(AbstractChannel.java:617)
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.close(AbstractChannel.java:594)
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.close(AbstractChannel.java:489)
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.close(DefaultChannelPipeline.java:1371)
+	at io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:633)
+	at io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:453)
+	at io.netty.channel.DefaultChannelPipeline.close(DefaultChannelPipeline.java:978)
+	at io.netty.channel.Channel.close(Channel.java:312)
+	at io.libp2p.etc.util.netty.AbstractChildChannel.closeImpl(AbstractChildChannel.kt:56)
+	at io.libp2p.etc.util.netty.AbstractChildChannel.parentCloseListener$lambda-0(AbstractChildChannel.kt:33)
+	at io.netty.util.concurrent.DefaultPromise.notifyListener0(DefaultPromise.java:604)
+	at io.netty.util.concurrent.DefaultPromise.notifyListeners0(DefaultPromise.java:597)
+	at io.netty.util.concurrent.DefaultPromise.notifyListenersNow(DefaultPromise.java:573)
+	at io.netty.util.concurrent.DefaultPromise.notifyListeners(DefaultPromise.java:506)
+	at io.netty.util.concurrent.DefaultPromise.setValue0(DefaultPromise.java:650)
+	at io.netty.util.concurrent.DefaultPromise.setSuccess0(DefaultPromise.java:639)
+	at io.netty.util.concurrent.DefaultPromise.trySuccess(DefaultPromise.java:119)
+	at io.netty.channel.DefaultChannelPromise.trySuccess(DefaultChannelPromise.java:84)
+	at io.netty.channel.AbstractChannel$CloseFuture.setClosed(AbstractChannel.java:1044)
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.doClose0(AbstractChannel.java:618)
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.close(AbstractChannel.java:594)
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.handleWriteError(AbstractChannel.java:813)
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.flush0(AbstractChannel.java:796)
+	at io.netty.channel.nio.AbstractNioChannel$AbstractNioUnsafe.flush0(AbstractNioChannel.java:404)
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.flush(AbstractChannel.java:758)
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.flush(DefaultChannelPipeline.java:1391)
+	at io.netty.channel.AbstractChannelHandlerContext.flush(AbstractChannelHandlerContext.java:754)
+	at io.netty.channel.ChannelDuplexHandler.flush(ChannelDuplexHandler.java:127)
+	at io.netty.channel.AbstractChannelHandlerContext.write(AbstractChannelHandlerContext.java:817)
+	at io.netty.channel.AbstractChannelHandlerContext.writeAndFlush(AbstractChannelHandlerContext.java:776)
+	at io.netty.channel.AbstractChannelHandlerContext.writeAndFlush(AbstractChannelHandlerContext.java:859)
+	at io.libp2p.mux.yamux.YamuxHandler.writeAndFlushFrame(YamuxHandler.kt:437)
+	at io.libp2p.mux.yamux.YamuxHandler.access$writeAndFlushFrame(YamuxHandler.kt:36)
+	at io.libp2p.mux.yamux.YamuxHandler$YamuxStreamHandler.drainBufferAndMaybeClose(YamuxHandler.kt:248)
+	at io.libp2p.mux.yamux.YamuxHandler$YamuxStreamHandler.sendData(YamuxHandler.kt:303)
+	at io.libp2p.mux.yamux.YamuxHandler.onChildWrite(YamuxHandler.kt:475)
+	at io.libp2p.mux.yamux.YamuxHandler.onChildWrite(YamuxHandler.kt:36)
+	at io.libp2p.etc.util.netty.mux.MuxChannel.doWrite(MuxChannel.kt:87)
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.flush0(AbstractChannel.java:794)
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.flush(AbstractChannel.java:758)
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.flush(DefaultChannelPipeline.java:1391)
+	at io.netty.channel.AbstractChannelHandlerContext.flush(AbstractChannelHandlerContext.java:754)
+	at io.libp2p.multistream.Negotiator$GenericHandler.channelActive(Negotiator.kt:92)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelActive(AbstractChannelHandlerContext.java:221)
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.channelActive(DefaultChannelPipeline.java:1417)
+	at io.netty.channel.DefaultChannelPipeline.fireChannelActive(DefaultChannelPipeline.java:862)
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.lambda$register0$0(AbstractChannel.java:389)
+	at io.netty.util.concurrent.DefaultPromise.notifyListener0(DefaultPromise.java:604)
+	at io.netty.util.concurrent.DefaultPromise.notifyListenersNow(DefaultPromise.java:571)
+	at io.netty.util.concurrent.DefaultPromise.notifyListeners(DefaultPromise.java:506)
+	at io.netty.util.concurrent.DefaultPromise.setValue0(DefaultPromise.java:650)
+	at io.netty.util.concurrent.DefaultPromise.setSuccess0(DefaultPromise.java:639)
+	at io.netty.util.concurrent.DefaultPromise.setSuccess(DefaultPromise.java:111)
+	at io.netty.channel.DefaultChannelPromise.setSuccess(DefaultChannelPromise.java:78)
+	at io.netty.channel.DefaultChannelPromise.setSuccess(DefaultChannelPromise.java:73)
+	at io.netty.channel.AbstractChannel.doRegister(AbstractChannel.java:960)
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.register0(AbstractChannel.java:405)
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.register(AbstractChannel.java:346)
+	at io.netty.channel.SingleThreadEventLoop.register(SingleThreadEventLoop.java:119)
+	at io.netty.channel.SingleThreadEventLoop.register(SingleThreadEventLoop.java:113)
+	at io.libp2p.etc.util.netty.mux.AbstractMuxHandler.createChild(AbstractMuxHandler.kt:375)
+	at io.libp2p.etc.util.netty.mux.AbstractMuxHandler.newStream$lambda-9(AbstractMuxHandler.kt:389)
+	at java.base/java.util.concurrent.CompletableFuture$UniApply.tryFire(CompletableFuture.java:646)
+	at java.base/java.util.concurrent.CompletableFuture$Completion.run(CompletableFuture.java:482)
+	at io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:148)
+	at io.netty.util.concurrent.AbstractEventExecutor.safeExecute(AbstractEventExecutor.java:141)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.runAllTasks(SingleThreadEventExecutor.java:535)
+	at io.netty.channel.SingleThreadIoEventLoop.run(SingleThreadIoEventLoop.java:201)
+	at io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:1195)
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+
+2194199957058653 client.after b22bbf7e CLOSE
+java.lang.Exception: Physical close client.after
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.close(ChildReadPauseCoalescedRecordTest.kt:178)
+	at io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:635)
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.close(ChildReadPauseCoalescedRecordTest.kt:179)
+	at io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:635)
+	at io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:453)
+	at io.netty.channel.DefaultChannelPipeline.close(DefaultChannelPipeline.java:978)
+	at io.netty.channel.Channel.close(Channel.java:312)
+	at io.libp2p.transport.implementation.P2PChannelOverNetty.close(P2PChannelOverNetty.kt:33)
+	at io.libp2p.host.HostImpl.attemptNewStream$lambda-8$lambda-7(HostImpl.kt:163)
+	at java.base/java.util.concurrent.CompletableFuture.uniWhenComplete(CompletableFuture.java:863)
+	at java.base/java.util.concurrent.CompletableFuture$UniWhenComplete.tryFire(CompletableFuture.java:841)
+	at java.base/java.util.concurrent.CompletableFuture.postComplete(CompletableFuture.java:510)
+	at java.base/java.util.concurrent.CompletableFuture.completeExceptionally(CompletableFuture.java:2194)
+	at io.libp2p.etc.types.AsyncExtKt.bind$lambda-0(AsyncExt.kt:13)
+	at java.base/java.util.concurrent.CompletableFuture.uniWhenComplete(CompletableFuture.java:863)
+	at java.base/java.util.concurrent.CompletableFuture$UniWhenComplete.tryFire(CompletableFuture.java:841)
+	at java.base/java.util.concurrent.CompletableFuture.postComplete(CompletableFuture.java:510)
+	at java.base/java.util.concurrent.CompletableFuture.completeExceptionally(CompletableFuture.java:2194)
+	at io.libp2p.multistream.ProtocolSelect.channelUnregistered(ProtocolSelect.kt:90)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelUnregistered(AbstractChannelHandlerContext.java:191)
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.channelUnregistered(DefaultChannelPipeline.java:1407)
+	at io.netty.channel.DefaultChannelPipeline.fireChannelUnregistered(DefaultChannelPipeline.java:780)
+	at io.libp2p.etc.util.netty.AbstractChildChannel.completeTeardown(AbstractChildChannel.kt:184)
+	at io.libp2p.etc.util.netty.AbstractChildChannel.doClose(AbstractChildChannel.kt:155)
+	at io.libp2p.etc.util.netty.mux.MuxChannel.doClose(MuxChannel.kt:146)
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.doClose0(AbstractChannel.java:617)
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.close(AbstractChannel.java:594)
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.close(AbstractChannel.java:489)
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.close(DefaultChannelPipeline.java:1371)
+	at io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:633)
+	at io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:453)
+	at io.netty.channel.DefaultChannelPipeline.close(DefaultChannelPipeline.java:978)
+	at io.netty.channel.Channel.close(Channel.java:312)
+	at io.libp2p.etc.util.netty.AbstractChildChannel.closeImpl(AbstractChildChannel.kt:56)
+	at io.libp2p.etc.util.netty.AbstractChildChannel.parentCloseListener$lambda-0(AbstractChildChannel.kt:33)
+	at io.netty.util.concurrent.DefaultPromise.notifyListener0(DefaultPromise.java:604)
+	at io.netty.util.concurrent.DefaultPromise.notifyListeners0(DefaultPromise.java:597)
+	at io.netty.util.concurrent.DefaultPromise.notifyListenersNow(DefaultPromise.java:573)
+	at io.netty.util.concurrent.DefaultPromise.notifyListeners(DefaultPromise.java:506)
+	at io.netty.util.concurrent.DefaultPromise.setValue0(DefaultPromise.java:650)
+	at io.netty.util.concurrent.DefaultPromise.setSuccess0(DefaultPromise.java:639)
+	at io.netty.util.concurrent.DefaultPromise.trySuccess(DefaultPromise.java:119)
+	at io.netty.channel.DefaultChannelPromise.trySuccess(DefaultChannelPromise.java:84)
+	at io.netty.channel.AbstractChannel$CloseFuture.setClosed(AbstractChannel.java:1044)
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.doClose0(AbstractChannel.java:618)
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.close(AbstractChannel.java:594)
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.handleWriteError(AbstractChannel.java:813)
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.flush0(AbstractChannel.java:796)
+	at io.netty.channel.nio.AbstractNioChannel$AbstractNioUnsafe.flush0(AbstractNioChannel.java:404)
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.flush(AbstractChannel.java:758)
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.flush(DefaultChannelPipeline.java:1391)
+	at io.netty.channel.AbstractChannelHandlerContext.flush(AbstractChannelHandlerContext.java:754)
+	at io.netty.channel.ChannelDuplexHandler.flush(ChannelDuplexHandler.java:127)
+	at io.netty.channel.AbstractChannelHandlerContext.write(AbstractChannelHandlerContext.java:817)
+	at io.netty.channel.AbstractChannelHandlerContext.writeAndFlush(AbstractChannelHandlerContext.java:776)
+	at io.netty.channel.AbstractChannelHandlerContext.writeAndFlush(AbstractChannelHandlerContext.java:859)
+	at io.libp2p.mux.yamux.YamuxHandler.writeAndFlushFrame(YamuxHandler.kt:437)
+	at io.libp2p.mux.yamux.YamuxHandler.access$writeAndFlushFrame(YamuxHandler.kt:36)
+	at io.libp2p.mux.yamux.YamuxHandler$YamuxStreamHandler.drainBufferAndMaybeClose(YamuxHandler.kt:248)
+	at io.libp2p.mux.yamux.YamuxHandler$YamuxStreamHandler.sendData(YamuxHandler.kt:303)
+	at io.libp2p.mux.yamux.YamuxHandler.onChildWrite(YamuxHandler.kt:475)
+	at io.libp2p.mux.yamux.YamuxHandler.onChildWrite(YamuxHandler.kt:36)
+	at io.libp2p.etc.util.netty.mux.MuxChannel.doWrite(MuxChannel.kt:87)
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.flush0(AbstractChannel.java:794)
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.flush(AbstractChannel.java:758)
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.flush(DefaultChannelPipeline.java:1391)
+	at io.netty.channel.AbstractChannelHandlerContext.flush(AbstractChannelHandlerContext.java:754)
+	at io.libp2p.multistream.Negotiator$GenericHandler.channelActive(Negotiator.kt:92)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelActive(AbstractChannelHandlerContext.java:221)
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.channelActive(DefaultChannelPipeline.java:1417)
+	at io.netty.channel.DefaultChannelPipeline.fireChannelActive(DefaultChannelPipeline.java:862)
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.lambda$register0$0(AbstractChannel.java:389)
+	at io.netty.util.concurrent.DefaultPromise.notifyListener0(DefaultPromise.java:604)
+	at io.netty.util.concurrent.DefaultPromise.notifyListenersNow(DefaultPromise.java:571)
+	at io.netty.util.concurrent.DefaultPromise.notifyListeners(DefaultPromise.java:506)
+	at io.netty.util.concurrent.DefaultPromise.setValue0(DefaultPromise.java:650)
+	at io.netty.util.concurrent.DefaultPromise.setSuccess0(DefaultPromise.java:639)
+	at io.netty.util.concurrent.DefaultPromise.setSuccess(DefaultPromise.java:111)
+	at io.netty.channel.DefaultChannelPromise.setSuccess(DefaultChannelPromise.java:78)
+	at io.netty.channel.DefaultChannelPromise.setSuccess(DefaultChannelPromise.java:73)
+	at io.netty.channel.AbstractChannel.doRegister(AbstractChannel.java:960)
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.register0(AbstractChannel.java:405)
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.register(AbstractChannel.java:346)
+	at io.netty.channel.SingleThreadEventLoop.register(SingleThreadEventLoop.java:119)
+	at io.netty.channel.SingleThreadEventLoop.register(SingleThreadEventLoop.java:113)
+	at io.libp2p.etc.util.netty.mux.AbstractMuxHandler.createChild(AbstractMuxHandler.kt:375)
+	at io.libp2p.etc.util.netty.mux.AbstractMuxHandler.newStream$lambda-9(AbstractMuxHandler.kt:389)
+	at java.base/java.util.concurrent.CompletableFuture$UniApply.tryFire(CompletableFuture.java:646)
+	at java.base/java.util.concurrent.CompletableFuture$Completion.run(CompletableFuture.java:482)
+	at io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:148)
+	at io.netty.util.concurrent.AbstractEventExecutor.safeExecute(AbstractEventExecutor.java:141)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.runAllTasks(SingleThreadEventExecutor.java:535)
+	at io.netty.channel.SingleThreadIoEventLoop.run(SingleThreadIoEventLoop.java:201)
+	at io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:1195)
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+
+2194199957451468 client.raw b22bbf7e CLOSE
+java.lang.Exception: Physical close client.raw
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.close(ChildReadPauseCoalescedRecordTest.kt:178)
+	at io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:635)
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.close(ChildReadPauseCoalescedRecordTest.kt:179)
+	at io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:635)
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.close(ChildReadPauseCoalescedRecordTest.kt:179)
+	at io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:635)
+	at io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:453)
+	at io.netty.channel.DefaultChannelPipeline.close(DefaultChannelPipeline.java:978)
+	at io.netty.channel.Channel.close(Channel.java:312)
+	at io.libp2p.transport.implementation.P2PChannelOverNetty.close(P2PChannelOverNetty.kt:33)
+	at io.libp2p.host.HostImpl.attemptNewStream$lambda-8$lambda-7(HostImpl.kt:163)
+	at java.base/java.util.concurrent.CompletableFuture.uniWhenComplete(CompletableFuture.java:863)
+	at java.base/java.util.concurrent.CompletableFuture$UniWhenComplete.tryFire(CompletableFuture.java:841)
+	at java.base/java.util.concurrent.CompletableFuture.postComplete(CompletableFuture.java:510)
+	at java.base/java.util.concurrent.CompletableFuture.completeExceptionally(CompletableFuture.java:2194)
+	at io.libp2p.etc.types.AsyncExtKt.bind$lambda-0(AsyncExt.kt:13)
+	at java.base/java.util.concurrent.CompletableFuture.uniWhenComplete(CompletableFuture.java:863)
+	at java.base/java.util.concurrent.CompletableFuture$UniWhenComplete.tryFire(CompletableFuture.java:841)
+	at java.base/java.util.concurrent.CompletableFuture.postComplete(CompletableFuture.java:510)
+	at java.base/java.util.concurrent.CompletableFuture.completeExceptionally(CompletableFuture.java:2194)
+	at io.libp2p.multistream.ProtocolSelect.channelUnregistered(ProtocolSelect.kt:90)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelUnregistered(AbstractChannelHandlerContext.java:191)
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.channelUnregistered(DefaultChannelPipeline.java:1407)
+	at io.netty.channel.DefaultChannelPipeline.fireChannelUnregistered(DefaultChannelPipeline.java:780)
+	at io.libp2p.etc.util.netty.AbstractChildChannel.completeTeardown(AbstractChildChannel.kt:184)
+	at io.libp2p.etc.util.netty.AbstractChildChannel.doClose(AbstractChildChannel.kt:155)
+	at io.libp2p.etc.util.netty.mux.MuxChannel.doClose(MuxChannel.kt:146)
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.doClose0(AbstractChannel.java:617)
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.close(AbstractChannel.java:594)
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.close(AbstractChannel.java:489)
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.close(DefaultChannelPipeline.java:1371)
+	at io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:633)
+	at io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:453)
+	at io.netty.channel.DefaultChannelPipeline.close(DefaultChannelPipeline.java:978)
+	at io.netty.channel.Channel.close(Channel.java:312)
+	at io.libp2p.etc.util.netty.AbstractChildChannel.closeImpl(AbstractChildChannel.kt:56)
+	at io.libp2p.etc.util.netty.AbstractChildChannel.parentCloseListener$lambda-0(AbstractChildChannel.kt:33)
+	at io.netty.util.concurrent.DefaultPromise.notifyListener0(DefaultPromise.java:604)
+	at io.netty.util.concurrent.DefaultPromise.notifyListeners0(DefaultPromise.java:597)
+	at io.netty.util.concurrent.DefaultPromise.notifyListenersNow(DefaultPromise.java:573)
+	at io.netty.util.concurrent.DefaultPromise.notifyListeners(DefaultPromise.java:506)
+	at io.netty.util.concurrent.DefaultPromise.setValue0(DefaultPromise.java:650)
+	at io.netty.util.concurrent.DefaultPromise.setSuccess0(DefaultPromise.java:639)
+	at io.netty.util.concurrent.DefaultPromise.trySuccess(DefaultPromise.java:119)
+	at io.netty.channel.DefaultChannelPromise.trySuccess(DefaultChannelPromise.java:84)
+	at io.netty.channel.AbstractChannel$CloseFuture.setClosed(AbstractChannel.java:1044)
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.doClose0(AbstractChannel.java:618)
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.close(AbstractChannel.java:594)
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.handleWriteError(AbstractChannel.java:813)
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.flush0(AbstractChannel.java:796)
+	at io.netty.channel.nio.AbstractNioChannel$AbstractNioUnsafe.flush0(AbstractNioChannel.java:404)
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.flush(AbstractChannel.java:758)
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.flush(DefaultChannelPipeline.java:1391)
+	at io.netty.channel.AbstractChannelHandlerContext.flush(AbstractChannelHandlerContext.java:754)
+	at io.netty.channel.ChannelDuplexHandler.flush(ChannelDuplexHandler.java:127)
+	at io.netty.channel.AbstractChannelHandlerContext.write(AbstractChannelHandlerContext.java:817)
+	at io.netty.channel.AbstractChannelHandlerContext.writeAndFlush(AbstractChannelHandlerContext.java:776)
+	at io.netty.channel.AbstractChannelHandlerContext.writeAndFlush(AbstractChannelHandlerContext.java:859)
+	at io.libp2p.mux.yamux.YamuxHandler.writeAndFlushFrame(YamuxHandler.kt:437)
+	at io.libp2p.mux.yamux.YamuxHandler.access$writeAndFlushFrame(YamuxHandler.kt:36)
+	at io.libp2p.mux.yamux.YamuxHandler$YamuxStreamHandler.drainBufferAndMaybeClose(YamuxHandler.kt:248)
+	at io.libp2p.mux.yamux.YamuxHandler$YamuxStreamHandler.sendData(YamuxHandler.kt:303)
+	at io.libp2p.mux.yamux.YamuxHandler.onChildWrite(YamuxHandler.kt:475)
+	at io.libp2p.mux.yamux.YamuxHandler.onChildWrite(YamuxHandler.kt:36)
+	at io.libp2p.etc.util.netty.mux.MuxChannel.doWrite(MuxChannel.kt:87)
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.flush0(AbstractChannel.java:794)
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.flush(AbstractChannel.java:758)
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.flush(DefaultChannelPipeline.java:1391)
+	at io.netty.channel.AbstractChannelHandlerContext.flush(AbstractChannelHandlerContext.java:754)
+	at io.libp2p.multistream.Negotiator$GenericHandler.channelActive(Negotiator.kt:92)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelActive(AbstractChannelHandlerContext.java:221)
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.channelActive(DefaultChannelPipeline.java:1417)
+	at io.netty.channel.DefaultChannelPipeline.fireChannelActive(DefaultChannelPipeline.java:862)
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.lambda$register0$0(AbstractChannel.java:389)
+	at io.netty.util.concurrent.DefaultPromise.notifyListener0(DefaultPromise.java:604)
+	at io.netty.util.concurrent.DefaultPromise.notifyListenersNow(DefaultPromise.java:571)
+	at io.netty.util.concurrent.DefaultPromise.notifyListeners(DefaultPromise.java:506)
+	at io.netty.util.concurrent.DefaultPromise.setValue0(DefaultPromise.java:650)
+	at io.netty.util.concurrent.DefaultPromise.setSuccess0(DefaultPromise.java:639)
+	at io.netty.util.concurrent.DefaultPromise.setSuccess(DefaultPromise.java:111)
+	at io.netty.channel.DefaultChannelPromise.setSuccess(DefaultChannelPromise.java:78)
+	at io.netty.channel.DefaultChannelPromise.setSuccess(DefaultChannelPromise.java:73)
+	at io.netty.channel.AbstractChannel.doRegister(AbstractChannel.java:960)
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.register0(AbstractChannel.java:405)
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.register(AbstractChannel.java:346)
+	at io.netty.channel.SingleThreadEventLoop.register(SingleThreadEventLoop.java:119)
+	at io.netty.channel.SingleThreadEventLoop.register(SingleThreadEventLoop.java:113)
+	at io.libp2p.etc.util.netty.mux.AbstractMuxHandler.createChild(AbstractMuxHandler.kt:375)
+	at io.libp2p.etc.util.netty.mux.AbstractMuxHandler.newStream$lambda-9(AbstractMuxHandler.kt:389)
+	at java.base/java.util.concurrent.CompletableFuture$UniApply.tryFire(CompletableFuture.java:646)
+	at java.base/java.util.concurrent.CompletableFuture$Completion.run(CompletableFuture.java:482)
+	at io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:148)
+	at io.netty.util.concurrent.AbstractEventExecutor.safeExecute(AbstractEventExecutor.java:141)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.runAllTasks(SingleThreadEventExecutor.java:535)
+	at io.netty.channel.SingleThreadIoEventLoop.run(SingleThreadIoEventLoop.java:201)
+	at io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:1195)
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+
+2194199961912588 client.raw b22bbf7e INACTIVE
+2194199961959308 client.after b22bbf7e INACTIVE
+2194199961968749 client.frames b22bbf7e INACTIVE
+2194199965340545 client.raw d69e41b4 ACTIVE 1
+2194199965736641 client.raw d69e41b4 WRITE 132f6d756c746973747265616d2f312e302e300a
+2194199965954014 client.raw d69e41b4 WRITE 112f706c61696e746578742f322e302e300a
+2194199971464875 server.raw c600c107 ACTIVE 1
+2194199971803843 server.raw c600c107 WRITE 132f6d756c746973747265616d2f312e302e300a
+2194199972188577 client.raw d69e41b4 READ 132f6d756c746973747265616d2f312e302e300a
+2194199972234138 server.raw c600c107 READ 132f6d756c746973747265616d2f312e302e300a112f706c61696e746578742f322e302e300a
+2194199976683434 server.raw c600c107 WRITE 112f706c61696e746578742f322e302e300a000000850a2212202e7381f87b644a8a02e5f2c625b8bc6af64236f8c1f3a2b92799445b106b41f9125f0803125b3059301306072a8648ce3d020106082a8648ce3d0301070342000450c9181a90d52a475dc5401bcf1fdf67ec91aad05e44dda5b2542a6b725aa0bf49a2bc1a8688d6e632ca39212ab4e584720a11a809729e9f5bd721f45fd85bae
+2194199977736509 client.raw d69e41b4 READ 112f706c61696e746578742f322e302e300a000000850a2212202e7381f87b644a8a02e5f2c625b8bc6af64236f8c1f3a2b92799445b106b41f9125f0803125b3059301306072a8648ce3d020106082a8648ce3d0301070342000450c9181a90d52a475dc5401bcf1fdf67ec91aad05e44dda5b2542a6b725aa0bf49a2bc1a8688d6e632ca39212ab4e584720a11a809729e9f5bd721f45fd85bae
+2194199979773452 client.raw d69e41b4 WRITE 00000085
+2194199979871381 client.raw d69e41b4 WRITE 0a2212200fbaede7aaab8fd624e231512f045e8cced9a6820862537a145541446ebd55fe125f0803125b3059301306072a8648ce3d020106082a8648ce3d03010703420004dc64803fa177d2a1ec293192a7e030e8483d9bc1334bd6c8f65dd252d5d6d96fac4dba03d0e2a3c2b2bae98f4e98b2f43eaffaffe6cfe9b44d9aa00f4eea7813
+2194199980411628 server.raw c600c107 READ 000000850a2212200fbaede7aaab8fd624e231512f045e8cced9a6820862537a145541446ebd55fe125f0803125b3059301306072a8648ce3d020106082a8648ce3d03010703420004dc64803fa177d2a1ec293192a7e030e8483d9bc1334bd6c8f65dd252d5d6d96fac4dba03d0e2a3c2b2bae98f4e98b2f43eaffaffe6cfe9b44d9aa00f4eea7813
+2194199981724861 server.after c600c107 ACTIVE 1
+2194199982059175 server.after c600c107 WRITE 132f6d756c746973747265616d2f312e302e300a
+2194199982136967 server.raw c600c107 WRITE 00000014
+2194199982191350 server.raw c600c107 WRITE 132f6d756c746973747265616d2f312e302e300a
+2194199987477582 client.after d69e41b4 ACTIVE 1
+2194199988315756 client.after d69e41b4 WRITE 132f6d756c746973747265616d2f312e302e300a
+2194199988424836 client.raw d69e41b4 WRITE 00000014
+2194199988480999 client.raw d69e41b4 WRITE 132f6d756c746973747265616d2f312e302e300a
+2194199989458441 client.after d69e41b4 WRITE 0d2f79616d75782f312e302e300a
+2194199990104907 client.raw d69e41b4 WRITE 0000000e
+2194199990180022 client.raw d69e41b4 WRITE 0d2f79616d75782f312e302e300a
+2194199990762916 server.raw c600c107 READ 00000014132f6d756c746973747265616d2f312e302e300a0000000e0d2f79616d75782f312e302e300a
+2194199990854725 client.after d69e41b4 ACTIVE 2
+java.lang.Exception: Repeated activation
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.channelActive(ChildReadPauseCoalescedRecordTest.kt:166)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelActive(AbstractChannelHandlerContext.java:221)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelActive(AbstractChannelHandlerContext.java:229)
+	at io.libp2p.multistream.Negotiator$GenericHandler.channelRead0(Negotiator.kt:121)
+	at io.libp2p.multistream.Negotiator$GenericHandler.channelRead0(Negotiator.kt:75)
+	at io.netty.channel.SimpleChannelInboundHandler.channelRead(SimpleChannelInboundHandler.java:99)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:357)
+	at io.netty.handler.codec.MessageToMessageDecoder.channelRead(MessageToMessageDecoder.java:107)
+	at io.netty.handler.codec.MessageToMessageCodec.channelRead(MessageToMessageCodec.java:120)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:355)
+	at io.netty.handler.codec.MessageToMessageDecoder.channelRead(MessageToMessageDecoder.java:107)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:357)
+	at io.netty.handler.codec.ByteToMessageDecoder.fireChannelRead(ByteToMessageDecoder.java:361)
+	at io.netty.handler.codec.ByteToMessageDecoder.fireChannelRead(ByteToMessageDecoder.java:348)
+	at io.netty.handler.codec.ByteToMessageDecoder.callDecode(ByteToMessageDecoder.java:470)
+	at io.netty.handler.codec.ByteToMessageDecoder.channelRead(ByteToMessageDecoder.java:296)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:357)
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.channelRead(ChildReadPauseCoalescedRecordTest.kt:171)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:355)
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.channelRead(DefaultChannelPipeline.java:1429)
+	at io.netty.channel.DefaultChannelPipeline.fireChannelRead(DefaultChannelPipeline.java:918)
+	at io.netty.channel.nio.AbstractNioByteChannel$NioByteUnsafe.read(AbstractNioByteChannel.java:176)
+	at io.netty.channel.nio.AbstractNioChannel$AbstractNioUnsafe.handle(AbstractNioChannel.java:445)
+	at io.netty.channel.nio.NioIoHandler$DefaultNioRegistration.handle(NioIoHandler.java:388)
+	at io.netty.channel.nio.NioIoHandler.processSelectedKey(NioIoHandler.java:596)
+	at io.netty.channel.nio.NioIoHandler.processSelectedKeysOptimized(NioIoHandler.java:571)
+	at io.netty.channel.nio.NioIoHandler.processSelectedKeys(NioIoHandler.java:512)
+	at io.netty.channel.nio.NioIoHandler.run(NioIoHandler.java:484)
+	at io.netty.channel.SingleThreadIoEventLoop.runIo(SingleThreadIoEventLoop.java:225)
+	at io.netty.channel.SingleThreadIoEventLoop.run(SingleThreadIoEventLoop.java:196)
+	at io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:1195)
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+
+2194199990874254 server.after c600c107 READ 132f6d756c746973747265616d2f312e302e300a
+2194199991023171 server.after c600c107 READ 0d2f79616d75782f312e302e300a
+2194199991410913 server.after c600c107 WRITE 0d2f79616d75782f312e302e300a
+2194199991551738 server.raw c600c107 WRITE 0000000e
+2194199991610229 server.raw c600c107 WRITE 0d2f79616d75782f312e302e300a
+2194199991089157 client.after d69e41b4 WRITE 132f6d756c746973747265616d2f312e302e300a
+2194199992229808 client.raw d69e41b4 WRITE 00000014
+2194199992304425 client.raw d69e41b4 WRITE 132f6d756c746973747265616d2f312e302e300a
+2194199992482778 client.after d69e41b4 WRITE 0d2f79616d75782f312e302e300a
+2194199992510056 server.frames c600c107 ACTIVE 1
+2194199992532374 client.raw d69e41b4 WRITE 0000000e
+2194199992566971 client.raw d69e41b4 WRITE 0d2f79616d75782f312e302e300a
+2194199993932700 server.raw c600c107 READ 00000014132f6d756c746973747265616d2f312e302e300a0000000e0d2f79616d75782f312e302e300a
+2194199994124592 server.after c600c107 READ 132f6d756c746973747265616d2f312e302e300a
+2194199994562785 server.frames c600c107 EXCEPTION
+io.netty.handler.codec.DecoderException: io.libp2p.mux.InvalidFrameMuxerException: Invalid Yamux type value: 47
+	at io.netty.handler.codec.ByteToMessageDecoder.callDecode(ByteToMessageDecoder.java:515)
+	at io.netty.handler.codec.ByteToMessageDecoder.channelRead(ByteToMessageDecoder.java:296)
+	at io.netty.handler.codec.ByteToMessageCodec.channelRead(ByteToMessageCodec.java:103)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:355)
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.channelRead(ChildReadPauseCoalescedRecordTest.kt:171)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:355)
+	at io.netty.handler.codec.ByteToMessageDecoder.fireChannelRead(ByteToMessageDecoder.java:361)
+	at io.netty.handler.codec.ByteToMessageDecoder.fireChannelRead(ByteToMessageDecoder.java:348)
+	at io.netty.handler.codec.ByteToMessageDecoder.callDecode(ByteToMessageDecoder.java:470)
+	at io.netty.handler.codec.ByteToMessageDecoder.channelRead(ByteToMessageDecoder.java:296)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:357)
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.channelRead(ChildReadPauseCoalescedRecordTest.kt:171)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:355)
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.channelRead(DefaultChannelPipeline.java:1429)
+	at io.netty.channel.DefaultChannelPipeline.fireChannelRead(DefaultChannelPipeline.java:918)
+	at io.netty.channel.nio.AbstractNioByteChannel$NioByteUnsafe.read(AbstractNioByteChannel.java:176)
+	at io.netty.channel.nio.AbstractNioChannel$AbstractNioUnsafe.handle(AbstractNioChannel.java:445)
+	at io.netty.channel.nio.NioIoHandler$DefaultNioRegistration.handle(NioIoHandler.java:388)
+	at io.netty.channel.nio.NioIoHandler.processSelectedKey(NioIoHandler.java:596)
+	at io.netty.channel.nio.NioIoHandler.processSelectedKeysOptimized(NioIoHandler.java:571)
+	at io.netty.channel.nio.NioIoHandler.processSelectedKeys(NioIoHandler.java:512)
+	at io.netty.channel.nio.NioIoHandler.run(NioIoHandler.java:484)
+	at io.netty.channel.SingleThreadIoEventLoop.runIo(SingleThreadIoEventLoop.java:225)
+	at io.netty.channel.SingleThreadIoEventLoop.run(SingleThreadIoEventLoop.java:196)
+	at io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:1195)
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+Caused by: io.libp2p.mux.InvalidFrameMuxerException: Invalid Yamux type value: 47
+	at io.libp2p.mux.yamux.YamuxType$Companion.fromInt(YamuxType.kt:18)
+	at io.libp2p.mux.yamux.YamuxFrameCodec.decode(YamuxFrameCodec.kt:50)
+	at io.netty.handler.codec.ByteToMessageCodec$1.decode(ByteToMessageCodec.java:42)
+	at io.netty.handler.codec.ByteToMessageDecoder.decodeRemovalReentryProtection(ByteToMessageDecoder.java:545)
+	at io.netty.handler.codec.ByteToMessageDecoder.callDecode(ByteToMessageDecoder.java:484)
+	... 27 more
+
+2194199995289198 server.after c600c107 CLOSE
+java.lang.Exception: Physical close server.after
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.close(ChildReadPauseCoalescedRecordTest.kt:178)
+	at io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:635)
+	at io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:453)
+	at io.libp2p.mux.yamux.YamuxFrameCodec.exceptionCaught(YamuxFrameCodec.kt:93)
+	at io.netty.channel.AbstractChannelHandlerContext.invokeExceptionCaught(AbstractChannelHandlerContext.java:290)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:360)
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.channelRead(ChildReadPauseCoalescedRecordTest.kt:171)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:355)
+	at io.netty.handler.codec.ByteToMessageDecoder.fireChannelRead(ByteToMessageDecoder.java:361)
+	at io.netty.handler.codec.ByteToMessageDecoder.fireChannelRead(ByteToMessageDecoder.java:348)
+	at io.netty.handler.codec.ByteToMessageDecoder.callDecode(ByteToMessageDecoder.java:470)
+	at io.netty.handler.codec.ByteToMessageDecoder.channelRead(ByteToMessageDecoder.java:296)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:357)
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.channelRead(ChildReadPauseCoalescedRecordTest.kt:171)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:355)
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.channelRead(DefaultChannelPipeline.java:1429)
+	at io.netty.channel.DefaultChannelPipeline.fireChannelRead(DefaultChannelPipeline.java:918)
+	at io.netty.channel.nio.AbstractNioByteChannel$NioByteUnsafe.read(AbstractNioByteChannel.java:176)
+	at io.netty.channel.nio.AbstractNioChannel$AbstractNioUnsafe.handle(AbstractNioChannel.java:445)
+	at io.netty.channel.nio.NioIoHandler$DefaultNioRegistration.handle(NioIoHandler.java:388)
+	at io.netty.channel.nio.NioIoHandler.processSelectedKey(NioIoHandler.java:596)
+	at io.netty.channel.nio.NioIoHandler.processSelectedKeysOptimized(NioIoHandler.java:571)
+	at io.netty.channel.nio.NioIoHandler.processSelectedKeys(NioIoHandler.java:512)
+	at io.netty.channel.nio.NioIoHandler.run(NioIoHandler.java:484)
+	at io.netty.channel.SingleThreadIoEventLoop.runIo(SingleThreadIoEventLoop.java:225)
+	at io.netty.channel.SingleThreadIoEventLoop.run(SingleThreadIoEventLoop.java:196)
+	at io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:1195)
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+
+2194199995416993 server.raw c600c107 CLOSE
+java.lang.Exception: Physical close server.raw
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.close(ChildReadPauseCoalescedRecordTest.kt:178)
+	at io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:635)
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.close(ChildReadPauseCoalescedRecordTest.kt:179)
+	at io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:635)
+	at io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:453)
+	at io.libp2p.mux.yamux.YamuxFrameCodec.exceptionCaught(YamuxFrameCodec.kt:93)
+	at io.netty.channel.AbstractChannelHandlerContext.invokeExceptionCaught(AbstractChannelHandlerContext.java:290)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:360)
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.channelRead(ChildReadPauseCoalescedRecordTest.kt:171)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:355)
+	at io.netty.handler.codec.ByteToMessageDecoder.fireChannelRead(ByteToMessageDecoder.java:361)
+	at io.netty.handler.codec.ByteToMessageDecoder.fireChannelRead(ByteToMessageDecoder.java:348)
+	at io.netty.handler.codec.ByteToMessageDecoder.callDecode(ByteToMessageDecoder.java:470)
+	at io.netty.handler.codec.ByteToMessageDecoder.channelRead(ByteToMessageDecoder.java:296)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:357)
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.channelRead(ChildReadPauseCoalescedRecordTest.kt:171)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:355)
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.channelRead(DefaultChannelPipeline.java:1429)
+	at io.netty.channel.DefaultChannelPipeline.fireChannelRead(DefaultChannelPipeline.java:918)
+	at io.netty.channel.nio.AbstractNioByteChannel$NioByteUnsafe.read(AbstractNioByteChannel.java:176)
+	at io.netty.channel.nio.AbstractNioChannel$AbstractNioUnsafe.handle(AbstractNioChannel.java:445)
+	at io.netty.channel.nio.NioIoHandler$DefaultNioRegistration.handle(NioIoHandler.java:388)
+	at io.netty.channel.nio.NioIoHandler.processSelectedKey(NioIoHandler.java:596)
+	at io.netty.channel.nio.NioIoHandler.processSelectedKeysOptimized(NioIoHandler.java:571)
+	at io.netty.channel.nio.NioIoHandler.processSelectedKeys(NioIoHandler.java:512)
+	at io.netty.channel.nio.NioIoHandler.run(NioIoHandler.java:484)
+	at io.netty.channel.SingleThreadIoEventLoop.runIo(SingleThreadIoEventLoop.java:225)
+	at io.netty.channel.SingleThreadIoEventLoop.run(SingleThreadIoEventLoop.java:196)
+	at io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:1195)
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+
+2194199995443327 client.raw d69e41b4 READ 00000014132f6d756c746973747265616d2f312e302e300a0000000e0d2f79616d75782f312e302e300a
+2194199995531091 client.after d69e41b4 READ 132f6d756c746973747265616d2f312e302e300a
+2194199995643218 client.after d69e41b4 READ 0d2f79616d75782f312e302e300a
+2194199995820600 server.after c600c107 READ 0d2f79616d75782f312e302e300a
+2194199996230244 server.frames c600c107 EXCEPTION
+io.netty.handler.codec.DecoderException: io.libp2p.mux.InvalidFrameMuxerException: Invalid Yamux type value: 117
+	at io.netty.handler.codec.ByteToMessageDecoder.callDecode(ByteToMessageDecoder.java:515)
+	at io.netty.handler.codec.ByteToMessageDecoder.channelRead(ByteToMessageDecoder.java:296)
+	at io.netty.handler.codec.ByteToMessageCodec.channelRead(ByteToMessageCodec.java:103)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:355)
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.channelRead(ChildReadPauseCoalescedRecordTest.kt:171)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:355)
+	at io.netty.handler.codec.ByteToMessageDecoder.fireChannelRead(ByteToMessageDecoder.java:361)
+	at io.netty.handler.codec.ByteToMessageDecoder.channelRead(ByteToMessageDecoder.java:325)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:357)
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.channelRead(ChildReadPauseCoalescedRecordTest.kt:171)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:355)
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.channelRead(DefaultChannelPipeline.java:1429)
+	at io.netty.channel.DefaultChannelPipeline.fireChannelRead(DefaultChannelPipeline.java:918)
+	at io.netty.channel.nio.AbstractNioByteChannel$NioByteUnsafe.read(AbstractNioByteChannel.java:176)
+	at io.netty.channel.nio.AbstractNioChannel$AbstractNioUnsafe.handle(AbstractNioChannel.java:445)
+	at io.netty.channel.nio.NioIoHandler$DefaultNioRegistration.handle(NioIoHandler.java:388)
+	at io.netty.channel.nio.NioIoHandler.processSelectedKey(NioIoHandler.java:596)
+	at io.netty.channel.nio.NioIoHandler.processSelectedKeysOptimized(NioIoHandler.java:571)
+	at io.netty.channel.nio.NioIoHandler.processSelectedKeys(NioIoHandler.java:512)
+	at io.netty.channel.nio.NioIoHandler.run(NioIoHandler.java:484)
+	at io.netty.channel.SingleThreadIoEventLoop.runIo(SingleThreadIoEventLoop.java:225)
+	at io.netty.channel.SingleThreadIoEventLoop.run(SingleThreadIoEventLoop.java:196)
+	at io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:1195)
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+Caused by: io.libp2p.mux.InvalidFrameMuxerException: Invalid Yamux type value: 117
+	at io.libp2p.mux.yamux.YamuxType$Companion.fromInt(YamuxType.kt:18)
+	at io.libp2p.mux.yamux.YamuxFrameCodec.decode(YamuxFrameCodec.kt:50)
+	at io.netty.handler.codec.ByteToMessageCodec$1.decode(ByteToMessageCodec.java:42)
+	at io.netty.handler.codec.ByteToMessageDecoder.decodeRemovalReentryProtection(ByteToMessageDecoder.java:545)
+	at io.netty.handler.codec.ByteToMessageDecoder.callDecode(ByteToMessageDecoder.java:484)
+	... 25 more
+
+2194199996371810 client.frames d69e41b4 ACTIVE 1
+2194199996433067 server.after c600c107 CLOSE
+java.lang.Exception: Physical close server.after
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.close(ChildReadPauseCoalescedRecordTest.kt:178)
+	at io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:635)
+	at io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:453)
+	at io.libp2p.mux.yamux.YamuxFrameCodec.exceptionCaught(YamuxFrameCodec.kt:93)
+	at io.netty.channel.AbstractChannelHandlerContext.invokeExceptionCaught(AbstractChannelHandlerContext.java:290)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:360)
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.channelRead(ChildReadPauseCoalescedRecordTest.kt:171)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:355)
+	at io.netty.handler.codec.ByteToMessageDecoder.fireChannelRead(ByteToMessageDecoder.java:361)
+	at io.netty.handler.codec.ByteToMessageDecoder.channelRead(ByteToMessageDecoder.java:325)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:357)
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.channelRead(ChildReadPauseCoalescedRecordTest.kt:171)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:355)
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.channelRead(DefaultChannelPipeline.java:1429)
+	at io.netty.channel.DefaultChannelPipeline.fireChannelRead(DefaultChannelPipeline.java:918)
+	at io.netty.channel.nio.AbstractNioByteChannel$NioByteUnsafe.read(AbstractNioByteChannel.java:176)
+	at io.netty.channel.nio.AbstractNioChannel$AbstractNioUnsafe.handle(AbstractNioChannel.java:445)
+	at io.netty.channel.nio.NioIoHandler$DefaultNioRegistration.handle(NioIoHandler.java:388)
+	at io.netty.channel.nio.NioIoHandler.processSelectedKey(NioIoHandler.java:596)
+	at io.netty.channel.nio.NioIoHandler.processSelectedKeysOptimized(NioIoHandler.java:571)
+	at io.netty.channel.nio.NioIoHandler.processSelectedKeys(NioIoHandler.java:512)
+	at io.netty.channel.nio.NioIoHandler.run(NioIoHandler.java:484)
+	at io.netty.channel.SingleThreadIoEventLoop.runIo(SingleThreadIoEventLoop.java:225)
+	at io.netty.channel.SingleThreadIoEventLoop.run(SingleThreadIoEventLoop.java:196)
+	at io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:1195)
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+
+2194199996540903 server.raw c600c107 CLOSE
+java.lang.Exception: Physical close server.raw
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.close(ChildReadPauseCoalescedRecordTest.kt:178)
+	at io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:635)
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.close(ChildReadPauseCoalescedRecordTest.kt:179)
+	at io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:635)
+	at io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:453)
+	at io.libp2p.mux.yamux.YamuxFrameCodec.exceptionCaught(YamuxFrameCodec.kt:93)
+	at io.netty.channel.AbstractChannelHandlerContext.invokeExceptionCaught(AbstractChannelHandlerContext.java:290)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:360)
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.channelRead(ChildReadPauseCoalescedRecordTest.kt:171)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:355)
+	at io.netty.handler.codec.ByteToMessageDecoder.fireChannelRead(ByteToMessageDecoder.java:361)
+	at io.netty.handler.codec.ByteToMessageDecoder.channelRead(ByteToMessageDecoder.java:325)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:357)
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.channelRead(ChildReadPauseCoalescedRecordTest.kt:171)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:355)
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.channelRead(DefaultChannelPipeline.java:1429)
+	at io.netty.channel.DefaultChannelPipeline.fireChannelRead(DefaultChannelPipeline.java:918)
+	at io.netty.channel.nio.AbstractNioByteChannel$NioByteUnsafe.read(AbstractNioByteChannel.java:176)
+	at io.netty.channel.nio.AbstractNioChannel$AbstractNioUnsafe.handle(AbstractNioChannel.java:445)
+	at io.netty.channel.nio.NioIoHandler$DefaultNioRegistration.handle(NioIoHandler.java:388)
+	at io.netty.channel.nio.NioIoHandler.processSelectedKey(NioIoHandler.java:596)
+	at io.netty.channel.nio.NioIoHandler.processSelectedKeysOptimized(NioIoHandler.java:571)
+	at io.netty.channel.nio.NioIoHandler.processSelectedKeys(NioIoHandler.java:512)
+	at io.netty.channel.nio.NioIoHandler.run(NioIoHandler.java:484)
+	at io.netty.channel.SingleThreadIoEventLoop.runIo(SingleThreadIoEventLoop.java:225)
+	at io.netty.channel.SingleThreadIoEventLoop.run(SingleThreadIoEventLoop.java:196)
+	at io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:1195)
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+
+2194199996659325 server.raw c600c107 INACTIVE
+2194199996678846 server.after c600c107 INACTIVE
+2194199996752169 server.frames c600c107 INACTIVE
+2194199996784382 client.frames d69e41b4 WRITE YamuxFrame(id=3289a6fffe3e2e6b-0007bbe5-00000006-1428a51e79fa886c-d69e41b4/1, type=DATA, flags=SYN, length=0)
+2194199996924273 client.after d69e41b4 WRITE 000000010000000100000000
+2194199996921461 server.frames c600c107 EXCEPTION
+io.netty.handler.codec.DecoderException: io.libp2p.mux.InvalidFrameMuxerException: Invalid Yamux type value: 116
+	at io.netty.handler.codec.ByteToMessageDecoder.callDecode(ByteToMessageDecoder.java:515)
+	at io.netty.handler.codec.ByteToMessageDecoder.channelInputClosed(ByteToMessageDecoder.java:442)
+	at io.netty.handler.codec.ByteToMessageDecoder.channelInputClosed(ByteToMessageDecoder.java:409)
+	at io.netty.handler.codec.ByteToMessageDecoder.channelInactive(ByteToMessageDecoder.java:392)
+	at io.netty.handler.codec.ByteToMessageCodec.channelInactive(ByteToMessageCodec.java:118)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:251)
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.channelInactive(ChildReadPauseCoalescedRecordTest.kt:188)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:251)
+	at io.netty.handler.codec.ByteToMessageDecoder.channelInputClosed(ByteToMessageDecoder.java:427)
+	at io.netty.handler.codec.ByteToMessageDecoder.channelInactive(ByteToMessageDecoder.java:392)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:251)
+	at io.libp2p.mux.ForcedPlaintextWriteBatch.channelInactive(ChildReadPauseCoalescedRecordTest.kt:333)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:251)
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.channelInactive(ChildReadPauseCoalescedRecordTest.kt:188)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:251)
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.channelInactive(DefaultChannelPipeline.java:1424)
+	at io.netty.channel.DefaultChannelPipeline.fireChannelInactive(DefaultChannelPipeline.java:876)
+	at io.netty.channel.AbstractChannel$AbstractUnsafe$6.run(AbstractChannel.java:676)
+	at io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:148)
+	at io.netty.util.concurrent.AbstractEventExecutor.safeExecute(AbstractEventExecutor.java:141)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.runAllTasks(SingleThreadEventExecutor.java:535)
+	at io.netty.channel.SingleThreadIoEventLoop.run(SingleThreadIoEventLoop.java:201)
+	at io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:1195)
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+Caused by: io.libp2p.mux.InvalidFrameMuxerException: Invalid Yamux type value: 116
+	at io.libp2p.mux.yamux.YamuxType$Companion.fromInt(YamuxType.kt:18)
+	at io.libp2p.mux.yamux.YamuxFrameCodec.decode(YamuxFrameCodec.kt:50)
+	at io.netty.handler.codec.ByteToMessageCodec$1.decode(ByteToMessageCodec.java:42)
+	at io.netty.handler.codec.ByteToMessageDecoder.decodeRemovalReentryProtection(ByteToMessageDecoder.java:545)
+	at io.netty.handler.codec.ByteToMessageDecoder.callDecode(ByteToMessageDecoder.java:484)
+	... 25 more
+
+2194199996996429 client.raw d69e41b4 WRITE 0000000c
+2194199997058098 client.raw d69e41b4 WRITE 000000010000000100000000
+2194199997130211 server.after c600c107 CLOSE
+java.lang.Exception: Physical close server.after
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.close(ChildReadPauseCoalescedRecordTest.kt:178)
+	at io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:635)
+	at io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:453)
+	at io.libp2p.mux.yamux.YamuxFrameCodec.exceptionCaught(YamuxFrameCodec.kt:93)
+	at io.netty.channel.AbstractChannelHandlerContext.invokeExceptionCaught(AbstractChannelHandlerContext.java:290)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:256)
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.channelInactive(ChildReadPauseCoalescedRecordTest.kt:188)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:251)
+	at io.netty.handler.codec.ByteToMessageDecoder.channelInputClosed(ByteToMessageDecoder.java:427)
+	at io.netty.handler.codec.ByteToMessageDecoder.channelInactive(ByteToMessageDecoder.java:392)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:251)
+	at io.libp2p.mux.ForcedPlaintextWriteBatch.channelInactive(ChildReadPauseCoalescedRecordTest.kt:333)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:251)
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.channelInactive(ChildReadPauseCoalescedRecordTest.kt:188)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:251)
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.channelInactive(DefaultChannelPipeline.java:1424)
+	at io.netty.channel.DefaultChannelPipeline.fireChannelInactive(DefaultChannelPipeline.java:876)
+	at io.netty.channel.AbstractChannel$AbstractUnsafe$6.run(AbstractChannel.java:676)
+	at io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:148)
+	at io.netty.util.concurrent.AbstractEventExecutor.safeExecute(AbstractEventExecutor.java:141)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.runAllTasks(SingleThreadEventExecutor.java:535)
+	at io.netty.channel.SingleThreadIoEventLoop.run(SingleThreadIoEventLoop.java:201)
+	at io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:1195)
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+
+2194199997219122 server.raw c600c107 CLOSE
+java.lang.Exception: Physical close server.raw
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.close(ChildReadPauseCoalescedRecordTest.kt:178)
+	at io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:635)
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.close(ChildReadPauseCoalescedRecordTest.kt:179)
+	at io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:635)
+	at io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:453)
+	at io.libp2p.mux.yamux.YamuxFrameCodec.exceptionCaught(YamuxFrameCodec.kt:93)
+	at io.netty.channel.AbstractChannelHandlerContext.invokeExceptionCaught(AbstractChannelHandlerContext.java:290)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:256)
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.channelInactive(ChildReadPauseCoalescedRecordTest.kt:188)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:251)
+	at io.netty.handler.codec.ByteToMessageDecoder.channelInputClosed(ByteToMessageDecoder.java:427)
+	at io.netty.handler.codec.ByteToMessageDecoder.channelInactive(ByteToMessageDecoder.java:392)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:251)
+	at io.libp2p.mux.ForcedPlaintextWriteBatch.channelInactive(ChildReadPauseCoalescedRecordTest.kt:333)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:251)
+	at io.libp2p.mux.ChildReadPauseCoalescedRecordTest$offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume$newHost$1$7$recorder$1.channelInactive(ChildReadPauseCoalescedRecordTest.kt:188)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:251)
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.channelInactive(DefaultChannelPipeline.java:1424)
+	at io.netty.channel.DefaultChannelPipeline.fireChannelInactive(DefaultChannelPipeline.java:876)
+	at io.netty.channel.AbstractChannel$AbstractUnsafe$6.run(AbstractChannel.java:676)
+	at io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:148)
+	at io.netty.util.concurrent.AbstractEventExecutor.safeExecute(AbstractEventExecutor.java:141)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.runAllTasks(SingleThreadEventExecutor.java:535)
+	at io.netty.channel.SingleThreadIoEventLoop.run(SingleThreadIoEventLoop.java:201)
+	at io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:1195)
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+
+2194200001754715 client.frames d69e41b4 WRITE YamuxFrame(id=3289a6fffe3e2e6b-0007bbe5-00000006-1428a51e79fa886c-d69e41b4/1, type=DATA, flags=, length=20, len=20, UnpooledSlicedByteBuf(ridx: 0, widx: 20, cap: 20/20, unwrapped: AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 20, cap: 256)))
+2194200002158509 client.after d69e41b4 WRITE 000000000000000100000014132f6d756c746973747265616d2f312e302e300a
+2194200002264169 client.raw d69e41b4 WRITE 00000020
+2194200002320662 client.raw d69e41b4 WRITE 000000000000000100000014132f6d756c746973747265616d2f312e302e300a
+2194200010780438 client.raw d69e41b4 INACTIVE
+2194200010852043 client.after d69e41b4 INACTIVE
+2194200010872590 client.frames d69e41b4 INACTIVE
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

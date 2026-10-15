@@ -135,10 +135,10 @@ abstract class PlainNettyTransport(
         }
 
         val unbindsCompleted = listenersToClose
-            .map { it.close().toVoidCompletableFuture() }
+            .map { closeNettyChannelOnce(it) }
 
         val channelsClosed = channelsToClose
-            .map { it.close().toVoidCompletableFuture() }
+            .map { closeNettyChannelOnce(it) }
 
         val everythingThatNeedsToClose = unbindsCompleted.union(channelsClosed)
         val allClosed = CompletableFuture.allOf(*everythingThatNeedsToClose.toTypedArray())
@@ -233,7 +233,7 @@ abstract class PlainNettyTransport(
     ): ChannelHandler?
 
     override fun unlisten(addr: Multiaddr): CompletableFuture<Unit> {
-        return listeners[addr]?.close()?.toVoidCompletableFuture()
+        return listeners[addr]?.let { closeNettyChannelOnce(it) }
             ?: throw Libp2pException("No listeners on address $addr")
     } // unlisten
 
@@ -272,7 +272,7 @@ abstract class PlainNettyTransport(
         // window unrepresentable.
         synchronized(this@PlainNettyTransport) {
             if (closed) {
-                ch.close()
+                closeNettyChannelOnce(ch)
                 return
             }
 

@@ -78,7 +78,7 @@ configure(
     // a fresh Noise ephemeral private key injected before every handshake starts.
     // snapshot-21: exclude connections with completed close futures from both established-connection
     // lookups, so a stream request made during close bookkeeping starts a fresh transport dial.
-    // snapshot-31: activate mux sessions before publication and settle queued opens on parent close.
+    // snapshot-31: activate mux sessions before publication and share parent close completion for queued opens.
     version = "1.3.0-codexcoder21-snapshot-31"
 
     apply(plugin = "kotlin")

@@ -37,12 +37,15 @@ class MuxSessionActivationTest {
                     connection.closeFuture().thenRun {
                         if (pending.isDone) {
                             connection.close().whenComplete { _, error ->
-                                if (error != null) settledAtNestedClose.completeExceptionally(error)
-                                else settledAtNestedClose.complete(
-                                    pending.getNow(emptyList()).all {
-                                        it.stream.isCompletedExceptionally && it.controller.isCompletedExceptionally
-                                    }
-                                )
+                                if (error != null) {
+                                    settledAtNestedClose.completeExceptionally(error)
+                                } else {
+                                    settledAtNestedClose.complete(
+                                        pending.getNow(emptyList()).all {
+                                            it.stream.isCompletedExceptionally && it.controller.isCompletedExceptionally
+                                        }
+                                    )
+                                }
                             }
                         }
                     }
@@ -50,15 +53,20 @@ class MuxSessionActivationTest {
             }
         }
         withPublicationHosts(muxer, { client ->
-            client.addConnectionHandler(ConnectionHandler.create { connection ->
-                pending.complete(List(32) { connection.muxerSession().createStream(Ping()) })
-                if (closer == "connection") connection.close()
-                else connection.pushHandler(object : ChannelInboundHandlerAdapter() {
-                    override fun handlerAdded(ctx: ChannelHandlerContext) {
-                        ctx.close()
+            client.addConnectionHandler(
+                ConnectionHandler.create { connection ->
+                    pending.complete(List(32) { connection.muxerSession().createStream(Ping()) })
+                    if (closer == "connection") {
+                        connection.close()
+                    } else {
+                        connection.pushHandler(object : ChannelInboundHandlerAdapter() {
+                            override fun handlerAdded(ctx: ChannelHandlerContext) {
+                                ctx.close()
+                            }
+                        })
                     }
-                })
-            })
+                }
+            )
         }) { client, server ->
             client.network.connect(server.peerId, *server.listenAddresses().toTypedArray()).get(5, TimeUnit.SECONDS)
             assertTrue(
@@ -90,9 +98,11 @@ class MuxSessionActivationTest {
                     // The callback holds the event loop while close and real callers queue their work.
                     // Close is queued first, so every open must settle without executing child creation.
                     val closed = connection.close()
-                    val opens = callers.invokeAll(List(64) {
-                        Callable { connection.muxerSession().createStream(Ping()) }
-                    }).map { it.get(5, TimeUnit.SECONDS) }
+                    val opens = callers.invokeAll(
+                        List(64) {
+                            Callable { connection.muxerSession().createStream(Ping()) }
+                        }
+                    ).map { it.get(5, TimeUnit.SECONDS) }
                     val completions = AtomicInteger()
                     opens.forEach {
                         it.stream.whenComplete { _, _ -> completions.incrementAndGet() }

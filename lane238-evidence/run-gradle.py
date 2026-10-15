@@ -14,5 +14,6 @@ out=Path('evidence')/name
 out.mkdir(exist_ok=True)
 import shutil
 for path in Path('jvm-libp2p/libp2p/build/test-results').glob('*'):
-    if path.is_dir(): shutil.copytree(path,out/path.name,ignore=shutil.ignore_patterns('binary'),dirs_exist_ok=True)
+    wanted = {f'lane238Trial{i}' for i in range(1,count+1)} if sys.argv[2]=='trials' else {'test'}
+    if path.is_dir() and path.name in wanted: shutil.copytree(path,out/path.name,ignore=shutil.ignore_patterns('binary'),dirs_exist_ok=True)
 sys.exit(code)

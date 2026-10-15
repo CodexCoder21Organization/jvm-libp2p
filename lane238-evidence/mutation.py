@@ -9,9 +9,9 @@ original=path.read_bytes(); text=original.decode()
 if name=='canonical':
  old='val slowId = fastIdMap[fastIdFunction(msg)] ?: msg.messageId'
  new='val slowId = msg.messageId'
-elif name=='duplicate':
- old='return slowIdMap[slowId]'
- new='return slowIdMap[slowId].let { null }'
+elif name=='eager-canonical':
+ old='val slowId = fastIdMap[fastIdFunction(msg)] ?: msg.messageId'
+ new='msg.messageId\n        '+old
 else: raise ValueError(name)
 assert text.count(old)==1
 stage='mutation-'+name

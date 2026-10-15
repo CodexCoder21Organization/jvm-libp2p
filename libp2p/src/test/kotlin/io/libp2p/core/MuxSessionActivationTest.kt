@@ -1,6 +1,7 @@
 package io.libp2p.core
 
 import io.libp2p.core.dsl.host
+import io.libp2p.core.mux.StreamMuxer
 import io.libp2p.core.mux.StreamMuxerDebug
 import io.libp2p.core.mux.StreamMuxerProtocol
 import io.libp2p.protocol.Ping
@@ -21,6 +22,30 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
 class MuxSessionActivationTest {
+    @ParameterizedTest
+    @ValueSource(strings = ["yamux", "mplex"])
+    fun closeDuringHandlerInstallationFailsSessionReadiness(muxerName: String) {
+        val readiness = CompletableFuture<CompletableFuture<out StreamMuxer.Session>>()
+        val muxer = StreamMuxerProtocol { multistream, protocols ->
+            val delegate = publicationMuxer(muxerName).createMuxer(multistream, protocols)
+            (delegate as StreamMuxerDebug).muxFramesDebugHandler = ChannelVisitor { connection ->
+                connection.close()
+            }
+            object : StreamMuxer by delegate {
+                override fun initChannel(ch: P2PChannel, selectedProtocol: String): CompletableFuture<out StreamMuxer.Session> {
+                    return delegate.initChannel(ch, selectedProtocol).also { readiness.complete(it) }
+                }
+            }
+        }
+        withPublicationHosts(muxer) { client, server ->
+            val connected = client.network.connect(server.peerId, *server.listenAddresses().toTypedArray())
+            val session = readiness.get(5, TimeUnit.SECONDS)
+            val failure = assertThrows(ExecutionException::class.java) { session.get(5, TimeUnit.SECONDS) }
+            assertEquals(ConnectionClosedException::class.java, failure.cause!!.javaClass)
+            assertThrows(ExecutionException::class.java) { connected.get(5, TimeUnit.SECONDS) }
+        }
+    }
+
     @ParameterizedTest
     @ValueSource(strings = ["yamux", "mplex"])
     fun sessionIsPublishedAfterActivation(muxerName: String) {

@@ -13,6 +13,7 @@ import io.libp2p.etc.types.forward
 import io.libp2p.etc.util.netty.nettyInitializer
 import io.netty.channel.ChannelHandlerContext
 import io.netty.channel.ChannelInboundHandlerAdapter
+import io.netty.util.ReferenceCountUtil
 import java.util.concurrent.CompletableFuture
 
 /**
@@ -35,19 +36,19 @@ class ProtocolSelect<TController>(val protocols: List<ProtocolBinding<TControlle
         // the protocol data may be transmitted during Negotiator pipeline rebuilding
         // and the `active` event is fired after `read` event
         // See https://github.com/libp2p/jvm-libp2p/issues/94
-        activateAndRemoveWhenSelected(ctx)
-        ctx.fireChannelRead(msg)
+        // Negotiator still has an active event pending after forwarding these bytes. Keep
+        // this guard until that event, even if the selected controller completes during read.
+        activateSelectedProtocol(ctx)
+        // Activation may synchronously close the channel. Its buffered input still belongs to us.
+        if (ctx.channel().isActive) {
+            ctx.fireChannelRead(msg)
+        } else {
+            ReferenceCountUtil.release(msg)
+        }
     }
 
     override fun channelActive(ctx: ChannelHandlerContext) {
-        activateAndRemoveWhenSelected(ctx)
-    }
-
-    private fun activateAndRemoveWhenSelected(ctx: ChannelHandlerContext) {
-        if (!activeFired) {
-            activeFired = true
-            ctx.fireChannelActive()
-        }
+        activateSelectedProtocol(ctx)
         if (!removalArmed) {
             removalArmed = true
             // A selected protocol may finish its own initialization asynchronously. Keep this lifecycle
@@ -57,6 +58,13 @@ class ProtocolSelect<TController>(val protocols: List<ProtocolBinding<TControlle
                     ctx.pipeline().remove(this)
                 }
             }
+        }
+    }
+
+    private fun activateSelectedProtocol(ctx: ChannelHandlerContext) {
+        if (!activeFired && ctx.channel().isActive) {
+            activeFired = true
+            ctx.fireChannelActive()
         }
     }
 
@@ -89,5 +97,6 @@ class ProtocolSelect<TController>(val protocols: List<ProtocolBinding<TControlle
         val exception = ConnectionClosedException("Channel closed ${ctx.channel()}")
         selectedFuture.completeExceptionally(exception)
         ctx.channel().attr(PROTOCOL).get()?.completeExceptionally(exception)
+        ctx.fireChannelUnregistered()
     }
 }

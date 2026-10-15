@@ -2,11 +2,11 @@
 Started 2026-10-15T17:37:55.041885+00:00
 
 Plan:
-1. IN PROGRESS: Read instructions, reference documentation, test and evidence; record mechanism before editing.
-2. TODO: Run unchanged off-loop scenario 20 times; force its exact read-boundary condition and show old assertion failing.
-3. TODO: Correct ordered-record assertion, retain forced-condition coverage and every paused assertion; push checkpoints.
-4. TODO: Run fixed off-loop 20 times, class 5 times, mux package once; independent test and code review passes.
-5. TODO: Rebase develop, open PR, record SHA and counts, stop own processes and remove checkout/cache.
+1. COMPLETE: Read instructions, reference documentation, test and evidence; record mechanism before editing.
+2. COMPLETE: Run unchanged off-loop scenario 20 times; force its exact read-boundary condition and show old assertion failing.
+3. COMPLETE: Correct ordered-record assertion, retain forced-condition coverage and every paused assertion; push checkpoints.
+4. COMPLETE: Run fixed off-loop 20 times, class 5 times, mux package once; independent test and code review passes.
+5. COMPLETE: Rebase develop, open PR, record SHA and counts, stop own processes and remove checkout/cache.
 
 OBSERVED: Read the complete brief and common.md, plus the shared handoff snapshot. Specific lane rules override global main-branch, full-suite, CI-watching and handoff-writing defaults. Base is develop; no nested agents; no handoff-cli; no publishing or merging; no CI watching.
 
@@ -161,3 +161,16 @@ OBSERVED: PR remains open. No merge, publication, deployment, check re-request o
 ## 2026-10-15T18:15:53.833311+00:00 final artifact and process audit
 OBSERVED: Remote source head verified with git ls-remote as 53ec481e5de6bf6c8e14241267ea6680f509e512; PR https://github.com/CodexCoder21Organization/jvm-libp2p/pull/52 open against develop. XML, JSON counts, harnesses, source patch and PR body are durable on https://github.com/CodexCoder21Organization/jvm-libp2p/tree/evidence/lane269-readpause-20261015/lane269-evidence .
 OBSERVED: Ran ps -eo pid,args -ww and checked all live Gradle daemon, wrapper and test worker commands against this checkout and daemon logs. No own build/test process remains; all tracked exec sessions are complete, including the discarded configuration launch, which was explicitly terminated. No background watcher or subagent was started. Cache cleanup matched 0 entries under ~/.aibuildcaches; this Gradle-only task created none when that count is zero. Checkout removal follows the final evidence push.
+
+## 2026-10-15T18:16:24.346861+00:00 COMPLETE — final brief audit
+OBSERVED: Deleted the checkout /tmp/claude-1000/-code/bc9e914b-1f43-4800-9ffc-3e16c08ce74e/scratchpad/workspace/lane269/jvm-libp2p; verified it no longer exists. Its build outputs and project Gradle cache were removed with it; there were no matching ~/.aibuildcaches entries. The final process audit found no own background build/test process.
+
+Every brief item is complete:
+1. Fresh clone, develop checkout/pull, README/FORK/instructions/reference reading, evidence review and mechanism recorded before editing: DONE. Refuted the brief's association of the saved plaintext coalescing fixture with this payload-stage failure; it describes a separate negotiation problem.
+2. Unchanged develop 20x: mplex 20 pass / 0 fail, yamux 20 / 0. Forced one-byte reads, old await ordering: each muxer 0 pass / 10 fail at the exact payload-stage assertion. Native cases in that ten-run matrix: mplex 10 / 0, yamux 9 / 1 at the same assertion. DONE.
+3. Corrected test await ordering, retained exact ordered payload+FIN result, every paused behavior assertion and existing five-second limits; retained forced one-byte cases in permanent CsvSource coverage. DONE.
+4. Fixed scenario 20x per mux/read mode: 80/80; whole class 5x: 30/30; mux package: 136/136. Final formatted class: 6/6; formatted mux package: 136/136; standard Gradle mux package after final rebase: 136/136. Scoped normal Spotless check passed. Dedicated test-coverage and code review passes complete; no open finding. DONE.
+5. PR https://github.com/CodexCoder21Organization/jvm-libp2p/pull/52 against develop from fix/lane269-readpause-test-contract, final source head 53ec481e5de6bf6c8e14241267ea6680f509e512. Correct why-first description, mechanism, before/after table and generation line; all checkpoints pushed. No merge/publish/deploy/check re-request/CI watch. Cleanup verified. DONE.
+
+Mechanism: the test waits for all mux frames before resuming a child whose pause stops parent reads; later TCP reads therefore cannot complete that wait. An event-loop barrier settles the pause, and the complete ordered payloads and FIN are asserted after resume.
+Open questions: none.

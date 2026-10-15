@@ -13,6 +13,7 @@ import io.libp2p.etc.types.forward
 import io.libp2p.etc.util.netty.nettyInitializer
 import io.netty.channel.ChannelHandlerContext
 import io.netty.channel.ChannelInboundHandlerAdapter
+import io.netty.util.ReferenceCountUtil
 import java.util.concurrent.CompletableFuture
 
 /**
@@ -38,7 +39,12 @@ class ProtocolSelect<TController>(val protocols: List<ProtocolBinding<TControlle
         // Negotiator still has an active event pending after forwarding these bytes. Keep
         // this guard until that event, even if the selected controller completes during read.
         activateSelectedProtocol(ctx)
-        ctx.fireChannelRead(msg)
+        // Activation may synchronously close the channel. Its buffered input still belongs to us.
+        if (ctx.channel().isActive) {
+            ctx.fireChannelRead(msg)
+        } else {
+            ReferenceCountUtil.release(msg)
+        }
     }
 
     override fun channelActive(ctx: ChannelHandlerContext) {
@@ -56,7 +62,7 @@ class ProtocolSelect<TController>(val protocols: List<ProtocolBinding<TControlle
     }
 
     private fun activateSelectedProtocol(ctx: ChannelHandlerContext) {
-        if (!activeFired) {
+        if (!activeFired && ctx.channel().isActive) {
             activeFired = true
             ctx.fireChannelActive()
         }
@@ -91,5 +97,6 @@ class ProtocolSelect<TController>(val protocols: List<ProtocolBinding<TControlle
         val exception = ConnectionClosedException("Channel closed ${ctx.channel()}")
         selectedFuture.completeExceptionally(exception)
         ctx.channel().attr(PROTOCOL).get()?.completeExceptionally(exception)
+        ctx.fireChannelUnregistered()
     }
 }

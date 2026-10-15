@@ -53,20 +53,21 @@ class ProtocolSelectionCloseNotificationTest {
         val channel = TestStreamChannel(initiator, binding)
         val headerBytes = "/multistream/1.0.0\n".toByteArray(CharsetUtil.UTF_8)
         val protocolBytes = "$protocol\n".toByteArray(CharsetUtil.UTF_8)
+        val input = Unpooled.buffer().writeUvarint(headerBytes.size).writeBytes(headerBytes)
+            .writeUvarint(protocolBytes.size).writeBytes(protocolBytes)
+            .writeBytes("payload".toByteArray(CharsetUtil.UTF_8))
         try {
-            channel.writeInbound(
-                Unpooled.buffer().writeUvarint(headerBytes.size).writeBytes(headerBytes)
-                    .writeUvarint(protocolBytes.size).writeBytes(protocolBytes)
-                    .writeBytes("payload".toByteArray(CharsetUtil.UTF_8))
-            )
+            channel.writeInbound(input)
             channel.runPendingTasks()
             assertFalse(channel.isOpen)
             val expected = if (closeOnActivation) listOf("active", "closed") else listOf("active", "payload", "closed")
             assertEquals(expected, events)
+            assertEquals(0, input.refCnt(), "closing from a protocol callback must release buffered input")
         } finally {
             channel.finishAndReleaseAll()
         }
     }
+
     @ParameterizedTest
     @ValueSource(booleans = [true, false])
     fun selectedProtocolReceivesCloseBeforeActivationExactlyOnce(initiator: Boolean) {

@@ -60,23 +60,39 @@ public class GossipApiTest {
 
     P2PService.PeerHandler peerHandler = peerHandlerStub(router);
 
-    router.runOnEventThread(() -> router.onInbound(peerHandler, newMessage("Hello-1")));
-    TestPubsubMessage message1 = (TestPubsubMessage) messages.poll(1, TimeUnit.SECONDS);
+    try {
+      // An empty delivery queue does not acknowledge a queued inbound task.
+      // Inspect each message only after onInbound returns on the router event thread.
+      router
+          .submitOnEventThread(
+              () -> {
+                router.onInbound(peerHandler, newMessage("Hello-1"));
+                TestPubsubMessage message1 = (TestPubsubMessage) messages.poll();
 
-    assertThat(message1).isNotNull();
-    assertThat(message1.canonicalId).isNotNull();
-    assertThat(createdMessages.size()).isEqualTo(1);
-    createdMessages.clear();
+                assertThat(message1).isNotNull();
+                assertThat(message1.canonicalId).isNotNull();
+                assertThat(createdMessages.size()).isEqualTo(1);
+                createdMessages.clear();
+                return null;
+              })
+          .thenCompose(
+              unused ->
+                  router.submitOnEventThread(
+                      () -> {
+                        router.onInbound(peerHandler, newMessage("Hello-1"));
+                        TestPubsubMessage message2 = (TestPubsubMessage) messages.poll();
 
-    router.runOnEventThread(() -> router.onInbound(peerHandler, newMessage("Hello-1")));
-    TestPubsubMessage message2 = (TestPubsubMessage) messages.poll(100, TimeUnit.MILLISECONDS);
-
-    assertThat(message2).isNull();
-    assertThat(createdMessages.size()).isEqualTo(1);
-    // assert that 'slow' canonicalId was not calculated and the message was filtered as seen by
-    // fastId
-    assertThat(createdMessages.get(0).canonicalId).isNull();
-    createdMessages.clear();
+                        assertThat(message2).isNull();
+                        assertThat(createdMessages.size()).isEqualTo(1);
+                        // The duplicate is filtered by fastId without calculating its canonicalId.
+                        assertThat(createdMessages.get(0).canonicalId).isNull();
+                        createdMessages.clear();
+                        return null;
+                      }))
+          .get(1, TimeUnit.SECONDS);
+    } finally {
+      routerBuilder.getScheduledAsyncExecutor().shutdownNow();
+    }
   }
 
   private static Rpc.RPC newMessage(String msg) {

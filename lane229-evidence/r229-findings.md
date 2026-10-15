@@ -39,3 +39,23 @@ java.util.concurrent.TimeoutException
     at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
 ```
 Saved r229-branch-five.log, command/exit JSON, summary with all cases/full stack and five raw XML directories. Switched this same compiled workspace to exact unchanged origin/develop 3e88aeef; fetch/rebase is a no-op and identical five-task command is running. Do not classify the one failure as introduced or pre-existing until the evidence comparison.
+
+## 13:11 UTC — evidence comparison, before fresh base verdict
+OBSERVED: Branch repeat5's failed echo trial receives Mplex CLOSE(resp), id=2, payload length 47 at 13:09:14.130. Payload bytes are `multistream/1.0.0\n/mplex/6.7.0\n` followed by the child OPEN and multistream frame prefix. The client had sent stream 16 OPEN and DATA; it receives no controller before the unchanged 5-second bound. Extracted full class stdout/stderr as r229-branch-failure-output.log.
+OBSERVED: Independently read lane208's saved base-repeat9 XML (unchanged develop 3e88aeef, prior lane's recorded command/head), rather than relying only on its narrative: echoOverSecureConnection fails at the identical HostTranportsTest.kt:285 with the same full stack and exactly the same 47 payload bytes, server timestamp 11:28:33.106. Copied that existing record to r229-prior-unchanged-base-echo.xml and extracted output, clearly marked PRIOR evidence. It proves this echo failure shape predates PR48 even if a five-trial sample does not fire; a small sample's absence cannot establish introduced causality. The newly prescribed base five-task comparison is still running and will be reported independently.
+
+## 13:13 UTC — verification contract and reconciliation table
+The module verification keeps the normal Gradle unit-task exclusion of the interop tag. Half A includes core/etc/mux/host/network/transport; Half B excludes exactly those packages and therefore includes every remaining class. They are complementary filters, with no test removed from the normal module task. Each command gets its own 720-second outer bound, one worker, unchanged internal test bounds, same shared compiled workspace. A separate lifecycle/ownership task will give an explicit 28-case result.
+
+| PR39 hunk | PR48 disposition | Why |
+|---|---|---|
+| ConnectionOverNetty.close | Keep current; identical | Same physical-parent owner |
+| PlainNettyTransport close/unlisten/late register | Keep current; identical | All four close routes join owner |
+| QuicTransport close/unlisten/late register | Keep current; identical | All four close routes join owner |
+| NettyChannelClose | Keep current listener on already-closed path | Original inline completion fails two deterministic pipeline-close cases (lane220); current source retains correction |
+| ParentCloseOwnershipTest | Keep current; format-only difference | Both original public-API scenarios/assertions remain |
+| README close ownership paragraph | Keep current; identical | Same public contract |
+| snapshot-27 version and FORK example | Keep current snapshot-31 declaration | Old release metadata is stale relative to develop snapshot-28/current PR31 |
+| investigations/*.md and captured logs | Keep off source PR | Evidence remains linked from PR39 and evidence branches; these are not product source |
+
+No overlap requires a source edit or importing PR39 history. Current focused/module test outcomes, still pending, are the runtime verification for this decision.

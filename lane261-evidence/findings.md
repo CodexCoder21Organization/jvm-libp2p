@@ -4,9 +4,9 @@
 
 Plan:
 - [completed] Read linked context/docs and repository instructions; clone exact head and confirm develop rebase is a no-op.
-- [in progress] Map invariants to public tests and verify fail-first behavior by reverting production changes alone.
-- [pending] Review callback ordering, buffer ownership, re-entry, and QUIC; add/fix missing coverage or blocking defects.
-- [pending] Run new tests with paranoid leak detection and unchanged neighbouring suites; update PR review paragraph; push with lease if changed.
+- [completed] Map invariants to public tests and verify fail-first behavior by reverting production changes alone.
+- [completed] Review callback ordering, buffer ownership, re-entry, and QUIC; add/fix missing coverage or blocking defects.
+- [in progress] Run new tests with paranoid leak detection and unchanged neighbouring suites; update PR review paragraph; push with lease if changed.
 - [pending] Record verdict, invariant table, final head; stop owned processes and remove checkout/cache.
 
 Constraints: no nested agents, no remote builds, Gradle timeout 900 / JAVA_OPTS=-Xmx2g / one build JVM at a time. Stop new work by 17:49 UTC, hard end by 18:04 UTC. Supervisor owns CI and handoff service. Version snapshot-31 is intentionally unchanged in this lane.
@@ -34,3 +34,7 @@ OBSERVED: added outgoing callback scenario to CoalescedProtocolSelectionTest wit
 OBSERVED: second bounded Gradle exits 1 with 10 final close cases: exactly 6 failures / 4 passing controls, zero errors/skips. Before-activation expects [closed] but gets []; activation-close expects [active,closed] but gets [active,payload]; payload-close expects [active,payload,closed] but gets [active,payload], all for both roles. The four after-activation controller-pending/completed cases pass. Full native XML and stack traces preserved in without-close-fix-xml/ and r261-without-close-fix.log on the evidence branch.
 OBSERVED: restored ProtocolSelect byte-for-byte from f74ff5a0, with no production edit. Origin/develop fetch/rebase again no-op. Scoped formatting and first fixed 20-case run launched (paranoid leak detector, 128 MiB test heap). Independent source review is complete, with exact Netty 4.2.10.Final source verification for buffer transfer and removed-context forwarding; no blocking production finding. Test review records the two coverage additions and why the after-activation/bytewise/reentrant controls already pass baseline.
 Plan: context and invariant mapping/negative proof DONE; code/test review DONE pending final results; fixed/repeated/neighbour verification IN PROGRESS; PR update/push and cleanup PENDING.
+
+## 17:05 UTC — first fixed pass; source checkpoint pushed
+OBSERVED: scoped Spotless apply/check succeeded; only one extra blank line removed from the new test. All final 20 focused cases pass, zero failures/errors/skips, in fresh 128 MiB test JVM with paranoid leak detection. Fixed production file is identical to f74ff5a0. Source checkpoint: https://github.com/CodexCoder21Organization/jvm-libp2p/commit/47a254c9 . Live PR was open with exactly f74ff5a0 before push; explicit --force-with-lease against that SHA succeeded. Fetch/rebase origin/develop remained a no-op.
+OBSERVED: source delta from the reviewed head contains only the two test-file changes (70 additions, 4 replaced lines); no artifact, generated file, timeout or iteration edit. Final repeat/neighbour command starts from 47a254c9 and uses ten focused tasks total (first completed plus nine fresh tasks), followed by unchanged multistream, security (including secio/noise), mux (including ChildReadPauseTcpTest), mux lifecycle/host negotiation neighbours and QuicServerTestJava. No CI watch is running; supervisor retains that gate.

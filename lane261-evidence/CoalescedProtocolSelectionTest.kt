@@ -171,5 +171,4 @@ class CoalescedProtocolSelectionTest {
             channel.finishAndReleaseAll()
         }
     }
-
 }

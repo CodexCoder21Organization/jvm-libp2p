@@ -7,7 +7,7 @@ allprojects {
     }
 }
 gradle.projectsEvaluated {
-    def library = project(':libp2p')
+    def library = gradle.rootProject.project(':libp2p')
     def normal = library.tasks.named('test', Test).get()
     (1..10).each { iteration ->
         library.tasks.register("reviewFocused${iteration}", Test) {
@@ -20,6 +20,16 @@ gradle.projectsEvaluated {
                 includeTestsMatching 'io.libp2p.multistream.CoalescedNegotiationTcpTest'
                 includeTestsMatching 'io.libp2p.multistream.ProtocolSelectionCloseNotificationTest'
             }
+        }
+    }
+}
+gradle.projectsEvaluated {
+    gradle.rootProject.project(':libp2p').spotless {
+        kotlin {
+            target 'src/main/kotlin/io/libp2p/multistream/ProtocolSelect.kt',
+                'src/test/kotlin/io/libp2p/multistream/CoalescedProtocolSelectionTest.kt',
+                'src/test/kotlin/io/libp2p/multistream/ProtocolSelectionCloseNotificationTest.kt',
+                'src/test/kotlin/io/libp2p/multistream/CoalescedNegotiationTcpTest.kt'
         }
     }
 }

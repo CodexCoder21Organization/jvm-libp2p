@@ -23,6 +23,48 @@ import java.util.concurrent.atomic.AtomicInteger
 
 class MuxSessionActivationTest {
     @ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource(
+        "yamux,cancel", "mplex,cancel",
+        "yamux,fail", "mplex,fail",
+        "yamux,complete", "mplex,complete"
+    )
+    fun callerCompletedStreamFutureDoesNotHideParentCloseFromController(muxerName: String, mutation: String) {
+        val published = CompletableFuture<StreamPromise<PingController>>()
+        withPublicationHosts(publicationMuxer(muxerName), { client ->
+            client.addConnectionHandler(ConnectionHandler.create { connection ->
+                val pending = connection.muxerSession().createStream(Ping())
+                when (mutation) {
+                    "cancel" -> pending.stream.cancel(false)
+                    "fail" -> pending.stream.completeExceptionally(IllegalStateException("Caller completed its stream future"))
+                    "complete" -> pending.stream.complete(null)
+                    else -> error("Unknown future mutation: $mutation")
+                }
+                connection.close().whenComplete { _, error ->
+                    if (error == null) published.complete(pending) else published.completeExceptionally(error)
+                }
+            })
+        }) { client, server ->
+            client.network.connect(server.peerId, *server.listenAddresses().toTypedArray()).get(5, TimeUnit.SECONDS)
+            val promise = published.get(5, TimeUnit.SECONDS)
+            when (mutation) {
+                "cancel" -> assertThrows(java.util.concurrent.CancellationException::class.java) {
+                    promise.stream.get(5, TimeUnit.SECONDS)
+                }
+                "fail" -> {
+                    val failure = assertThrows(ExecutionException::class.java) { promise.stream.get(5, TimeUnit.SECONDS) }
+                    assertEquals(IllegalStateException::class.java, failure.cause!!.javaClass)
+                    assertEquals("Caller completed its stream future", failure.cause!!.message)
+                }
+                "complete" -> org.junit.jupiter.api.Assertions.assertNull(promise.stream.get(5, TimeUnit.SECONDS))
+            }
+            assertTrue(promise.controller.isDone, "Changing the stream future must not leave its controller pending after close")
+            val failure = assertThrows(ExecutionException::class.java) { promise.controller.get(5, TimeUnit.SECONDS) }
+            assertEquals(ConnectionClosedException::class.java, failure.cause!!.javaClass)
+        }
+    }
+
+
+    @ParameterizedTest
     @ValueSource(strings = ["yamux", "mplex"])
     fun closeDuringHandlerInstallationFailsSessionReadiness(muxerName: String) {
         val readiness = CompletableFuture<CompletableFuture<out StreamMuxer.Session>>()

@@ -1,0 +1,47 @@
+diff --git a/libp2p/src/main/kotlin/io/libp2p/transport/implementation/NettyChannelClose.kt b/libp2p/src/main/kotlin/io/libp2p/transport/implementation/NettyChannelClose.kt
+index 491d2be5..7aa611ca 100644
+--- a/libp2p/src/main/kotlin/io/libp2p/transport/implementation/NettyChannelClose.kt
++++ b/libp2p/src/main/kotlin/io/libp2p/transport/implementation/NettyChannelClose.kt
+@@ -14,7 +14,8 @@ internal fun closeNettyChannelOnce(channel: Channel): CompletableFuture<Unit> {
+     if (operation === candidate) {
+         try {
+             if (channel.closeFuture().isDone) {
+-                operation.complete(Unit)
++                // An early close observer may run before other physical-close listeners finish.
++                channel.closeFuture().addListener { operation.complete(Unit) }
+             } else {
+                 channel.close().toVoidCompletableFuture().whenComplete { _, failure ->
+                     if (failure == null) operation.complete(Unit) else operation.completeExceptionally(failure)
+diff --git a/libp2p/src/test/kotlin/io/libp2p/transport/ParentCloseOwnershipTest.kt b/libp2p/src/test/kotlin/io/libp2p/transport/ParentCloseOwnershipTest.kt
+index 6fda846b..54e70ffa 100644
+--- a/libp2p/src/test/kotlin/io/libp2p/transport/ParentCloseOwnershipTest.kt
++++ b/libp2p/src/test/kotlin/io/libp2p/transport/ParentCloseOwnershipTest.kt
+@@ -15,9 +15,9 @@ import org.junit.jupiter.api.Assertions.assertSame
+ import org.junit.jupiter.api.Assertions.assertThrows
+ import org.junit.jupiter.api.Test
+ import java.io.IOException
+-import java.util.concurrent.ExecutionException
+ import java.util.concurrent.CompletableFuture
+ import java.util.concurrent.CopyOnWriteArrayList
++import java.util.concurrent.ExecutionException
+ import java.util.concurrent.TimeUnit
+ import java.util.concurrent.atomic.AtomicBoolean
+ import java.util.concurrent.atomic.AtomicInteger
+@@ -51,7 +51,8 @@ class ParentCloseOwnershipTest {
+             val repeatedShutdown = client.network.close()
+             assertFalse(connection.closeFuture().isDone, "The first physical close must remain held until released.")
+             assertEquals(
+-                1, heldCloses.size,
++                1,
++                heldCloses.size,
+                 "One parent received ${heldCloses.size} physical close requests while the first was pending; " +
+                     "transport and connection shutdown must share the owner's in-flight close."
+             )
+@@ -120,7 +121,6 @@ class ParentCloseOwnershipTest {
+             CompletableFuture.allOf(client.stop(), server.stop()).get(10, TimeUnit.SECONDS)
+         }
+     }
+-
+ }
+ 
+ private fun closeOwnershipHost() = host {

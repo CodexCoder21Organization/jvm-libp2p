@@ -1,0 +1,34 @@
+gradle.projectsEvaluated {
+    def module = gradle.rootProject.project(':libp2p')
+    def normal = module.tasks.named('test', Test).get()
+    ['HalfA','HalfB'].each { half ->
+        module.tasks.register("lane229${half}", Test) {
+            dependsOn module.tasks.named('testClasses')
+            testClassesDirs = normal.testClassesDirs
+            classpath = normal.classpath
+            useJUnitPlatform { excludeTags('interop') }
+            filter {
+                if (half == 'HalfA') {
+                    ['core','etc','mux','host','network','transport'].each { includeTestsMatching("io.libp2p.${it}.*") }
+                } else {
+                    ['core','etc','mux','host','network','transport'].each { excludeTestsMatching("io.libp2p.${it}.*") }
+                }
+            }
+            maxParallelForks = 1
+            testLogging { events 'FAILED'; exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL }
+        }
+    }
+    module.tasks.register('lane229Lifecycle', Test) {
+        dependsOn module.tasks.named('testClasses')
+        testClassesDirs = normal.testClassesDirs
+        classpath = normal.classpath
+        useJUnitPlatform { excludeTags('interop') }
+        filter {
+            includeTestsMatching('io.libp2p.core.MuxCloseDuringPublicationTest')
+            includeTestsMatching('io.libp2p.core.MuxSessionActivationTest')
+            includeTestsMatching('io.libp2p.transport.ParentCloseOwnershipTest')
+        }
+        maxParallelForks = 1
+        testLogging { events 'FAILED'; exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL }
+    }
+}

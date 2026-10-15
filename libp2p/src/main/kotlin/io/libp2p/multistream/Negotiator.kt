@@ -75,9 +75,11 @@ object Negotiator {
     abstract class GenericHandler(val negotiationTimeLimit: Duration) : SimpleChannelInboundHandler<String>() {
         open val initialProtocolAnnounce: String? = null
 
+        private val frameDecoder = LimitedProtobufVarint32FrameDecoder(MAX_MULTISTREAM_MESSAGE_LENGTH)
+
         val prehandlers = listOf(
             TotalTimeoutHandler(negotiationTimeLimit),
-            LimitedProtobufVarint32FrameDecoder(MAX_MULTISTREAM_MESSAGE_LENGTH),
+            frameDecoder,
             ProtobufVarint32LengthFieldPrepender(),
             StringDecoder(Charsets.UTF_8),
             StringEncoder(Charsets.UTF_8),
@@ -112,13 +114,15 @@ object Negotiator {
                     if (pipeline.context(this@GenericHandler) != null) {
                         pipeline.remove(this@GenericHandler)
                     }
-                    // DelimiterBasedFrameDecoder should be removed last since it
-                    // propagates unhandled bytes on removal
+                    // Remove the old outbound framing before activating the selected protocol.
                     prehandlers.asReversed().forEach {
-                        if (pipeline.context(it) != null) pipeline.remove(it)
+                        if (it !== frameDecoder && pipeline.context(it) != null) pipeline.remove(it)
                     }
-                    // activate a handler for selected protocol
+                    // Decoder removal forwards leftover bytes and may complete the next handshake
+                    // synchronously. Activate first so that hand-off cannot be followed by another
+                    // activation reaching a later stage after ProtocolSelect has removed itself.
                     if (ctx.channel().isActive) ctx.fireChannelActive()
+                    if (pipeline.context(frameDecoder) != null) pipeline.remove(frameDecoder)
                 }
             }
         }

@@ -63,15 +63,19 @@ class CoalescedNegotiationTcpTest {
             secureChannels {
                 add { key, _ ->
                     val plaintext = PlaintextInsecureChannel(key)
-                    if (!server) plaintext else object : SecureChannel by plaintext {
-                        override fun initChannel(ch: P2PChannel, selectedProtocol: String): CompletableFuture<out SecureChannel.Session> {
-                            ch.pushHandler(object : ChannelDuplexHandler() {
-                                override fun channelActive(ctx: ChannelHandlerContext) {
-                                    ctx.fireChannelActive()
-                                    batches.getValue(ch).releaseBatch()
-                                }
-                            })
-                            return plaintext.initChannel(ch, selectedProtocol)
+                    if (!server) {
+                        plaintext
+                    } else {
+                        object : SecureChannel by plaintext {
+                            override fun initChannel(ch: P2PChannel, selectedProtocol: String): CompletableFuture<out SecureChannel.Session> {
+                                ch.pushHandler(object : ChannelDuplexHandler() {
+                                    override fun channelActive(ctx: ChannelHandlerContext) {
+                                        ctx.fireChannelActive()
+                                        batches.getValue(ch).releaseBatch()
+                                    }
+                                })
+                                return plaintext.initChannel(ch, selectedProtocol)
+                            }
                         }
                     }
                 }
@@ -89,18 +93,20 @@ class CoalescedNegotiationTcpTest {
                         channel.pushHandler(CoalescePlaintextRecords(coalescedRead))
                     }
                 }
-                if (!server) afterSecureHandler.addHandler { channel ->
-                    channel.pushHandler(object : ChannelDuplexHandler() {
-                        override fun write(ctx: ChannelHandlerContext, msg: Any, promise: ChannelPromise) {
-                            if (msg is ByteBuf && msg.isReadable) {
-                                val length = msg.getUnsignedByte(msg.readerIndex()).toInt()
-                                if (length == msg.readableBytes() - 1) {
-                                    announcements.add(msg.toString(msg.readerIndex() + 1, length, CharsetUtil.UTF_8))
+                if (!server) {
+                    afterSecureHandler.addHandler { channel ->
+                        channel.pushHandler(object : ChannelDuplexHandler() {
+                            override fun write(ctx: ChannelHandlerContext, msg: Any, promise: ChannelPromise) {
+                                if (msg is ByteBuf && msg.isReadable) {
+                                    val length = msg.getUnsignedByte(msg.readerIndex()).toInt()
+                                    if (length == msg.readableBytes() - 1) {
+                                        announcements.add(msg.toString(msg.readerIndex() + 1, length, CharsetUtil.UTF_8))
+                                    }
                                 }
+                                ctx.write(msg, promise)
                             }
-                            ctx.write(msg, promise)
-                        }
-                    })
+                        })
+                    }
                 }
             }
         }

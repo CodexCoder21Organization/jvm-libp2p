@@ -1,0 +1,264 @@
+Compiled from "MuxHandler.kt"
+public abstract class io.libp2p.mux.MuxHandler extends io.libp2p.etc.util.netty.mux.AbstractMuxHandler<io.netty.buffer.ByteBuf> implements io.libp2p.core.mux.StreamMuxer$Session {
+  private final java.util.concurrent.CompletableFuture<io.libp2p.core.mux.StreamMuxer$Session> ready;
+
+  private final kotlin.jvm.functions.Function1<io.libp2p.etc.util.netty.mux.MuxChannel<io.netty.buffer.ByteBuf>, kotlin.Unit> inboundInitializer;
+
+  public io.libp2p.mux.MuxHandler(java.util.concurrent.CompletableFuture<io.libp2p.core.mux.StreamMuxer$Session>, io.libp2p.core.StreamHandler<?>, int);
+    Code:
+       0: aload_2
+       1: ldc           #14                 // String inboundStreamHandler
+       3: invokestatic  #20                 // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+       6: aload_0
+       7: iload_3
+       8: invokespecial #23                 // Method io/libp2p/etc/util/netty/mux/AbstractMuxHandler."<init>":(I)V
+      11: aload_0
+      12: aload_1
+      13: putfield      #27                 // Field ready:Ljava/util/concurrent/CompletableFuture;
+      16: aload_0
+      17: new           #29                 // class io/libp2p/mux/MuxHandler$inboundInitializer$1
+      20: dup
+      21: aload_2
+      22: aload_0
+      23: invokespecial #32                 // Method io/libp2p/mux/MuxHandler$inboundInitializer$1."<init>":(Lio/libp2p/core/StreamHandler;Lio/libp2p/mux/MuxHandler;)V
+      26: checkcast     #34                 // class kotlin/jvm/functions/Function1
+      29: putfield      #38                 // Field inboundInitializer:Lkotlin/jvm/functions/Function1;
+      32: return
+
+  public io.libp2p.mux.MuxHandler(java.util.concurrent.CompletableFuture, io.libp2p.core.StreamHandler, int, int, kotlin.jvm.internal.DefaultConstructorMarker);
+    Code:
+       0: iload         4
+       2: iconst_4
+       3: iand
+       4: ifeq          11
+       7: sipush        512
+      10: istore_3
+      11: aload_0
+      12: aload_1
+      13: aload_2
+      14: iload_3
+      15: invokespecial #46                 // Method "<init>":(Ljava/util/concurrent/CompletableFuture;Lio/libp2p/core/StreamHandler;I)V
+      18: return
+
+  protected abstract io.libp2p.core.multistream.MultistreamProtocol getMultistreamProtocol();
+
+  protected abstract int getMaxFrameDataLength();
+
+  protected kotlin.jvm.functions.Function1<io.libp2p.etc.util.netty.mux.MuxChannel<io.netty.buffer.ByteBuf>, kotlin.Unit> getInboundInitializer();
+    Code:
+       0: aload_0
+       1: getfield      #38                 // Field inboundInitializer:Lkotlin/jvm/functions/Function1;
+       4: areturn
+
+  public void handlerAdded(io.netty.channel.ChannelHandlerContext);
+    Code:
+       0: aload_1
+       1: ldc           #57                 // String ctx
+       3: invokestatic  #20                 // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+       6: aload_0
+       7: aload_1
+       8: invokespecial #59                 // Method io/libp2p/etc/util/netty/mux/AbstractMuxHandler.handlerAdded:(Lio/netty/channel/ChannelHandlerContext;)V
+      11: aload_0
+      12: getfield      #27                 // Field ready:Ljava/util/concurrent/CompletableFuture;
+      15: ifnull        41
+      18: aload_1
+      19: invokeinterface #65,  1           // InterfaceMethod io/netty/channel/ChannelHandlerContext.channel:()Lio/netty/channel/Channel;
+      24: invokeinterface #71,  1           // InterfaceMethod io/netty/channel/Channel.closeFuture:()Lio/netty/channel/ChannelFuture;
+      29: aload_0
+      30: invokedynamic #89,  0             // InvokeDynamic #0:operationComplete:(Lio/libp2p/mux/MuxHandler;)Lio/netty/util/concurrent/GenericFutureListener;
+      35: invokeinterface #95,  2           // InterfaceMethod io/netty/channel/ChannelFuture.addListener:(Lio/netty/util/concurrent/GenericFutureListener;)Lio/netty/channel/ChannelFuture;
+      40: pop
+      41: return
+
+  public void channelActive(io.netty.channel.ChannelHandlerContext);
+    Code:
+       0: aload_0
+       1: aload_1
+       2: invokespecial #99                 // Method io/libp2p/etc/util/netty/mux/AbstractMuxHandler.channelActive:(Lio/netty/channel/ChannelHandlerContext;)V
+       5: aload_1
+       6: dup
+       7: ifnull        36
+      10: invokeinterface #65,  1           // InterfaceMethod io/netty/channel/ChannelHandlerContext.channel:()Lio/netty/channel/Channel;
+      15: dup
+      16: ifnull        36
+      19: invokeinterface #103,  1          // InterfaceMethod io/netty/channel/Channel.isOpen:()Z
+      24: iconst_1
+      25: if_icmpne     32
+      28: iconst_1
+      29: goto          38
+      32: iconst_0
+      33: goto          38
+      36: pop
+      37: iconst_0
+      38: ifeq          58
+      41: aload_0
+      42: getfield      #27                 // Field ready:Ljava/util/concurrent/CompletableFuture;
+      45: dup
+      46: ifnull        57
+      49: aload_0
+      50: invokevirtual #109                // Method java/util/concurrent/CompletableFuture.complete:(Ljava/lang/Object;)Z
+      53: pop
+      54: goto          58
+      57: pop
+      58: return
+
+  private final io.libp2p.core.Stream createStream(io.libp2p.etc.util.netty.mux.MuxChannel<io.netty.buffer.ByteBuf>);
+    Code:
+       0: aload_0
+       1: invokevirtual #118                // Method getCtx:()Lio/netty/channel/ChannelHandlerContext;
+       4: dup
+       5: invokestatic  #122                // Method kotlin/jvm/internal/Intrinsics.checkNotNull:(Ljava/lang/Object;)V
+       8: invokeinterface #65,  1           // InterfaceMethod io/netty/channel/ChannelHandlerContext.channel:()Lio/netty/channel/Channel;
+      13: invokestatic  #128                // Method io/libp2p/etc/AttributesKt.getCONNECTION:()Lio/netty/util/AttributeKey;
+      16: invokeinterface #132,  2          // InterfaceMethod io/netty/channel/Channel.attr:(Lio/netty/util/AttributeKey;)Lio/netty/util/Attribute;
+      21: invokeinterface #138,  1          // InterfaceMethod io/netty/util/Attribute.get:()Ljava/lang/Object;
+      26: checkcast     #140                // class io/libp2p/core/Connection
+      29: astore_2
+      30: new           #142                // class io/libp2p/transport/implementation/StreamOverNetty
+      33: dup
+      34: aload_1
+      35: checkcast     #67                 // class io/netty/channel/Channel
+      38: aload_2
+      39: ldc           #144                // String connection
+      41: invokestatic  #147                // Method kotlin/jvm/internal/Intrinsics.checkNotNullExpressionValue:(Ljava/lang/Object;Ljava/lang/String;)V
+      44: aload_2
+      45: aload_1
+      46: invokevirtual #152                // Method io/libp2p/etc/util/netty/mux/MuxChannel.getInitiator:()Z
+      49: invokespecial #155                // Method io/libp2p/transport/implementation/StreamOverNetty."<init>":(Lio/netty/channel/Channel;Lio/libp2p/core/Connection;Z)V
+      52: astore_3
+      53: aload_1
+      54: invokestatic  #158                // Method io/libp2p/etc/AttributesKt.getSTREAM:()Lio/netty/util/AttributeKey;
+      57: invokevirtual #159                // Method io/libp2p/etc/util/netty/mux/MuxChannel.attr:(Lio/netty/util/AttributeKey;)Lio/netty/util/Attribute;
+      60: aload_3
+      61: invokeinterface #162,  2          // InterfaceMethod io/netty/util/Attribute.set:(Ljava/lang/Object;)V
+      66: aload_3
+      67: checkcast     #164                // class io/libp2p/core/Stream
+      70: areturn
+
+  public <T> io.libp2p.core.StreamPromise<T> createStream(java.util.List<? extends io.libp2p.core.multistream.ProtocolBinding<? extends T>>);
+    Code:
+       0: aload_1
+       1: ldc           #172                // String protocols
+       3: invokestatic  #20                 // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+       6: aload_0
+       7: aload_0
+       8: invokevirtual #174                // Method getMultistreamProtocol:()Lio/libp2p/core/multistream/MultistreamProtocol;
+      11: aload_1
+      12: invokeinterface #180,  2          // InterfaceMethod io/libp2p/core/multistream/MultistreamProtocol.createMultistream:(Ljava/util/List;)Lio/libp2p/core/multistream/Multistream;
+      17: invokeinterface #186,  1          // InterfaceMethod io/libp2p/core/multistream/Multistream.toStreamHandler:()Lio/libp2p/core/StreamHandler;
+      22: invokevirtual #189                // Method createStream:(Lio/libp2p/core/StreamHandler;)Lio/libp2p/core/StreamPromise;
+      25: areturn
+
+  public final <T> io.libp2p.core.StreamPromise<T> createStream(io.libp2p.core.StreamHandler<T>);
+    Code:
+       0: aload_1
+       1: ldc           #193                // String streamHandler
+       3: invokestatic  #20                 // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+       6: new           #105                // class java/util/concurrent/CompletableFuture
+       9: dup
+      10: invokespecial #196                // Method java/util/concurrent/CompletableFuture."<init>":()V
+      13: astore_2
+      14: aload_0
+      15: new           #198                // class io/libp2p/mux/MuxHandler$createStream$muxChannel$1
+      18: dup
+      19: aload_1
+      20: aload_0
+      21: aload_2
+      22: invokespecial #201                // Method io/libp2p/mux/MuxHandler$createStream$muxChannel$1."<init>":(Lio/libp2p/core/StreamHandler;Lio/libp2p/mux/MuxHandler;Ljava/util/concurrent/CompletableFuture;)V
+      25: checkcast     #34                 // class kotlin/jvm/functions/Function1
+      28: invokevirtual #205                // Method newStream:(Lkotlin/jvm/functions/Function1;)Ljava/util/concurrent/CompletableFuture;
+      31: astore_3
+      32: aload_3
+      33: aload_2
+      34: invokestatic  #211                // Method io/libp2p/etc/types/AsyncExtKt.forwardException:(Ljava/util/concurrent/CompletableFuture;Ljava/util/concurrent/CompletableFuture;)Ljava/util/concurrent/CompletableFuture;
+      37: pop
+      38: aload_3
+      39: invokedynamic #222,  0            // InvokeDynamic #1:apply:()Ljava/util/function/Function;
+      44: invokevirtual #226                // Method java/util/concurrent/CompletableFuture.thenApply:(Ljava/util/function/Function;)Ljava/util/concurrent/CompletableFuture;
+      47: astore        4
+      49: new           #228                // class io/libp2p/core/StreamPromise
+      52: dup
+      53: aload         4
+      55: ldc           #229                // String stream
+      57: invokestatic  #147                // Method kotlin/jvm/internal/Intrinsics.checkNotNullExpressionValue:(Ljava/lang/Object;Ljava/lang/String;)V
+      60: aload         4
+      62: aload_2
+      63: invokespecial #232                // Method io/libp2p/core/StreamPromise."<init>":(Ljava/util/concurrent/CompletableFuture;Ljava/util/concurrent/CompletableFuture;)V
+      66: areturn
+
+  public void releaseMessage(io.netty.buffer.ByteBuf);
+    Code:
+       0: aload_1
+       1: ldc           #238                // String msg
+       3: invokestatic  #20                 // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+       6: aload_1
+       7: invokevirtual #243                // Method io/netty/buffer/ByteBuf.release:()Z
+      10: pop
+      11: return
+
+  protected int pendingChildReadSize(io.netty.buffer.ByteBuf);
+    Code:
+       0: aload_1
+       1: ldc           #248                // String data
+       3: invokestatic  #20                 // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+       6: aload_1
+       7: invokevirtual #251                // Method io/netty/buffer/ByteBuf.readableBytes:()I
+      10: ireturn
+
+  protected long getMaxPendingChildReadBytes();
+    Code:
+       0: aload_0
+       1: invokevirtual #255                // Method getMaxFrameDataLength:()I
+       4: i2l
+       5: iconst_4
+       6: i2l
+       7: lmul
+       8: lreturn
+
+  private static final void handlerAdded$lambda-0(io.libp2p.mux.MuxHandler, io.netty.util.concurrent.Future);
+    Code:
+       0: aload_0
+       1: ldc_w         #257                // String this$0
+       4: invokestatic  #20                 // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+       7: aload_0
+       8: getfield      #27                 // Field ready:Ljava/util/concurrent/CompletableFuture;
+      11: new           #259                // class io/libp2p/core/ConnectionClosedException
+      14: dup
+      15: invokespecial #260                // Method io/libp2p/core/ConnectionClosedException."<init>":()V
+      18: checkcast     #262                // class java/lang/Throwable
+      21: invokevirtual #266                // Method java/util/concurrent/CompletableFuture.completeExceptionally:(Ljava/lang/Throwable;)Z
+      24: pop
+      25: return
+
+  private static final io.libp2p.core.Stream createStream$lambda-1(io.libp2p.etc.util.netty.mux.MuxChannel);
+    Code:
+       0: aload_0
+       1: invokestatic  #158                // Method io/libp2p/etc/AttributesKt.getSTREAM:()Lio/netty/util/AttributeKey;
+       4: invokevirtual #159                // Method io/libp2p/etc/util/netty/mux/MuxChannel.attr:(Lio/netty/util/AttributeKey;)Lio/netty/util/Attribute;
+       7: invokeinterface #138,  1          // InterfaceMethod io/netty/util/Attribute.get:()Ljava/lang/Object;
+      12: checkcast     #164                // class io/libp2p/core/Stream
+      15: areturn
+
+  public void releaseMessage(java.lang.Object);
+    Code:
+       0: aload_0
+       1: aload_1
+       2: checkcast     #240                // class io/netty/buffer/ByteBuf
+       5: invokevirtual #270                // Method releaseMessage:(Lio/netty/buffer/ByteBuf;)V
+       8: return
+
+  public int pendingChildReadSize(java.lang.Object);
+    Code:
+       0: aload_0
+       1: aload_1
+       2: checkcast     #240                // class io/netty/buffer/ByteBuf
+       5: invokevirtual #274                // Method pendingChildReadSize:(Lio/netty/buffer/ByteBuf;)I
+       8: ireturn
+
+  public static final io.libp2p.core.Stream access$createStream(io.libp2p.mux.MuxHandler, io.libp2p.etc.util.netty.mux.MuxChannel);
+    Code:
+       0: aload_0
+       1: aload_1
+       2: invokespecial #278                // Method createStream:(Lio/libp2p/etc/util/netty/mux/MuxChannel;)Lio/libp2p/core/Stream;
+       5: areturn
+}

@@ -1,0 +1,25 @@
+allprojects {
+    tasks.withType(Test).configureEach {
+        maxHeapSize = '128m'
+        maxParallelForks = 1
+        systemProperty 'io.netty.leakDetection.level', 'paranoid'
+        testLogging { events 'failed'; exceptionFormat 'full' }
+    }
+}
+gradle.projectsEvaluated {
+    def library = project(':libp2p')
+    def normal = library.tasks.named('test', Test).get()
+    (1..10).each { iteration ->
+        library.tasks.register("reviewFocused${iteration}", Test) {
+            dependsOn library.tasks.named('testClasses')
+            testClassesDirs = normal.testClassesDirs
+            classpath = normal.classpath
+            useJUnitPlatform { excludeTags 'interop' }
+            filter {
+                includeTestsMatching 'io.libp2p.multistream.CoalescedProtocolSelectionTest'
+                includeTestsMatching 'io.libp2p.multistream.CoalescedNegotiationTcpTest'
+                includeTestsMatching 'io.libp2p.multistream.ProtocolSelectionCloseNotificationTest'
+            }
+        }
+    }
+}

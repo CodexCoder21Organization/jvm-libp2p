@@ -1,0 +1,8 @@
+allprojects {
+    tasks.withType(Test).configureEach {
+        maxHeapSize = '128m'
+        maxParallelForks = 1
+        systemProperty 'io.netty.leakDetection.level', 'paranoid'
+        testLogging { events 'failed'; exceptionFormat 'full' }
+    }
+}

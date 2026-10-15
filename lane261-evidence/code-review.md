@@ -1,0 +1,26 @@
+# Independent code review, lane 261
+
+Scope: https://github.com/CodexCoder21Organization/jvm-libp2p/pull/50 at f74ff5a0dccefbdfe035ee6a67395acddcd45d2c. Review pass performed directly, without nested agents.
+
+## Observable mechanism
+Negotiator first installs the selected binding, removes its own handler and framing handlers, and only then fires activation. Removing the final ByteToMessageDecoder forwards any unconsumed input before that final activation. ProtocolSelect used to both activate and arm its removal from the read path. A selected controller that completed during that first forwarded read could therefore remove the guard before Negotiator fired activation, causing the successor to activate a second time. The fix activates during the read path but arms removal only when the pending activation event reaches the guard.
+
+## Handler removal and callback order
+- Negotiator removes its generic handler before removing framing handlers in reverse order. The frame decoder is last; selected callbacks therefore run after the old outgoing/incoming framing handlers are absent. Reordering those removals would break callback reentry; the PR does not change that ordering.
+- ProtocolSelect sets activeFired before forwarding activation, preventing callback reentry from forwarding the same activation a second time.
+- When selection completes synchronously from a read or activation, removalArmed controls guard lifetime; adding a whenComplete to an already-settled future removes the guard only after the pending activation reaches it.
+- A pending controller leaves the guard installed so exception/unregister can settle it. When unregister completes the future, its continuation may remove this guard while unregister is still running; forwarding through the removed context continues with its recorded successor, the Netty pipeline contract used elsewhere here as well.
+- channelUnregistered now forwards even if its completion callbacks remove this handler. ProtocolMessageHandlerAdapter receives unregister and invokes onClosed.
+- AbstractChildChannel performs synchronous inactive/unregister/pipeline teardown, and its later deferred unregister sees an empty pipeline. The change does not add an extra unregister event; it allows the existing event to reach the protocol.
+
+## Input ownership and close
+The decoder transfers one leftover message to ProtocolSelect. The guard checks channel activity before activation and checks it again afterwards. A callback that closes the channel cannot pass the second check, so the guard releases its input rather than forwarding to a closed/removed protocol. If the channel remains active it forwards the same object once, without copying, retention, a new queue, or size-dependent parsing. Protocol callbacks that consume input remain responsible via their inbound adapter's finally-release. Existing close tests assert exact callbacks and input refCnt; the new outgoing callback scenario also checks all input/output bytes and refCnt.
+
+## QUIC
+QuicTransport.QuicMuxerSession.createStream constructs MultistreamProtocolV1.createMultistream and installs its toStreamHandler on each outgoing QuicStreamChannel. InboundStreamHandler does the same with the configured multistream protocol for incoming channels. Both therefore share MultistreamImpl / ProtocolSelect. QUIC does not negotiate the TCP plaintext or mux stages, but stream protocol selection and close notification use the same guard. Unchanged QuicServerTestJava is included in the neighbour verification.
+
+## Size, ownership, and retained state
+No persistent state, thread, task queue, collection, timeout, or interface call is added by the production diff. The touched input path accepts variable-size ByteBufs and passes or releases each exactly once; no new size-dependent work exists in that path. The only retained state is two booleans and a pre-existing selected future/handler context, tied to one channel and removed on completion/teardown. Protocol lists and matching are unchanged. Explicit buffer reference counts plus paranoid leak detection are the verification for this path; no performance improvement is claimed.
+
+## Provisional conclusion
+No blocking production issue found by the source pass. Await negative/fixed test results and the new outgoing-callback test before final verdict. README considered: this restores existing initialization and close contracts; no new API, configuration, dependency, or command needs documentation. Version snapshot-31 is already published, intentionally unchanged; supervisor will bump it for publication.

@@ -1,0 +1,400 @@
+{
+  "lane229BroaderRepeat1": {
+    "counts": {
+      "tests": 12,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "passed": 12
+    },
+    "failures": [],
+    "cases": [
+      {
+        "class": "io.libp2p.core.PlaintextTcpTest",
+        "name": "twoEchosOverSecureConnection()",
+        "time": "0.621"
+      },
+      {
+        "class": "io.libp2p.core.PlaintextTcpTest",
+        "name": "identifyOverSecureConnection()",
+        "time": "0.082"
+      },
+      {
+        "class": "io.libp2p.core.PlaintextTcpTest",
+        "name": "multiplePingChannelsOnTheSameConnection()",
+        "time": "0.289"
+      },
+      {
+        "class": "io.libp2p.core.PlaintextTcpTest",
+        "name": "unsupportedServerProtocol()",
+        "time": "0.058"
+      },
+      {
+        "class": "io.libp2p.core.PlaintextTcpTest",
+        "name": "echoOverSecureConnection()",
+        "time": "0.054"
+      },
+      {
+        "class": "io.libp2p.core.PlaintextTcpTest",
+        "name": "largeEchoOverSecureConnection()",
+        "time": "0.192"
+      },
+      {
+        "class": "io.libp2p.mux.ChildReadPauseTcpTest",
+        "name": "[1] mplex",
+        "time": "0.061"
+      },
+      {
+        "class": "io.libp2p.mux.ChildReadPauseTcpTest",
+        "name": "[2] yamux",
+        "time": "0.073"
+      },
+      {
+        "class": "io.libp2p.pubsub.GossipApiTest",
+        "name": "testFastMessageId()",
+        "time": "0.347"
+      },
+      {
+        "class": "io.libp2p.pubsub.gossip.GossipTwoHostTest",
+        "name": "test message larger than mplex frame()",
+        "time": "1.951"
+      },
+      {
+        "class": "io.libp2p.transport.NettyOutboundBufferBackpressureTest",
+        "name": "normallyDrainingYamuxPeerReceivesBulkPayloadIntact()",
+        "time": "0.266"
+      },
+      {
+        "class": "io.libp2p.transport.NettyOutboundBufferBackpressureTest",
+        "name": "peerThatStallsBelowBudgetThenResumesReceivesEveryAcceptedByte()",
+        "time": "5.071"
+      }
+    ]
+  },
+  "lane229BroaderRepeat2": {
+    "counts": {
+      "tests": 12,
+      "failures": 2,
+      "errors": 0,
+      "skipped": 0,
+      "passed": 10
+    },
+    "failures": [
+      {
+        "class": "io.libp2p.core.PlaintextTcpTest",
+        "name": "unsupportedServerProtocol()",
+        "time": "10.154",
+        "message": "org.opentest4j.AssertionFailedError: Unexpected exception type thrown, expected: <io.libp2p.core.NoSuchProtocolException> but was: <io.libp2p.etc.util.netty.TotalTimeoutException>",
+        "stack": "org.opentest4j.AssertionFailedError: Unexpected exception type thrown, expected: <io.libp2p.core.NoSuchProtocolException> but was: <io.libp2p.etc.util.netty.TotalTimeoutException>\n\tat app//io.libp2p.core.HostTransportsTest.unsupportedServerProtocol(HostTranportsTest.kt:183)\n\tat java.base@21.0.12.1/java.lang.reflect.Method.invoke(Method.java:580)\n\tat java.base@21.0.12.1/java.util.ArrayList.forEach(ArrayList.java:1596)\n\tat java.base@21.0.12.1/java.util.ArrayList.forEach(ArrayList.java:1596)\nCaused by: io.libp2p.etc.util.netty.TotalTimeoutException\n\tat app//io.libp2p.etc.util.netty.TotalTimeoutHandler.onTimeout(TotalTimeoutHandler.kt:66)\n\tat app//io.libp2p.etc.util.netty.TotalTimeoutHandler.handlerAdded$lambda-0(TotalTimeoutHandler.kt:45)\n\tat app//io.netty.util.concurrent.PromiseTask.runTask(PromiseTask.java:98)\n\tat app//io.netty.util.concurrent.ScheduledFutureTask.run(ScheduledFutureTask.java:160)\n\tat app//io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:148)\n\tat app//io.netty.util.concurrent.AbstractEventExecutor.safeExecute(AbstractEventExecutor.java:141)\n\tat app//io.netty.util.concurrent.SingleThreadEventExecutor.runAllTasks(SingleThreadEventExecutor.java:535)\n\tat app//io.netty.channel.SingleThreadIoEventLoop.run(SingleThreadIoEventLoop.java:201)\n\tat app//io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:1195)\n\tat app//io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)\n\tat app//io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)\n\tat java.base@21.0.12.1/java.lang.Thread.run(Thread.java:1583)\n"
+      },
+      {
+        "class": "io.libp2p.mux.ChildReadPauseTcpTest",
+        "name": "[1] mplex",
+        "time": "5.12",
+        "message": "org.opentest4j.AssertionFailedError: not every payload frame reached the muxer while the child was paused ==> expected: <true> but was: <false>",
+        "stack": "org.opentest4j.AssertionFailedError: not every payload frame reached the muxer while the child was paused ==> expected: <true> but was: <false>\n\tat app//org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)\n\tat app//org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)\n\tat app//org.junit.jupiter.api.AssertTrue.failNotTrue(AssertTrue.java:63)\n\tat app//org.junit.jupiter.api.AssertTrue.assertTrue(AssertTrue.java:36)\n\tat app//org.junit.jupiter.api.Assertions.assertTrue(Assertions.java:214)\n\tat app//io.libp2p.mux.ChildReadPauseTcpTest.offLoopPauseDuringInFlightDeliveryQueuesLaterFramesUntilResume(ChildReadPauseTcpTest.kt:186)\n\tat java.base@21.0.12.1/java.lang.reflect.Method.invoke(Method.java:580)\n\tat java.base@21.0.12.1/java.util.Optional.ifPresent(Optional.java:178)\n\tat java.base@21.0.12.1/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:184)\n\tat java.base@21.0.12.1/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:197)\n\tat java.base@21.0.12.1/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:184)\n\tat java.base@21.0.12.1/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:184)\n\tat java.base@21.0.12.1/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:197)\n\tat java.base@21.0.12.1/java.util.Spliterators$ArraySpliterator.forEachRemaining(Spliterators.java:1024)\n\tat java.base@21.0.12.1/java.util.stream.AbstractPipeline.copyInto(AbstractPipeline.java:509)\n\tat java.base@21.0.12.1/java.util.stream.AbstractPipeline.wrapAndCopyInto(AbstractPipeline.java:499)\n\tat java.base@21.0.12.1/java.util.stream.ForEachOps$ForEachOp.evaluateSequential(ForEachOps.java:151)\n\tat java.base@21.0.12.1/java.util.stream.ForEachOps$ForEachOp$OfRef.evaluateSequential(ForEachOps.java:174)\n\tat java.base@21.0.12.1/java.util.stream.AbstractPipeline.evaluate(AbstractPipeline.java:234)\n\tat java.base@21.0.12.1/java.util.stream.ReferencePipeline.forEach(ReferencePipeline.java:596)\n\tat java.base@21.0.12.1/java.util.stream.ReferencePipeline$7$1.accept(ReferencePipeline.java:276)\n\tat java.base@21.0.12.1/java.util.ArrayList$ArrayListSpliterator.forEachRemaining(ArrayList.java:1708)\n\tat java.base@21.0.12.1/java.util.stream.AbstractPipeline.copyInto(AbstractPipeline.java:509)\n\tat java.base@21.0.12.1/java.util.stream.AbstractPipeline.wrapAndCopyInto(AbstractPipeline.java:499)\n\tat java.base@21.0.12.1/java.util.stream.ForEachOps$ForEachOp.evaluateSequential(ForEachOps.java:151)\n\tat java.base@21.0.12.1/java.util.stream.ForEachOps$ForEachOp$OfRef.evaluateSequential(ForEachOps.java:174)\n\tat java.base@21.0.12.1/java.util.stream.AbstractPipeline.evaluate(AbstractPipeline.java:234)\n\tat java.base@21.0.12.1/java.util.stream.ReferencePipeline.forEach(ReferencePipeline.java:596)\n\tat java.base@21.0.12.1/java.util.stream.ReferencePipeline$7$1.accept(ReferencePipeline.java:276)\n\tat java.base@21.0.12.1/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:197)\n\tat java.base@21.0.12.1/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:197)\n\tat java.base@21.0.12.1/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:197)\n\tat java.base@21.0.12.1/java.util.ArrayList$ArrayListSpliterator.forEachRemaining(ArrayList.java:1708)\n\tat java.base@21.0.12.1/java.util.stream.AbstractPipeline.copyInto(AbstractPipeline.java:509)\n\tat java.base@21.0.12.1/java.util.stream.AbstractPipeline.wrapAndCopyInto(AbstractPipeline.java:499)\n\tat java.base@21.0.12.1/java.util.stream.ForEachOps$ForEachOp.evaluateSequential(ForEachOps.java:151)\n\tat java.base@21.0.12.1/java.util.stream.ForEachOps$ForEachOp$OfRef.evaluateSequential(ForEachOps.java:174)\n\tat java.base@21.0.12.1/java.util.stream.AbstractPipeline.evaluate(AbstractPipeline.java:234)\n\tat java.base@21.0.12.1/java.util.stream.ReferencePipeline.forEach(ReferencePipeline.java:596)\n\tat java.base@21.0.12.1/java.util.ArrayList.forEach(ArrayList.java:1596)\n\tat java.base@21.0.12.1/java.util.ArrayList.forEach(ArrayList.java:1596)\n"
+      }
+    ],
+    "cases": [
+      {
+        "class": "io.libp2p.core.PlaintextTcpTest",
+        "name": "twoEchosOverSecureConnection()",
+        "time": "1.071"
+      },
+      {
+        "class": "io.libp2p.core.PlaintextTcpTest",
+        "name": "identifyOverSecureConnection()",
+        "time": "0.14"
+      },
+      {
+        "class": "io.libp2p.core.PlaintextTcpTest",
+        "name": "multiplePingChannelsOnTheSameConnection()",
+        "time": "0.603"
+      },
+      {
+        "class": "io.libp2p.core.PlaintextTcpTest",
+        "name": "unsupportedServerProtocol()",
+        "time": "10.154"
+      },
+      {
+        "class": "io.libp2p.core.PlaintextTcpTest",
+        "name": "echoOverSecureConnection()",
+        "time": "0.072"
+      },
+      {
+        "class": "io.libp2p.core.PlaintextTcpTest",
+        "name": "largeEchoOverSecureConnection()",
+        "time": "0.434"
+      },
+      {
+        "class": "io.libp2p.mux.ChildReadPauseTcpTest",
+        "name": "[1] mplex",
+        "time": "5.12"
+      },
+      {
+        "class": "io.libp2p.mux.ChildReadPauseTcpTest",
+        "name": "[2] yamux",
+        "time": "0.106"
+      },
+      {
+        "class": "io.libp2p.pubsub.GossipApiTest",
+        "name": "testFastMessageId()",
+        "time": "0.532"
+      },
+      {
+        "class": "io.libp2p.pubsub.gossip.GossipTwoHostTest",
+        "name": "test message larger than mplex frame()",
+        "time": "2.597"
+      },
+      {
+        "class": "io.libp2p.transport.NettyOutboundBufferBackpressureTest",
+        "name": "normallyDrainingYamuxPeerReceivesBulkPayloadIntact()",
+        "time": "0.242"
+      },
+      {
+        "class": "io.libp2p.transport.NettyOutboundBufferBackpressureTest",
+        "name": "peerThatStallsBelowBudgetThenResumesReceivesEveryAcceptedByte()",
+        "time": "5.142"
+      }
+    ]
+  },
+  "lane229BroaderRepeat3": {
+    "counts": {
+      "tests": 12,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "passed": 12
+    },
+    "failures": [],
+    "cases": [
+      {
+        "class": "io.libp2p.core.PlaintextTcpTest",
+        "name": "twoEchosOverSecureConnection()",
+        "time": "0.923"
+      },
+      {
+        "class": "io.libp2p.core.PlaintextTcpTest",
+        "name": "identifyOverSecureConnection()",
+        "time": "0.117"
+      },
+      {
+        "class": "io.libp2p.core.PlaintextTcpTest",
+        "name": "multiplePingChannelsOnTheSameConnection()",
+        "time": "0.348"
+      },
+      {
+        "class": "io.libp2p.core.PlaintextTcpTest",
+        "name": "unsupportedServerProtocol()",
+        "time": "0.097"
+      },
+      {
+        "class": "io.libp2p.core.PlaintextTcpTest",
+        "name": "echoOverSecureConnection()",
+        "time": "0.063"
+      },
+      {
+        "class": "io.libp2p.core.PlaintextTcpTest",
+        "name": "largeEchoOverSecureConnection()",
+        "time": "0.242"
+      },
+      {
+        "class": "io.libp2p.mux.ChildReadPauseTcpTest",
+        "name": "[1] mplex",
+        "time": "0.092"
+      },
+      {
+        "class": "io.libp2p.mux.ChildReadPauseTcpTest",
+        "name": "[2] yamux",
+        "time": "0.082"
+      },
+      {
+        "class": "io.libp2p.pubsub.GossipApiTest",
+        "name": "testFastMessageId()",
+        "time": "0.565"
+      },
+      {
+        "class": "io.libp2p.pubsub.gossip.GossipTwoHostTest",
+        "name": "test message larger than mplex frame()",
+        "time": "2.259"
+      },
+      {
+        "class": "io.libp2p.transport.NettyOutboundBufferBackpressureTest",
+        "name": "normallyDrainingYamuxPeerReceivesBulkPayloadIntact()",
+        "time": "0.156"
+      },
+      {
+        "class": "io.libp2p.transport.NettyOutboundBufferBackpressureTest",
+        "name": "peerThatStallsBelowBudgetThenResumesReceivesEveryAcceptedByte()",
+        "time": "5.531"
+      }
+    ]
+  },
+  "lane229BroaderRepeat4": {
+    "counts": {
+      "tests": 12,
+      "failures": 2,
+      "errors": 0,
+      "skipped": 0,
+      "passed": 10
+    },
+    "failures": [
+      {
+        "class": "io.libp2p.core.PlaintextTcpTest",
+        "name": "largeEchoOverSecureConnection()",
+        "time": "5.053",
+        "message": "java.util.concurrent.TimeoutException",
+        "stack": "java.util.concurrent.TimeoutException\n\tat java.base/java.util.concurrent.CompletableFuture.timedGet(CompletableFuture.java:1960)\n\tat java.base/java.util.concurrent.CompletableFuture.get(CompletableFuture.java:2095)\n\tat io.libp2p.core.TcpTransportHostTest.largeEchoOverSecureConnection(HostTranportsTest.kt:79)\n\tat java.base/java.lang.reflect.Method.invoke(Method.java:580)\n\tat java.base/java.util.ArrayList.forEach(ArrayList.java:1596)\n\tat java.base/java.util.ArrayList.forEach(ArrayList.java:1596)\n"
+      },
+      {
+        "class": "io.libp2p.transport.NettyOutboundBufferBackpressureTest",
+        "name": "normallyDrainingYamuxPeerReceivesBulkPayloadIntact()",
+        "time": "10.086",
+        "message": "org.opentest4j.AssertionFailedError: Responder did not negotiate every expected stream ==> expected: <1> but was: <0>",
+        "stack": "org.opentest4j.AssertionFailedError: Responder did not negotiate every expected stream ==> expected: <1> but was: <0>\n\tat app//org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)\n\tat app//org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)\n\tat app//org.junit.jupiter.api.AssertEquals.failNotEqual(AssertEquals.java:197)\n\tat app//org.junit.jupiter.api.AssertEquals.assertEquals(AssertEquals.java:150)\n\tat app//org.junit.jupiter.api.Assertions.assertEquals(Assertions.java:563)\n\tat app//io.libp2p.transport.BulkWriteProtocol.awaitResponderStreams(NettyOutboundBufferBackpressureTest.kt:471)\n\tat app//io.libp2p.transport.NettyOutboundBufferBackpressureTest.normallyDrainingYamuxPeerReceivesBulkPayloadIntact(NettyOutboundBufferBackpressureTest.kt:196)\n\tat java.base@21.0.12.1/java.lang.reflect.Method.invoke(Method.java:580)\n\tat java.base@21.0.12.1/java.util.ArrayList.forEach(ArrayList.java:1596)\n\tat java.base@21.0.12.1/java.util.ArrayList.forEach(ArrayList.java:1596)\n"
+      }
+    ],
+    "cases": [
+      {
+        "class": "io.libp2p.core.PlaintextTcpTest",
+        "name": "twoEchosOverSecureConnection()",
+        "time": "0.852"
+      },
+      {
+        "class": "io.libp2p.core.PlaintextTcpTest",
+        "name": "identifyOverSecureConnection()",
+        "time": "0.14"
+      },
+      {
+        "class": "io.libp2p.core.PlaintextTcpTest",
+        "name": "multiplePingChannelsOnTheSameConnection()",
+        "time": "0.566"
+      },
+      {
+        "class": "io.libp2p.core.PlaintextTcpTest",
+        "name": "unsupportedServerProtocol()",
+        "time": "0.135"
+      },
+      {
+        "class": "io.libp2p.core.PlaintextTcpTest",
+        "name": "echoOverSecureConnection()",
+        "time": "0.093"
+      },
+      {
+        "class": "io.libp2p.core.PlaintextTcpTest",
+        "name": "largeEchoOverSecureConnection()",
+        "time": "5.053"
+      },
+      {
+        "class": "io.libp2p.mux.ChildReadPauseTcpTest",
+        "name": "[1] mplex",
+        "time": "0.156"
+      },
+      {
+        "class": "io.libp2p.mux.ChildReadPauseTcpTest",
+        "name": "[2] yamux",
+        "time": "0.133"
+      },
+      {
+        "class": "io.libp2p.pubsub.GossipApiTest",
+        "name": "testFastMessageId()",
+        "time": "0.582"
+      },
+      {
+        "class": "io.libp2p.pubsub.gossip.GossipTwoHostTest",
+        "name": "test message larger than mplex frame()",
+        "time": "2.718"
+      },
+      {
+        "class": "io.libp2p.transport.NettyOutboundBufferBackpressureTest",
+        "name": "normallyDrainingYamuxPeerReceivesBulkPayloadIntact()",
+        "time": "10.086"
+      },
+      {
+        "class": "io.libp2p.transport.NettyOutboundBufferBackpressureTest",
+        "name": "peerThatStallsBelowBudgetThenResumesReceivesEveryAcceptedByte()",
+        "time": "5.544"
+      }
+    ]
+  },
+  "lane229BroaderRepeat5": {
+    "counts": {
+      "tests": 12,
+      "failures": 1,
+      "errors": 0,
+      "skipped": 0,
+      "passed": 11
+    },
+    "failures": [
+      {
+        "class": "io.libp2p.transport.NettyOutboundBufferBackpressureTest",
+        "name": "peerThatStallsBelowBudgetThenResumesReceivesEveryAcceptedByte()",
+        "time": "10.081",
+        "message": "org.opentest4j.AssertionFailedError: Responder did not negotiate every expected stream ==> expected: <1> but was: <0>",
+        "stack": "org.opentest4j.AssertionFailedError: Responder did not negotiate every expected stream ==> expected: <1> but was: <0>\n\tat app//org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)\n\tat app//org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)\n\tat app//org.junit.jupiter.api.AssertEquals.failNotEqual(AssertEquals.java:197)\n\tat app//org.junit.jupiter.api.AssertEquals.assertEquals(AssertEquals.java:150)\n\tat app//org.junit.jupiter.api.Assertions.assertEquals(Assertions.java:563)\n\tat app//io.libp2p.transport.BulkWriteProtocol.awaitResponderStreams(NettyOutboundBufferBackpressureTest.kt:471)\n\tat app//io.libp2p.transport.NettyOutboundBufferBackpressureTest.peerThatStallsBelowBudgetThenResumesReceivesEveryAcceptedByte(NettyOutboundBufferBackpressureTest.kt:243)\n\tat java.base@21.0.12.1/java.lang.reflect.Method.invoke(Method.java:580)\n\tat java.base@21.0.12.1/java.util.ArrayList.forEach(ArrayList.java:1596)\n\tat java.base@21.0.12.1/java.util.ArrayList.forEach(ArrayList.java:1596)\n"
+      }
+    ],
+    "cases": [
+      {
+        "class": "io.libp2p.core.PlaintextTcpTest",
+        "name": "twoEchosOverSecureConnection()",
+        "time": "0.937"
+      },
+      {
+        "class": "io.libp2p.core.PlaintextTcpTest",
+        "name": "identifyOverSecureConnection()",
+        "time": "0.169"
+      },
+      {
+        "class": "io.libp2p.core.PlaintextTcpTest",
+        "name": "multiplePingChannelsOnTheSameConnection()",
+        "time": "0.622"
+      },
+      {
+        "class": "io.libp2p.core.PlaintextTcpTest",
+        "name": "unsupportedServerProtocol()",
+        "time": "0.122"
+      },
+      {
+        "class": "io.libp2p.core.PlaintextTcpTest",
+        "name": "echoOverSecureConnection()",
+        "time": "0.113"
+      },
+      {
+        "class": "io.libp2p.core.PlaintextTcpTest",
+        "name": "largeEchoOverSecureConnection()",
+        "time": "0.278"
+      },
+      {
+        "class": "io.libp2p.mux.ChildReadPauseTcpTest",
+        "name": "[1] mplex",
+        "time": "0.082"
+      },
+      {
+        "class": "io.libp2p.mux.ChildReadPauseTcpTest",
+        "name": "[2] yamux",
+        "time": "0.065"
+      },
+      {
+        "class": "io.libp2p.pubsub.GossipApiTest",
+        "name": "testFastMessageId()",
+        "time": "0.647"
+      },
+      {
+        "class": "io.libp2p.pubsub.gossip.GossipTwoHostTest",
+        "name": "test message larger than mplex frame()",
+        "time": "2.437"
+      },
+      {
+        "class": "io.libp2p.transport.NettyOutboundBufferBackpressureTest",
+        "name": "normallyDrainingYamuxPeerReceivesBulkPayloadIntact()",
+        "time": "0.395"
+      },
+      {
+        "class": "io.libp2p.transport.NettyOutboundBufferBackpressureTest",
+        "name": "peerThatStallsBelowBudgetThenResumesReceivesEveryAcceptedByte()",
+        "time": "10.081"
+      }
+    ]
+  }
+}

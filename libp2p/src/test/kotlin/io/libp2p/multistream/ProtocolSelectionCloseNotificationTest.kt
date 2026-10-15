@@ -119,8 +119,8 @@ class ProtocolSelectionCloseNotificationTest {
     }
 
     @ParameterizedTest
-    @ValueSource(booleans = [true, false])
-    fun selectedProtocolReceivesCloseWhileControllerIsPendingExactlyOnce(initiator: Boolean) {
+    @CsvSource("true, false", "false, false", "true, true", "false, true")
+    fun selectedProtocolReceivesCloseAfterActivationExactlyOnce(initiator: Boolean, controllerReadyOnActivation: Boolean) {
         val events = mutableListOf<String>()
         val ready = CompletableFuture<Stream>()
         val activated = CompletableFuture<Stream>()
@@ -135,6 +135,7 @@ class ProtocolSelectionCloseNotificationTest {
                         override fun onActivated(stream: Stream) {
                             events.add("active")
                             activated.complete(stream)
+                            if (controllerReadyOnActivation) ready.complete(stream)
                         }
 
                         override fun onMessage(stream: Stream, msg: ByteBuf) {
@@ -159,12 +160,13 @@ class ProtocolSelectionCloseNotificationTest {
                     .writeUvarint(protocolBytes.size).writeBytes(protocolBytes)
             )
             assertEquals(listOf("active"), events)
-            assertFalse(channel.controllerFuture.isDone)
+            assertEquals(controllerReadyOnActivation, channel.controllerFuture.isDone)
             assertTrue(activated.isDone)
+            activated.join().close()
             activated.join().close()
             channel.runPendingTasks()
             assertFalse(channel.isOpen)
-            assertTrue(channel.controllerFuture.isCompletedExceptionally)
+            assertEquals(!controllerReadyOnActivation, channel.controllerFuture.isCompletedExceptionally)
             assertEquals(listOf("active", "closed"), events)
         } finally {
             channel.finishAndReleaseAll()

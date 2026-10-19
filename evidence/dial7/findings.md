@@ -14,3 +14,5 @@ Decision rule BEFORE runs: 10 fresh JVM runs at pre-merge 031e565a912acd94b5ff5c
 The mechanism is process-wide inline Noise admission keeping competing ready work on an event loop; the evidence that demonstrates it is dial3's red/green/reversal and merged N1. This lane only qualifies a publication and pin; no product or existing-test behavior edit is planned. The Gossip rate control is the explicitly authorized experiment, not retrying a failed gate to hide it.
 
 Lane rules take precedence over skill defaults: no handoff writes, challenge CLI, delegation, merges, enqueueing, deploys or other publication. Status progress lives here and evidence branches. One snapshot publication is explicitly authorized if the control permits it.
+
+OBSERVED 2026-10-19T01:33:24.200273+00:00: Gossip before run 1/10: attempt 1 PASSED, 4.272s, Gradle exit 0. Native XML and full log retained in evidence/gossip-before-01.

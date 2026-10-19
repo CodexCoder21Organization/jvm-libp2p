@@ -98,6 +98,15 @@ abstract class PlainNettyTransport(
     }
 
     override fun initialize() {
+        if (closed) return
+        val preparations = upgrader.startupPreparationsSnapshot()
+        if (preparations.isEmpty()) return
+        val executor = workerGroup.firstOrNull { it.inEventLoop() } ?: workerGroup.next()
+        if (executor.inEventLoop()) {
+            preparations.forEach { it() }
+        } else {
+            executor.submit { preparations.forEach { it() } }.syncUninterruptibly()
+        }
     }
 
     override fun close(): CompletableFuture<Unit> {

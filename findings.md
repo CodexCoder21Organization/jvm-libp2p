@@ -93,3 +93,8 @@ java.net.ConnectException: Connection refused
 	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
 	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
 
+
+## 2026-10-19 01:28 UTC — final cleanup
+OBSERVED: Tracked controls command is terminal (both Gradle subprocesses exited); all clone/help/checkpoint commands have completed. Required ps -eo pid,args -ww audit retained (with PPID for attribution); no live control shell, Gradle daemon or test executor remains from this lane. Only the audit shell itself contains the searched command text. No process needed termination. Removed generated build/.gradle directories from this lane's two fork worktrees and generated consumer/jars after retaining native XML/logs. Fork and consumer source working trees are clean; no build/test artifact enters a source PR. Evidence-only commits use the required attribution and exact branch lease. No answer to the two-pass classification request has arrived; publication remains stopped under the continuation's explicit 'if pre-existing' gate.
+
+STOP: Kubo is red before and after, but gossip passes both one-attempt controls; the prior full-suite gossip failure remains unclassified, so publication is not authorized by the stated pre-existing-failure gate. No snapshot published, pin changed, downstream qualification run or PR created. Corrected the stale baseline selector in findings and preserved all four native attempt rows/full stacks on wip/flake-urlprotocol-dial6-evidence.

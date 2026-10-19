@@ -1,0 +1,41 @@
+73:    fun arm() {
+97:    fun disarm() {
+104:    override fun handlerRemoved(ctx: ChannelHandlerContext) {
+109:    override fun handlerAdded(ctx: ChannelHandlerContext) {
+157:    override fun initChannel(
+200:    override fun handlerAdded(ctx: ChannelHandlerContext) {
+217:    internal fun install(ch: P2PChannel) {
+222:    private fun initializeHandshake() {
+225:        // copyFrom copies both key arrays; no channel can mutate the host's preparation.
+226:        preparedIdentity.copyStaticKeyTo(handshakeState.localKeyPair)
+232:            handshakeState.fixedEphemeralKey.setPrivateKey(ephemeralPrivateKey, 0)
+241:    override fun channelActive(ctx: ChannelHandlerContext) {
+258:    override fun channelRead0(ctx: ChannelHandlerContext, msg: ByteBuf) {
+278:    private fun processHandshakeFrame(ctx: ChannelHandlerContext, frame: ByteArray) {
+304:    override fun exceptionCaught(ctx: ChannelHandlerContext, cause: Throwable) {
+309:    override fun channelUnregistered(ctx: ChannelHandlerContext) {
+314:    private fun readNoiseMessage(msg: ByteArray) {
+343:    private fun sendNoiseStaticKeyAsPayload(ctx: ChannelHandlerContext) {
+354:    private fun sendNoiseMessage(ctx: ChannelHandlerContext, msg: ByteArray? = null) {
+364:        val outputBuffer = ByteArray(msgLength + (2 * (handshakeState.localKeyPair.publicKeyLength + 16))) // 16 is MAC length
+382:    private fun verifyPayload(
+404:    private fun unpackKeyAndSignature(payload: ByteArray): Pair<PubKey, ByteArray> {
+413:    private fun splitHandshake(ctx: ChannelHandlerContext) {
+438:    private fun handshakeSucceeded(ctx: ChannelHandlerContext, session: NoiseSecureChannelSession) {
+481:    private fun handshakeFailed(ctx: ChannelHandlerContext, cause: String) {
+484:    private fun handshakeFailed(ctx: ChannelHandlerContext, cause: Throwable) {
+493:    private fun releaseLoopHandshake() {
+498:    override fun handlerRemoved(ctx: ChannelHandlerContext) {
+504:    private fun claimTerminal(ctx: ChannelHandlerContext): Boolean {
+510:    private fun failAfterTerminalClaim(ctx: ChannelHandlerContext, cause: Throwable) {
+518:    private fun removeHandshakeHandlers(ctx: ChannelHandlerContext) {
+528:    private fun enqueueCrypto(ctx: ChannelHandlerContext, task: () -> Unit) {
+585:            override fun initialValue(): MutableSet<NoiseIoHandshake> = mutableSetOf()
+614:private fun noiseSignaturePhrase(dhState: DHState) =
+625:    fun copyStaticKeyTo(target: DHState) {
+626:        target.copyFrom(staticKey)
+630:private fun prepareNoiseIdentity(localKey: PrivKey): PreparedNoiseIdentity {
+634:        staticKey.setPrivateKey(privateBytes, 0)
+638:            .setLibp2PKey(ByteString.copyFrom(publicKey))
+639:            .setNoiseStaticKeySignature(ByteString.copyFrom(signature))
+647:            staticKey.destroy()

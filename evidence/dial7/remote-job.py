@@ -7,4 +7,9 @@ for s in selectors:cmd+=['--test',s]
 print(datetime.datetime.now(datetime.timezone.utc).isoformat(), 'START',label,len(selectors),flush=True)
 p=subprocess.Popen(cmd,cwd=repo,start_new_session=True)
 (ev/(label+'-pid.json')).write_text(json.dumps({'pid':p.pid,'start':datetime.datetime.now(datetime.timezone.utc).isoformat()}))
-rc=p.wait(); print('REMOTE_CLIENT_TERMINAL',label,rc,flush=True);sys.exit(rc)
+try:
+ rc=p.wait(timeout=5000)
+except subprocess.TimeoutExpired:
+ print('WAIT_LIMIT: remote job still active; no remote cancellation issued; inspect runner record',label,flush=True)
+ sys.exit(75)
+print('REMOTE_CLIENT_TERMINAL',label,rc,flush=True);sys.exit(rc)

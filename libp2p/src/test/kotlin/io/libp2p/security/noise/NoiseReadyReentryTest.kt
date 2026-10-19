@@ -25,7 +25,8 @@ class NoiseReadyReentryTest {
         val process = ProcessBuilder(
             java.nio.file.Paths.get(System.getProperty("java.home"), "bin", "java").toString(),
             "-Dio.netty.eventLoopThreads=1",
-            "-cp", System.getProperty("java.class.path"),
+            "-cp",
+            System.getProperty("java.class.path"),
             NoiseReadyReentryHarness::class.java.name
         ).redirectErrorStream(true).start()
         val output = CompletableFuture.supplyAsync { process.inputStream.bufferedReader().use { it.readText() } }

@@ -1,0 +1,134 @@
+diff --git a/libp2p/src/main/kotlin/io/libp2p/security/noise/NoiseXXSecureChannel.kt b/libp2p/src/main/kotlin/io/libp2p/security/noise/NoiseXXSecureChannel.kt
+index 75794487..5ad182c3 100644
+--- a/libp2p/src/main/kotlin/io/libp2p/security/noise/NoiseXXSecureChannel.kt
++++ b/libp2p/src/main/kotlin/io/libp2p/security/noise/NoiseXXSecureChannel.kt
+@@ -148,6 +148,10 @@ class NoiseXXSecureChannel @JvmOverloads constructor(
+         var rustInteroperability = false
+     }
+ 
++    // This binding belongs to one host. Connections copy its prepared static key,
++    // while every handshake still creates its own ephemeral key and state.
++    private val preparedIdentity = prepareNoiseIdentity(localKey)
++
+     override val protocolDescriptor = ProtocolDescriptor(announce)
+ 
+     override fun initChannel(
+@@ -158,23 +162,30 @@ class NoiseXXSecureChannel @JvmOverloads constructor(
+         // Packet length codec should stay forever.
+         ch.pushHandler(UShortLengthCodec())
+         // Handshake and ReadTimeout handlers are to be removed when handshake is complete
+-        NoiseIoHandshake(localKey, handshakeComplete, if (ch.isInitiator) Role.INIT else Role.RESP, computationObserver)
++        NoiseIoHandshake(localKey, handshakeComplete, if (ch.isInitiator) Role.INIT else Role.RESP, computationObserver, preparedIdentity)
+             .install(ch)
+ 
+         return handshakeComplete
+     } // initChannel
+ } // class NoiseXXSecureChannel
+ 
+-class NoiseIoHandshake @JvmOverloads constructor(
++class NoiseIoHandshake internal constructor(
+     private val localKey: PrivKey,
+     private val handshakeComplete: CompletableFuture<SecureChannel.Session>,
+     private val role: Role,
+-    private val computationObserver: ((NoiseHandshakeComputation) -> Unit)? = null
++    private val computationObserver: ((NoiseHandshakeComputation) -> Unit)?,
++    private val preparedIdentity: PreparedNoiseIdentity
+ ) : SimpleChannelInboundHandler<ByteBuf>() {
++    @JvmOverloads
++    constructor(
++        localKey: PrivKey,
++        handshakeComplete: CompletableFuture<SecureChannel.Session>,
++        role: Role,
++        computationObserver: ((NoiseHandshakeComputation) -> Unit)? = null
++    ) : this(localKey, handshakeComplete, role, computationObserver, prepareNoiseIdentity(localKey))
++
+     private val readTimeout = NoiseHandshakeReadTimeoutHandler(armInitialReadWhenAdded = role == Role.RESP)
+     private val handshakeState = HandshakeState(NoiseXXSecureChannel.protocolName, role.intVal)
+-    private val localNoiseState = Noise.createDH("25519")
+-    private val localStaticPrivateKey = NoiseXXSecureChannel.localStaticPrivateKey25519.copyOf()
+     private var tail: CompletableFuture<Void> = CompletableFuture.completedFuture(null)
+     private val terminal = AtomicBoolean()
+     private val pendingFrames = mutableListOf<ByteArray>()
+@@ -211,11 +222,8 @@ class NoiseIoHandshake @JvmOverloads constructor(
+     private fun initializeHandshake() {
+         if (initialized) return
+ 
+-        // configure the localDHState with the private
+-        // which will automatically generate the corresponding public key
+-        localNoiseState.setPrivateKey(localStaticPrivateKey, 0)
+-
+-        handshakeState.localKeyPair.copyFrom(localNoiseState)
++        // copyFrom copies both key arrays; no channel can mutate the host's preparation.
++        preparedIdentity.copyStaticKeyTo(handshakeState.localKeyPair)
+         val ephemeralPrivateKey = ByteArray(32).also { nonBlockingSecureRandom().nextBytes(it) }
+         try {
+             // noise-java has no public RNG setter. Its "fixed" ephemeral hook is therefore used
+@@ -337,30 +345,10 @@ class NoiseIoHandshake @JvmOverloads constructor(
+         if (sentNoiseKeyPayload) return
+         sentNoiseKeyPayload = true
+ 
+-        // the payload consists of the identity public key, and the signature of the noise static public key
+-        // the actual noise static public key is sent later as part of the XX handshake
+-
+-        // get identity public key
+-        val identityPublicKey: ByteArray = marshalPublicKey(localKey.publicKey())
+-
+-        // get noise static public key signature
+-        val localNoiseStaticKeySignature =
+-            localKey.sign(noiseSignaturePhrase(localNoiseState))
+-
+-        // generate an appropriate protobuf element
+-        val noiseHandshakePayload =
+-            Spipe.NoiseHandshakePayload.newBuilder()
+-                .setLibp2PKey(ByteString.copyFrom(identityPublicKey))
+-                .setNoiseStaticKeySignature(ByteString.copyFrom(localNoiseStaticKeySignature))
+-                .setLibp2PData(ByteString.EMPTY)
+-                .setLibp2PDataSignature(ByteString.EMPTY)
+-                .build()
+-                .toByteArray()
+-
+         // create the message with the signed payload -
+         // verification happens once the noise static key is shared
+         log.debug("Sending signed Noise static public key as payload")
+-        sendNoiseMessage(ctx, noiseHandshakePayload)
++        sendNoiseMessage(ctx, preparedIdentity.payload.toByteArray())
+     } // sendNoiseStaticKeyAsPayload
+ 
+     private fun sendNoiseMessage(ctx: ChannelHandlerContext, msg: ByteArray? = null) {
+@@ -632,3 +620,36 @@ private val DHState.publicKey: ByteArray
+         getPublicKey(pubKey, 0)
+         return pubKey
+     }
++
++internal class PreparedNoiseIdentity(private val staticKey: DHState, val payload: ByteString) {
++    fun copyStaticKeyTo(target: DHState) {
++        target.copyFrom(staticKey)
++    }
++}
++
++private fun prepareNoiseIdentity(localKey: PrivKey): PreparedNoiseIdentity {
++    val staticKey = Noise.createDH("25519")
++    val privateBytes = NoiseXXSecureChannel.localStaticPrivateKey25519.copyOf()
++    try {
++        staticKey.setPrivateKey(privateBytes, 0)
++        val publicKey = marshalPublicKey(localKey.publicKey())
++        val signature = localKey.sign(noiseSignaturePhrase(staticKey))
++        val payload = Spipe.NoiseHandshakePayload.newBuilder()
++            .setLibp2PKey(ByteString.copyFrom(publicKey))
++            .setNoiseStaticKeySignature(ByteString.copyFrom(signature))
++            .setLibp2PData(ByteString.EMPTY)
++            .setLibp2PDataSignature(ByteString.EMPTY)
++            .build()
++            .toByteString()
++        return PreparedNoiseIdentity(staticKey, payload)
++    } catch (failure: Throwable) {
++        try {
++            staticKey.destroy()
++        } catch (cleanupFailure: Throwable) {
++            if (cleanupFailure !== failure) failure.addSuppressed(cleanupFailure)
++        }
++        throw failure
++    } finally {
++        privateBytes.fill(0)
++    }
++}

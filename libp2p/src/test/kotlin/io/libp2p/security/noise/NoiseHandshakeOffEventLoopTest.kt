@@ -32,14 +32,14 @@ import java.util.concurrent.atomic.AtomicInteger
 
 class NoiseHandshakeOffEventLoopTest {
     @Test
-    fun `single Noise handshake runs crypto inline on event loops`() {
-        val processOutput = runNoiseHandshakeHarness("inline", 10)
+    fun `single Noise handshake runs computation on workers`() {
+        val processOutput = runNoiseHandshakeHarness("isolated", 10)
 
-        assertThat(processOutput).contains("Noise handshake inline path:")
+        assertThat(processOutput).contains("Isolated Noise handshake:")
     }
 
     @Test
-    fun `twenty sequential Noise handshakes stay inline and within the latency budget`() {
+    fun `twenty sequential Noise handshakes use workers within the latency budget`() {
         val processOutput = runNoiseHandshakeHarness("sequential", 25)
 
         assertThat(processOutput).contains("Sequential Noise handshakes:")
@@ -420,46 +420,43 @@ object NoiseHandshakePathHarness {
     @JvmStatic
     fun main(args: Array<String>) {
         when (args.singleOrNull()) {
-            "inline" -> verifySingleInlineHandshake()
-            "sequential" -> verifySequentialInlineHandshakes()
+            "isolated" -> verifySingleWorkerHandshake()
+            "sequential" -> verifySequentialWorkerHandshakes()
             "saturated" -> verifySaturatedRemoteWaitsTimeOut()
             else -> error(
-                "Expected exactly one harness mode: 'inline', 'sequential', or 'saturated'; " +
+                "Expected exactly one harness mode: 'isolated', 'sequential', or 'saturated'; " +
                     "received ${args.toList()}"
             )
         }
     }
 
-    private fun verifySingleInlineHandshake() {
-        val executionRecorder = NoiseHandshakeExecutionRecorder().also { it.install() }
+    private fun verifySingleWorkerHandshake() {
+        val observations = ConcurrentLinkedQueue<NoiseHandshakeComputation>()
+        val observeComputation: (NoiseHandshakeComputation) -> Unit = { observations.add(it) }
         val hosts = mutableListOf<Host>()
         try {
-            val relay = newNoiseHost(listen = true).also { hosts += it }
-            val dialer = newNoiseHost().also { hosts += it }
+            val relay = newNoiseHost(listen = true, computationObserver = observeComputation).also { hosts += it }
+            val dialer = newNoiseHost(computationObserver = observeComputation).also { hosts += it }
             startNoiseHosts(hosts)
 
             dialer.network.connect(relay.peerId, relay.listenAddresses().single())
                 .get(5, TimeUnit.SECONDS)
 
-            val execution = executionRecorder.snapshot()
-            check(execution.inlineHandshakes == 2 && execution.offloadedHandshakes == 0) {
-                "Expected both sides of one uncontended Noise handshake to use the inline path, but execution was $execution"
-            }
-            check(execution.inlineCryptoTasks > 0 && execution.inlineCryptoTasksOffEventLoop == 0) {
-                "Expected all inline Noise crypto tasks to run on their Netty event loops, but execution was $execution"
-            }
-            println("Noise handshake inline path: execution=$execution")
+            val execution = observations.toList()
+            verifyNoiseWorkerObservations(execution, expectedChannels = 2)
+            println("Isolated Noise handshake: execution=$execution")
         } finally {
             stopNoiseHosts(hosts)
         }
     }
 
-    private fun verifySequentialInlineHandshakes() {
-        val executionRecorder = NoiseHandshakeExecutionRecorder().also { it.install() }
+    private fun verifySequentialWorkerHandshakes() {
+        val observations = ConcurrentLinkedQueue<NoiseHandshakeComputation>()
+        val observeComputation: (NoiseHandshakeComputation) -> Unit = { observations.add(it) }
         val hosts = mutableListOf<Host>()
         try {
-            val relay = newNoiseHost(listen = true).also { hosts += it }
-            val dialer = newNoiseHost().also { hosts += it }
+            val relay = newNoiseHost(listen = true, computationObserver = observeComputation).also { hosts += it }
+            val dialer = newNoiseHost(computationObserver = observeComputation).also { hosts += it }
             startNoiseHosts(hosts)
             val relayAddress = relay.listenAddresses().single()
 
@@ -471,15 +468,8 @@ object NoiseHandshakePathHarness {
                 waitForConnectionsToClose(dialer, relay)
             }
             val elapsedMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt)
-            val execution = executionRecorder.snapshot()
-            check(execution.inlineHandshakes == SEQUENTIAL_HANDSHAKES * 2 && execution.offloadedHandshakes == 0) {
-                "Expected all $SEQUENTIAL_HANDSHAKES sequential Noise handshakes on both peers to stay inline, " +
-                    "but execution was $execution"
-            }
-            check(execution.inlineCryptoTasks > 0 && execution.inlineCryptoTasksOffEventLoop == 0) {
-                "Expected all sequential inline Noise crypto tasks to run on their Netty event loops, " +
-                    "but execution was $execution"
-            }
+            val execution = observations.toList()
+            verifyNoiseWorkerObservations(execution, expectedChannels = SEQUENTIAL_HANDSHAKES * 2)
             check(elapsedMillis < MAX_SEQUENTIAL_HANDSHAKE_MILLIS) {
                 "$SEQUENTIAL_HANDSHAKES sequential Noise handshakes took ${elapsedMillis}ms; " +
                     "expected less than ${MAX_SEQUENTIAL_HANDSHAKE_MILLIS}ms"
@@ -667,7 +657,23 @@ private class NoiseHandshakeExecutionRecorder {
     }
 }
 
-private fun newNoiseHost(listen: Boolean = false): Host = host {
+private fun verifyNoiseWorkerObservations(
+    observations: List<NoiseHandshakeComputation>,
+    expectedChannels: Int
+) {
+    val channelCounts = observations.groupingBy { it.channelId }.eachCount()
+    check(channelCounts.size == expectedChannels && channelCounts.values.all { it == 2 }) {
+        "Expected two computations on each of $expectedChannels Noise channels, but observations were $observations"
+    }
+    check(observations.none { it.onEventLoop }) {
+        "Expected every Noise computation to run off its autonomous event loop, but observations were $observations"
+    }
+}
+
+private fun newNoiseHost(
+    listen: Boolean = false,
+    computationObserver: ((NoiseHandshakeComputation) -> Unit)? = null
+): Host = host {
     identity {
         random(KeyType.ED25519)
     }
@@ -678,6 +684,11 @@ private fun newNoiseHost(listen: Boolean = false): Host = host {
     }
     protocols {
         +Ping()
+    }
+    if (computationObserver != null) {
+        secureChannels {
+            add { key, _ -> NoiseXXSecureChannel(key, computationObserver) }
+        }
     }
 }
 

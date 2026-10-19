@@ -529,11 +529,11 @@ class NoiseIoHandshake internal constructor(
         if (terminal.get()) return
 
         val pendingOnLoop = loopHandshakes?.size ?: 1
-        // This loop owns both its pending handshakes and the tasks waiting for it.
-        // Once queued, keep this channel on the same FIFO for the rest of its handshake.
+        // Socket I/O can become ready after an empty task queue is observed.
+        // Keep computation off autonomous loops even for one pending handshake.
+        // Embedded loops remain synchronous because their callers drive them.
         val loopExecutor = ctx.executor() as? SingleThreadEventExecutor
-        offloadCrypto = offloadCrypto ||
-            (loopExecutor != null && (pendingOnLoop > 1 || loopExecutor.pendingTasks() > 0))
+        offloadCrypto = offloadCrypto || loopExecutor != null
         if (!executionObserved) {
             executionObserved = true
             NoiseHandshakeExecutionTestHook.handshakeObserver?.invoke(offloadCrypto)

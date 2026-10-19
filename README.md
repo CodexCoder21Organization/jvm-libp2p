@@ -58,7 +58,7 @@ Legend:
 
 `NoiseXXSecureChannel(key, computationObserver = { observation -> ... })` accepts an optional observer scoped to that secure-channel instance. Before each computation, the observer receives an immutable `NoiseHandshakeComputation` with the channel ID, whether execution is on the event loop, and the pending-handshake count captured when the loop admitted the work. Pending counts include ready-publication callbacks. The observer runs on the selected computation executor; it may close the connection, and computation rechecks closure before proceeding. An observer exception fails that handshake.
 
-For autonomous Netty loops, competing handshakes or queued work send computation to the shared workers. An uncontended loop keeps computation inline. Once a handshake uses the workers, subsequent computations keep their per-channel order there. Embedded channels remain synchronous on their caller-driven loops.
+For autonomous Netty loops, computation uses the shared workers even for an isolated handshake, so traffic that becomes ready during computation can still progress. Computations keep their per-channel order on those workers. Embedded channels remain synchronous on their caller-driven loops.
 
 ## Noise identity preparation
 

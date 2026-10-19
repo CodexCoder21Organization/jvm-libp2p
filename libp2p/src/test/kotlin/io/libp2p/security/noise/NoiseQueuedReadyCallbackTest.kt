@@ -7,8 +7,11 @@ import io.libp2p.core.crypto.KeyType
 import io.libp2p.core.dsl.host
 import io.libp2p.core.security.SecureChannel
 import io.libp2p.transport.implementation.P2PChannelOverNetty
+import io.netty.buffer.ByteBuf
 import io.netty.channel.ChannelHandlerContext
 import io.netty.channel.ChannelInboundHandlerAdapter
+import io.netty.handler.codec.LengthFieldBasedFrameDecoder
+import io.netty.util.ReferenceCountUtil
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -76,20 +79,47 @@ object NoiseQueuedReadyCallbackHarness {
                                 val connection = readyConnection.get()
                                 if (connection != null) {
                                     targetChannel.set((ch as P2PChannelOverNetty).nettyChannel.id().asLongText())
+                                    // Own the fragmented-frame order: deliver one prefix byte, then enqueue the rest.
+                                    ch.pushHandler(LengthFieldBasedFrameDecoder(MaxCipheredPacketLength + 2, 0, 2, 0, 0))
                                     ch.pushHandler(object : ChannelInboundHandlerAdapter() {
+                                        private var splitFirstFrame = false
                                         override fun channelRead(ctx: ChannelHandlerContext, msg: Any) {
-                                            if (queued.compareAndSet(false, true)) {
-                                                connection.thenAcceptAsync(
-                                                    {
-                                                        queuedReadyOrder.complete(!computationFinished.get())
-                                                        releaseComputation.countDown()
-                                                    },
-                                                    ctx.executor()
-                                                )
+                                            if (!splitFirstFrame && msg is ByteBuf) {
+                                                splitFirstFrame = true
+                                                ctx.fireChannelRead(msg.readRetainedSlice(1))
+                                                try {
+                                                    ctx.executor().execute {
+                                                        if (ctx.channel().isActive) ctx.fireChannelRead(msg) else ReferenceCountUtil.release(msg)
+                                                    }
+                                                } catch (cause: Throwable) {
+                                                    ReferenceCountUtil.release(msg)
+                                                    throw cause
+                                                }
+                                            } else {
+                                                ctx.fireChannelRead(msg)
                                             }
-                                            ctx.fireChannelRead(msg)
                                         }
                                     })
+                                    val ready = noise.initChannel(ch, selectedProtocol)
+                                    ch.addHandlerBefore(
+                                        HandshakeNettyHandlerName,
+                                        "QueuedConnectionReady",
+                                        object : ChannelInboundHandlerAdapter() {
+                                            override fun channelRead(ctx: ChannelHandlerContext, msg: Any) {
+                                                if (queued.compareAndSet(false, true)) {
+                                                    connection.thenAcceptAsync(
+                                                        {
+                                                            queuedReadyOrder.complete(!computationFinished.get())
+                                                            releaseComputation.countDown()
+                                                        },
+                                                        ctx.executor()
+                                                    )
+                                                }
+                                                ctx.fireChannelRead(msg)
+                                            }
+                                        }
+                                    )
+                                    return ready
                                 }
                                 return noise.initChannel(ch, selectedProtocol)
                             }

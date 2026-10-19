@@ -3,10 +3,10 @@ Launch: 2026-10-19 01:05 UTC; hard wall limit 02:35 UTC.
 
 ## Plan
 - DONE: Verify prerequisite merged and read dial4 continuation checkpoint.
-- IN PROGRESS: Fresh clones and repository instructions; fork suite once; build/publish next snapshot, exact resolve/hash; draft develop version PR.
-- PENDING: Pin consumer; exact four-selector batch once, ten diagnostic copies, content-targeted dialers (max three concurrent).
-- PENDING: If original green, draft consumer PR, bounded native CI audit; otherwise stop with attempt/phase evidence.
-- PENDING: Evidence checkpoints, final process cleanup.
+- STOPPED AT REQUIRED GATE: Fresh clones/instructions and suite once DONE; release gate failed (two first-attempt failures); no publication/version PR.
+- STOPPED BY RELEASE GATE: Consumer pin prepared and preserved, then restored; qualification not run against an unpublished artifact.
+- NOT REACHED: No consumer result, PR or CI run.
+- DONE: Evidence checkpoints and final process/source cleanup.
 
 OBSERVED: Fork prerequisite https://github.com/CodexCoder21Organization/jvm-libp2p/pull/53 MERGED at ecbc4a354c323f366150165842d6a039dd105128. Dial4 findings resumed; no remote dial4 evidence branch found. New clones under this lane/workspace. Read fork README/FORK and consumer README; no root AGENTS files. Prior documentation readings inherited from dial4 per continuation instruction; prior evidence consulted for selectors and workload. No test/assertion/bound edits authorized or made. No subagents, production writes, handoff writes, challenge CLI, merge, enqueue, pin in other repos or publication beyond one snapshot.
 
@@ -35,3 +35,8 @@ OBSERVED: Preserved the exact prepared 2204-file version-only consumer diff as p
 5. Evidence checkpoint and terminal process/source cleanup: final checkpoint below. No merge, enqueue, deploy, service restart, challenge CLI, handoff mutation, subagent or artifact publish.
 
 INFER: Orchestrator must resolve/rule on the fork suite gate before another publication lane. The localhost Kubo dependency is concretely identified; the gossip timeout needs its own deterministic mechanism investigation. This lane does not implement either concern or N2–N4′.
+
+## 2026-10-19 01:17 UTC — final cleanup
+OBSERVED: Tracked fork suite process exited 1; clone and all evidence checkpoint commands exited. Required ps -eo pid,args -ww process audit (captured via subprocess with ppid for attribution) finds no active build/test/Gradle JVM or background watcher under this lane; only the auditing shell/Python were present. No remaining started process needed a kill. Removed generated Gradle outputs only from this lane fresh clone after preserving all 115 XML files. Fork and consumer source working trees are clean. Evidence changes are committed/pushed with the required attribution and exact lease, no branch movement by another session.
+
+STOP: required fork publication gate failed on two first attempts (QuicKuboTestJava.pingKubo: refused local Kubo API connection; GossipTwoHostTest.test message larger than mplex frame: condition timeout). No artifact published, consumer pin PR created, or downstream improvement measured. Full attempt counts and stacks are on wip/flake-urlprotocol-dial5-evidence.

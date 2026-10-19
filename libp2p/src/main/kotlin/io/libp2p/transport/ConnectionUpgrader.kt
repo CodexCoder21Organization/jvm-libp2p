@@ -21,6 +21,15 @@ open class ConnectionUpgrader(
     private val muxerMultistream: MultistreamProtocol,
     private val muxers: List<StreamMuxer>,
 ) {
+    private val startupPreparations = mutableListOf<() -> Unit>()
+
+    // Builder finishes this list before constructing the network and its transports.
+    internal fun addStartupPreparation(preparation: () -> Unit) {
+        startupPreparations += preparation
+    }
+
+    internal fun startupPreparationsSnapshot(): List<() -> Unit> = startupPreparations.toList()
+
     open fun establishSecureChannel(connection: Connection): CompletableFuture<SecureChannel.Session> {
         return establish(
             secureMultistream,

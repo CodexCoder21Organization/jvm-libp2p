@@ -54,6 +54,12 @@ Legend:
 - :lemon: - prototype or beta, not tested in production
 - :tomato: - in progress 
 
+## Noise handshake computation observations
+
+`NoiseXXSecureChannel(key, computationObserver = { observation -> ... })` accepts an optional observer scoped to that secure-channel instance. Before each computation, the observer receives an immutable `NoiseHandshakeComputation` with the channel ID, whether execution is on the event loop, and the pending-handshake count captured when the loop admitted the work. Pending counts include ready-publication callbacks. The observer runs on the selected computation executor; it may close the connection, and computation rechecks closure before proceeding. An observer exception fails that handshake.
+
+For autonomous Netty loops, competing handshakes or queued work send computation to the shared workers. An uncontended loop keeps computation inline. Once a handshake uses the workers, subsequent computations keep their per-channel order there. Embedded channels remain synchronous on their caller-driven loops.
+
 ## Closing a stream during initialization
 
 A `Host.addStreamVisitor` callback may close or reset a newly opened stream. If it closes the stream before protocol negotiation, the stream's protocol future and the caller's controller future complete exceptionally. Closing that child leaves its shared connection and other streams usable.

@@ -115,7 +115,10 @@ private class NoiseHandshakeReadTimeoutHandler(
     }
 }
 
-/** A computation observation is delivered on the executor that performs that computation. */
+/**
+ * An immutable scheduling snapshot delivered immediately before computation, on its selected executor.
+ * [pendingHandshakesOnLoop] is captured on the loop at admission and includes ready-publication callbacks.
+ */
 data class NoiseHandshakeComputation(
     val channelId: String,
     val onEventLoop: Boolean,
@@ -124,6 +127,7 @@ data class NoiseHandshakeComputation(
 
 class NoiseXXSecureChannel @JvmOverloads constructor(
     private val localKey: PrivKey,
+    // The observer is scoped to this secure channel, without process-wide hook state.
     private val computationObserver: ((NoiseHandshakeComputation) -> Unit)? = null
 ) :
     SecureChannel {
@@ -183,7 +187,9 @@ class NoiseIoHandshake @JvmOverloads constructor(
     private var loopHandshakes: MutableSet<NoiseIoHandshake>? = null
 
     override fun handlerAdded(ctx: ChannelHandlerContext) {
-        loopHandshakes = handshakesOnLoop.get().also { it.add(this) }
+        if (ctx.executor() is SingleThreadEventExecutor) {
+            loopHandshakes = handshakesOnLoop.get().also { it.add(this) }
+        }
     }
 
     private var sentNoiseKeyPayload = false
@@ -479,6 +485,8 @@ class NoiseIoHandshake @JvmOverloads constructor(
         } catch (cause: Throwable) {
             failAfterTerminalClaim(ctx, cause)
             ctx.channel().close()
+        } finally {
+            releaseLoopHandshake()
         }
     } // handshakeSucceeded
 
@@ -487,13 +495,27 @@ class NoiseIoHandshake @JvmOverloads constructor(
     }
     private fun handshakeFailed(ctx: ChannelHandlerContext, cause: Throwable) {
         if (!claimTerminal(ctx)) return
-        failAfterTerminalClaim(ctx, cause)
+        try {
+            failAfterTerminalClaim(ctx, cause)
+        } finally {
+            releaseLoopHandshake()
+        }
+    }
+
+    private fun releaseLoopHandshake() {
+        loopHandshakes?.remove(this)
+        loopHandshakes = null
+    }
+
+    override fun handlerRemoved(ctx: ChannelHandlerContext) {
+        // Normal terminal cleanup retains membership through the ready callbacks.
+        // An external removal before completion must not retain a loop entry.
+        if (!terminal.get()) releaseLoopHandshake()
     }
 
     private fun claimTerminal(ctx: ChannelHandlerContext): Boolean {
         if (!terminal.compareAndSet(false, true)) return false
         check(ctx.executor().inEventLoop()) { "Noise terminal transition must run on its event loop: ${ctx.channel()}" }
-        loopHandshakes?.remove(this)
         return true
     }
 
@@ -521,15 +543,16 @@ class NoiseIoHandshake @JvmOverloads constructor(
         val pendingOnLoop = loopHandshakes?.size ?: 1
         // This loop owns both its pending handshakes and the tasks waiting for it.
         // Once queued, keep this channel on the same FIFO for the rest of its handshake.
-        offloadCrypto = offloadCrypto || pendingOnLoop > 1 ||
-            ((ctx.executor() as? SingleThreadEventExecutor)?.pendingTasks() ?: 0) > 0
+        val loopExecutor = ctx.executor() as? SingleThreadEventExecutor
+        offloadCrypto = offloadCrypto ||
+            (loopExecutor != null && (pendingOnLoop > 1 || loopExecutor.pendingTasks() > 0))
         if (!executionObserved) {
             executionObserved = true
             NoiseHandshakeExecutionTestHook.handshakeObserver?.invoke(offloadCrypto)
         }
         if (!offloadCrypto) {
             computationObserver?.invoke(NoiseHandshakeComputation(ctx.channel().id().asLongText(), ctx.executor().inEventLoop(), pendingOnLoop))
-            if (terminal.get()) return
+            if (terminal.get() || !ctx.channel().isActive) return
             NoiseHandshakeExecutionTestHook.cryptoTaskObserver?.invoke(false, ctx.executor().inEventLoop())
             initializeHandshake()
             task()
@@ -543,7 +566,7 @@ class NoiseIoHandshake @JvmOverloads constructor(
             {
                 if (!terminal.get()) {
                     computationObserver?.invoke(NoiseHandshakeComputation(ctx.channel().id().asLongText(), ctx.executor().inEventLoop(), pendingOnLoop))
-                    if (terminal.get()) return@thenRunAsync
+                    if (terminal.get() || !ctx.channel().isActive) return@thenRunAsync
                     NoiseHandshakeExecutionTestHook.cryptoTaskObserver?.invoke(true, ctx.executor().inEventLoop())
                     initializeHandshake()
                     task()

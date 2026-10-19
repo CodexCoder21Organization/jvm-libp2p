@@ -14,6 +14,8 @@ import java.io.InputStream
 import java.io.OutputStream
 import java.net.InetSocketAddress
 import java.net.Socket
+import java.nio.file.Files
+import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
@@ -26,7 +28,8 @@ class NoiseSingleHandshakeProgressTest {
     @Test
     fun `established ping progresses while one new Noise handshake computation is held`() {
         var child: Process? = null
-        var output: CompletableFuture<String>? = null
+        var outputFile: Path? = null
+        var primaryFailure: Throwable? = null
         try {
             val java = Paths.get(System.getProperty("java.home"), "bin", "java").toString()
             val builder = ProcessBuilder(
@@ -38,36 +41,64 @@ class NoiseSingleHandshakeProgressTest {
             ).redirectErrorStream(true)
             builder.environment()["JAVA_TOOL_OPTIONS"] =
                 "-Xmx256m -XX:MaxMetaspaceSize=128m -XX:+UseSerialGC -XX:ActiveProcessorCount=2"
+            val childOutputFile = Files.createTempFile("noise-single-handshake-progress-", ".log")
+            outputFile = childOutputFile
+            builder.redirectOutput(childOutputFile.toFile())
 
             val runningChild = builder.start()
             child = runningChild
             println("Started Noise single-handshake child JVM pid=${runningChild.pid()}")
-            val outputReader = CompletableFuture.supplyAsync {
-                runningChild.inputStream.bufferedReader().use { it.readText() }
-            }
-            output = outputReader
 
             val completed = runningChild.waitFor(20, TimeUnit.SECONDS)
+            var reapedAfterForcedTermination = true
             if (!completed && runningChild.isAlive) {
                 runningChild.destroyForcibly()
-                runningChild.waitFor(5, TimeUnit.SECONDS)
+                reapedAfterForcedTermination = runningChild.waitFor(5, TimeUnit.SECONDS)
             }
-            val text = outputReader.get(5, TimeUnit.SECONDS)
-            print(text)
+            val text = Files.readString(childOutputFile)
+            assertTrue(
+                reapedAfterForcedTermination,
+                "The forcibly terminated child JVM (pid=${runningChild.pid()}) must exit within five seconds. Output:\n$text"
+            )
             assertTrue(
                 completed,
                 "The bounded child JVM (pid=${runningChild.pid()}) must finish within 20 seconds. Output:\n$text"
             )
             assertEquals(0, runningChild.exitValue(), text)
+        } catch (failure: Throwable) {
+            primaryFailure = failure
+            throw failure
         } finally {
+            val cleanupFailures = mutableListOf<Throwable>()
             child?.let { runningChild ->
-                if (runningChild.isAlive) {
-                    runningChild.destroyForcibly()
-                    runningChild.waitFor(5, TimeUnit.SECONDS)
+                try {
+                    if (runningChild.isAlive) {
+                        runningChild.destroyForcibly()
+                        check(runningChild.waitFor(5, TimeUnit.SECONDS)) {
+                            "The forcibly terminated child JVM (pid=${runningChild.pid()}) must be reaped within five seconds"
+                        }
+                    }
+                } catch (failure: Throwable) {
+                    cleanupFailures += failure
                 }
             }
-            output?.let { outputReader ->
-                if (!outputReader.isDone) outputReader.get(5, TimeUnit.SECONDS)
+            outputFile?.let { childOutputFile ->
+                try {
+                    print(Files.readString(childOutputFile))
+                } catch (failure: Throwable) {
+                    cleanupFailures += failure
+                } finally {
+                    try {
+                        Files.deleteIfExists(childOutputFile)
+                    } catch (failure: Throwable) {
+                        cleanupFailures += failure
+                    }
+                }
+            }
+            if (cleanupFailures.isNotEmpty()) {
+                val failureToReport = primaryFailure ?: cleanupFailures.removeAt(0)
+                cleanupFailures.forEach(failureToReport::addSuppressed)
+                if (primaryFailure == null) throw failureToReport
             }
         }
     }

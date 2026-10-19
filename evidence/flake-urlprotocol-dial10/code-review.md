@@ -1,0 +1,9 @@
+# Dedicated N3 code review
+
+Read: PHILOSOPHY.md; inherited ownership table; NoiseXXSecureChannel complete source; Builders.build and PlainNettyTransport construction order; native-noise DH copy behavior established in dial9; javap old/new public constructor reports.
+
+N3 has one preparation call per binding and one common channel-construction path. Builders constructs secure bindings before transports; a signer failure therefore escapes before new transport ownership is allocated. Static private input is copied, derived once, then the temporary bytes are cleared. Payload serialization uses immutable ByteString, so retained caller signature arrays cannot alter it. The cached DH object is private and only copied from; each handshake still owns its mutable local key state and its separately generated ephemeral key. No new lock, worker, socket, durable record, loop admission rule or terminal path is introduced. Cache size is fixed by one host identity, independent of connection count/history.
+
+The direct NoiseIoHandshake constructors prepare a private identity for standalone callers; all pre-existing public javap lines remain, including Kotlin default-argument construction. Binding callers share only read-only preparation. Signature/public-key callbacks run before publication with no owner locks; errors preserve their original identity, and cleanup errors are suppressed rather than replacing them. Rust framing still occurs per message after preparation and is unaffected.
+
+No P1 found in the changed N3 behavior in this source pass. The larger first-use class loading cost and existing Ping scheduler ownership are separate concerns, not included as product changes. This reading does not substitute for pending reversal/full-suite/local-snapshot qualification or the orchestrator's independent final review.

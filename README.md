@@ -60,6 +60,15 @@ Legend:
 
 For autonomous Netty loops, competing handshakes or queued work send computation to the shared workers. An uncontended loop keeps computation inline. Once a handshake uses the workers, subsequent computations keep their per-channel order there. Embedded channels remain synchronous on their caller-driven loops.
 
+## Noise identity preparation
+
+A `NoiseXXSecureChannel` prepares its static key and signed identity payload when it is constructed,
+before a host using that binding starts accepting connections. Connections reuse that preparation;
+each connection still owns its own handshake state and a fresh ephemeral key. A supplied identity's
+signing failure is reported during binding construction. The binding captures a private copy of
+`localStaticPrivateKey25519` at construction; later changes to that property affect newly constructed
+bindings. Existing binding and handshake constructors remain available.
+
 ## Closing a stream during initialization
 
 A `Host.addStreamVisitor` callback may close or reset a newly opened stream. If it closes the stream before protocol negotiation, the stream's protocol future and the caller's controller future complete exceptionally. Closing that child leaves its shared connection and other streams usable.

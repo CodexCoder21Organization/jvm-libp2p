@@ -31,6 +31,8 @@ import io.netty.channel.SimpleChannelInboundHandler
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder
 import io.netty.handler.codec.LengthFieldPrepender
 import io.netty.handler.timeout.ReadTimeoutException
+import io.netty.util.concurrent.FastThreadLocal
+import io.netty.util.concurrent.SingleThreadEventExecutor
 import org.slf4j.LoggerFactory
 import spipe.pb.Spipe
 import java.util.concurrent.CompletableFuture
@@ -113,7 +115,21 @@ private class NoiseHandshakeReadTimeoutHandler(
     }
 }
 
-class NoiseXXSecureChannel(private val localKey: PrivKey) :
+/**
+ * An immutable scheduling snapshot delivered immediately before computation, on its selected executor.
+ * [pendingHandshakesOnLoop] is captured on the loop at admission and includes ready-publication callbacks.
+ */
+data class NoiseHandshakeComputation(
+    val channelId: String,
+    val onEventLoop: Boolean,
+    val pendingHandshakesOnLoop: Int
+)
+
+class NoiseXXSecureChannel @JvmOverloads constructor(
+    private val localKey: PrivKey,
+    // The observer is scoped to this secure channel, without process-wide hook state.
+    private val computationObserver: ((NoiseHandshakeComputation) -> Unit)? = null
+) :
     SecureChannel {
 
     @Suppress("UNUSED_PARAMETER")
@@ -142,17 +158,18 @@ class NoiseXXSecureChannel(private val localKey: PrivKey) :
         // Packet length codec should stay forever.
         ch.pushHandler(UShortLengthCodec())
         // Handshake and ReadTimeout handlers are to be removed when handshake is complete
-        NoiseIoHandshake(localKey, handshakeComplete, if (ch.isInitiator) Role.INIT else Role.RESP)
+        NoiseIoHandshake(localKey, handshakeComplete, if (ch.isInitiator) Role.INIT else Role.RESP, computationObserver)
             .install(ch)
 
         return handshakeComplete
     } // initChannel
 } // class NoiseXXSecureChannel
 
-class NoiseIoHandshake(
+class NoiseIoHandshake @JvmOverloads constructor(
     private val localKey: PrivKey,
     private val handshakeComplete: CompletableFuture<SecureChannel.Session>,
-    private val role: Role
+    private val role: Role,
+    private val computationObserver: ((NoiseHandshakeComputation) -> Unit)? = null
 ) : SimpleChannelInboundHandler<ByteBuf>() {
     private val readTimeout = NoiseHandshakeReadTimeoutHandler(armInitialReadWhenAdded = role == Role.RESP)
     private val handshakeState = HandshakeState(NoiseXXSecureChannel.protocolName, role.intVal)
@@ -164,7 +181,16 @@ class NoiseIoHandshake(
     private val expectedHandshakeFrames = if (role == Role.INIT) 1 else 2
     private var receivedHandshakeFrames = 0
     private var initialized = false
-    private val offloadCrypto = inFlightHandshakes.incrementAndGet() > INLINE_CONCURRENCY_THRESHOLD
+    private var offloadCrypto = false
+    private var executionObserved = false
+
+    private var loopHandshakes: MutableSet<NoiseIoHandshake>? = null
+
+    override fun handlerAdded(ctx: ChannelHandlerContext) {
+        if (ctx.executor() is SingleThreadEventExecutor) {
+            loopHandshakes = handshakesOnLoop.get().also { it.add(this) }
+        }
+    }
 
     private var sentNoiseKeyPayload = false
     private var instancePayload: ByteArray? = null
@@ -175,7 +201,6 @@ class NoiseIoHandshake(
 
     init {
         log.debug("Starting handshake")
-        NoiseHandshakeExecutionTestHook.handshakeObserver?.invoke(offloadCrypto)
     } // init
 
     internal fun install(ch: P2PChannel) {
@@ -423,7 +448,7 @@ class NoiseIoHandshake(
     } // splitHandshake
 
     private fun handshakeSucceeded(ctx: ChannelHandlerContext, session: NoiseSecureChannelSession) {
-        if (!claimTerminal()) return
+        if (!claimTerminal(ctx)) return
 
         try {
             val pipeline = ctx.pipeline()
@@ -460,6 +485,8 @@ class NoiseIoHandshake(
         } catch (cause: Throwable) {
             failAfterTerminalClaim(ctx, cause)
             ctx.channel().close()
+        } finally {
+            releaseLoopHandshake()
         }
     } // handshakeSucceeded
 
@@ -467,13 +494,28 @@ class NoiseIoHandshake(
         handshakeFailed(ctx, Exception(cause))
     }
     private fun handshakeFailed(ctx: ChannelHandlerContext, cause: Throwable) {
-        if (!claimTerminal()) return
-        failAfterTerminalClaim(ctx, cause)
+        if (!claimTerminal(ctx)) return
+        try {
+            failAfterTerminalClaim(ctx, cause)
+        } finally {
+            releaseLoopHandshake()
+        }
     }
 
-    private fun claimTerminal(): Boolean {
+    private fun releaseLoopHandshake() {
+        loopHandshakes?.remove(this)
+        loopHandshakes = null
+    }
+
+    override fun handlerRemoved(ctx: ChannelHandlerContext) {
+        // Normal terminal cleanup retains membership through the ready callbacks.
+        // An external removal before completion must not retain a loop entry.
+        if (!terminal.get()) releaseLoopHandshake()
+    }
+
+    private fun claimTerminal(ctx: ChannelHandlerContext): Boolean {
         if (!terminal.compareAndSet(false, true)) return false
-        inFlightHandshakes.decrementAndGet()
+        check(ctx.executor().inEventLoop()) { "Noise terminal transition must run on its event loop: ${ctx.channel()}" }
         return true
     }
 
@@ -498,7 +540,19 @@ class NoiseIoHandshake(
     private fun enqueueCrypto(ctx: ChannelHandlerContext, task: () -> Unit) {
         if (terminal.get()) return
 
+        val pendingOnLoop = loopHandshakes?.size ?: 1
+        // This loop owns both its pending handshakes and the tasks waiting for it.
+        // Once queued, keep this channel on the same FIFO for the rest of its handshake.
+        val loopExecutor = ctx.executor() as? SingleThreadEventExecutor
+        offloadCrypto = offloadCrypto ||
+            (loopExecutor != null && (pendingOnLoop > 1 || loopExecutor.pendingTasks() > 0))
+        if (!executionObserved) {
+            executionObserved = true
+            NoiseHandshakeExecutionTestHook.handshakeObserver?.invoke(offloadCrypto)
+        }
         if (!offloadCrypto) {
+            computationObserver?.invoke(NoiseHandshakeComputation(ctx.channel().id().asLongText(), ctx.executor().inEventLoop(), pendingOnLoop))
+            if (terminal.get() || !ctx.channel().isActive) return
             NoiseHandshakeExecutionTestHook.cryptoTaskObserver?.invoke(false, ctx.executor().inEventLoop())
             initializeHandshake()
             task()
@@ -511,6 +565,8 @@ class NoiseIoHandshake(
         val next = tail.thenRunAsync(
             {
                 if (!terminal.get()) {
+                    computationObserver?.invoke(NoiseHandshakeComputation(ctx.channel().id().asLongText(), ctx.executor().inEventLoop(), pendingOnLoop))
+                    if (terminal.get() || !ctx.channel().isActive) return@thenRunAsync
                     NoiseHandshakeExecutionTestHook.cryptoTaskObserver?.invoke(true, ctx.executor().inEventLoop())
                     initializeHandshake()
                     task()
@@ -537,8 +593,9 @@ class NoiseIoHandshake(
     }
 
     private companion object {
-        private const val INLINE_CONCURRENCY_THRESHOLD = 4
-        private val inFlightHandshakes = AtomicInteger()
+        private val handshakesOnLoop = object : FastThreadLocal<MutableSet<NoiseIoHandshake>>() {
+            override fun initialValue(): MutableSet<NoiseIoHandshake> = mutableSetOf()
+        }
         private val cryptoThreadNumber = AtomicInteger()
         private val cryptoExecutor: ExecutorService by lazy {
             val threadCount = maxOf(2, Runtime.getRuntime().availableProcessors() / 2)

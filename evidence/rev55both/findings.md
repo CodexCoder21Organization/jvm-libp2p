@@ -1,0 +1,23 @@
+# rev55both landing review
+Launch 2026-10-19 03:01 UTC; hard stop 04:01 UTC.
+
+## Plan
+- IN PROGRESS: Read required context and audit exact PR/base heads, sources and retained proofs.
+- TODO: Dedicated adversarial source pass; run one owned proof and product-only reversal.
+- TODO: Dedicated test inventory pass and shutdown classification: 10 fresh-JVM one-attempt runs per head.
+- TODO: Record suite-at-head evidence, PR description check, push evidence with exact lease, clean processes.
+
+## Rule fixed before rate runs
+Compare the unchanged shutdown test at pre-PR develop and PR head, fresh JVM each, one attempt, zero retries. Similar low counts (0–1 failures/10 both) classify as pre-existing fork flake; 0/10 before and at least 3/10 after classify as PR-caused P1. Other outcomes remain unclassified with exact counts; no invented ruling.
+
+OBSERVED: Dial10 findings read fully. Its suite at head 2d30c91160e3da98b900ac6ebc72b9ebfe99515e was 1103 passing / 3 failing / 2 skipped, 1108 attempts, zero retries. The new timeout is ParentCloseListenerReviewTest.mplexVisitorClosedChildrenReleaseParentCloseListeners at client.stop cleanup line 98. This review never writes the campaign handoff, PR source branch, or production; no subdelegates, no CI watches, no challenge CLI.
+
+The mechanism under review is per-binding preparation of static Noise identity material followed by private per-channel copies; the evidence to check is exact signature counts, independent DH copying and unchanged handshake payload construction. Rate classification is a separate observation, not a proposed change.
+
+## Pass 1 source audit (2026-10-19 03:02 UTC)
+OBSERVED: Exact PR is open/draft, base develop ecbc4a354c323f366150165842d6a039dd105128, head 2d30c91160e3da98b900ac6ebc72b9ebfe99515e; no AGENTS.md in clone. README/FORK read. Host Builder constructs secure bindings at Builders.kt:188 before transports at :201 and before returning Host. A preparation failure therefore surfaces during host construction, earlier than start(), never first dial.
+OBSERVED: Curve25519DHState bytecode retained. Constructor allocates distinct 32-byte private/public arrays. copyFrom copies source arrays into target arrays with System.arraycopy (offset 28–55), then target mode (58–63); no source mutation. All state writers enumerated: constructor, generateKeyPair, setPublicKey, setPrivateKey, setToNullPublicKey, clearKey/destroy, copyFrom. Prepared source receives setPrivateKey once, getPublicKey for signing, then only copyFrom source reads. Failure destroys only the unpublished source. Successful preparation never calls another writer or exposes that state; each NoiseIoHandshake creates its own HandshakeState target. Handshake target writes from start/readMessage/writeMessage/split are isolated; fresh fixedEphemeralKey.setPrivateKey consumes a new random 32-byte array per initializeHandshake. Private temporary bytes clear in finally.
+OBSERVED: Payload builder fields, public-key marshaling, signature phrase and static public bytes match develop. Signature input remains ASCII noise-libp2p-static-key: plus the same 32-byte public key. ByteString copies both returned arrays; toByteArray gives each write independent bytes. Signing algorithms with randomized signatures can emit different valid signature bytes on the old path; reusing one valid signature changes no payload schema or verification inputs. A literal byte-equality claim across independent randomized signing calls would be incorrect; equivalence here is the same input and a valid original-format signature.
+OBSERVED: Each binding owns a fresh PreparedNoiseIdentity from its supplied PrivKey. There is no global prepared-identity map or key-index cache. Replacing the process static-key property affects later bindings only; already-created bindings intentionally capture their key. Concurrent channels read final binding/preparation fields and immutable bytes; no lazy first-use mutation, lock, worker admission, callback, journal or persisted writer is added. Static retained memory per binding is two 32-byte arrays, one small DH object, a ByteString/protobuf payload proportional to identity key and signature size, and one wrapper; no connection/executor retention. Existing HandshakeState lifetime remains unchanged.
+INFER: No correctness defect identified in this product delta. Dedicated tests pass remains pending. Fresh-ephemeral coverage is retained by NoisePreparedIdentityIsolationTest, independently of the removed mutation/reconnect proof. The four-parallel-connection proof permits actual concurrent work but does not force simultaneous copyFrom; source immutability removes the need for an acquisition order.
+Existing-test edit ledger: EMPTY; no product or test edit by this lane.

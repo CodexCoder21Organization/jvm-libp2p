@@ -19,6 +19,8 @@ import org.junit.jupiter.api.Test
 import java.io.InputStream
 import java.io.OutputStream
 import java.net.Socket
+import java.nio.file.Files
+import java.nio.file.Path
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -706,37 +708,93 @@ private fun runNoiseHandshakeHarness(
     mode: String,
     timeoutSeconds: Long
 ): String {
-    val javaExecutable = java.nio.file.Paths.get(System.getProperty("java.home"), "bin", "java").toString()
-    val command = listOf(javaExecutable) + listOf(
-        "-cp",
-        System.getProperty("java.class.path"),
-        NoiseHandshakePathHarness::class.java.name,
-        mode
-    )
-    val process = ProcessBuilder(command).redirectErrorStream(true).start()
-    val output = CompletableFuture.supplyAsync {
-        process.inputStream.bufferedReader().use { it.readText() }
-    }
-    val finished = process.waitFor(timeoutSeconds, TimeUnit.SECONDS)
-    if (!finished) {
-        process.destroyForcibly()
-        process.waitFor(5, TimeUnit.SECONDS)
-    }
-    val processOutput = output.get(5, TimeUnit.SECONDS)
-    print(processOutput)
-
-    assertThat(finished)
-        .withFailMessage(
-            "Noise handshake %s child JVM did not finish within %s seconds:\n%s",
-            mode,
-            timeoutSeconds,
-            processOutput
+    var child: Process? = null
+    var outputFile: Path? = null
+    var primaryFailure: Throwable? = null
+    try {
+        val javaExecutable = java.nio.file.Paths.get(System.getProperty("java.home"), "bin", "java").toString()
+        val command = listOf(javaExecutable) + listOf(
+            "-cp",
+            System.getProperty("java.class.path"),
+            NoiseHandshakePathHarness::class.java.name,
+            mode
         )
-        .isTrue()
-    assertThat(process.exitValue())
-        .withFailMessage("Noise handshake %s child JVM failed:\n%s", mode, processOutput)
-        .isZero()
-    return processOutput
+        val builder = ProcessBuilder(command).redirectErrorStream(true)
+        builder.environment()["JAVA_TOOL_OPTIONS"] =
+            "-Xmx256m -XX:MaxMetaspaceSize=128m -XX:+UseSerialGC -XX:ActiveProcessorCount=2"
+        val childOutputFile = Files.createTempFile("noise-handshake-$mode-", ".log")
+        outputFile = childOutputFile
+        builder.redirectOutput(childOutputFile.toFile())
+
+        val runningChild = builder.start()
+        child = runningChild
+        println("Started Noise handshake $mode child JVM pid=${runningChild.pid()}")
+
+        val finished = runningChild.waitFor(timeoutSeconds, TimeUnit.SECONDS)
+        var reapedAfterForcedTermination = true
+        if (!finished && runningChild.isAlive) {
+            runningChild.destroyForcibly()
+            reapedAfterForcedTermination = runningChild.waitFor(5, TimeUnit.SECONDS)
+        }
+        val processOutput = Files.readString(childOutputFile)
+
+        assertThat(reapedAfterForcedTermination)
+            .withFailMessage(
+                "Noise handshake %s child JVM (pid=%s) was not reaped within five seconds after forced termination:\n%s",
+                mode,
+                runningChild.pid(),
+                processOutput
+            )
+            .isTrue()
+        assertThat(finished)
+            .withFailMessage(
+                "Noise handshake %s child JVM (pid=%s) did not finish within %s seconds:\n%s",
+                mode,
+                runningChild.pid(),
+                timeoutSeconds,
+                processOutput
+            )
+            .isTrue()
+        assertThat(runningChild.exitValue())
+            .withFailMessage("Noise handshake %s child JVM (pid=%s) failed:\n%s", mode, runningChild.pid(), processOutput)
+            .isZero()
+        return processOutput
+    } catch (failure: Throwable) {
+        primaryFailure = failure
+        throw failure
+    } finally {
+        val cleanupFailures = mutableListOf<Throwable>()
+        child?.let { runningChild ->
+            try {
+                if (runningChild.isAlive) {
+                    runningChild.destroyForcibly()
+                    check(runningChild.waitFor(5, TimeUnit.SECONDS)) {
+                        "Noise handshake $mode child JVM (pid=${runningChild.pid()}) was not reaped within five seconds"
+                    }
+                }
+            } catch (failure: Throwable) {
+                cleanupFailures += failure
+            }
+        }
+        outputFile?.let { childOutputFile ->
+            try {
+                print(Files.readString(childOutputFile))
+            } catch (failure: Throwable) {
+                cleanupFailures += failure
+            } finally {
+                try {
+                    Files.deleteIfExists(childOutputFile)
+                } catch (failure: Throwable) {
+                    cleanupFailures += failure
+                }
+            }
+        }
+        if (cleanupFailures.isNotEmpty()) {
+            val failureToReport = primaryFailure ?: cleanupFailures.removeAt(0)
+            cleanupFailures.forEach(failureToReport::addSuppressed)
+            if (primaryFailure == null) throw failureToReport
+        }
+    }
 }
 
 private const val STORM_PEERS = 160

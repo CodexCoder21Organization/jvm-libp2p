@@ -10,4 +10,6 @@ Existing-test edit ledger: empty; no test changed in this PR. UrlProtocol qualif
 
 Follow-ups (separate PRs): N2 bounded workers, N3 static-key preparation, and N4′ shared-dial last-departure cancellation; the two named fork-suite items remain separate work.
 
+Consumer qualification: snapshot-33 **did not meet the pin gate**. The unchanged original test and all three cold probes failed first attempt in https://buildtest.kotlin.build/run?id=e7d9b856 (0/4, baseline 0/4 at https://buildtest.kotlin.build/run?id=f280853e). The sixteen-client diagnostic copies failed 10/10 first attempts in https://buildtest.kotlin.build/run?id=773c8558 (0/10 passes, baseline 0/10 at https://buildtest.kotlin.build/run?id=b95861e5). Connection-ready was observed at 905–988 ms with no stream-ready before the unchanged 1,000 ms budget. N1 alone is insufficient; no consumer pin PR was opened. Full stacks, phase evidence and explicit ordinal-1 attempt rows are on the evidence branch.
+
 🤖 Generated with [Claude Code](https://claude.com/claude-code)

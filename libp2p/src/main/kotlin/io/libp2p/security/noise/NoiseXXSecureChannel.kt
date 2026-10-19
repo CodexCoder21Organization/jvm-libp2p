@@ -24,7 +24,6 @@ import io.libp2p.etc.util.netty.SplitEncoder
 import io.libp2p.security.InvalidRemotePubKey
 import io.libp2p.security.SecureHandshakeError
 import io.netty.buffer.ByteBuf
-import io.netty.channel.Channel
 import io.netty.channel.ChannelHandlerContext
 import io.netty.channel.ChannelInboundHandlerAdapter
 import io.netty.channel.CombinedChannelDuplexHandler
@@ -33,6 +32,7 @@ import io.netty.handler.codec.LengthFieldBasedFrameDecoder
 import io.netty.handler.codec.LengthFieldPrepender
 import io.netty.handler.timeout.ReadTimeoutException
 import io.netty.util.concurrent.FastThreadLocal
+import io.netty.util.concurrent.SingleThreadEventExecutor
 import org.slf4j.LoggerFactory
 import spipe.pb.Spipe
 import java.util.concurrent.CompletableFuture
@@ -117,7 +117,7 @@ private class NoiseHandshakeReadTimeoutHandler(
 
 /** A computation observation is delivered on the executor that performs that computation. */
 data class NoiseHandshakeComputation(
-    val channel: Channel,
+    val channelId: String,
     val onEventLoop: Boolean,
     val pendingHandshakesOnLoop: Int
 )
@@ -177,7 +177,8 @@ class NoiseIoHandshake @JvmOverloads constructor(
     private val expectedHandshakeFrames = if (role == Role.INIT) 1 else 2
     private var receivedHandshakeFrames = 0
     private var initialized = false
-    private val offloadCrypto = inFlightHandshakes.incrementAndGet() > INLINE_CONCURRENCY_THRESHOLD
+    private var offloadCrypto = false
+    private var executionObserved = false
 
     private var loopHandshakes: MutableSet<NoiseIoHandshake>? = null
 
@@ -194,7 +195,6 @@ class NoiseIoHandshake @JvmOverloads constructor(
 
     init {
         log.debug("Starting handshake")
-        NoiseHandshakeExecutionTestHook.handshakeObserver?.invoke(offloadCrypto)
     } // init
 
     internal fun install(ch: P2PChannel) {
@@ -494,7 +494,6 @@ class NoiseIoHandshake @JvmOverloads constructor(
         if (!terminal.compareAndSet(false, true)) return false
         check(ctx.executor().inEventLoop()) { "Noise terminal transition must run on its event loop: ${ctx.channel()}" }
         loopHandshakes?.remove(this)
-        inFlightHandshakes.decrementAndGet()
         return true
     }
 
@@ -520,8 +519,16 @@ class NoiseIoHandshake @JvmOverloads constructor(
         if (terminal.get()) return
 
         val pendingOnLoop = loopHandshakes?.size ?: 1
+        // This loop owns both its pending handshakes and the tasks waiting for it.
+        // Once queued, keep this channel on the same FIFO for the rest of its handshake.
+        offloadCrypto = offloadCrypto || pendingOnLoop > 1 ||
+            ((ctx.executor() as? SingleThreadEventExecutor)?.pendingTasks() ?: 0) > 0
+        if (!executionObserved) {
+            executionObserved = true
+            NoiseHandshakeExecutionTestHook.handshakeObserver?.invoke(offloadCrypto)
+        }
         if (!offloadCrypto) {
-            computationObserver?.invoke(NoiseHandshakeComputation(ctx.channel(), ctx.executor().inEventLoop(), pendingOnLoop))
+            computationObserver?.invoke(NoiseHandshakeComputation(ctx.channel().id().asLongText(), ctx.executor().inEventLoop(), pendingOnLoop))
             if (terminal.get()) return
             NoiseHandshakeExecutionTestHook.cryptoTaskObserver?.invoke(false, ctx.executor().inEventLoop())
             initializeHandshake()
@@ -535,7 +542,7 @@ class NoiseIoHandshake @JvmOverloads constructor(
         val next = tail.thenRunAsync(
             {
                 if (!terminal.get()) {
-                    computationObserver?.invoke(NoiseHandshakeComputation(ctx.channel(), ctx.executor().inEventLoop(), pendingOnLoop))
+                    computationObserver?.invoke(NoiseHandshakeComputation(ctx.channel().id().asLongText(), ctx.executor().inEventLoop(), pendingOnLoop))
                     if (terminal.get()) return@thenRunAsync
                     NoiseHandshakeExecutionTestHook.cryptoTaskObserver?.invoke(true, ctx.executor().inEventLoop())
                     initializeHandshake()
@@ -566,8 +573,6 @@ class NoiseIoHandshake @JvmOverloads constructor(
         private val handshakesOnLoop = object : FastThreadLocal<MutableSet<NoiseIoHandshake>>() {
             override fun initialValue(): MutableSet<NoiseIoHandshake> = mutableSetOf()
         }
-        private const val INLINE_CONCURRENCY_THRESHOLD = 4
-        private val inFlightHandshakes = AtomicInteger()
         private val cryptoThreadNumber = AtomicInteger()
         private val cryptoExecutor: ExecutorService by lazy {
             val threadCount = maxOf(2, Runtime.getRuntime().availableProcessors() / 2)

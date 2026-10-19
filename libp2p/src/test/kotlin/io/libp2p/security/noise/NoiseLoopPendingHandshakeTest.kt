@@ -63,7 +63,7 @@ object NoiseLoopPendingHandshakeHarness {
                 secureChannels {
                     add { key, _ ->
                         val noise = NoiseXXSecureChannel(key) { observation ->
-                            if (observation.channel === firstChannel.get() && firstStarted.compareAndSet(false, true)) {
+                            if (observation.channelId == firstChannel.get()?.id()?.asLongText() && firstStarted.compareAndSet(false, true)) {
                                 firstObservation.complete(observation)
                                 try {
                                     // This is the controlled computation seam. Only the test waits here.

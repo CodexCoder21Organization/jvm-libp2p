@@ -36,7 +36,7 @@ On top of the upstream `develop` snapshot (which already provides the #412 threa
 The patched build is published to [kotlin.directory](https://kotlin.directory) under an **unambiguously non-upstream** Maven coordinate (the `community.kotlin.libp2p` group is owned by CodexCoder21 — we deliberately do **not** publish under `io.libp2p`, which belongs to upstream):
 
 ```
-community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-31
+community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-33
 ```
 
 ## When this fork goes away

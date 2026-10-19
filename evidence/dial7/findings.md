@@ -2,8 +2,8 @@
 Launch: 2026-10-19 01:28 UTC. Wall deadline: 03:08 UTC (100 minutes).
 
 ## Plan
-- IN PROGRESS: Resume dial6; fresh fork clone; classify Gossip with 10 fresh-JVM one-attempt runs before and after N1, retaining XML/stacks.
-- PENDING: If gate permits, publish exactly one next snapshot; exact Coursier resolve and SHA-256; draft version-record PR to develop.
+- DONE: Resume dial6; fresh fork clone; classify Gossip with 10 fresh-JVM one-attempt runs before and after N1, retaining XML/stacks.
+- IN PROGRESS: Gate permits; publish exactly one next snapshot; exact Coursier resolve and SHA-256; draft version-record PR to develop.
 - PENDING: Fresh UrlProtocol clone; pin; run exact four-selector batch once; diagnostic sixteen-client workload ten copies; content-targeted dialer sweep (at most three concurrent batches).
 - PENDING: If qualification bar passes, draft pin PR to main; audit native CI attempts within 1800 seconds, checkpoint evidence and clean processes.
 
@@ -39,3 +39,30 @@ OBSERVED 2026-10-19T01:36:36.818176+00:00: Gossip before run 8/10: attempt 1 PAS
 OBSERVED 2026-10-19T01:37:02.229542+00:00: Gossip before run 9/10: attempt 1 PASSED, 3.702s, Gradle exit 0. Native XML and full log retained in evidence/gossip-before-09.
 
 OBSERVED 2026-10-19T01:37:28.504666+00:00: Gossip before run 10/10: attempt 1 PASSED, 3.625s, Gradle exit 0. Native XML and full log retained in evidence/gossip-before-10.
+
+## 2026-10-19 01:40 UTC — baseline complete
+OBSERVED: Pre-merge control is 10/10 first-attempt PASS, zero skips/failures/retries. Evidence checkpoint 3ae51f88 is pushed with exact expected lease. Merged control compiling, no verdict yet. Both test files and base fixture remain unchanged; an external Gradle init script only disables the test task up-to-date shortcut, so each requested run executes once in a fresh worker JVM. No new test or product code is written.
+
+OBSERVED 2026-10-19T01:40:48.403944+00:00: Gossip merged run 1/10: attempt 1 PASSED, 4.416s, Gradle exit 0. Native XML and full log retained in evidence/gossip-merged-01.
+
+OBSERVED 2026-10-19T01:41:14.560639+00:00: Gossip merged run 2/10: attempt 1 PASSED, 3.876s, Gradle exit 0. Native XML and full log retained in evidence/gossip-merged-02.
+
+OBSERVED 2026-10-19T01:41:40.295999+00:00: Gossip merged run 3/10: attempt 1 PASSED, 3.412s, Gradle exit 0. Native XML and full log retained in evidence/gossip-merged-03.
+
+OBSERVED 2026-10-19T01:42:05.811219+00:00: Gossip merged run 4/10: attempt 1 PASSED, 3.779s, Gradle exit 0. Native XML and full log retained in evidence/gossip-merged-04.
+
+OBSERVED 2026-10-19T01:42:33.198601+00:00: Gossip merged run 5/10: attempt 1 PASSED, 3.513s, Gradle exit 0. Native XML and full log retained in evidence/gossip-merged-05.
+
+OBSERVED 2026-10-19T01:42:58.112277+00:00: Gossip merged run 6/10: attempt 1 PASSED, 3.303s, Gradle exit 0. Native XML and full log retained in evidence/gossip-merged-06.
+
+OBSERVED 2026-10-19T01:43:23.710993+00:00: Gossip merged run 7/10: attempt 1 PASSED, 3.408s, Gradle exit 0. Native XML and full log retained in evidence/gossip-merged-07.
+
+OBSERVED 2026-10-19T01:43:48.781152+00:00: Gossip merged run 8/10: attempt 1 PASSED, 3.607s, Gradle exit 0. Native XML and full log retained in evidence/gossip-merged-08.
+
+OBSERVED 2026-10-19T01:44:13.612897+00:00: Gossip merged run 9/10: attempt 1 PASSED, 3.518s, Gradle exit 0. Native XML and full log retained in evidence/gossip-merged-09.
+
+OBSERVED 2026-10-19T01:44:40.207047+00:00: Gossip merged run 10/10: attempt 1 PASSED, 4.153s, Gradle exit 0. Native XML and full log retained in evidence/gossip-merged-10.
+
+## 2026-10-19 01:45 UTC — rate control terminal, gate permitted
+OBSERVED: All 20 requested native attempts completed: pre-merge 10/10 PASS, merged 10/10 PASS; 0/10 failures at each head, zero retries/skips, no test/source/assertion/bound change. Native XML and full logs retained per run. The external init script forced execution; logs show the test task ran on every iteration. Each Gradle invocation starts a fresh executor JVM. Lock wait/acquire stamps are retained; controls used pinned historical heads intentionally rather than rebasing the historical comparison away.
+RULING APPLIED: 0 failures before and 0 after meet the owner's explicit similar-counts rule. Gossip is recorded as a pre-existing fork flake under that rule, not declared fixed. Kubo remains a pre-existing external-daemon requirement. Publish gate is the inherited merged suite (1100 PASS, 2 FAILED, 2 SKIPPED of 1104 native attempts), with both full stacks named, plus these authorized controls and the N1 lane's 92/92 first-attempt Noise-and-neighbour evidence. No fork failure is hidden. Proceeding with one snapshot only.

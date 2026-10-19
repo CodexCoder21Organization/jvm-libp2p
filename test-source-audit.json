@@ -1,0 +1,31 @@
+{
+  "head": "5611b7763c4a4580135e85655dfb2e2c8a83edb3",
+  "test_diff_status": [
+    "A\tlibp2p/src/test/kotlin/io/libp2p/security/noise/NoiseLoopPendingHandshakeTest.kt",
+    "A\tlibp2p/src/test/kotlin/io/libp2p/security/noise/NoiseObserverCloseTest.kt",
+    "A\tlibp2p/src/test/kotlin/io/libp2p/security/noise/NoiseQueuedReadyCallbackTest.kt",
+    "A\tlibp2p/src/test/kotlin/io/libp2p/security/noise/NoiseReadyReentryTest.kt"
+  ],
+  "queued_ready_fixture_protected_lines_identical": true,
+  "protected_sha256": "2bb201bd59244c8e1c612b6fc8a36c56b1c389b3d79d0145103b9d64504c506e",
+  "protected_lines": [
+    "import org.junit.jupiter.api.Assertions.assertEquals",
+    "import org.junit.jupiter.api.Assertions.assertFalse",
+    "import org.junit.jupiter.api.Assertions.assertTrue",
+    "            assertTrue(process.waitFor(20, TimeUnit.SECONDS), \"The queued-ready child must terminate\")",
+    "            val text = output.get(5, TimeUnit.SECONDS)",
+    "            assertEquals(0, process.exitValue(), text)",
+    "                process.waitFor(5, TimeUnit.SECONDS)",
+    "                                    releaseComputation.await(5, TimeUnit.SECONDS)",
+    "            CompletableFuture.allOf(*hosts.map { it.start() }.toTypedArray()).get(5, TimeUnit.SECONDS)",
+    "            val ready = clients[0].network.connect(relay.peerId, relay.listenAddresses().single()).get(5, TimeUnit.SECONDS)",
+    "            val order = queuedReadyOrder.get(10, TimeUnit.SECONDS)",
+    "            val observation = observed.get(5, TimeUnit.SECONDS)",
+    "            assertTrue(order, \"The queued ready callback must run before the new computation finishes\")",
+    "            assertEquals(1, observation.pendingHandshakesOnLoop, \"This proof must exercise queued work without a second handshake on this loop\")",
+    "            assertFalse(observation.onEventLoop, \"Queued connection-ready work must exclude inline computation\")",
+    "            next.get(5, TimeUnit.SECONDS)",
+    "            CompletableFuture.allOf(*hosts.asReversed().map { it.stop() }.toTypedArray()).get(5, TimeUnit.SECONDS)"
+  ],
+  "review_lane_test_source_edits": []
+}

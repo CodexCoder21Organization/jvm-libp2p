@@ -6,8 +6,8 @@ Started 2026-10-21 20:40 UTC; deadline 22:00 UTC, checkpoint exit gate 21:50 UTC
 - [done] Read contract/guidance and prior PR history; review existing pause invariants.
 - [done] Add deterministic real TCP/Noise regression tests; record baseline assertion failures.
 - [done] Port per-stream Yamux pausing, retain Mplex behavior, update docs and snapshot-37.
-- [in progress] Run mutation control, mux/pause tests, full libp2p suite, formatting/static checks; independent test/code review passes.
-- [pending] Rebase develop, targeted verification, checkpoint and single PR push; open PR against develop and stop processes.
+- [done] Run mutation control, mux/pause tests, full libp2p suite, formatting/static checks; independent test/code review passes.
+- [in progress] Rebase develop, targeted verification, checkpoint and single PR push; open PR against develop and stop processes.
 
 OBSERVED: Read CONTRACT.md, CLAUDE.md, FORK.md, README.md and the Testing Architecture sections Test-Driven Development and Tests Must Be Hermetically Sealed. Gradle/JUnit conventions apply in this repository.
 OBSERVED: Prior change https://github.com/CodexCoder21Organization/jvm-libp2p/pull/42 is OPEN, has no comments or reviews, and contains commit 276ba4acd9e2bb9b8c06e4c7097078214ebf4116. No stated rejection or reason for not landing exists in the PR record.
@@ -185,3 +185,37 @@ org.opentest4j.AssertionFailedError: A paused request reader must not block wind
 ```
 OBSERVED: Port restored exactly from HEAD after the control. No mutation remains. Final full suite includes all new reply tests; then the PR gate rebases on develop and repeats all 183 targeted tests.
 Current commit: ae5cb6f6.
+
+## Reproduction and validation commands
+Before each Gradle invocation: fetch/rebase origin/develop (stashing temporary controls/notes where needed), then `df -h /`. Free space stayed above the 2.5 GiB stop threshold.
+
+Per-test result logging was enabled with `/tmp/p2p-test-logging.gradle`:
+```groovy
+allprojects {
+    tasks.withType(Test).configureEach {
+        testLogging { events 'passed', 'failed', 'skipped' }
+    }
+}
+```
+Commands use `./gradlew --no-daemon --max-workers=2 -I /tmp/p2p-test-logging.gradle` with:
+- `:libp2p:test --tests 'io.libp2p.mux.YamuxPausedRequestLargeReplyTcpTest'` for the first reverse reply baseline.
+- `:libp2p:test --tests 'io.libp2p.mux.*' --tests 'io.libp2p.etc.util.netty.mux.*'` for the baseline/fixed/restored/complete mux gates.
+- `:libp2p:test --tests 'io.libp2p.mux.YamuxPausedRequestLargeReplyTcpTest' --tests 'io.libp2p.mux.ChildPauseSiblingStreamTcpTest'` for the first post-pass mutation control.
+- `:libp2p:test --tests 'io.libp2p.mux.YamuxPausedRequestSiblingReplyTcpTest' --tests 'io.libp2p.transport.quic.QuicKuboTestJava.pingKubo'` for the explicit sibling reply baseline and unchanged Kubo comparison.
+- `:libp2p:test --tests 'io.libp2p.mux.YamuxPausedRequestSiblingReplyTcpTest'` for its post-pass mutation control.
+- `--continue :libp2p:test spotlessCheck detekt` for each full-suite/static gate. The final full run is needed because the explicit sibling reply case was added after the first full run compiled its sources.
+- `:libp2p:spotlessApply` was applied before compiling new/formatted test sources.
+
+For every negative control, restored only `libp2p/src/main/kotlin/io/libp2p/etc/util/netty/mux/AbstractMuxHandler.kt` and `libp2p/src/main/kotlin/io/libp2p/mux/yamux/YamuxHandler.kt` from develop commit 9d718392. Restored both from HEAD immediately after the control. Tests, time limits, payload sizes, and iteration counts were unchanged between each positive/negative comparison.
+
+OBSERVED: Final source review after adding the explicit sibling reply found no additional issues. Both hosts are stopped in finally paths with bounded waits and preserved failures; caller pools stop with a bounded wait. All newly added stateless helper functions are package-level. The source diff contains no build output, test output, temporary controls, or dependency changes; only the requested snapshot version changes.
+Current commit: aa69dcbf; final full suite/static checks running. No PR branch push yet.
+
+OBSERVED: Follow-up metadata for https://github.com/CodexCoder21Organization/jvm-libp2p/pull/42: not draft, no requested reviewers, still open, last updated 2026-10-01 03:33 UTC, mergeable=false / mergeable_state=dirty against develop. It now has conflicts; the record still contains no review, comment, or stated rejection explaining why it originally did not land.
+
+OBSERVED: Final assertion audit identified that the fragmented-read exact first-payload assertion is independent of the parent-read policy. Restored it for BOTH muxers; only the assertions that later frames remain unread are Mplex-only. This preserves every existing delivery assertion. Production remains exactly the reviewed port. The active full run compiled before this test-only strengthening, so the final targeted gate will verify the restored assertion explicitly.
+
+## 21:02 UTC — full verification complete
+OBSERVED: Full suite including every added test: 1154 total, 1150 passed, 2 failed, 2 existing skips. Sole failure is the same unchanged QuicKuboTestJava.pingKubo connection-refused prerequisite verified against develop; all new tests and all mux/pause tests pass. All-project spotlessCheck and detekt succeed. Log: out/final-full-suite-static.log.
+OBSERVED: The only subsequent source edit restores an existing exact delivery assertion in the fragmented-read TCP test for both muxers. No production code changed after this full run began. The rebase/targeted/static PR gate verifies that restored assertion.
+Current commit before final gate: aa69dcbf.

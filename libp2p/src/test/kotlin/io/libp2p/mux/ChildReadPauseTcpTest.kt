@@ -212,8 +212,10 @@ class ChildReadPauseTcpTest {
                 assertTrue(remoteEndFrameForwarded.await(5, TimeUnit.SECONDS), "Yamux must keep reading the remote end while a child is paused")
             }
             val beforeResume = delivered.toList()
-            if (fragmentedReads && muxer == "mplex") {
+            if (fragmentedReads) {
                 assertEquals(listOf(expectedMessages.first()), beforeResume)
+            }
+            if (fragmentedReads && muxer == "mplex") {
                 assertEquals(
                     (expectedMessages.size - 1).toLong(),
                     payloadFramesForwarded.count,

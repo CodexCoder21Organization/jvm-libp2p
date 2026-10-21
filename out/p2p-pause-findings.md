@@ -284,3 +284,9 @@ OBSERVED: Diagnostic SIMPLE-mode baseline comparison, unchanged Gossip test and 
 INFER: The existing formatter builds the entire large-frame representation before truncating it; process-global PARANOID tracking makes that path exceed the Gossip test's unchanged receive wait. The mode comparison supports this mechanism. Both the Kubo and Gossip full-suite failures reproduce without the Yamux port. Neither behavior is modified by this PR.
 OBSERVED: Restored both production files from HEAD after all baseline probes. No temporary mutation remains. Final PR gate repeats all 183 mux tests and all-project static checks on the real port with default test settings.
 Current commit: ee964650.
+
+## 21:10 UTC — final PR gate
+OBSERVED: After restoring the port and rebasing on origin/develop, the final targeted/static command succeeds: 183 passed / 0 failed / 0 skipped; all-project spotlessCheck and detekt pass. Log: out/final-pr-gate.log. The exact original fragmented first-payload assertion is retained for both muxers and passes.
+OBSERVED: `ps -eo pid,args -ww` checked after the build completed: no Gradle, Kotlin compiler, test worker, or helper process owned by this checkout remains. All caller pools and test hosts have been stopped. No background wait remains.
+OBSERVED: Reviewed the complete diff and git status: only requested source/docs/tests and this findings record are tracked; no build/test output or temporary mutation is in the diff. All commits carry the requested co-author line. No publication, merge, queue entry, production change, or CI watch has occurred.
+Current tested source commit: 53fc2032. Ready for one PR branch push against develop.

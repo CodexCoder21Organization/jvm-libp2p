@@ -1,0 +1,21 @@
+allprojects {
+    afterEvaluate { p ->
+        if (p.path == ':libp2p') {
+            p.tasks.named('compileTestKotlin') {
+                setSource(p.fileTree('src/test/kotlin') {
+                    include 'io/libp2p/mux/**'
+                    include 'io/libp2p/etc/util/netty/mux/**'
+                })
+            }
+            p.tasks.named('compileTestJava') {
+                setSource(p.fileTree('src/test/java') {
+                    include 'io/libp2p/mux/**'
+                    include 'io/libp2p/etc/util/netty/mux/**'
+                })
+            }
+        }
+    }
+    tasks.withType(Test).configureEach {
+        testLogging { events 'passed', 'failed', 'skipped' }
+    }
+}

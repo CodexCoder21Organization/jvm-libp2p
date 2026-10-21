@@ -16,6 +16,8 @@ import io.netty.channel.ChannelHandlerContext
 import io.netty.handler.logging.LogLevel
 import io.netty.handler.logging.LoggingHandler
 import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.atomic.AtomicInteger
@@ -23,6 +25,7 @@ import java.util.concurrent.atomic.AtomicInteger
 class MplexHandlerTest : MuxHandlerAbstractTest() {
 
     override val maxFrameDataLength = 256
+    override val childPauseStopsParentReads = true
 
     override val localMuxIdGenerator = (0L..Long.MAX_VALUE).iterator()
     override val remoteMuxIdGenerator = (0L..Long.MAX_VALUE).iterator()
@@ -70,6 +73,41 @@ class MplexHandlerTest : MuxHandlerAbstractTest() {
             val data = maybeMplexFrame.data.readAllBytesAndRelease().toHex()
             AbstractTestMuxFrame(mplexFrame.id.id, flag, data)
         }
+    }
+
+    @Test
+    fun pausedChildStopsParentReadsUntilEveryPausedChildResumes() {
+        openStreamRemote()
+        openStreamRemote()
+        val first = childHandlers[0].ctx.channel()
+        val second = childHandlers[1].ctx.channel()
+
+        first.config().isAutoRead = false
+        assertFalse(ech.config().isAutoRead)
+        second.config().isAutoRead = false
+        first.config().isAutoRead = true
+        ech.runPendingTasks()
+        assertFalse(ech.config().isAutoRead)
+
+        second.config().isAutoRead = true
+        ech.runPendingTasks()
+        assertTrue(ech.config().isAutoRead)
+    }
+
+    @Test
+    fun closingOneOfTwoPausedChildrenKeepsParentPaused() {
+        val firstId = openStreamRemote()
+        openStreamRemote()
+        val first = childHandlers[0].ctx.channel()
+        val second = childHandlers[1].ctx.channel()
+        first.config().isAutoRead = false
+        second.config().isAutoRead = false
+
+        resetStream(firstId)
+        assertFalse(ech.config().isAutoRead)
+        second.config().isAutoRead = true
+        ech.runPendingTasks()
+        assertTrue(ech.config().isAutoRead)
     }
 
     @Test

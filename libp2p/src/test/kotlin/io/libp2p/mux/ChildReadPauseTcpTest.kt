@@ -201,10 +201,18 @@ class ChildReadPauseTcpTest {
             // Wait for the in-flight callback and the queued off-loop pause to finish, rather than
             // waiting for frames that may need another TCP read while parent reads are stopped.
             receiverChannel.eventLoop().submit(Callable {}).get(5, TimeUnit.SECONDS)
-            assertFalse(receiverParent.config().isAutoRead, "the paused child must stop parent reads")
+            assertEquals(
+                muxer == "mplex",
+                !receiverParent.config().isAutoRead,
+                "only Mplex pauses parent reads; Yamux withholds only the paused child's delivery and credit"
+            )
 
+            if (fragmentedReads && muxer == "yamux") {
+                assertTrue(payloadFramesForwarded.await(5, TimeUnit.SECONDS), "Yamux must keep reading later payload frames while a child is paused")
+                assertTrue(remoteEndFrameForwarded.await(5, TimeUnit.SECONDS), "Yamux must keep reading the remote end while a child is paused")
+            }
             val beforeResume = delivered.toList()
-            if (fragmentedReads) {
+            if (fragmentedReads && muxer == "mplex") {
                 assertEquals(listOf(expectedMessages.first()), beforeResume)
                 assertEquals(
                     (expectedMessages.size - 1).toLong(),

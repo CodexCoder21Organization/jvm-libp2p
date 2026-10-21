@@ -161,3 +161,8 @@ java.net.ConnectException: Connection refused
 ```
 
 OBSERVED: First full-suite spotlessCheck and detekt gates succeeded for every project (the command failed only on :libp2p:test). Existing skipped tests are QuicServerTestJava.checkConnectionIsNotClosedByTimeout and EchoSampleTest.connect1; neither is edited.
+
+## 20:56 UTC — complete mux gate
+OBSERVED: First fixed run including the explicit sibling reply: 183 total, 183 passed, 0 failed, 0 skipped. That test verifies both streams share the same connection, the reply arrives on B completely/in order, its write completes, and request stream A remains paused throughout.
+OBSERVED: Additional test review confirms the explicit sibling reply sends only after both responder streams are ready and the request callback has synchronously paused A. No parent-read assertion is used to substitute for payload completion. Its first baseline run failed on the payload-completion assertion.
+Current commit: 59ea924390293e41710d917555af1895d25446f3.

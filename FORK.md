@@ -14,6 +14,7 @@ CodexCoder21 production depends on a set of jvm-libp2p fixes that are **not yet 
 
 On top of the upstream `develop` snapshot (which already provides the #412 thread-shutdown fix), this fork adds the following fixes. Each is meant to go upstream; nothing here is a long-term divergence.
 
+- **Idempotent stream write close** (snapshot-35) — Yamux and Mplex child streams stop revisiting mux state once fully closed or already closed for writing. A `Stream.closeWrite()` after a remote reset, local close, or parent close succeeds without looking up a removed Yamux entry or emitting another Mplex close frame. Live streams still half-close and allow replies in the other direction.
 - **Fast graceful shutdown** — `PlainNettyTransport.close()` and `QuicTransport.close()` pass `quietPeriod = 0` to `shutdownGracefully()`, so `Host.stop()` returns promptly instead of waiting out Netty's default (~2s) quiet period.
 - **Listener-port leak fix** — repairs a close/listen race in `PlainNettyTransport` where a closing listener could still hold its port as a new bind raced in, leaking listener ports.
 - **Daemon event-loop threads + shared worker group** (snapshot-9) — the transports build their `MultiThreadIoEventLoopGroup`s with a DAEMON `DefaultThreadFactory`, so a worker slow to exit its run loop under CI starvation can no longer keep the forked JVM alive past shutdown (the "test body done, Process timed out after 30s, JVM pid gone" flake; guarded by `PlainNettyTransportDaemonThreadTest`). `PlainNettyTransport` additionally shares a single process-wide worker group across all instances, bounding total NIO worker threads to `O(cores)` instead of `O(hosts × cores)` — a per-instance group starved the run queue and stalled peer discovery on the 2-core CI droplet under many-host stress. (These fixes existed in the never-merged snapshot-7 lineage and were dropped when develop jumped snapshot-6 → snapshot-8 for the #294 OOM release; snapshot-9 restores them on top of #294.)
@@ -34,10 +35,12 @@ On top of the upstream `develop` snapshot (which already provides the #412 threa
 - **`newStream` does not fail a caller for its own pool entry** (snapshot-25) — `Host.newStream(protocols, peer, addr)` selects the connection and creates the stream, so when the connection it selected turns out to be dead it evicts it, awaits the close, and dials once. The redial is refused when only the SUBSTREAM died (`ConnectionClosedException` is raised at substream granularity too) or when a stream has already been published to the caller, so a healthy shared connection is never torn down and a caller is never handed one attempt's stream with another attempt's controller.
 - **Terminal connection pool exclusion** (snapshot-21) — both established-connection lookups in `NetworkImpl.connect` remove and skip entries whose close future is already complete. Connection-table removal is itself a close-future continuation, so a caller could previously observe the completed future before that continuation ran and receive the closed connection instead of starting a fresh dial.
 
-The patched build is published to [kotlin.directory](https://kotlin.directory) under an **unambiguously non-upstream** Maven coordinate (the `community.kotlin.libp2p` group is owned by CodexCoder21 — we deliberately do **not** publish under `io.libp2p`, which belongs to upstream):
+Fork releases are published to [kotlin.directory](https://kotlin.directory) under an **unambiguously non-upstream** Maven coordinate (the `community.kotlin.libp2p` group is owned by CodexCoder21 — we deliberately do **not** publish under `io.libp2p`, which belongs to upstream):
+
+The version assigned to the current source is below; publication is a separate release step.
 
 ```
-community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-31
+community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-35
 ```
 
 ## When this fork goes away

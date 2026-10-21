@@ -360,7 +360,6 @@ private fun withPublicationHosts(
         body(client, server)
     } catch (failure: Throwable) {
         primary = failure
-        throw failure
     } finally {
         val failures = mutableListOf<Throwable>()
         for (node in listOf(client, server)) {
@@ -370,12 +369,14 @@ private fun withPublicationHosts(
                 failures += failure
             }
         }
-        if (primary != null) {
-            failures.forEach { primary.addSuppressed(it) }
+        val original = primary
+        if (original != null) {
+            failures.forEach { original.addSuppressed(it) }
         } else if (failures.isNotEmpty()) {
             val failure = failures.first()
             failures.drop(1).forEach { failure.addSuppressed(it) }
-            throw failure
+            primary = failure
         }
     }
+    primary?.let { throw it }
 }

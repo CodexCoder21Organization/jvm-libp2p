@@ -89,13 +89,20 @@ private fun reviewParentCloseListeners(muxer: StreamMuxerProtocol) {
             channel.eventLoop().submit {}.get(5, TimeUnit.SECONDS)
             assertFalse(parent.closeFuture().isDone)
             assertTrue(client.streams.isEmpty(), "All visitor-closed streams must be released by Host")
-            assertEquals(baseline, channel.observedCloseFuture.listenerCount(),
-                "128 closed children must leave no parent-close listener behind on their live connection")
+            assertEquals(
+                baseline,
+                channel.observedCloseFuture.listenerCount(),
+                "128 closed children must leave no parent-close listener behind on their live connection"
+            )
         } finally {
             client.removeStreamVisitor(visitor)
         }
     } finally {
-        try { client.stop().get(5, TimeUnit.SECONDS) } finally { server.stop().get(5, TimeUnit.SECONDS) }
+        try {
+            client.stop().get(5, TimeUnit.SECONDS)
+        } finally {
+            server.stop().get(5, TimeUnit.SECONDS)
+        }
     }
 }
 
@@ -113,9 +120,11 @@ private class ListenerCountingTcpTransport(private val connectionUpgrader: Conne
     ): CompletableFuture<Connection> {
         val builder = ConnectionBuilder(this, connectionUpgrader, connHandler, true, addr.getPeerId(), preHandler)
         return Bootstrap().group(group)
-            .channelFactory(ChannelFactory {
-                ListenerCountingSocketChannel().also { sockets += it }
-            })
+            .channelFactory(
+                ChannelFactory {
+                    ListenerCountingSocketChannel().also { sockets += it }
+                }
+            )
             .handler(builder)
             .connect(InetSocketAddress(hostFromMultiaddr(addr), portFromMultiaddr(addr)))
             .toCompletableFuture().thenCompose { builder.connectionEstablished }

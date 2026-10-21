@@ -93,6 +93,10 @@ private fun reviewLateControllerCompletion(muxer: StreamMuxerProtocol) {
             stream.close().get(5, TimeUnit.SECONDS)
         }
     } finally {
-        try { client.stop().get(5, TimeUnit.SECONDS) } finally { server.stop().get(5, TimeUnit.SECONDS) }
+        try {
+            client.stop().get(5, TimeUnit.SECONDS)
+        } finally {
+            server.stop().get(5, TimeUnit.SECONDS)
+        }
     }
 }

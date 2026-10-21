@@ -79,6 +79,26 @@ from that callback. Closing the parent fails pending stream opens and subsequent
 With Yamux and Mplex, cancelling or completing the returned stream future does not prevent a pending
 controller from reporting parent closure.
 
+## Closing a stream's write side
+
+For Yamux and Mplex, `Stream.closeWrite()` closes only the local write side of a live stream.
+The peer receives `RemoteWriteClosed` after preceding payloads, and can still send a reply.
+When both sides have closed writing, the stream closes fully. Repeated `closeWrite()` calls,
+including calls after local close, remote reset, or connection close, complete successfully
+without sending another close frame. This does not change the outcome of earlier writes:
+use `writeAndFlushWithFuture()` to observe their success or failure.
+
+```kotlin
+import io.libp2p.core.Stream
+import io.netty.buffer.Unpooled
+import java.util.concurrent.CompletableFuture
+
+fun sendRequest(stream: Stream, request: ByteArray): CompletableFuture<Unit> =
+    stream.writeAndFlushWithFuture(Unpooled.wrappedBuffer(request))
+        .thenCompose { stream.closeWrite() }
+// Keep the stream's read handler installed to receive the peer's reply.
+```
+
 ## Stream muxer write buffering
 
 Yamux enforces the `maxBufferedConnectionWrites` setting across the complete connection write path: application payloads queued in child stream channels, flow-control-buffered payloads, and frames queued on the parent Netty connection. The default is `10 * 1024 * 1024` bytes (10 MiB), configured with `StreamMuxerProtocol.getYamux(maxBufferedConnectionWrites = ...)`.

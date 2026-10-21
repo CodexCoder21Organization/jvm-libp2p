@@ -82,6 +82,10 @@ private fun reviewNormalStreamLifetime(muxer: StreamMuxerProtocol) {
             }
         }
     } finally {
-        try { client.stop().get(5, TimeUnit.SECONDS) } finally { server.stop().get(5, TimeUnit.SECONDS) }
+        try {
+            client.stop().get(5, TimeUnit.SECONDS)
+        } finally {
+            server.stop().get(5, TimeUnit.SECONDS)
+        }
     }
 }

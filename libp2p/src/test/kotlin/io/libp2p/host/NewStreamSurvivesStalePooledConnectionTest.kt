@@ -1,9 +1,9 @@
 package io.libp2p.host
 
-import io.libp2p.protocol.Ping
-import io.libp2p.protocol.PingController
 import io.libp2p.core.ConnectionClosedException
 import io.libp2p.etc.types.hasCauseOfType
+import io.libp2p.protocol.Ping
+import io.libp2p.protocol.PingController
 import io.libp2p.tools.HostFactory
 import io.libp2p.transport.implementation.ConnectionOverNetty
 import org.assertj.core.api.Assertions.assertThat

@@ -72,8 +72,10 @@ private fun checkHandlerAddedClose(muxer: StreamMuxerProtocol) {
             assertTrue(firstController.ping().get(5, TimeUnit.SECONDS) >= 0, "The first sibling must remain usable")
             val replacement = client.newStream<PingController>(protocols, root)
             try {
-                assertTrue(replacement.controller.get(5, TimeUnit.SECONDS).ping().get(5, TimeUnit.SECONDS) >= 0,
-                    "The same parent must accept a replacement stream")
+                assertTrue(
+                    replacement.controller.get(5, TimeUnit.SECONDS).ping().get(5, TimeUnit.SECONDS) >= 0,
+                    "The same parent must accept a replacement stream"
+                )
             } finally {
                 replacement.stream.get(5, TimeUnit.SECONDS).close().get(5, TimeUnit.SECONDS)
             }
@@ -87,13 +89,19 @@ private fun checkHandlerAddedClose(muxer: StreamMuxerProtocol) {
             first.stream.get(5, TimeUnit.SECONDS).close().get(5, TimeUnit.SECONDS)
         }
     } finally {
-        try { client.stop().get(5, TimeUnit.SECONDS) } finally { server.stop().get(5, TimeUnit.SECONDS) }
+        try {
+            client.stop().get(5, TimeUnit.SECONDS)
+        } finally {
+            server.stop().get(5, TimeUnit.SECONDS)
+        }
     }
 }
 
 private fun assertReviewClosureFailure(future: CompletableFuture<*>, message: String, label: String) {
-    assertTrue(future.isCompletedExceptionally,
-        "The $label future must fail when handlerAdded closes the child before negotiation; done=${future.isDone}")
+    assertTrue(
+        future.isCompletedExceptionally,
+        "The $label future must fail when handlerAdded closes the child before negotiation; done=${future.isDone}"
+    )
     val failure = assertThrows(ExecutionException::class.java) { future.get(5, TimeUnit.SECONDS) }
     assertEquals(ConnectionClosedException::class.java, failure.cause!!.javaClass)
     assertEquals(message, failure.cause!!.message)

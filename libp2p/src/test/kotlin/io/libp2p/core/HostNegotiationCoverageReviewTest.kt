@@ -5,8 +5,8 @@ import io.libp2p.core.dsl.host
 import io.libp2p.core.multistream.Multistream
 import io.libp2p.core.multistream.MultistreamProtocol
 import io.libp2p.core.multistream.MultistreamProtocolDebug
-import io.libp2p.core.multistream.ProtocolDescriptor
 import io.libp2p.core.multistream.ProtocolBinding
+import io.libp2p.core.multistream.ProtocolDescriptor
 import io.libp2p.core.mux.StreamMuxerProtocol
 import io.libp2p.multistream.MultistreamProtocolDebugV1
 import io.libp2p.protocol.Ping
@@ -32,42 +32,59 @@ import java.util.concurrent.atomic.AtomicInteger
 class HostNegotiationCoverageReviewTest {
     @Test
     fun mplexSelectedProtocolSurvivesClose() = selectedProtocolSurvivesClose(StreamMuxerProtocol.Mplex)
+
     @Test
     fun yamuxSelectedProtocolSurvivesClose() = selectedProtocolSurvivesClose(StreamMuxerProtocol.getYamux())
+
     @Test
     fun mplexSelectedProtocolWithPendingControllerSurvivesClose() = selectedProtocolWithPendingControllerSurvivesClose(StreamMuxerProtocol.Mplex)
+
     @Test
     fun yamuxSelectedProtocolWithPendingControllerSurvivesClose() = selectedProtocolWithPendingControllerSurvivesClose(StreamMuxerProtocol.getYamux())
+
     @Test
     fun mplexCloseOnFirstNegotiationMessage() = closeOnFirstNegotiationMessage(StreamMuxerProtocol.Mplex)
+
     @Test
     fun yamuxCloseOnFirstNegotiationMessage() = closeOnFirstNegotiationMessage(StreamMuxerProtocol.getYamux())
+
     @Test
     fun mplexResponderVisitorReset() = responderVisitorReset(StreamMuxerProtocol.Mplex)
+
     @Test
     fun yamuxResponderVisitorReset() = responderVisitorReset(StreamMuxerProtocol.getYamux())
+
     @Test
     fun mplexCompletionRemainsTerminal() = completionRemainsTerminal(StreamMuxerProtocol.Mplex)
+
     @Test
     fun yamuxCompletionRemainsTerminal() = completionRemainsTerminal(StreamMuxerProtocol.getYamux())
+
     @Test
     fun mplexSeveralSiblingsSurviveReset() = severalSiblingsSurviveReset(StreamMuxerProtocol.Mplex)
+
     @Test
     fun yamuxSeveralSiblingsSurviveReset() = severalSiblingsSurviveReset(StreamMuxerProtocol.getYamux())
+
     @Test
     fun mplexPreHandlerCloseStopsPostHandler() = preHandlerCloseStopsPostHandler(StreamMuxerProtocol.Mplex)
+
     @Test
     fun yamuxPreHandlerCloseStopsPostHandler() = preHandlerCloseStopsPostHandler(StreamMuxerProtocol.getYamux())
+
     @Test
     fun mplexPostHandlerCloseSettlesFutures() = postHandlerCloseSettlesFutures(StreamMuxerProtocol.Mplex)
+
     @Test
     fun yamuxPostHandlerCloseSettlesFutures() = postHandlerCloseSettlesFutures(StreamMuxerProtocol.getYamux())
 }
 
 private fun selectedProtocolSurvivesClose(muxer: StreamMuxerProtocol) {
     withReviewHosts(muxer) { client, server ->
-        val promise = client.newStream<PingController>(Ping().protocolDescriptor.announceProtocols,
-            client.network.connect(server.peerId, *server.listenAddresses().toTypedArray()).get(5, TimeUnit.SECONDS))
+        val promise = client.newStream<PingController>(
+            Ping().protocolDescriptor.announceProtocols,
+            client.network.connect(server.peerId, *server.listenAddresses().toTypedArray()).get(5, TimeUnit.SECONDS)
+        )
         val stream = promise.stream.get(5, TimeUnit.SECONDS)
         val controller = promise.controller.get(5, TimeUnit.SECONDS)
         val protocol = stream.getProtocol().get(5, TimeUnit.SECONDS)
@@ -96,10 +113,15 @@ private fun selectedProtocolWithPendingControllerSurvivesClose(muxer: StreamMuxe
         }
     }
     val serverBinding = ProtocolBinding.createSimple(protocol, P2PChannelHandler { CompletableFuture.completedFuture(Unit) })
-    withReviewHosts(muxer, configureClient = { protocols { +clientBinding } },
-        configureServer = { protocols { +serverBinding } }) { client, server ->
-        val promise = client.newStream<String>(listOf(protocol),
-            client.network.connect(server.peerId, *server.listenAddresses().toTypedArray()).get(5, TimeUnit.SECONDS))
+    withReviewHosts(
+        muxer,
+        configureClient = { protocols { +clientBinding } },
+        configureServer = { protocols { +serverBinding } }
+    ) { client, server ->
+        val promise = client.newStream<String>(
+            listOf(protocol),
+            client.network.connect(server.peerId, *server.listenAddresses().toTypedArray()).get(5, TimeUnit.SECONDS)
+        )
         val stream = promise.stream.get(5, TimeUnit.SECONDS)
         initialized.get(5, TimeUnit.SECONDS)
         assertEquals(protocol, stream.getProtocol().get(5, TimeUnit.SECONDS))
@@ -116,28 +138,32 @@ private fun selectedProtocolWithPendingControllerSurvivesClose(muxer: StreamMuxe
 private fun closeOnFirstNegotiationMessage(muxer: StreamMuxerProtocol) {
     val firstMessage = CompletableFuture<String>()
     withReviewHosts(muxer, configureClient = {
-        debug { streamPreHandler.addHandler { stream ->
-            stream.pushHandler(object : ChannelInboundHandlerAdapter() {
-                override fun channelRead(ctx: ChannelHandlerContext, msg: Any) {
-                    try {
-                        assertFalse(stream.getProtocol().isDone, "Close must precede selection")
-                        val bytes = msg as ByteBuf
-                        val wire = bytes.toString(Charsets.UTF_8)
-                        assertEquals("/multistream/1.0.0\n", wire.substring(1), "The first received message is the negotiation header")
-                        stream.reset()
-                        firstMessage.complete("Channel closed ${ctx.channel()}")
-                    } catch (failure: Throwable) {
-                        firstMessage.completeExceptionally(failure)
-                        throw failure
-                    } finally {
-                        ReferenceCountUtil.release(msg)
+        debug {
+            streamPreHandler.addHandler { stream ->
+                stream.pushHandler(object : ChannelInboundHandlerAdapter() {
+                    override fun channelRead(ctx: ChannelHandlerContext, msg: Any) {
+                        try {
+                            assertFalse(stream.getProtocol().isDone, "Close must precede selection")
+                            val bytes = msg as ByteBuf
+                            val wire = bytes.toString(Charsets.UTF_8)
+                            assertEquals("/multistream/1.0.0\n", wire.substring(1), "The first received message is the negotiation header")
+                            stream.reset()
+                            firstMessage.complete("Channel closed ${ctx.channel()}")
+                        } catch (failure: Throwable) {
+                            firstMessage.completeExceptionally(failure)
+                            throw failure
+                        } finally {
+                            ReferenceCountUtil.release(msg)
+                        }
                     }
-                }
-            })
-        } }
+                })
+            }
+        }
     }) { client, server ->
-        val promise = client.newStream<PingController>(Ping().protocolDescriptor.announceProtocols,
-            client.network.connect(server.peerId, *server.listenAddresses().toTypedArray()).get(5, TimeUnit.SECONDS))
+        val promise = client.newStream<PingController>(
+            Ping().protocolDescriptor.announceProtocols,
+            client.network.connect(server.peerId, *server.listenAddresses().toTypedArray()).get(5, TimeUnit.SECONDS)
+        )
         val stream = promise.stream.get(5, TimeUnit.SECONDS)
         val message = firstMessage.get(5, TimeUnit.SECONDS)
         stream.closeFuture().get(5, TimeUnit.SECONDS)
@@ -156,8 +182,10 @@ private fun responderVisitorReset(muxer: StreamMuxerProtocol) {
             stream.reset()
             inbound.complete(stream)
         }
-        val promise = client.newStream<PingController>(Ping().protocolDescriptor.announceProtocols,
-            client.network.connect(server.peerId, *server.listenAddresses().toTypedArray()).get(5, TimeUnit.SECONDS))
+        val promise = client.newStream<PingController>(
+            Ping().protocolDescriptor.announceProtocols,
+            client.network.connect(server.peerId, *server.listenAddresses().toTypedArray()).get(5, TimeUnit.SECONDS)
+        )
         promise.stream.get(5, TimeUnit.SECONDS)
         val stream = inbound.get(5, TimeUnit.SECONDS)
         val responderController = captured.get(5, TimeUnit.SECONDS)
@@ -180,8 +208,10 @@ private fun completionRemainsTerminal(muxer: StreamMuxerProtocol) {
             // Closure runs the observer now; MultistreamImpl checks the same closure after return.
             stream.reset()
         }
-        val promise = client.newStream<PingController>(Ping().protocolDescriptor.announceProtocols,
-            client.network.connect(server.peerId, *server.listenAddresses().toTypedArray()).get(5, TimeUnit.SECONDS))
+        val promise = client.newStream<PingController>(
+            Ping().protocolDescriptor.announceProtocols,
+            client.network.connect(server.peerId, *server.listenAddresses().toTypedArray()).get(5, TimeUnit.SECONDS)
+        )
         val stream = promise.stream.get(5, TimeUnit.SECONDS)
         val controllerCompletions = AtomicInteger()
         val completedController = CompletableFuture<Throwable>()
@@ -235,8 +265,10 @@ private fun preHandlerCloseStopsPostHandler(muxer: StreamMuxerProtocol) {
         debug { streamHandler.addHandler { postCalls.incrementAndGet() } }
     }) { client, server ->
         client.addStreamVisitor { it.reset() }
-        val promise = client.newStream<PingController>(Ping().protocolDescriptor.announceProtocols,
-            client.network.connect(server.peerId, *server.listenAddresses().toTypedArray()).get(5, TimeUnit.SECONDS))
+        val promise = client.newStream<PingController>(
+            Ping().protocolDescriptor.announceProtocols,
+            client.network.connect(server.peerId, *server.listenAddresses().toTypedArray()).get(5, TimeUnit.SECONDS)
+        )
         val stream = promise.stream.get(5, TimeUnit.SECONDS)
         stream.closeFuture().get(5, TimeUnit.SECONDS)
         val message = "Channel closed before protocol negotiation: $stream"
@@ -248,13 +280,17 @@ private fun preHandlerCloseStopsPostHandler(muxer: StreamMuxerProtocol) {
 private fun postHandlerCloseSettlesFutures(muxer: StreamMuxerProtocol) {
     val postClosed = CompletableFuture<Stream>()
     withReviewHosts(muxer, configureClient = {
-        debug { streamHandler.addHandler { stream ->
-            stream.reset()
-            postClosed.complete(stream)
-        } }
+        debug {
+            streamHandler.addHandler { stream ->
+                stream.reset()
+                postClosed.complete(stream)
+            }
+        }
     }) { client, server ->
-        val promise = client.newStream<PingController>(Ping().protocolDescriptor.announceProtocols,
-            client.network.connect(server.peerId, *server.listenAddresses().toTypedArray()).get(5, TimeUnit.SECONDS))
+        val promise = client.newStream<PingController>(
+            Ping().protocolDescriptor.announceProtocols,
+            client.network.connect(server.peerId, *server.listenAddresses().toTypedArray()).get(5, TimeUnit.SECONDS)
+        )
         val stream = promise.stream.get(5, TimeUnit.SECONDS)
         assertSame(stream, postClosed.get(5, TimeUnit.SECONDS))
         stream.closeFuture().get(5, TimeUnit.SECONDS)

@@ -40,8 +40,10 @@ private fun closedStreamDoesNotRunPreHandler(muxer: StreamMuxerProtocol) {
         try {
             client.start().get(5, TimeUnit.SECONDS)
             server.start().get(5, TimeUnit.SECONDS)
-            val promise = client.newStream<PingController>(Ping().protocolDescriptor.announceProtocols,
-                client.network.connect(server.peerId, *server.listenAddresses().toTypedArray()).get(5, TimeUnit.SECONDS))
+            val promise = client.newStream<PingController>(
+                Ping().protocolDescriptor.announceProtocols,
+                client.network.connect(server.peerId, *server.listenAddresses().toTypedArray()).get(5, TimeUnit.SECONDS)
+            )
             val stream = promise.stream.get(5, TimeUnit.SECONDS)
             try {
                 promise.controller.get(5, TimeUnit.SECONDS)

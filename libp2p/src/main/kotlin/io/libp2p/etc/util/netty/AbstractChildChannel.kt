@@ -73,6 +73,8 @@ abstract class AbstractChildChannel(parent: Channel, id: ChannelId?) : AbstractC
         return state == State.ACTIVE
     }
 
+    // Rejected scheduling is handled by performing the same close inline below.
+    @Suppress("SwallowedException")
     final override fun doRegister() {
         state = State.ACTIVE
 

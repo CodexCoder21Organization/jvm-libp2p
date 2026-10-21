@@ -80,7 +80,8 @@ configure(
     // lookups, so a stream request made during close bookkeeping starts a fresh transport dial.
     // snapshot-31: activate mux sessions before publication and share parent close completion for queued opens.
     // snapshot-32: activate selected protocols once across coalesced records and preserve close callbacks (PR 50)
-    version = "1.3.0-codexcoder21-snapshot-32"
+    // snapshot-35: make child write-close idempotent after full close, reset, and callback re-entry.
+    version = "1.3.0-codexcoder21-snapshot-35"
 
     apply(plugin = "kotlin")
     apply(plugin = "idea")

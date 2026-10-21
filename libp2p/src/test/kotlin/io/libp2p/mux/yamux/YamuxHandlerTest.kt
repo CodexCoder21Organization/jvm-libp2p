@@ -26,6 +26,11 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
+private fun drainYamuxFrames(readFrame: () -> YamuxFrame?): List<YamuxFrame> = generateSequence { readFrame() }.toList()
+
+private fun windowCredit(frames: List<YamuxFrame>, streamId: Long): Long =
+    frames.filter { it.type == YamuxType.WINDOW_UPDATE && it.id.id == streamId }.sumOf { it.length }
+
 class YamuxHandlerTest : MuxHandlerAbstractTest() {
 
     override val maxFrameDataLength = 256
@@ -139,11 +144,6 @@ class YamuxHandlerTest : MuxHandlerAbstractTest() {
         assertThat(allocatedBufs).allMatch { it.refCnt() == 1 }
     }
 
-    private fun drainYamuxFrames(): List<YamuxFrame> = generateSequence { readYamuxFrame() }.toList()
-
-    private fun windowCredit(frames: List<YamuxFrame>, streamId: Long): Long =
-        frames.filter { it.type == YamuxType.WINDOW_UPDATE && it.id.id == streamId }.sumOf { it.length }
-
     @Test
     fun pausedChildrenNeverStopParentReads() {
         val firstId = openStreamRemote()
@@ -170,7 +170,7 @@ class YamuxHandlerTest : MuxHandlerAbstractTest() {
     fun pausedChildAtItsFullWindowDoesNotHoldSiblingDeliveryOrCredit() {
         val pausedId = openStreamRemote()
         val siblingId = openStreamRemote()
-        drainYamuxFrames()
+        drainYamuxFrames(::readYamuxFrame)
         val paused = childHandlers[0]
         val sibling = childHandlers[1]
         paused.ctx.channel().config().isAutoRead = false
@@ -183,7 +183,7 @@ class YamuxHandlerTest : MuxHandlerAbstractTest() {
         val siblingChunks = (1..9).map { "%02x".format(it).repeat(initialWindowSize / 2 + 1) }
         siblingChunks.forEach { writeStream(siblingId, it) }
         assertThat(sibling.inboundMessages).containsExactlyElementsOf(siblingChunks)
-        val whilePaused = drainYamuxFrames()
+        val whilePaused = drainYamuxFrames(::readYamuxFrame)
         assertThat(windowCredit(whilePaused, siblingId)).isEqualTo(siblingChunks.sumOf { it.length / 2 }.toLong())
         assertThat(windowCredit(whilePaused, pausedId)).isZero()
         assertThat(paused.inboundMessages).isEmpty()
@@ -193,14 +193,14 @@ class YamuxHandlerTest : MuxHandlerAbstractTest() {
         ech.runPendingTasks()
         assertThat(paused.inboundMessages).containsExactlyElementsOf(pausedChunks)
         // Credit is returned once more than half the window has been delivered: after 200 bytes here.
-        assertThat(windowCredit(drainYamuxFrames(), pausedId)).isEqualTo(200L)
+        assertThat(windowCredit(drainYamuxFrames(::readYamuxFrame), pausedId)).isEqualTo(200L)
     }
 
     @Test
     fun concurrentPauseResumeOfOneChildNeverTouchesParentOrSibling() {
         val pausedId = openStreamRemote()
         val siblingId = openStreamRemote()
-        drainYamuxFrames()
+        drainYamuxFrames(::readYamuxFrame)
         val paused = childHandlers[0]
         val sibling = childHandlers[1]
         val config = paused.ctx.channel().config()
@@ -242,7 +242,7 @@ class YamuxHandlerTest : MuxHandlerAbstractTest() {
     fun closingPausedChildWithQueuedWindowReleasesItAndLeavesSiblingFlowing() {
         val pausedId = openStreamRemote()
         val siblingId = openStreamRemote()
-        drainYamuxFrames()
+        drainYamuxFrames(::readYamuxFrame)
         val paused = childHandlers[0]
         val sibling = childHandlers[1]
         val child = paused.ctx.channel()
@@ -265,11 +265,11 @@ class YamuxHandlerTest : MuxHandlerAbstractTest() {
         assertThat(pauseFromCloseListener).isNull()
         assertThat(paused.inboundMessages).isEmpty()
         assertThat(retained.refCnt()).isEqualTo(1)
-        assertThat(windowCredit(drainYamuxFrames(), pausedId)).isZero()
+        assertThat(windowCredit(drainYamuxFrames(::readYamuxFrame), pausedId)).isZero()
         assertThat(ech.config().isAutoRead).isTrue()
         writeStream(siblingId, "44".repeat(initialWindowSize / 2 + 1))
         assertThat(sibling.inboundMessages).containsExactly("44".repeat(initialWindowSize / 2 + 1))
-        assertThat(windowCredit(drainYamuxFrames(), siblingId)).isEqualTo((initialWindowSize / 2 + 1).toLong())
+        assertThat(windowCredit(drainYamuxFrames(::readYamuxFrame), siblingId)).isEqualTo((initialWindowSize / 2 + 1).toLong())
     }
 
     @Test

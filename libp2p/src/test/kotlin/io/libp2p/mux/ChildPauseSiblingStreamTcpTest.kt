@@ -43,6 +43,123 @@ private const val SIBLING_PROTOCOL = "/test/child-pause-sibling/1.0.0"
 /** Bytes moved on the sibling stream: four full default Yamux receive windows plus one byte. */
 private const val SIBLING_TRANSFER_BYTES = 4 * INITIAL_WINDOW_SIZE + 1
 
+private class Receiver(val stream: StreamOverNetty) {
+    private val lock = Any()
+    private val bytes = ByteArrayOutputStream()
+    private val waiters = mutableListOf<Pair<Int, CountDownLatch>>()
+
+    fun add(msg: ByteBuf) {
+        val chunk = ByteArray(msg.readableBytes())
+        msg.readBytes(chunk)
+        synchronized(lock) {
+            bytes.write(chunk)
+            waiters.filter { bytes.size() >= it.first }.forEach { it.second.countDown() }
+        }
+    }
+
+    fun size(): Int = synchronized(lock) { bytes.size() }
+    fun content(): ByteArray = synchronized(lock) { bytes.toByteArray() }
+    fun awaitAtLeast(count: Int, seconds: Long): Boolean {
+        val latch = CountDownLatch(1)
+        synchronized(lock) {
+            if (bytes.size() >= count) return true
+            waiters += count to latch
+        }
+        return latch.await(seconds, TimeUnit.SECONDS)
+    }
+}
+
+private fun newHost(mux: StreamMuxerProtocol, listen: Boolean, hosts: MutableList<Host>, binding: StrictProtocolBinding<Stream>): Host = host {
+    identity { random() }
+    transports { +::TcpTransport }
+    secureChannels { add(::NoiseXXSecureChannel) }
+    muxers { add(mux) }
+    if (listen) network { listen("/ip4/127.0.0.1/tcp/0") }
+    protocols { add(binding) }
+}.also { hosts += it }
+
+private class StreamPair(val sender: StreamOverNetty, val receiver: Receiver)
+
+private fun connectedPair(mux: StreamMuxerProtocol, hosts: MutableList<Host>, binding: StrictProtocolBinding<Stream>): Pair<Host, Host> {
+    val client = newHost(mux, false, hosts, binding)
+    val server = newHost(mux, true, hosts, binding)
+    client.start().get(5, TimeUnit.SECONDS)
+    server.start().get(5, TimeUnit.SECONDS)
+    return client to server
+}
+
+private fun openStream(client: Host, server: Host, receivers: LinkedBlockingQueue<Receiver>): StreamPair {
+    val sender = client.newStream<Stream>(
+        listOf(SIBLING_PROTOCOL),
+        server.peerId,
+        server.listenAddresses().single()
+    ).controller.get(5, TimeUnit.SECONDS) as StreamOverNetty
+    val receiver = receivers.poll(5, TimeUnit.SECONDS) ?: throw AssertionError("the server did not accept the stream")
+    return StreamPair(sender, receiver)
+}
+
+private fun patterned(size: Int, seed: Int): ByteArray = ByteArray(size) { ((it + seed) % 251).toByte() }
+
+/** Runs a no-op on [channel]'s event loop so off-loop config changes have been reconciled. */
+private fun syncLoop(channel: Channel) = channel.eventLoop().submit(Callable {}).get(5, TimeUnit.SECONDS)
+
+/**
+ * Counts positive WINDOW_UPDATE credit that arrives at the client for each Yamux stream id.
+ * Installed on the client's parent pipeline, in front of the muxer.
+ */
+private fun countClientWindowCredit(clientParent: Channel): ConcurrentHashMap<Long, AtomicLong> {
+    val credit = ConcurrentHashMap<Long, AtomicLong>()
+    val muxContext = clientParent.pipeline().context(MuxHandler::class.java)
+    clientParent.eventLoop().submit(
+        Callable {
+            clientParent.pipeline().addBefore(
+                muxContext.name(),
+                "count-window-credit",
+                object : ChannelInboundHandlerAdapter() {
+                    override fun channelRead(ctx: ChannelHandlerContext, msg: Any) {
+                        if (msg is YamuxFrame && msg.type == YamuxType.WINDOW_UPDATE && msg.length > 0) {
+                            credit.computeIfAbsent(msg.id.id) { AtomicLong() }.addAndGet(msg.length)
+                        }
+                        ctx.fireChannelRead(msg)
+                    }
+                }
+            )
+        }
+    ).get(5, TimeUnit.SECONDS)
+    return credit
+}
+
+/** Counts payload bytes for each stream id that the server's parent pipeline forwards into the muxer. */
+private fun countServerForwardedBytes(serverParent: Channel): ConcurrentHashMap<Long, AtomicLong> {
+    val forwarded = ConcurrentHashMap<Long, AtomicLong>()
+    val muxContext = serverParent.pipeline().context(MuxHandler::class.java)
+    serverParent.eventLoop().submit(
+        Callable {
+            serverParent.pipeline().addBefore(
+                muxContext.name(),
+                "count-forwarded-bytes",
+                object : ChannelInboundHandlerAdapter() {
+                    override fun channelRead(ctx: ChannelHandlerContext, msg: Any) {
+                        val (id, size) = when {
+                            msg is YamuxFrame && msg.type == YamuxType.DATA -> msg.id.id to (msg.data?.readableBytes() ?: 0)
+                            msg is MplexFrame && msg.flag.type == MplexFlag.Type.DATA -> msg.id.id to msg.data.readableBytes()
+                            else -> -1L to 0
+                        }
+                        try {
+                            ctx.fireChannelRead(msg)
+                        } finally {
+                            if (size > 0) forwarded.computeIfAbsent(id) { AtomicLong() }.addAndGet(size.toLong())
+                        }
+                    }
+                }
+            )
+        }
+    ).get(5, TimeUnit.SECONDS)
+    return forwarded
+}
+
+private val StreamOverNetty.muxId get() = (nettyChannel as MuxChannel<*>).id.id
+
 /**
  * Real TCP connections between two hosts. One server-side child stream is paused while a sibling
  * stream on the same connection transfers far more than one receive window.
@@ -52,32 +169,6 @@ private const val SIBLING_TRANSFER_BYTES = 4 * INITIAL_WINDOW_SIZE + 1
  * so a paused child still stops reads for the whole connection, holding the sibling until resume.
  */
 class ChildPauseSiblingStreamTcpTest {
-    private class Receiver(val stream: StreamOverNetty) {
-        private val lock = Any()
-        private val bytes = ByteArrayOutputStream()
-        private val waiters = mutableListOf<Pair<Int, CountDownLatch>>()
-
-        fun add(msg: ByteBuf) {
-            val chunk = ByteArray(msg.readableBytes())
-            msg.readBytes(chunk)
-            synchronized(lock) {
-                bytes.write(chunk)
-                waiters.filter { bytes.size() >= it.first }.forEach { it.second.countDown() }
-            }
-        }
-
-        fun size(): Int = synchronized(lock) { bytes.size() }
-        fun content(): ByteArray = synchronized(lock) { bytes.toByteArray() }
-        fun awaitAtLeast(count: Int, seconds: Long): Boolean {
-            val latch = CountDownLatch(1)
-            synchronized(lock) {
-                if (bytes.size() >= count) return true
-                waiters += count to latch
-            }
-            return latch.await(seconds, TimeUnit.SECONDS)
-        }
-    }
-
     private val receivers = LinkedBlockingQueue<Receiver>()
     private val hosts = mutableListOf<Host>()
 
@@ -98,15 +189,6 @@ class ChildPauseSiblingStreamTcpTest {
         }
     ) {}
 
-    private fun newHost(mux: StreamMuxerProtocol, listen: Boolean): Host = host {
-        identity { random() }
-        transports { +::TcpTransport }
-        secureChannels { add(::NoiseXXSecureChannel) }
-        muxers { add(mux) }
-        if (listen) network { listen("/ip4/127.0.0.1/tcp/0") }
-        protocols { add(binding) }
-    }.also { hosts += it }
-
     @AfterEach
     fun stopHosts() {
         var failure: Throwable? = null
@@ -121,93 +203,11 @@ class ChildPauseSiblingStreamTcpTest {
         failure?.let { throw it }
     }
 
-    private class StreamPair(val sender: StreamOverNetty, val receiver: Receiver)
-
-    private fun connectedPair(mux: StreamMuxerProtocol): Pair<Host, Host> {
-        val client = newHost(mux, false)
-        val server = newHost(mux, true)
-        client.start().get(5, TimeUnit.SECONDS)
-        server.start().get(5, TimeUnit.SECONDS)
-        return client to server
-    }
-
-    private fun openStream(client: Host, server: Host): StreamPair {
-        val sender = client.newStream<Stream>(
-            listOf(SIBLING_PROTOCOL),
-            server.peerId,
-            server.listenAddresses().single()
-        ).controller.get(5, TimeUnit.SECONDS) as StreamOverNetty
-        val receiver = receivers.poll(5, TimeUnit.SECONDS) ?: throw AssertionError("the server did not accept the stream")
-        return StreamPair(sender, receiver)
-    }
-
-    private fun patterned(size: Int, seed: Int): ByteArray = ByteArray(size) { ((it + seed) % 251).toByte() }
-
-    /** Runs a no-op on [channel]'s event loop so off-loop config changes have been reconciled. */
-    private fun syncLoop(channel: Channel) = channel.eventLoop().submit(Callable {}).get(5, TimeUnit.SECONDS)
-
-    /**
-     * Counts positive WINDOW_UPDATE credit that arrives at the client for each Yamux stream id.
-     * Installed on the client's parent pipeline, in front of the muxer.
-     */
-    private fun countClientWindowCredit(clientParent: Channel): ConcurrentHashMap<Long, AtomicLong> {
-        val credit = ConcurrentHashMap<Long, AtomicLong>()
-        val muxContext = clientParent.pipeline().context(MuxHandler::class.java)
-        clientParent.eventLoop().submit(
-            Callable {
-                clientParent.pipeline().addBefore(
-                    muxContext.name(),
-                    "count-window-credit",
-                    object : ChannelInboundHandlerAdapter() {
-                        override fun channelRead(ctx: ChannelHandlerContext, msg: Any) {
-                            if (msg is YamuxFrame && msg.type == YamuxType.WINDOW_UPDATE && msg.length > 0) {
-                                credit.computeIfAbsent(msg.id.id) { AtomicLong() }.addAndGet(msg.length)
-                            }
-                            ctx.fireChannelRead(msg)
-                        }
-                    }
-                )
-            }
-        ).get(5, TimeUnit.SECONDS)
-        return credit
-    }
-
-    /** Counts payload bytes for each stream id that the server's parent pipeline forwards into the muxer. */
-    private fun countServerForwardedBytes(serverParent: Channel): ConcurrentHashMap<Long, AtomicLong> {
-        val forwarded = ConcurrentHashMap<Long, AtomicLong>()
-        val muxContext = serverParent.pipeline().context(MuxHandler::class.java)
-        serverParent.eventLoop().submit(
-            Callable {
-                serverParent.pipeline().addBefore(
-                    muxContext.name(),
-                    "count-forwarded-bytes",
-                    object : ChannelInboundHandlerAdapter() {
-                        override fun channelRead(ctx: ChannelHandlerContext, msg: Any) {
-                            val (id, size) = when {
-                                msg is YamuxFrame && msg.type == YamuxType.DATA -> msg.id.id to (msg.data?.readableBytes() ?: 0)
-                                msg is MplexFrame && msg.flag.type == MplexFlag.Type.DATA -> msg.id.id to msg.data.readableBytes()
-                                else -> -1L to 0
-                            }
-                            try {
-                                ctx.fireChannelRead(msg)
-                            } finally {
-                                if (size > 0) forwarded.computeIfAbsent(id) { AtomicLong() }.addAndGet(size.toLong())
-                            }
-                        }
-                    }
-                )
-            }
-        ).get(5, TimeUnit.SECONDS)
-        return forwarded
-    }
-
-    private val StreamOverNetty.muxId get() = (nettyChannel as MuxChannel<*>).id.id
-
     @Test
     fun yamuxPausedChildDoesNotStallSiblingStreamOnTheSameConnection() {
-        val (client, server) = connectedPair(StreamMuxerProtocol.getYamux())
-        val paused = openStream(client, server)
-        val sibling = openStream(client, server)
+        val (client, server) = connectedPair(StreamMuxerProtocol.getYamux(), hosts, binding)
+        val paused = openStream(client, server, receivers)
+        val sibling = openStream(client, server, receivers)
         val serverParent = paused.receiver.stream.nettyChannel.parent()
         assertSame(serverParent, sibling.receiver.stream.nettyChannel.parent(), "both streams must share one connection")
         assertTrue(serverParent.config().isAutoRead)
@@ -232,9 +232,9 @@ class ChildPauseSiblingStreamTcpTest {
 
     @Test
     fun yamuxPausedChildAtItsFullWindowWithholdsOnlyItsOwnCreditAndResumesInOrder() {
-        val (client, server) = connectedPair(StreamMuxerProtocol.getYamux())
-        val paused = openStream(client, server)
-        val sibling = openStream(client, server)
+        val (client, server) = connectedPair(StreamMuxerProtocol.getYamux(), hosts, binding)
+        val paused = openStream(client, server, receivers)
+        val sibling = openStream(client, server, receivers)
         val serverParent = paused.receiver.stream.nettyChannel.parent()
         val credit = countClientWindowCredit(paused.sender.nettyChannel.parent())
         val forwarded = countServerForwardedBytes(serverParent)
@@ -280,9 +280,9 @@ class ChildPauseSiblingStreamTcpTest {
 
     @Test
     fun yamuxConcurrentPauseResumeOfOneChildNeverStallsSiblingAndKeepsItsOwnOrder() {
-        val (client, server) = connectedPair(StreamMuxerProtocol.getYamux())
-        val toggled = openStream(client, server)
-        val sibling = openStream(client, server)
+        val (client, server) = connectedPair(StreamMuxerProtocol.getYamux(), hosts, binding)
+        val toggled = openStream(client, server, receivers)
+        val sibling = openStream(client, server, receivers)
         val serverParent = toggled.receiver.stream.nettyChannel.parent()
         val config = toggled.receiver.stream.nettyChannel.config()
 
@@ -333,9 +333,9 @@ class ChildPauseSiblingStreamTcpTest {
 
     @Test
     fun mplexPausedChildStillHoldsSiblingStreamUntilResume() {
-        val (client, server) = connectedPair(StreamMuxerProtocol.Mplex)
-        val paused = openStream(client, server)
-        val sibling = openStream(client, server)
+        val (client, server) = connectedPair(StreamMuxerProtocol.Mplex, hosts, binding)
+        val paused = openStream(client, server, receivers)
+        val sibling = openStream(client, server, receivers)
         val serverParent = paused.receiver.stream.nettyChannel.parent()
         assertSame(serverParent, sibling.receiver.stream.nettyChannel.parent(), "both streams must share one connection")
         assertTrue(serverParent.config().isAutoRead)

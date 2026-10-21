@@ -216,6 +216,71 @@ OBSERVED: Follow-up metadata for https://github.com/CodexCoder21Organization/jvm
 OBSERVED: Final assertion audit identified that the fragmented-read exact first-payload assertion is independent of the parent-read policy. Restored it for BOTH muxers; only the assertions that later frames remain unread are Mplex-only. This preserves every existing delivery assertion. Production remains exactly the reviewed port. The active full run compiled before this test-only strengthening, so the final targeted gate will verify the restored assertion explicitly.
 
 ## 21:02 UTC — full verification complete
-OBSERVED: Full suite including every added test: 1154 total, 1150 passed, 2 failed, 2 existing skips. Sole failure is the same unchanged QuicKuboTestJava.pingKubo connection-refused prerequisite verified against develop; all new tests and all mux/pause tests pass. All-project spotlessCheck and detekt succeed. Log: out/final-full-suite-static.log.
+OBSERVED: Full suite including every added test: 1154 total, 1150 passed, 2 failed, 2 existing skips. Failures: unchanged QuicKuboTestJava.pingKubo connection-refused prerequisite, and GossipTwoHostTest.test message larger than mplex frame timing out. All new tests and all mux/pause tests pass. The Gossip test passed in the first full suite; diagnosis is pending. All-project spotlessCheck and detekt succeed. Log: out/final-full-suite-static.log.
 OBSERVED: The only subsequent source edit restores an existing exact delivery assertion in the fragmented-read TCP test for both muxers. No production code changed after this full run began. The rebase/targeted/static PR gate verifies that restored assertion.
 Current commit before final gate: aa69dcbf.
+
+CORRECTION: Parsed final XML lists TWO failures, not only Kubo. The initial summary prematurely assumed the same failure set as the first full run. Full traces:
+
+```text
+io.libp2p.pubsub.gossip.GossipTwoHostTest.test message larger than mplex frame()
+java.util.concurrent.TimeoutException: Timeout waiting for condition
+	at io.libp2p.pubsub.gossip.TwoGossipHostTestBase.waitFor(TwoGossipHostTestBase.kt:123)
+	at io.libp2p.pubsub.gossip.GossipTwoHostTest.test message larger than mplex frame(GossipTwoHostTest.kt:36)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+
+io.libp2p.transport.quic.QuicKuboTestJava.pingKubo()
+java.net.ConnectException: Connection refused
+	at java.base/sun.nio.ch.Net.pollConnect(Native Method)
+	at java.base/sun.nio.ch.Net.pollConnectNow(Net.java:694)
+	at java.base/sun.nio.ch.NioSocketImpl.timedFinishConnect(NioSocketImpl.java:542)
+	at java.base/sun.nio.ch.NioSocketImpl.connect(NioSocketImpl.java:592)
+	at java.base/java.net.Socket.connect(Socket.java:751)
+	at java.base/sun.net.NetworkClient.doConnect(NetworkClient.java:178)
+	at java.base/sun.net.www.http.HttpClient.openServer(HttpClient.java:539)
+	at java.base/sun.net.www.http.HttpClient.openServer(HttpClient.java:644)
+	at java.base/sun.net.www.http.HttpClient.<init>(HttpClient.java:290)
+	at java.base/sun.net.www.http.HttpClient.New(HttpClient.java:394)
+	at java.base/sun.net.www.http.HttpClient.New(HttpClient.java:416)
+	at java.base/sun.net.www.protocol.http.HttpURLConnection.getNewHttpClient(HttpURLConnection.java:1327)
+	at java.base/sun.net.www.protocol.http.HttpURLConnection.plainConnect0(HttpURLConnection.java:1260)
+	at java.base/sun.net.www.protocol.http.HttpURLConnection.plainConnect(HttpURLConnection.java:1146)
+	at java.base/sun.net.www.protocol.http.HttpURLConnection.connect(HttpURLConnection.java:1075)
+	at java.base/sun.net.www.protocol.http.HttpURLConnection.getOutputStream0(HttpURLConnection.java:1477)
+	at java.base/sun.net.www.protocol.http.HttpURLConnection.getOutputStream(HttpURLConnection.java:1440)
+	at io.libp2p.transport.quic.QuicKuboTestJava.getKuboPeerId(QuicKuboTestJava.java:65)
+	at io.libp2p.transport.quic.QuicKuboTestJava.pingKubo(QuicKuboTestJava.java:21)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+
+
+```
+
+OBSERVED: First PR gate on the restored exact fragmented-delivery assertions: 183 total, 183 passed, 0 failed, 0 skipped; all-project spotlessCheck and detekt pass. No Yamux/pause regression.
+OBSERVED: GossipTwoHostTest explicitly configures Mplex on both hosts; no Yamux instance participates. Its INFO LoggingHandlerShort calls super.format before shortening the result. The failed-run log records the 1 MiB frame as 65,536 formatted lines, later shortened. Several unchanged test bases set global ResourceLeakDetector.PARANOID without restoring it.
+OBSERVED: Failed Gossip run timestamps: publish logged 20:59:40.326, first parent frame logged 20:59:48.073, flush 20:59:48.098, test cleanup starts 20:59:58.256, receiver parent frame logged 20:59:58.277, receiver publish logged 20:59:58.618.
+INFER: Full payload formatting under global leak tracking is a candidate cause; a baseline probe with that exact mode will distinguish it from this Yamux change. No timeout or iteration count is changed.
+Current commit: ee964650; PR push held for this comparison.
+
+## 21:06 UTC — Gossip baseline comparison
+OBSERVED: With both pause implementation files restored from 9d718392 and the unchanged GossipTwoHostTest, forcing the global mode used by other suite tests (`-Dio.netty.leakDetection.level=paranoid`) reproduces the SAME failure at GossipTwoHostTest.kt:36, first attempt: 0 passed / 1 failed / 0 skipped. Test body took 27.554 seconds. No test source or time limit changed.
+
+```text
+java.util.concurrent.TimeoutException: Timeout waiting for condition
+	at io.libp2p.pubsub.gossip.TwoGossipHostTestBase.waitFor(TwoGossipHostTestBase.kt:123)
+	at io.libp2p.pubsub.gossip.GossipTwoHostTest.test message larger than mplex frame(GossipTwoHostTest.kt:36)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+
+```
+OBSERVED: Baseline timestamps: publish 21:05:27.633, first 1 MiB parent frame 21:05:36.697, flush 21:05:36.749, test cleanup 21:05:46.917, receiver frame 21:05:50.364 and complete publish 21:05:50.626. The message eventually arrives, after the unchanged wait limit.
+INFER: This is independent of the Yamux port, which is absent in this run and is not used by either Mplex host. The formatter-before-truncation path combined with process-global leak tracking is implicated; a SIMPLE-mode baseline comparison follows. Both actual full-suite failures stay reported.
+
+OBSERVED: Diagnostic SIMPLE-mode baseline comparison, unchanged Gossip test and unchanged develop pause code: 1 passed / 0 failed / 0 skipped, first attempt; test body 5.168 seconds versus 27.554 seconds in PARANOID mode. This comparison does not replace either full-suite result, and no source change lowers leak tracking.
+INFER: The existing formatter builds the entire large-frame representation before truncating it; process-global PARANOID tracking makes that path exceed the Gossip test's unchanged receive wait. The mode comparison supports this mechanism. Both the Kubo and Gossip full-suite failures reproduce without the Yamux port. Neither behavior is modified by this PR.
+OBSERVED: Restored both production files from HEAD after all baseline probes. No temporary mutation remains. Final PR gate repeats all 183 mux tests and all-project static checks on the real port with default test settings.
+Current commit: ee964650.

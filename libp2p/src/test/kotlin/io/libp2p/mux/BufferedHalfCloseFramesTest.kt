@@ -26,12 +26,14 @@ import io.netty.util.ReferenceCountUtil
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource
 import java.io.ByteArrayOutputStream
 import java.nio.channels.ClosedChannelException
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.ExecutionException
 import java.util.concurrent.TimeUnit
 
 class BufferedHalfCloseFramesTest {
@@ -105,6 +107,16 @@ class BufferedHalfCloseFramesTest {
             assertFalse(outgoing.closeFuture().isDone, "Both half-close requests must preserve pending writes")
             outgoing.closeWrite().get(5, TimeUnit.SECONDS)
             assertEquals(0, gate.finCount, "FIN must wait for every accepted child write")
+            val lateBuffer = Unpooled.buffer(1).writeByte(7)
+            val lateWrite = outgoing.writeAndFlushWithFuture(lateBuffer)
+            sender.runPendingTasks()
+            assertTrue(lateWrite.isCompletedExceptionally, "A write during half-close drain must fail")
+            assertEquals(0, lateBuffer.refCnt(), "The rejected payload must be released")
+            val failure = assertThrows(ExecutionException::class.java) { lateWrite.get(5, TimeUnit.SECONDS) }
+            assertEquals(
+                "The stream was closed for writing locally: ${(outgoing as StreamOverNetty).nettyChannel.id()}",
+                failure.cause!!.message
+            )
 
             if (finish == "drain" || finish == "unflushed") {
                 gate.releaseWrites()
@@ -122,7 +134,11 @@ class BufferedHalfCloseFramesTest {
                 assertTrue(incoming.closeFuture().isDone)
             } else {
                 when (finish) {
-                    "localReset" -> outgoing.close().get(5, TimeUnit.SECONDS)
+                    "localReset" -> {
+                        outgoing.close().get(5, TimeUnit.SECONDS)
+                        transferBufferedCloseFrames(sender, receiver)
+                        assertTrue(incoming.closeFuture().isDone, "Local reset during drain must close the peer stream")
+                    }
                     "remoteReset" -> {
                         incoming.close().get(5, TimeUnit.SECONDS)
                         transferBufferedCloseFrames(receiver, sender)

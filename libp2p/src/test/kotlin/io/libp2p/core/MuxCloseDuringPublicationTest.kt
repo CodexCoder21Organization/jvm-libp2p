@@ -94,8 +94,9 @@ private fun closeDuringMuxPublication(muxer: StreamMuxerProtocol, openBeforeClos
                 failures += failure
             }
         }
-        if (primary != null) {
-            failures.forEach { primary.addSuppressed(it) }
+        val original = primary
+        if (original != null) {
+            failures.forEach { original.addSuppressed(it) }
         } else if (failures.isNotEmpty()) {
             val failure = failures.first()
             failures.drop(1).forEach { failure.addSuppressed(it) }

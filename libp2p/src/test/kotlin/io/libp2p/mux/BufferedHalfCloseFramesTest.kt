@@ -108,13 +108,14 @@ class BufferedHalfCloseFramesTest {
             outgoing.closeWrite().get(5, TimeUnit.SECONDS)
             assertEquals(0, gate.finCount, "FIN must wait for every accepted child write")
             val lateBuffer = Unpooled.buffer(1).writeByte(7)
-            val lateWrite = outgoing.writeAndFlushWithFuture(lateBuffer)
+            // The rejected write must not flush payloads that closeWrite itself needs to flush.
+            val lateWrite = (outgoing as StreamOverNetty).nettyChannel.write(lateBuffer).toVoidCompletableFuture()
             sender.runPendingTasks()
             assertTrue(lateWrite.isCompletedExceptionally, "A write during half-close drain must fail")
             assertEquals(0, lateBuffer.refCnt(), "The rejected payload must be released")
             val failure = assertThrows(ExecutionException::class.java) { lateWrite.get(5, TimeUnit.SECONDS) }
             assertEquals(
-                "The stream was closed for writing locally: ${(outgoing as StreamOverNetty).nettyChannel.id()}",
+                "The stream was closed for writing locally: ${outgoing.nettyChannel.id()}",
                 failure.cause!!.message
             )
 
@@ -124,11 +125,11 @@ class BufferedHalfCloseFramesTest {
                     transferBufferedCloseFrames(sender, receiver)
                     transferBufferedCloseFrames(receiver, sender)
                 }
+                assertTrue(eof.isDone, "The peer must observe end-of-stream after draining")
+                assertArrayEquals(first + second, eof.get(5, TimeUnit.SECONDS))
                 firstWrite.get(5, TimeUnit.SECONDS)
                 secondWrite.get(5, TimeUnit.SECONDS)
                 reenteredClose.get(5, TimeUnit.SECONDS)
-                assertTrue(eof.isDone, "The peer must observe end-of-stream after draining")
-                assertArrayEquals(first + second, eof.get(5, TimeUnit.SECONDS))
                 assertEquals(1, gate.finCount, "The muxer must send exactly one FIN")
                 assertTrue(outgoing.closeFuture().isDone)
                 assertTrue(incoming.closeFuture().isDone)

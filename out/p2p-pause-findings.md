@@ -7,7 +7,7 @@ Started 2026-10-21 20:40 UTC; deadline 22:00 UTC, checkpoint exit gate 21:50 UTC
 - [done] Add deterministic real TCP/Noise regression tests; record baseline assertion failures.
 - [done] Port per-stream Yamux pausing, retain Mplex behavior, update docs and snapshot-37.
 - [done] Run mutation control, mux/pause tests, full libp2p suite, formatting/static checks; independent test/code review passes.
-- [in progress] Rebase develop, targeted verification, checkpoint and single PR push; open PR against develop and stop processes.
+- [done] Rebase develop, targeted verification, checkpoint and single PR push; open PR against develop and stop processes.
 
 OBSERVED: Read CONTRACT.md, CLAUDE.md, FORK.md, README.md and the Testing Architecture sections Test-Driven Development and Tests Must Be Hermetically Sealed. Gradle/JUnit conventions apply in this repository.
 OBSERVED: Prior change https://github.com/CodexCoder21Organization/jvm-libp2p/pull/42 is OPEN, has no comments or reviews, and contains commit 276ba4acd9e2bb9b8c06e4c7097078214ebf4116. No stated rejection or reason for not landing exists in the PR record.
@@ -290,3 +290,19 @@ OBSERVED: After restoring the port and rebasing on origin/develop, the final tar
 OBSERVED: `ps -eo pid,args -ww` checked after the build completed: no Gradle, Kotlin compiler, test worker, or helper process owned by this checkout remains. All caller pools and test hosts have been stopped. No background wait remains.
 OBSERVED: Reviewed the complete diff and git status: only requested source/docs/tests and this findings record are tracked; no build/test output or temporary mutation is in the diff. All commits carry the requested co-author line. No publication, merge, queue entry, production change, or CI watch has occurred.
 Current tested source commit: 53fc2032. Ready for one PR branch push against develop.
+
+## Complete
+OBSERVED: PR opened against develop: https://github.com/CodexCoder21Organization/jvm-libp2p/pull/63
+OBSERVED: PR/code head: https://github.com/CodexCoder21Organization/jvm-libp2p/commit/986632ab125fd1a2f430e61e7cfe639d78182174
+OBSERVED: The PR branch was pushed exactly once. The final findings-only completion record is checkpointed to https://github.com/CodexCoder21Organization/jvm-libp2p/tree/wip/usage-p2p-pause-ckpt without a second PR-branch push.
+
+Brief audit:
+- DONE: prior proposal checked; original PR is open, unreviewed, and now conflicts with develop; no stated rejection.
+- DONE: deterministic TCP/Noise sibling and reverse-direction replies fail on assertion before the port, pass with the port, and fail again when it is removed.
+- DONE: Yamux per-stream behavior ported; Mplex policy preserved; all existing delivery assertions retained; README/FORK/version snapshot-37 updated.
+- DONE: mux/pause gates, both mutation controls, full suite, spotlessCheck and detekt run with recorded first-attempt results. Final mux/static gate: 183 passed, zero failed/skipped. Full suite: 1,150 passed, two baseline failures, two unchanged skips. Both failure classes reproduced with unchanged develop pause code; no test was skipped or loosened.
+- DONE: PR opened from fix/yamux-per-stream-pause against develop; no CI watch.
+
+Published coordinates: none. No merge, queue entry, deployment, or production change. Remaining full-suite issues are the existing Kubo prerequisite and existing Gossip/logging behavior demonstrated by the baseline comparisons; this PR does not change those paths.
+
+OBSERVED: Final `ps -eo pid,args -ww` confirmation: no build/helper/test processes owned by this checkout remain. Every started build and diagnostic wait has finished.

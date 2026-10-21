@@ -166,3 +166,22 @@ OBSERVED: First full-suite spotlessCheck and detekt gates succeeded for every pr
 OBSERVED: First fixed run including the explicit sibling reply: 183 total, 183 passed, 0 failed, 0 skipped. That test verifies both streams share the same connection, the reply arrives on B completely/in order, its write completes, and request stream A remains paused throughout.
 OBSERVED: Additional test review confirms the explicit sibling reply sends only after both responder streams are ready and the request callback has synchronously paused A. No parent-read assertion is used to substitute for payload completion. Its first baseline run failed on the payload-completion assertion.
 Current commit: 59ea924390293e41710d917555af1895d25446f3.
+
+## 20:57 UTC — explicit sibling reply post-pass mutation
+OBSERVED: After the complete 183/183 passing mux gate, removed the port again. First-attempt sibling-reply control: 1 test, 0 passed, 1 assertion failure, 0 skips. org.opentest4j.AssertionFailedError: A paused request reader must not block window updates for its sibling's 1675062-byte reply; received 262082 bytes, write completed=false, failure=null ==> expected: <true> but was: <false>
+
+```text
+org.opentest4j.AssertionFailedError: A paused request reader must not block window updates for its sibling's 1675062-byte reply; received 262082 bytes, write completed=false, failure=null ==> expected: <true> but was: <false>
+	at app//org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+	at app//org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+	at app//org.junit.jupiter.api.AssertTrue.failNotTrue(AssertTrue.java:63)
+	at app//org.junit.jupiter.api.AssertTrue.assertTrue(AssertTrue.java:36)
+	at app//org.junit.jupiter.api.Assertions.assertTrue(Assertions.java:214)
+	at app//io.libp2p.mux.YamuxPausedRequestSiblingReplyTcpTest.pausedRequestReadsMustNotStopSiblingReplyWindowUpdates(YamuxPausedRequestSiblingReplyTcpTest.kt:106)
+	at java.base@21.0.12.1/java.lang.reflect.Method.invoke(Method.java:580)
+	at java.base@21.0.12.1/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at java.base@21.0.12.1/java.util.ArrayList.forEach(ArrayList.java:1596)
+
+```
+OBSERVED: Port restored exactly from HEAD after the control. No mutation remains. Final full suite includes all new reply tests; then the PR gate rebases on develop and repeats all 183 targeted tests.
+Current commit: ae5cb6f6.

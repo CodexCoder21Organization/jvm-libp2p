@@ -85,7 +85,6 @@ private fun closeDuringMuxPublication(muxer: StreamMuxerProtocol, openBeforeClos
         assertEquals(ConnectionClosedException::class.java, streamFailure.cause!!.javaClass)
     } catch (failure: Throwable) {
         primary = failure
-        throw failure
     } finally {
         val failures = mutableListOf<Throwable>()
         for (node in listOf(client, server)) {
@@ -100,7 +99,8 @@ private fun closeDuringMuxPublication(muxer: StreamMuxerProtocol, openBeforeClos
         } else if (failures.isNotEmpty()) {
             val failure = failures.first()
             failures.drop(1).forEach { failure.addSuppressed(it) }
-            throw failure
+            primary = failure
         }
     }
+    primary?.let { throw it }
 }

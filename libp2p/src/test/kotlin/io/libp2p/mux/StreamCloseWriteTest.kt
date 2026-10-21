@@ -184,19 +184,17 @@ private fun withCloseWriteStreams(
         }
     } catch (failure: Throwable) {
         primary = failure
-        throw failure
     } finally {
-        var cleanupFailure: Throwable? = null
         for (host in listOf(client, server)) {
             try {
                 host.stop().get(10, TimeUnit.SECONDS)
             } catch (failure: Throwable) {
-                val earlier = primary ?: cleanupFailure
-                if (earlier == null) cleanupFailure = failure else earlier.addSuppressed(failure)
+                val earlier = primary
+                if (earlier == null) primary = failure else earlier.addSuppressed(failure)
             }
         }
-        if (primary == null) cleanupFailure?.let { throw it }
     }
+    primary?.let { throw it }
 }
 
 private fun observeWriteEnd(stream: Stream): CompletableFuture<ByteArray> {

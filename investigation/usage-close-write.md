@@ -170,3 +170,16 @@ NEXT: run package tests and both checks with --continue so a checker result cann
 OBSERVED: second package/check invocation passed spotlessCheck and detekt, but tests did not run: compileTestKotlin reported two compile errors in the edited existing cleanup helpers: `Smart cast to 'Throwable' is impossible, because 'primary' is a local variable that is captured by a changing closure` (MuxCloseDuringPublicationTest line 98; MuxSessionActivationTest line 373). Full command output: /tmp/libp2p-close-packages2.log. Counts: 0 runtime cases, 2 compile errors; not counted as a test run or successful regression proof.
 CHANGED: bind primary to an immutable `original` before the cleanup-suppression forEach, so Kotlin 1.6 can safely capture it. Original exceptions, suppressed exceptions, assertions and time limits remain the same. Re-run the required packages and checks after this correction.
 Current commit before correction: 7dee5f2749d6f183882de549e7a3c166eb0402e5.
+
+## 18:01 UTC: all required packages and checks pass
+OBSERVED: first actual package runtime run passed 520 / 520 cases, 0 failures, 0 skipped; spotlessCheck and detekt both passed. Duration 1m25s. Exact command (through boxrun, with df first): `./gradlew --no-daemon --max-workers=2 --continue --console=plain -I /tmp/libp2p-test-report.init.gradle :libp2p:test --tests 'io.libp2p.mux.*' --tests 'io.libp2p.etc.util.netty.*' --tests 'io.libp2p.core.*' --tests 'io.libp2p.host.*' :libp2p:spotlessCheck :libp2p:detekt`. Full output: /tmp/libp2p-close-packages3.log; every case rendered to /tmp/libp2p-close-packages3-results.log. Earlier two package attempts verified zero runtime cases (detekt failure, then compile errors); no runtime test was retried.
+OBSERVED: Yamux write-window buffering, prefix-write failures, write-close stress and retained-frame accounting cases remain green. All existing core/host callback and pool tests passed with unchanged assertions and timing. Both edited cleanup-helper classes passed their original test cases. The complete new 18-case suite also passed inside this package run.
+REVIEW UPDATE: reviewed the cleanup correction separately: the same original Throwable is raised after both hosts are stopped; cleanup-only failures retain the same suppressed failures. Immutable original avoids a Kotlin 1.6 changing-capture problem. No assertion, timeout, or iteration changed. The production scheduling comment/checker annotation makes no runtime change. Module formatter introduced no further diff after these edits.
+
+Progress:
+- DONE: port original real-host reproducer; assertion-red on develop, plus deterministic frame assertions for both muxers.
+- DONE: shared terminal/repeated write-close fix, including callback re-entry and live half-close/reply contract.
+- DONE: first fixed run 18/18; remove implementation -> 1 pass/5 assertion failures again; restore -> 520/520 package tests and both static gates.
+- DONE: snapshot-35 assigned after probes, FORK entry, public API docs/example, dedicated test and code reviews, incremental checkpoints.
+- IN PROGRESS: final develop fetch/rebase, targeted tests, version re-probe, single usage-tracking push and one PR against develop. No publication or CI watch.
+Current verified source commit: 79007d86 (full SHA recorded by Git at checkpoint).

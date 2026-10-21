@@ -81,7 +81,8 @@ configure(
     // snapshot-31: activate mux sessions before publication and share parent close completion for queued opens.
     // snapshot-32: activate selected protocols once across coalesced records and preserve close callbacks (PR 50)
     // snapshot-35: make child write-close idempotent after full close, reset, and callback re-entry.
-    version = "1.3.0-codexcoder21-snapshot-35"
+    // snapshot-36: drain accepted child writes before half-close with Yamux and Mplex.
+    version = "1.3.0-codexcoder21-snapshot-36"
 
     apply(plugin = "kotlin")
     apply(plugin = "idea")

@@ -6,8 +6,8 @@ Findings path was not supplied in the lane brief; this file is the lane's findin
 Plan:
 - DONE: read contract/source and port the real-host remote-reset reproducer; demonstrate assertion failure.
 - DONE: implement terminal/repeated write-close handling in the shared child path; add all lifecycle cases for Yamux and Mplex.
-- IN PROGRESS: green/red/green verification, relevant mux/host packages, formatting and static analysis.
-- TODO: probe snapshot version, update public docs, checkpoint; rebase on develop, targeted tests, single PR push/open against develop; stop without CI watch.
+- DONE: green/red/green verification, relevant mux/host packages, formatting and static analysis.
+- PR GATE READY: snapshot version/docs/checkpoints done; rebased on develop and final targeted tests passed. Final command performs the single PR push/open against develop; stop without CI watch.
 
 OBSERVED: read usage CONTRACT.md fully, FORK.md, CLAUDE.md, README.md, and Testing Architecture's Test-Driven Development and Tests Must Be Hermetically Sealed sections (via authenticated GitHub API; web fetch returned 404). Read the linked UrlProtocol findings and standalone reproducer. No skill directories accessed, no subagents, no other checkout used.
 OBSERVED: Gradle/JUnit is this repository's native test suite; the lane's explicit Gradle instruction takes precedence over the general kompile script layout. Builds run through boxrun with Gradle commands. Develop, not main, is the requested integration base.
@@ -181,5 +181,18 @@ Progress:
 - DONE: shared terminal/repeated write-close fix, including callback re-entry and live half-close/reply contract.
 - DONE: first fixed run 18/18; remove implementation -> 1 pass/5 assertion failures again; restore -> 520/520 package tests and both static gates.
 - DONE: snapshot-35 assigned after probes, FORK entry, public API docs/example, dedicated test and code reviews, incremental checkpoints.
-- IN PROGRESS: final develop fetch/rebase, targeted tests, version re-probe, single usage-tracking push and one PR against develop. No publication or CI watch.
+- PR GATE READY: final develop fetch/rebase, targeted tests and version re-probe passed; final command makes the single usage-tracking push and one PR against develop. No publication or CI watch.
 Current verified source commit: 79007d86 (full SHA recorded by Git at checkpoint).
+
+
+## 18:04 UTC: final PR gate ready
+OBSERVED: fetched/rebased on origin/develop b912e75c1028030bcb8427ef09703d724a972a2b immediately before the final targeted run. No upstream changes were introduced. Final targeted run: 44 passed / 0 failed / 0 skipped on first attempt, 30 seconds. Selectors: StreamCloseWriteTest, StreamCloseWriteFramesTest, MuxSessionActivationTest, MuxCloseDuringPublicationTest. Full command output: /tmp/libp2p-close-gate.log; per-case listing: /tmp/libp2p-close-gate-results.log. Verified source is unchanged from the 520-case/checks pass; this final checkpoint changes findings only.
+OBSERVED: final snapshot-35 POM probe still returned 404. Nothing was published. No existing PR for head usage-tracking was found. Both original targeted assertion-red and implementation-removed assertion-red runs gave 1 pass / 5 assertion failures; the first fixed run gave 18 passes, and final runtime packages gave 520 passes. The initial broader old-code run gave 4 pass / 10 fail (six assertions, four controller setup waits), reported separately.
+OBSERVED: reviewed all changed files; no generated output, build cache, log or test result artifact is tracked or untracked for commit. `git diff --check` passed. `ps -eo pid,args -ww` showed zero Gradle wrapper, Gradle daemon/worker or Kotlin compiler helper processes. No background processes remain from this lane. Root disk remains 23 GiB free.
+
+Final brief audit:
+- Task 1 DONE: real TCP+Noise+Yamux reset -> receiver closeFuture -> receiver closeWrite reproduces original failure on develop. Mplex variant included.
+- Task 2 DONE: idempotent successful cleanup contract is documented; shared MuxChannel transition prevents removed-entry lookup and duplicate Mplex frame, while live closeWrite keeps half-close semantics. Callback re-entry covered. Genuine write outcomes unchanged and existing write tests green.
+- Task 3 DONE: every requested lifecycle case included, plus repeated write-close, remote half-close, parent close, callback re-entry, payload/reply, connection reuse and frame counts. 520 package cases and both checkers pass. Green/red/green verification and independent review passes recorded above.
+- Task 4 SOURCE/GATE DONE: snapshot-35 is next confirmed unpublished version, FORK entry and README usage added; all PR prerequisites passed. Final command pushes usage-tracking once and opens one PR against develop; final reply records its URL and final head. No publication, merge, queue entry, deployment, CI watch or other unfinished implementation work.
+Existing-test changes total 12 files: ten formatter-only edits listed above, two cleanup-flow edits listed above; no assertions, iterations or time limits changed.

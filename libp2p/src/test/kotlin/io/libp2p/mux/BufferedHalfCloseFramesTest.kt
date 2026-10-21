@@ -3,6 +3,7 @@ package io.libp2p.mux
 import io.libp2p.core.Stream
 import io.libp2p.core.StreamHandler
 import io.libp2p.core.multistream.MultistreamProtocolV1
+import io.libp2p.etc.types.toVoidCompletableFuture
 import io.libp2p.etc.util.netty.mux.RemoteWriteClosed
 import io.libp2p.mux.mplex.MplexFlag
 import io.libp2p.mux.mplex.MplexFrame
@@ -14,6 +15,7 @@ import io.libp2p.mux.yamux.YamuxFrame
 import io.libp2p.mux.yamux.YamuxFrameCodec
 import io.libp2p.mux.yamux.YamuxHandler
 import io.libp2p.tools.TestChannel
+import io.libp2p.transport.implementation.StreamOverNetty
 import io.netty.buffer.ByteBuf
 import io.netty.buffer.Unpooled
 import io.netty.channel.ChannelHandlerContext
@@ -34,31 +36,41 @@ import java.util.concurrent.TimeUnit
 
 class BufferedHalfCloseFramesTest {
     @ParameterizedTest
-    @CsvSource("true,true", "true,false", "false,true", "false,false")
-    fun `both half closes wait for pending transport writes and queued child writes`(yamux: Boolean, remoteFirst: Boolean) {
+    @CsvSource(
+        "true,true,drain", "true,false,drain", "false,true,drain", "false,false,drain",
+        "true,true,unflushed", "true,false,unflushed", "false,true,unflushed", "false,false,unflushed",
+        "true,true,localReset", "false,true,localReset",
+        "true,true,remoteReset", "false,true,remoteReset",
+        "true,true,parentClose", "false,true,parentClose"
+    )
+    fun `both half closes preserve accepted writes until drain or reset`(yamux: Boolean, remoteFirst: Boolean, finish: String) {
         val accepted = CompletableFuture<Stream>()
         val receiverBytes = ByteArrayOutputStream()
         val eof = CompletableFuture<ByteArray>()
-        val receiverMux = bufferedCloseMux(yamux, false, StreamHandler<Stream> { stream ->
-            stream.pushHandler(object : ChannelInboundHandlerAdapter() {
-                override fun channelRead(ctx: ChannelHandlerContext, msg: Any) {
-                    try {
-                        val bytes = ByteArray((msg as ByteBuf).readableBytes())
-                        msg.readBytes(bytes)
-                        receiverBytes.write(bytes)
-                    } finally {
-                        ReferenceCountUtil.release(msg)
+        val receiverMux = bufferedCloseMux(
+            yamux,
+            false,
+            StreamHandler<Stream> { stream ->
+                stream.pushHandler(object : ChannelInboundHandlerAdapter() {
+                    override fun channelRead(ctx: ChannelHandlerContext, msg: Any) {
+                        try {
+                            val bytes = ByteArray((msg as ByteBuf).readableBytes())
+                            msg.readBytes(bytes)
+                            receiverBytes.write(bytes)
+                        } finally {
+                            ReferenceCountUtil.release(msg)
+                        }
                     }
-                }
 
-                override fun userEventTriggered(ctx: ChannelHandlerContext, evt: Any) {
-                    if (evt === RemoteWriteClosed) eof.complete(receiverBytes.toByteArray())
-                    ctx.fireUserEventTriggered(evt)
-                }
-            })
-            accepted.complete(stream)
-            CompletableFuture.completedFuture(stream)
-        })
+                    override fun userEventTriggered(ctx: ChannelHandlerContext, evt: Any) {
+                        if (evt === RemoteWriteClosed) eof.complete(receiverBytes.toByteArray())
+                        ctx.fireUserEventTriggered(evt)
+                    }
+                })
+                accepted.complete(stream)
+                CompletableFuture.completedFuture(stream)
+            }
+        )
         val senderMux = bufferedCloseMux(yamux, true, StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) })
         val gate = BufferedCloseTransportGate()
         val sender = TestChannel("buffered-close-sender", true, bufferedCloseCodec(yamux), gate, senderMux)
@@ -78,7 +90,12 @@ class BufferedHalfCloseFramesTest {
                 transferBufferedCloseFrames(receiver, sender)
             }
             val firstWrite = outgoing.writeAndFlushWithFuture(firstBuffer)
-            val secondWrite = outgoing.writeAndFlushWithFuture(secondBuffer)
+            val secondWrite = if (finish == "unflushed") {
+                (outgoing as StreamOverNetty).nettyChannel.write(secondBuffer).toVoidCompletableFuture()
+            } else {
+                outgoing.writeAndFlushWithFuture(secondBuffer)
+            }
+            val reenteredClose = firstWrite.thenCompose { outgoing.closeWrite() }
             assertFalse(firstWrite.isDone, "Transport gate must retain the first write")
             outgoing.closeWrite().get(5, TimeUnit.SECONDS)
             if (!remoteFirst) {
@@ -89,17 +106,37 @@ class BufferedHalfCloseFramesTest {
             outgoing.closeWrite().get(5, TimeUnit.SECONDS)
             assertEquals(0, gate.finCount, "FIN must wait for every accepted child write")
 
-            gate.releaseWrites()
-            repeat(20) {
-                transferBufferedCloseFrames(sender, receiver)
-                transferBufferedCloseFrames(receiver, sender)
+            if (finish == "drain" || finish == "unflushed") {
+                gate.releaseWrites()
+                repeat(20) {
+                    transferBufferedCloseFrames(sender, receiver)
+                    transferBufferedCloseFrames(receiver, sender)
+                }
+                firstWrite.get(5, TimeUnit.SECONDS)
+                secondWrite.get(5, TimeUnit.SECONDS)
+                reenteredClose.get(5, TimeUnit.SECONDS)
+                assertTrue(eof.isDone, "The peer must observe end-of-stream after draining")
+                assertArrayEquals(first + second, eof.get(5, TimeUnit.SECONDS))
+                assertEquals(1, gate.finCount, "The muxer must send exactly one FIN")
+                assertTrue(outgoing.closeFuture().isDone)
+                assertTrue(incoming.closeFuture().isDone)
+            } else {
+                when (finish) {
+                    "localReset" -> outgoing.close().get(5, TimeUnit.SECONDS)
+                    "remoteReset" -> {
+                        incoming.close().get(5, TimeUnit.SECONDS)
+                        transferBufferedCloseFrames(receiver, sender)
+                    }
+                    "parentClose" -> sender.close().sync()
+                    else -> error("Unknown finish mode: $finish")
+                }
+                sender.runPendingTasks()
+                assertTrue(firstWrite.isCompletedExceptionally, "Closing must fail the retained write")
+                assertTrue(secondWrite.isCompletedExceptionally, "Closing must fail the queued write")
+                assertTrue(outgoing.closeFuture().isDone, "Closing must remain immediate during a pending half-close")
+                assertEquals(0, gate.finCount, "A reset must not become a FIN")
+                assertFalse(eof.isDone, "A reset must not report a completed reply")
             }
-            firstWrite.get(5, TimeUnit.SECONDS)
-            secondWrite.get(5, TimeUnit.SECONDS)
-            assertArrayEquals(first + second, eof.get(5, TimeUnit.SECONDS))
-            assertEquals(1, gate.finCount, "The muxer must send exactly one FIN")
-            assertTrue(outgoing.closeFuture().isDone)
-            assertTrue(incoming.closeFuture().isDone)
         } finally {
             try {
                 sender.finishAndReleaseAll()
@@ -132,9 +169,9 @@ private fun transferBufferedCloseFrames(from: TestChannel, to: TestChannel) {
 }
 
 private class BufferedCloseTransportGate : ChannelOutboundHandlerAdapter() {
-    private val held = mutableListOf<Pair<Any, ChannelPromise>>()
-    private lateinit var context: ChannelHandlerContext
-    private var holding = true
+    val held = mutableListOf<Pair<Any, ChannelPromise>>()
+    lateinit var context: ChannelHandlerContext
+    var holding = true
     var finCount = 0
         private set
 
@@ -157,14 +194,6 @@ private class BufferedCloseTransportGate : ChannelOutboundHandlerAdapter() {
         if (holding && hasData) held += msg to promise else ctx.write(msg, promise)
     }
 
-    fun releaseWrites() {
-        holding = false
-        val writes = held.toList()
-        held.clear()
-        writes.forEach { (msg, promise) -> context.write(msg, promise) }
-        context.flush()
-    }
-
     override fun close(ctx: ChannelHandlerContext, promise: ChannelPromise) {
         val writes = held.toList()
         held.clear()
@@ -174,4 +203,12 @@ private class BufferedCloseTransportGate : ChannelOutboundHandlerAdapter() {
         }
         ctx.close(promise)
     }
+}
+
+private fun BufferedCloseTransportGate.releaseWrites() {
+    holding = false
+    val writes = held.toList()
+    held.clear()
+    writes.forEach { (msg, promise) -> context.write(msg, promise) }
+    context.flush()
 }

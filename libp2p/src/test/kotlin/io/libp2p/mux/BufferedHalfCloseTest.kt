@@ -18,12 +18,15 @@ import io.netty.channel.ChannelHandlerContext
 import io.netty.channel.ChannelInboundHandlerAdapter
 import io.netty.util.ReferenceCountUtil
 import org.junit.jupiter.api.Assertions.assertArrayEquals
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
 import java.io.ByteArrayOutputStream
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.ExecutionException
 import java.util.concurrent.TimeUnit
 
 class BufferedHalfCloseTest {
@@ -57,7 +60,9 @@ class BufferedHalfCloseTest {
             server.start().get(10, TimeUnit.SECONDS)
             client.start().get(10, TimeUnit.SECONDS)
             val outgoing = client.newStream<Stream>(
-                listOf("/buffered-half-close/1.0.0"), server.peerId, server.listenAddresses().first()
+                listOf("/buffered-half-close/1.0.0"),
+                server.peerId,
+                server.listenAddresses().first()
             ).controller.get(10, TimeUnit.SECONDS)
             val incoming = accepted.get(10, TimeUnit.SECONDS)
             val receiverReady = CompletableFuture<ChannelHandlerContext>()
@@ -114,9 +119,18 @@ class BufferedHalfCloseTest {
                 assertFalse(outgoing.closeFuture().isDone, "closeWrite must preserve the buffered reply until it drains")
                 outgoing.closeWrite().get(10, TimeUnit.SECONDS)
             }
-            val lateWrite = outgoing.writeAndFlushWithFuture(Unpooled.buffer(1).writeByte(7))
+            val lateBuffer = Unpooled.buffer(1).writeByte(7)
+            val lateWrite = outgoing.writeAndFlushWithFuture(lateBuffer)
             senderContext.executor().submit {}.get(10, TimeUnit.SECONDS)
             assertTrue(lateWrite.isCompletedExceptionally, "A write after closeWrite must fail")
+            assertEquals(0, lateBuffer.refCnt(), "The rejected payload must be released")
+            if (yamux) {
+                val failure = assertThrows(ExecutionException::class.java) { lateWrite.get(10, TimeUnit.SECONDS) }
+                assertEquals(
+                    "The stream was closed for writing locally: ${senderContext.channel().id()}",
+                    failure.cause!!.message
+                )
+            }
 
             receiverContext.executor().submit { receiverContext.channel().config().isAutoRead = true }
                 .get(10, TimeUnit.SECONDS)

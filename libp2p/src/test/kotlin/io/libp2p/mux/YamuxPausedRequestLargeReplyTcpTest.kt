@@ -97,19 +97,23 @@ class YamuxPausedRequestLargeReplyTcpTest {
                         val parent = nettyStream.nettyChannel.parent()
                         val muxContext = parent.pipeline().context(MuxHandler::class.java)
                         val streamId = (nettyStream.nettyChannel as MuxChannel<*>).id.id
-                        parent.pipeline().addBefore(muxContext.name(), "observe-second-request", object : ChannelInboundHandlerAdapter() {
-                            override fun channelRead(ctx: ChannelHandlerContext, msg: Any) {
-                                val data = (msg as? YamuxFrame)?.data
-                                val secondRequest = msg is YamuxFrame && msg.type == YamuxType.DATA &&
-                                    msg.id.id == streamId && data != null && data.readableBytes() == 1 &&
-                                    data.getByte(data.readerIndex()).toInt() == 2
-                                try {
-                                    ctx.fireChannelRead(msg)
-                                } finally {
-                                    if (secondRequest) secondRequestAtMux.countDown()
+                        parent.pipeline().addBefore(
+                            muxContext.name(),
+                            "observe-second-request",
+                            object : ChannelInboundHandlerAdapter() {
+                                override fun channelRead(ctx: ChannelHandlerContext, msg: Any) {
+                                    val data = (msg as? YamuxFrame)?.data
+                                    val secondRequest = msg is YamuxFrame && msg.type == YamuxType.DATA &&
+                                        msg.id.id == streamId && data != null && data.readableBytes() == 1 &&
+                                        data.getByte(data.readerIndex()).toInt() == 2
+                                    try {
+                                        ctx.fireChannelRead(msg)
+                                    } finally {
+                                        if (secondRequest) secondRequestAtMux.countDown()
+                                    }
                                 }
                             }
-                        })
+                        )
                     }
                     return CompletableFuture.completedFuture(stream)
                 }
@@ -150,11 +154,13 @@ class YamuxPausedRequestLargeReplyTcpTest {
             assertArrayEquals(payload, received.toByteArray(), "The complete large reply must arrive in order")
             assertTrue(responseWriteComplete.await(5, TimeUnit.SECONDS), "The reply write must report completion")
             assertNull(transferFailure.get(), "The reply write and receive must complete without failure")
-            responder.get().nettyChannel.eventLoop().submit(Callable {
-                assertFalse(responder.get().nettyChannel.config().isAutoRead, "The request stream must remain paused until explicit resume")
-                assertEquals(1L, secondRequestDelivered.count, "Reply completion alone must not deliver the queued request")
-                responder.get().nettyChannel.config().isAutoRead = true
-            }).get(5, TimeUnit.SECONDS)
+            responder.get().nettyChannel.eventLoop().submit(
+                Callable {
+                    assertFalse(responder.get().nettyChannel.config().isAutoRead, "The request stream must remain paused until explicit resume")
+                    assertEquals(1L, secondRequestDelivered.count, "Reply completion alone must not deliver the queued request")
+                    responder.get().nettyChannel.config().isAutoRead = true
+                }
+            ).get(5, TimeUnit.SECONDS)
             assertTrue(secondRequestDelivered.await(5, TimeUnit.SECONDS), "Explicit resume must deliver the queued second request")
             assertArrayEquals(byteArrayOf(2), secondRequestBytes.toByteArray(), "The queued request must arrive exactly once after resume")
         } catch (failure: Throwable) {

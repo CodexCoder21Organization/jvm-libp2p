@@ -22,6 +22,7 @@ class MuxChannel<TData>(
 
     var remoteDisconnected = false
     var localDisconnected = false
+    private var localDisconnectRequested = false
     private var waitingForParentWrite = false
 
     override fun onAutoReadChanged() {
@@ -42,6 +43,11 @@ class MuxChannel<TData>(
 
     private inner class PendingWriteAccountingHandler : ChannelOutboundHandlerAdapter() {
         override fun write(ctx: ChannelHandlerContext, msg: Any, promise: ChannelPromise) {
+            if (localDisconnectRequested || localDisconnected) {
+                ReferenceCountUtil.release(msg)
+                promise.tryFailure(ConnectionClosedException("The stream was closed for writing locally: $id"))
+                return
+            }
             @Suppress("UNCHECKED_CAST")
             val data = msg as TData
             val dataSize = parent.pendingChildWriteSize(data)
@@ -102,6 +108,7 @@ class MuxChannel<TData>(
                 buf.remove(cause)
             }
         }
+        disconnectIfDrained()
     }
 
     private fun removeParentWrite(buf: ChannelOutboundBuffer, cause: Throwable?) {
@@ -122,7 +129,16 @@ class MuxChannel<TData>(
 
     override fun doDisconnect() {
         // Full close removes mux state; a repeated write close has no transition left to send.
-        if (!isOpen || localDisconnected) return
+        if (!isOpen || localDisconnectRequested || localDisconnected) return
+        localDisconnectRequested = true
+        // Include accepted, unflushed writes in the sequence before the muxer's FIN.
+        unsafe().flush()
+        disconnectIfDrained()
+    }
+
+    private fun disconnectIfDrained() {
+        if (!isOpen || !localDisconnectRequested || localDisconnected || waitingForParentWrite) return
+        if (unsafe().outboundBuffer()?.current() != null) return
         localDisconnected = true
         parent.localDisconnect(this)
         deactivate()

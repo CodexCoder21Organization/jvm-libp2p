@@ -107,6 +107,23 @@ When child-stream payloads would cross that connection-wide budget, Yamux resets
 
 This budget gate is Yamux-only. Mplex does not currently enforce an equivalent parent outbound-buffer budget, so applications that need this hard stalled-peer protection should configure Yamux rather than assuming the setting applies to every muxer.
 
+## Stream half-close
+
+With Yamux and Mplex, `Stream.closeWrite()` stops accepting new writes and queues end-of-stream after all previously accepted writes, including writes waiting for transport completion or Yamux window credit. The peer receives those payloads before `RemoteWriteClosed`. A peer that has already half-closed can still receive a buffered reply. Repeating `closeWrite()` while the reply drains does not send another close frame.
+
+The `closeWrite()` future acknowledges the close request; retain the write futures to check payload completion. Explicit stream reset or connection close still fails pending writes.
+
+```kotlin
+import io.libp2p.core.Stream
+import io.netty.buffer.Unpooled
+
+fun replyAndCloseWrite(stream: Stream, reply: ByteArray) {
+    val write = stream.writeAndFlushWithFuture(Unpooled.wrappedBuffer(reply))
+    stream.closeWrite().join()
+    write.join()
+}
+```
+
 ## Child stream read pausing
 
 Each child stream channel keeps one Netty `ChannelConfig` for its lifetime. For a `StreamOverNetty`, setting `nettyChannel.config().isAutoRead = false` holds inbound payloads for that stream in arrival order. A pause made from another thread can allow at most one payload whose delivery was already in progress when the setter returned. Setting auto-read back to `true` delivers held payloads in order, followed by any received end-of-stream event; closing the stream releases held payloads. The muxer pauses reads on the parent connection while any child is paused, then restores the parent's earlier auto-read setting when all paused children resume or close. This stops new transport reads for every stream on that connection until all paused children resume or close.

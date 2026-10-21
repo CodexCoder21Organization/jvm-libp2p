@@ -14,6 +14,7 @@ CodexCoder21 production depends on a set of jvm-libp2p fixes that are **not yet 
 
 On top of the upstream `develop` snapshot (which already provides the #412 thread-shutdown fix), this fork adds the following fixes. Each is meant to go upstream; nothing here is a long-term divergence.
 
+- **Buffered stream half-close ordering** (snapshot-36) — Yamux and Mplex queue the close frame after all accepted child writes complete, including replies larger than the Yamux window when the peer has already half-closed. Later writes fail immediately; explicit reset, write-completion accounting, and buffer limits retain their existing behavior. Real TCP/Noise and held-transport tests cover both close orders, queued writes, complete payload delivery, and end-of-stream.
 - **Idempotent stream write close** (snapshot-35) — Yamux and Mplex child streams stop revisiting mux state once fully closed or already closed for writing. A `Stream.closeWrite()` after a remote reset, local close, or parent close succeeds without looking up a removed Yamux entry or emitting another Mplex close frame. Live streams still half-close and allow replies in the other direction.
 - **Fast graceful shutdown** — `PlainNettyTransport.close()` and `QuicTransport.close()` pass `quietPeriod = 0` to `shutdownGracefully()`, so `Host.stop()` returns promptly instead of waiting out Netty's default (~2s) quiet period.
 - **Listener-port leak fix** — repairs a close/listen race in `PlainNettyTransport` where a closing listener could still hold its port as a new bind raced in, leaking listener ports.
@@ -40,7 +41,7 @@ Fork releases are published to [kotlin.directory](https://kotlin.directory) unde
 The version assigned to the current source is below; publication is a separate release step.
 
 ```
-community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-35
+community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-36
 ```
 
 ## When this fork goes away

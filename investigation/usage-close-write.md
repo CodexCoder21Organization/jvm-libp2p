@@ -39,3 +39,87 @@ OBSERVED: unchanged develop implementation compiled successfully. First run of S
 INFER: Mplex's callback re-entry is a second observable result of the same missing terminal/write-side guard: deactivate fires channelInactive before changing its state; closeWrite from that callback re-enters doDisconnect and deactivate. Setting the write side terminal before full-close callbacks should prevent that recursion.
 NEXT: run only the exact remote-reset reproducer plus frame assertions against unchanged implementation, before adding the fix. This avoids treating setup waits as proof of the reset defect. No existing test edits.
 Current implementation commit: b912e75c1028030bcb8427ef09703d724a972a2b.
+
+
+## 17:49 UTC: focused baseline and cause confirmed
+OBSERVED: focused unchanged-implementation run: 1 passed / 5 assertion failures / 0 skipped (6 cases), 51 seconds including Gradle preparation. Exact remote-reset Yamux reproducer now fails at assertDoesNotThrow with UnknownStreamIdMuxerException after receiver closeFuture completed; Mplex future succeeds. Frame tests fail for both muxers: Yamux repeated closeWrite sets writeOnce twice and closed closeWrite looks up the missing id; Mplex emits an extra close frame for both repeated and full-close cases. No setup failures in this run. Full log: /tmp/libp2p-close-reset-baseline.log.
+OBSERVED: all four initial wait failures were obtaining the initial controller (same fixture line 171), not expiry of closeWrite. They remain reported separately from actual defect assertions.
+OBSERVED: initial checkpoint commit failed due to missing clone-local author identity; set local Codex identity, committed 52269a52, fetched/rebased develop, and pushed https://github.com/CodexCoder21Organization/jvm-libp2p/tree/wip/usage-libp2p-fix-ckpt. The shell had continued into the focused build after the failed commit/rebase; this was a process error. Develop remained b912e75c throughout and the successful rebase occurred while that build was preparing. Subsequent build scripts use set -e to prevent continuation after any failed prerequisite.
+
+Remote-reset first assertion's full exception stack (JUnit XML):
+
+```text
+org.opentest4j.AssertionFailedError: Unexpected exception thrown: java.util.concurrent.ExecutionException: io.libp2p.mux.UnknownStreamIdMuxerException: Stream with id ae1a66fffe6bce35-00128fe5-00000003-4b067298e5f5f049-b979ef80/1 not found
+	at app//org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:152)
+	at app//org.junit.jupiter.api.AssertDoesNotThrow.createAssertionFailedError(AssertDoesNotThrow.java:84)
+	at app//org.junit.jupiter.api.AssertDoesNotThrow.assertDoesNotThrow(AssertDoesNotThrow.java:53)
+	at app//org.junit.jupiter.api.AssertDoesNotThrow.assertDoesNotThrow(AssertDoesNotThrow.java:36)
+	at app//org.junit.jupiter.api.Assertions.assertDoesNotThrow(Assertions.java:3199)
+	at app//io.libp2p.mux.StreamCloseWriteTest$remoteResetThenCloseWrite$1.invoke(StreamCloseWriteTest.kt:36)
+	at app//io.libp2p.mux.StreamCloseWriteTest$remoteResetThenCloseWrite$1.invoke(StreamCloseWriteTest.kt:33)
+	at app//io.libp2p.mux.StreamCloseWriteTestKt.withCloseWriteStreams(StreamCloseWriteTest.kt:173)
+	at app//io.libp2p.mux.StreamCloseWriteTestKt.withCloseWriteStreams$default(StreamCloseWriteTest.kt:137)
+	at app//io.libp2p.mux.StreamCloseWriteTest.remoteResetThenCloseWrite(StreamCloseWriteTest.kt:33)
+	at java.base@21.0.12.1/java.lang.reflect.Method.invoke(Method.java:580)
+	at java.base@21.0.12.1/java.util.Optional.ifPresent(Optional.java:178)
+	at java.base@21.0.12.1/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:184)
+	at java.base@21.0.12.1/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:197)
+	at java.base@21.0.12.1/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:184)
+	at java.base@21.0.12.1/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:184)
+	at java.base@21.0.12.1/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:197)
+	at java.base@21.0.12.1/java.util.Spliterators$ArraySpliterator.forEachRemaining(Spliterators.java:1024)
+	at java.base@21.0.12.1/java.util.stream.AbstractPipeline.copyInto(AbstractPipeline.java:509)
+	at java.base@21.0.12.1/java.util.stream.AbstractPipeline.wrapAndCopyInto(AbstractPipeline.java:499)
+	at java.base@21.0.12.1/java.util.stream.ForEachOps$ForEachOp.evaluateSequential(ForEachOps.java:151)
+	at java.base@21.0.12.1/java.util.stream.ForEachOps$ForEachOp$OfRef.evaluateSequential(ForEachOps.java:174)
+	at java.base@21.0.12.1/java.util.stream.AbstractPipeline.evaluate(AbstractPipeline.java:234)
+	at java.base@21.0.12.1/java.util.stream.ReferencePipeline.forEach(ReferencePipeline.java:596)
+	at java.base@21.0.12.1/java.util.stream.ReferencePipeline$7$1.accept(ReferencePipeline.java:276)
+	at java.base@21.0.12.1/java.util.ArrayList$ArrayListSpliterator.forEachRemaining(ArrayList.java:1708)
+	at java.base@21.0.12.1/java.util.stream.AbstractPipeline.copyInto(AbstractPipeline.java:509)
+	at java.base@21.0.12.1/java.util.stream.AbstractPipeline.wrapAndCopyInto(AbstractPipeline.java:499)
+	at java.base@21.0.12.1/java.util.stream.ForEachOps$ForEachOp.evaluateSequential(ForEachOps.java:151)
+	at java.base@21.0.12.1/java.util.stream.ForEachOps$ForEachOp$OfRef.evaluateSequential(ForEachOps.java:174)
+	at java.base@21.0.12.1/java.util.stream.AbstractPipeline.evaluate(AbstractPipeline.java:234)
+	at java.base@21.0.12.1/java.util.stream.ReferencePipeline.forEach(ReferencePipeline.java:596)
+	at java.base@21.0.12.1/java.util.stream.ReferencePipeline$7$1.accept(ReferencePipeline.java:276)
+	at java.base@21.0.12.1/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:197)
+	at java.base@21.0.12.1/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:197)
+	at java.base@21.0.12.1/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:197)
+	at java.base@21.0.12.1/java.util.ArrayList$ArrayListSpliterator.forEachRemaining(ArrayList.java:1708)
+	at java.base@21.0.12.1/java.util.stream.AbstractPipeline.copyInto(AbstractPipeline.java:509)
+	at java.base@21.0.12.1/java.util.stream.AbstractPipeline.wrapAndCopyInto(AbstractPipeline.java:499)
+	at java.base@21.0.12.1/java.util.stream.ForEachOps$ForEachOp.evaluateSequential(ForEachOps.java:151)
+	at java.base@21.0.12.1/java.util.stream.ForEachOps$ForEachOp$OfRef.evaluateSequential(ForEachOps.java:174)
+	at java.base@21.0.12.1/java.util.stream.AbstractPipeline.evaluate(AbstractPipeline.java:234)
+	at java.base@21.0.12.1/java.util.stream.ReferencePipeline.forEach(ReferencePipeline.java:596)
+	at java.base@21.0.12.1/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at java.base@21.0.12.1/java.util.ArrayList.forEach(ArrayList.java:1596)
+Caused by: java.util.concurrent.ExecutionException: io.libp2p.mux.UnknownStreamIdMuxerException: Stream with id ae1a66fffe6bce35-00128fe5-00000003-4b067298e5f5f049-b979ef80/1 not found
+	at java.base/java.util.concurrent.CompletableFuture.reportGet(CompletableFuture.java:396)
+	at java.base/java.util.concurrent.CompletableFuture.get(CompletableFuture.java:2096)
+	at io.libp2p.mux.StreamCloseWriteTest$remoteResetThenCloseWrite$1.invoke$lambda-0(StreamCloseWriteTest.kt:37)
+	at org.junit.jupiter.api.AssertDoesNotThrow.assertDoesNotThrow(AssertDoesNotThrow.java:49)
+	... 42 more
+Caused by: io.libp2p.mux.UnknownStreamIdMuxerException: Stream with id ae1a66fffe6bce35-00128fe5-00000003-4b067298e5f5f049-b979ef80/1 not found
+	at app//io.libp2p.mux.yamux.YamuxHandler.getStreamHandlerOrReleaseAndThrow(YamuxHandler.kt:362)
+	at app//io.libp2p.mux.yamux.YamuxHandler.getStreamHandlerOrThrow(YamuxHandler.kt:355)
+	at app//io.libp2p.mux.yamux.YamuxHandler.onLocalDisconnect(YamuxHandler.kt:549)
+	at app//io.libp2p.etc.util.netty.mux.AbstractMuxHandler.localDisconnect(AbstractMuxHandler.kt:354)
+	at app//io.libp2p.etc.util.netty.mux.MuxChannel.doDisconnect(MuxChannel.kt:125)
+	at app//io.netty.channel.AbstractChannel$AbstractUnsafe.disconnect(AbstractChannel.java:460)
+	at app//io.netty.channel.DefaultChannelPipeline$HeadContext.disconnect(DefaultChannelPipeline.java:1366)
+	at app//io.netty.channel.AbstractChannelHandlerContext.disconnect(AbstractChannelHandlerContext.java:593)
+	at app//io.netty.channel.AbstractChannelHandlerContext.lambda$disconnect$5(AbstractChannelHandlerContext.java:609)
+	at app//io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:148)
+	at app//io.netty.util.concurrent.AbstractEventExecutor.safeExecute(AbstractEventExecutor.java:141)
+	at app//io.netty.util.concurrent.SingleThreadEventExecutor.runAllTasks(SingleThreadEventExecutor.java:535)
+	at app//io.netty.channel.SingleThreadIoEventLoop.run(SingleThreadIoEventLoop.java:201)
+	at app//io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:1195)
+	at app//io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+	at app//io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+	at java.base@21.0.12.1/java.lang.Thread.run(Thread.java:1583)
+
+```
+
+Mechanism to fix: MuxChannel.doDisconnect visits mux state even after full close or repeated local write-close; full-close callbacks may also re-enter disconnect before AbstractChildChannel marks itself closed. Reproducer: real TCP+Noise+Yamux remote reset, receiver closeFuture, then receiver closeWrite; two mux frame-count assertions cover the shared Mplex path.

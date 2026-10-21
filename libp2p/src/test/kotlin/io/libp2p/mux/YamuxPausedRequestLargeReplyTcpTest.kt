@@ -15,6 +15,7 @@ import io.netty.buffer.Unpooled
 import io.netty.channel.ChannelHandlerContext
 import io.netty.channel.SimpleChannelInboundHandler
 import org.junit.jupiter.api.Assertions.assertArrayEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.io.ByteArrayOutputStream
@@ -100,6 +101,7 @@ class YamuxPausedRequestLargeReplyTcpTest {
             )
             assertArrayEquals(payload, received.toByteArray(), "The complete large reply must arrive in order")
             assertTrue(responseWriteComplete.await(5, TimeUnit.SECONDS), "The reply write must report completion")
+            assertNull(transferFailure.get(), "The reply write and receive must complete without failure")
         } catch (failure: Throwable) {
             primary = failure
         } finally {

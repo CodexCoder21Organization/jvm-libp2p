@@ -128,9 +128,31 @@ fun replyAndCloseWrite(stream: Stream, reply: ByteArray): CompletableFuture<Unit
 
 ## Child stream read pausing
 
-Each child stream channel keeps one Netty `ChannelConfig` for its lifetime. For a `StreamOverNetty`, setting `nettyChannel.config().isAutoRead = false` holds inbound payloads for that stream in arrival order. A pause made from another thread can allow at most one payload whose delivery was already in progress when the setter returned. Setting auto-read back to `true` delivers held payloads in order, followed by any received end-of-stream event; closing the stream releases held payloads. The muxer pauses reads on the parent connection while any child is paused, then restores the parent's earlier auto-read setting when all paused children resume or close. This stops new transport reads for every stream on that connection until all paused children resume or close.
+Each child stream channel keeps one Netty `ChannelConfig` for its lifetime. For a `StreamOverNetty`, setting `nettyChannel.config().isAutoRead = false` holds inbound payloads for that stream in arrival order. A pause made from another thread can allow at most one payload whose delivery was already in progress when the setter returned. Setting auto-read back to `true` delivers held payloads in order, followed by any received end-of-stream event; closing the stream releases held payloads.
 
-Already decoded Mplex payloads have a finite limit of 64 frames and four maximum-length frames' worth of bytes per paused child. Yamux uses its receive window as the paused byte bound, with no separate frame limit, and returns window credit only after delivery. A stream that exceeds its applicable limit is closed and its held payloads are released.
+| Muxer | Paused child | Parent reads and other streams |
+| --- | --- | --- |
+| Yamux | Holds its own delivery and receive-window credit. Held payloads are bounded by its receive window, and credit is returned only after delivery. | Parent reads continue, so sibling streams and window updates for replies on the paused stream keep flowing. |
+| Mplex | Holds payloads up to 64 frames and four maximum-length frames' worth of bytes. | Mplex has no per-stream flow control. Parent reads pause while any child is paused and restore the earlier parent setting when all paused children resume or close. |
+
+A stream that exceeds its applicable limit is closed and its held payloads are released. Setting `autoRead = false` directly on the parent channel stops transport reads for every stream under either muxer. Pausing and resuming a child preserves an already paused parent.
+
+A Yamux request handler can pause further request delivery while asynchronously writing a reply larger than its receive window:
+
+```kotlin
+import io.libp2p.transport.implementation.StreamOverNetty
+import io.netty.buffer.Unpooled
+import java.util.concurrent.CompletableFuture
+
+fun replyWhileRequestsPaused(stream: StreamOverNetty, reply: ByteArray): CompletableFuture<Unit> {
+    val config = stream.nettyChannel.config()
+    config.isAutoRead = false
+    return stream.writeAndFlushWithFuture(Unpooled.wrappedBuffer(reply))
+        .whenComplete { _, _ -> config.isAutoRead = true }
+}
+```
+
+The returned future reports the write result; handle it asynchronously so the stream event loop can keep processing window updates.
 
 ## Connection reuse during close
 

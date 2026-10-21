@@ -4,9 +4,9 @@ Started 2026-10-21 20:40 UTC; deadline 22:00 UTC, checkpoint exit gate 21:50 UTC
 
 ## Plan
 - [done] Read contract/guidance and prior PR history; review existing pause invariants.
-- [in progress] Add deterministic real TCP/Noise regression tests; record baseline assertion failures.
-- [pending] Port per-stream Yamux pausing, retain Mplex behavior, update docs and snapshot-37.
-- [pending] Run mutation control, mux/pause tests, full libp2p suite, formatting/static checks; independent test/code review passes.
+- [done] Add deterministic real TCP/Noise regression tests; record baseline assertion failures.
+- [done] Port per-stream Yamux pausing, retain Mplex behavior, update docs and snapshot-37.
+- [in progress] Run mutation control, mux/pause tests, full libp2p suite, formatting/static checks; independent test/code review passes.
 - [pending] Rebase develop, targeted verification, checkpoint and single PR push; open PR against develop and stop processes.
 
 OBSERVED: Read CONTRACT.md, CLAUDE.md, FORK.md, README.md and the Testing Architecture sections Test-Driven Development and Tests Must Be Hermetically Sealed. Gradle/JUnit conventions apply in this repository.
@@ -40,3 +40,24 @@ Current commit: 9d718392; test-first baseline build running; production unchange
 Mechanism to fix: `AbstractMuxHandler.pauseChild` unconditionally clears parent autoRead, preventing Yamux WINDOW_UPDATE processing for a large reverse-direction reply, and all sibling traffic. Reproducer: TCP/Noise request callback pauses its child before a reply exceeding the initial window; TCP/Noise sibling test pauses A and reconciles its config before sending four windows plus one byte on B.
 
 OBSERVED: First-attempt TCP/Noise reverse-direction baseline: 1 executed, 0 passed, 1 assertion failure, 0 skipped. org.opentest4j.AssertionFailedError: A paused request reader must still receive Yamux window updates so its 1675062-byte reply completes; received 262084 bytes, write completed=false, failure=null ==> expected: <true> but was: <false> Full stack trace: out/baseline-reverse-stacktrace.txt; Gradle log out/baseline-reverse.log. Production remains unchanged.
+
+OBSERVED: Baseline mux gate first attempt: 182 executed, 170 passed, 12 failed, 0 skipped. Production unchanged at 9d718392.
+- io.libp2p.mux.YamuxPausedRequestLargeReplyTcpTest.pausedRequestReadsMustNotStopLargeReplyWindowUpdates(): org.opentest4j.AssertionFailedError: A paused request reader must still receive Yamux window updates so its 1675062-byte reply completes; received 262084 bytes, write completed=false, failure=null ==> expected: <true> but was: <false>
+- io.libp2p.mux.yamux.YamuxHandlerTest.pausingAChildFromItsOwnCloseListenerLeavesParentReadingAndReleasesPayload(): org.opentest4j.AssertionFailedError: expected: <true> but was: <false>
+- io.libp2p.mux.yamux.YamuxHandlerTest.concurrentConfigSettersLeaveParentAndChildInAgreement(): org.opentest4j.AssertionFailedError: expected: <true> but was: <false>
+- io.libp2p.mux.yamux.YamuxHandlerTest.pausingAgainDuringQueuedDeliveryKeepsRemainingPayloadInOrder(): org.opentest4j.AssertionFailedError: expected: <true> but was: <false>
+- io.libp2p.mux.yamux.YamuxHandlerTest.pausedChildrenNeverStopParentReads(): org.opentest4j.AssertionFailedError:
+Expecting value to be true but was false
+- io.libp2p.mux.yamux.YamuxHandlerTest.concurrentPauseResumeOfOneChildNeverTouchesParentOrSibling(): org.opentest4j.AssertionFailedError:
+Expecting value to be false but was true
+- io.libp2p.mux.yamux.YamuxHandlerTest.pausedChildAtItsFullWindowDoesNotHoldSiblingDeliveryOrCredit(): org.opentest4j.AssertionFailedError:
+Expecting value to be true but was false
+- io.libp2p.mux.ChildReadPauseTcpTest.yamux, fragmented transport reads=false: org.opentest4j.AssertionFailedError: only Mplex pauses parent reads; Yamux withholds only the paused child's delivery and credit ==> expected: <false> but was: <true>
+- io.libp2p.mux.ChildReadPauseTcpTest.yamux, fragmented transport reads=true: org.opentest4j.AssertionFailedError: only Mplex pauses parent reads; Yamux withholds only the paused child's delivery and credit ==> expected: <false> but was: <true>
+- io.libp2p.mux.ChildPauseSiblingStreamTcpTest.yamuxPausedChildDoesNotStallSiblingStreamOnTheSameConnection(): org.opentest4j.AssertionFailedError: the sibling stream stalled after 0 of 1048577 bytes while another child on the same Yamux connection was paused ==> expected: <true> but was: <false>
+- io.libp2p.mux.ChildPauseSiblingStreamTcpTest.yamuxPausedChildAtItsFullWindowWithholdsOnlyItsOwnCreditAndResumesInOrder(): org.opentest4j.AssertionFailedError: the sibling stream stalled after 0 of 1048577 bytes while a child holding its full receive window was paused ==> expected: <true> but was: <false>
+- io.libp2p.mux.ChildPauseSiblingStreamTcpTest.yamuxConcurrentPauseResumeOfOneChildNeverStallsSiblingAndKeepsItsOwnOrder(): org.opentest4j.AssertionFailedError: the sibling stream stalled after 0 of 2097154 bytes while the other child was paused by racing callers ==> expected: <true> but was: <false>
+
+OBSERVED: Checkpoint 80ff063f06471adc02712527c98d7c5f8aa85aba is pushed to https://github.com/CodexCoder21Organization/jvm-libp2p/tree/wip/usage-p2p-pause-ckpt. Baseline mux stack traces are retained locally in out/baseline-mux-stacktraces.txt. Port now applies the exact three-file production change from 276ba4ac to develop, retaining all newer half-close behavior.
+
+OBSERVED: First fixed mux gate: 182 executed, 182 passed, 0 failed, 0 skipped. Per-test PASSED lines in out/fixed-mux.log. :libp2p:spotlessApply completed successfully. This includes all newer buffered-half-close tests.

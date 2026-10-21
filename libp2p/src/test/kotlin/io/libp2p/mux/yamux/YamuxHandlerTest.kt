@@ -234,6 +234,7 @@ class YamuxHandlerTest : MuxHandlerAbstractTest() {
             assertThat(paused.inboundMessages).containsExactly("22")
         } finally {
             workers.shutdownNow()
+            check(workers.awaitTermination(5, TimeUnit.SECONDS)) { "pause callers did not stop" }
         }
     }
 

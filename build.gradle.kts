@@ -82,7 +82,8 @@ configure(
     // snapshot-32: activate selected protocols once across coalesced records and preserve close callbacks (PR 50)
     // snapshot-35: make child write-close idempotent after full close, reset, and callback re-entry.
     // snapshot-36: drain accepted child writes before half-close with Yamux and Mplex.
-    version = "1.3.0-codexcoder21-snapshot-36"
+    // snapshot-37: pause Yamux delivery and credit per stream while parent reads continue.
+    version = "1.3.0-codexcoder21-snapshot-37"
 
     apply(plugin = "kotlin")
     apply(plugin = "idea")

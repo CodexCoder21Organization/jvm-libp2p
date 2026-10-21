@@ -304,6 +304,7 @@ class ChildPauseSiblingStreamTcpTest {
             togglers.forEach { it.get(10, TimeUnit.SECONDS) }
         } finally {
             workers.shutdownNow()
+            check(workers.awaitTermination(5, TimeUnit.SECONDS)) { "pause callers did not stop" }
         }
         config.isAutoRead = false
         syncLoop(serverParent)

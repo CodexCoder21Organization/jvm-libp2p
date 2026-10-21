@@ -147,3 +147,15 @@ Existing-test formatting-only edits (before/after as above; required by module-w
 
 NEXT: checkpoint fixed passing step; temporarily remove only the four implementation lines, then rerun focused remote-reset/frame tests to prove red again. Restore the fixed implementation before relevant package checks.
 Current commit before passing checkpoint: e066669e.
+
+## 17:55 UTC: implementation removed and restored
+OBSERVED: removed exactly the four implementation lines (left all tests/docs/version/formatting unchanged), and the focused run went red again: 1 passed / 5 assertion failures / 0 skipped, 62 seconds. Yamux remote-reset assertion failed with the original UnknownStreamIdMuxerException; both frame scenarios failed for both muxers. This is the same result as the focused original baseline, with no controller setup waits. Full output: /tmp/libp2p-close-reverted.log; case listing: /tmp/libp2p-close-reverted-results.log. Restored the fixed MuxChannel from commit d09d0c32807fe6364427e2bf127816fdcf3c1d5f.
+
+Dedicated test review pass (performed independently after the first fixed run):
+OBSERVED: all lifecycle triggers use public Stream/Connection APIs. Real-host tests supply TCP, Noise, identity keys, port 0 and their own strict binding; they wait for closeFuture or RemoteWriteClosed, not elapsed sleeps. The live test checks exact payload bytes in both directions and keeps the connection reusable. Frame tests use real Yamux/Mplex handlers and count actual outbound control frames, which catches Mplex's false-success behavior. Every host and retained frame is closed/released in finally; cleanup failures are preserved. No mocks, reflection, new public test hooks, timeout increases, skipped tests, or iteration reductions. Normal/remote-half-close cases also verify that read direction survives a local half-close. No missing requested lifecycle case identified.
+
+Dedicated implementation review pass:
+OBSERVED: Netty dispatches child close/disconnect on the parent's event loop. The guard is inside that serialized transition, rather than a racing StreamOverNetty pre-check. It precedes both muxer callbacks; full close marks the local write side terminal before onClientClosed/channelInactive callbacks can re-enter it. First live half-close still reaches the existing mux callback, deactivation, and both-halves close path. Parent write futures, buffer disposal, admission counters and reset framing are untouched. No new interface member or dependency. Both shared mux paths and the callback row are exercised by tests. No additional issue identified in the changed code.
+
+NEXT: relevant mux/yamux/mplex/shared-child/core/host packages plus spotlessCheck/detekt, with the fixed implementation restored. No full repository suite requested by this lane.
+Current fixed commit: d09d0c32807fe6364427e2bf127816fdcf3c1d5f.

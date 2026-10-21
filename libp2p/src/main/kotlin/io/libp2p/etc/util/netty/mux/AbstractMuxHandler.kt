@@ -25,6 +25,12 @@ private val log = LoggerFactory.getLogger(AbstractMuxHandler::class.java)
  */
 const val DEFAULT_MAX_INBOUND_STREAMS: Int = 512
 
+/**
+ * Frames a paused child of a flow-controlled muxer may queue before parent reads stop. See
+ * [AbstractMuxHandler.pausedChildFramesBeforeParentPause].
+ */
+const val DEFAULT_PAUSED_CHILD_FRAMES_BEFORE_PARENT_PAUSE: Int = 64
+
 abstract class AbstractMuxHandler<TData>(
     /**
      * Maximum number of concurrently-open INBOUND (remote-initiated) substreams permitted on this
@@ -81,6 +87,15 @@ abstract class AbstractMuxHandler<TData>(
      * delivery, its queue is bounded by [maxPendingChildReadBytes], and sibling streams keep flowing.
      */
     protected open val pauseParentReadsForPausedChild: Boolean = true
+
+    /**
+     * When [pauseParentReadsForPausedChild] is `false`, the number of frames a paused child may queue
+     * before parent reads stop anyway. The receive window bounds a paused child's queued bytes but not
+     * its frame count: a remote sending one-byte frames could otherwise make one stream retain about
+     * one buffer object per window byte. Normal senders stay far below this bound because each write
+     * becomes one frame of up to the maximum frame size.
+     */
+    protected open val pausedChildFramesBeforeParentPause: Int = DEFAULT_PAUSED_CHILD_FRAMES_BEFORE_PARENT_PAUSE
 
     /** A finite limit for payloads a paused child may hold before it is closed. */
     protected open val maxPendingChildReadBytes: Long = 4L * 1024 * 1024
@@ -218,7 +233,11 @@ abstract class AbstractMuxHandler<TData>(
     }
 
     private fun pauseChild(child: MuxChannel<TData>) {
-        if (!pauseParentReadsForPausedChild) return
+        if (!pauseParentReadsForPausedChild &&
+            (pendingInbound[child.id]?.messages?.size ?: 0) < pausedChildFramesBeforeParentPause
+        ) {
+            return
+        }
         synchronized(parentReadLock) {
             if (!child.isOpen || child.config().isAutoRead || !pausedChildren.add(child.id)) return
             val parentChannel = getChannelHandlerContext().channel()

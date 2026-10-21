@@ -113,7 +113,7 @@ With Yamux and Mplex, `Stream.closeWrite()` stops accepting new writes and queue
 
 The `closeWrite()` future acknowledges the close request; retain the write futures to check payload completion. Explicit stream reset or connection close still fails pending writes.
 
-Call the helper below from a `RemoteWriteClosed` callback and handle its returned future asynchronously. Protocol callbacks run on the stream event loop: calling `join()` or `get()` there blocks the window updates needed to finish a large Yamux reply. The helper requests write-close immediately and composes the futures to report completion without blocking the callback.
+Call the helper below from a `RemoteWriteClosed` callback and handle its returned future asynchronously. Protocol callbacks run on the stream event loop. Waiting for an incomplete future with `join()` or `get()` there blocks the window updates needed to finish a large Yamux reply. The helper requests `closeWrite()` immediately and composes the futures to report completion without blocking the callback.
 
 ```kotlin
 import io.libp2p.core.Stream

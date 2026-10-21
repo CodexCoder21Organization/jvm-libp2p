@@ -57,7 +57,9 @@ class ReadmeHalfCloseCallbackTest {
             server.start().get(10, TimeUnit.SECONDS)
             client.start().get(10, TimeUnit.SECONDS)
             val outgoing = client.newStream<Stream>(
-                listOf("/readme-half-close/1.0.0"), server.peerId, server.listenAddresses().first()
+                listOf("/readme-half-close/1.0.0"),
+                server.peerId,
+                server.listenAddresses().first()
             ).controller.get(10, TimeUnit.SECONDS)
             val incoming = accepted.get(10, TimeUnit.SECONDS)
             val reply = ByteArray(3 * INITIAL_WINDOW_SIZE + 37) { (it % 251).toByte() }

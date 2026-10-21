@@ -7,11 +7,11 @@ import io.libp2p.core.PeerId
 import io.libp2p.core.StreamHandler
 import io.libp2p.core.crypto.KeyType
 import io.libp2p.core.crypto.generateKeyPair
-import io.libp2p.multistream.MultistreamProtocolDebugV1
-import io.libp2p.etc.types.seconds
 import io.libp2p.core.multistream.ProtocolBinding
 import io.libp2p.core.multistream.ProtocolDescriptor
 import io.libp2p.core.security.SecureChannel
+import io.libp2p.etc.types.seconds
+import io.libp2p.multistream.MultistreamProtocolDebugV1
 import io.libp2p.tools.NullTransport
 import io.libp2p.transport.implementation.ConnectionOverNetty
 import io.netty.bootstrap.Bootstrap
@@ -175,7 +175,6 @@ class YamuxNegotiationControllerOnStreamCloseTest {
         }
     }
 
-
     /**
      * The production shape: the substream dies because the CONNECTION closed, and the question is not only
      * whether the controller completes but whether the substream's pipeline is torn down at all. A closed
@@ -229,6 +228,7 @@ class YamuxNegotiationControllerOnStreamCloseTest {
         private val localPeerId = PeerId.random()
         private val remoteKey = generateKeyPair(KeyType.ECDSA).second
         private val remotePeerId = PeerId.fromPubKey(remoteKey)
+
         // A negotiation time limit far above the assertion window, so the multistream timeout handler
         // cannot rescue an orphaned controller and make the contract look satisfied.
         val handler = YamuxHandler(

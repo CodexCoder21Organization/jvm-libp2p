@@ -121,6 +121,8 @@ class MuxChannel<TData>(
     }
 
     override fun doDisconnect() {
+        // Full close removes mux state; a repeated write close has no transition left to send.
+        if (!isOpen || localDisconnected) return
         localDisconnected = true
         parent.localDisconnect(this)
         deactivate()
@@ -138,6 +140,8 @@ class MuxChannel<TData>(
     }
 
     override fun doClose() {
+        // Close callbacks may call disconnect before the superclass finishes its teardown.
+        localDisconnected = true
         // The muxer's own bookkeeping - removing this child from `streamMap` and releasing its slot in the
         // inbound-substream admission count - must happen even when the teardown above fails. Without the
         // `finally`, a close that throws leaks a `streamMap` entry and permanently consumes one of the 512

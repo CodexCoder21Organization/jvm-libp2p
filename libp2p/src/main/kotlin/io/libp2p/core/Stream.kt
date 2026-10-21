@@ -59,7 +59,9 @@ interface Stream : P2PChannel {
 
     /**
      * Closes the local side of the [Stream].
-     * [closeWrite] means that local party completed writing to the [Stream]
+     * [closeWrite] means that local party completed writing to the [Stream].
+     * With Yamux and Mplex, repeated calls and calls after full close or reset complete
+     * successfully without another close frame. This does not report delivery of earlier writes.
      * @see io.libp2p.etc.util.netty.mux.RemoteWriteClosed to be notified on the remote
      * stream write side closing
      */

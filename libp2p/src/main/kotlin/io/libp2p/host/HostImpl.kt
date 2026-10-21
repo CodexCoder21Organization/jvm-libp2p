@@ -2,8 +2,8 @@ package io.libp2p.host
 
 import io.libp2p.core.AddressBook
 import io.libp2p.core.ChannelVisitor
-import io.libp2p.core.ConnectionClosedException
 import io.libp2p.core.Connection
+import io.libp2p.core.ConnectionClosedException
 import io.libp2p.core.ConnectionHandler
 import io.libp2p.core.Host
 import io.libp2p.core.Network

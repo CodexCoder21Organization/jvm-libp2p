@@ -4,9 +4,9 @@ Start: 2026-10-21 17:37 UTC. Deadline: 18:57 UTC; checkpoint exit gate: 18:47 UT
 Findings path was not supplied in the lane brief; this file is the lane's findings.
 
 Plan:
-- IN PROGRESS: read contract/source and port the real-host remote-reset reproducer; demonstrate assertion failure.
-- TODO: implement terminal/repeated write-close handling in the shared child path; add all lifecycle cases for Yamux and Mplex.
-- TODO: green/red/green verification, relevant mux/host packages, formatting and static analysis.
+- DONE: read contract/source and port the real-host remote-reset reproducer; demonstrate assertion failure.
+- DONE: implement terminal/repeated write-close handling in the shared child path; add all lifecycle cases for Yamux and Mplex.
+- IN PROGRESS: green/red/green verification, relevant mux/host packages, formatting and static analysis.
 - TODO: probe snapshot version, update public docs, checkpoint; rebase on develop, targeted tests, single PR push/open against develop; stop without CI watch.
 
 OBSERVED: read usage CONTRACT.md fully, FORK.md, CLAUDE.md, README.md, and Testing Architecture's Test-Driven Development and Tests Must Be Hermetically Sealed sections (via authenticated GitHub API; web fetch returned 404). Read the linked UrlProtocol findings and standalone reproducer. No skill directories accessed, no subagents, no other checkout used.
@@ -123,3 +123,27 @@ Caused by: io.libp2p.mux.UnknownStreamIdMuxerException: Stream with id ae1a66fff
 ```
 
 Mechanism to fix: MuxChannel.doDisconnect visits mux state even after full close or repeated local write-close; full-close callbacks may also re-enter disconnect before AbstractChildChannel marks itself closed. Reproducer: real TCP+Noise+Yamux remote reset, receiver closeFuture, then receiver closeWrite; two mux frame-count assertions cover the shared Mplex path.
+
+
+## 17:52 UTC: fixed targeted run
+OBSERVED: first fixed run passed all 18 new parameterized cases (18 passed / 0 failed / 0 skipped), including both real-host remote-reset tests, live payload/reply half-close, full-close callbacks and frame-count cases. No test retries. Full output: /tmp/libp2p-close-fixed.log.
+OBSERVED: four-line shared MuxChannel change: return before onLocalDisconnect for !isOpen or localDisconnected, and set localDisconnected before full-close callbacks. No Yamux/Mplex protocol handler lookup or framing logic changed. Snapshot assigned: 35. Stream KDoc and README document the public behavior, with usage example.
+OBSERVED: module-wide spotlessKotlinApply also corrected existing formatting in the files listed below. Verified identical source after normalizing whitespace and import order, and reviewed the diffs. These are formatting-only: before = existing indentation/line wrapping/import order/blank lines; after = repository ktlint output. No assertion, fixture call, timeout, iteration, or test behavior changed. Retained these mechanical corrections so the requested whole-module spotlessCheck can pass.
+
+Existing production formatting-only edit:
+- libp2p/src/main/kotlin/io/libp2p/host/HostImpl.kt
+
+Existing-test formatting-only edits (before/after as above; required by module-wide formatting gate):
+- libp2p/src/test/kotlin/io/libp2p/core/HostClosedStreamMultistreamReviewTest.kt
+- libp2p/src/test/kotlin/io/libp2p/core/HostHandlerAddedCloseReviewTest.kt
+- libp2p/src/test/kotlin/io/libp2p/core/HostNegotiationCoverageReviewTest.kt
+- libp2p/src/test/kotlin/io/libp2p/core/HostStreamVisitorCloseTest.kt
+- libp2p/src/test/kotlin/io/libp2p/core/LateControllerCompletionReviewTest.kt
+- libp2p/src/test/kotlin/io/libp2p/core/NormalStreamLifetimeReviewTest.kt
+- libp2p/src/test/kotlin/io/libp2p/core/ParentCloseListenerReviewTest.kt
+- libp2p/src/test/kotlin/io/libp2p/etc/util/netty/ChildChannelTeardownIsUnconditionalTest.kt
+- libp2p/src/test/kotlin/io/libp2p/host/NewStreamSurvivesStalePooledConnectionTest.kt
+- libp2p/src/test/kotlin/io/libp2p/mux/yamux/YamuxNegotiationControllerOnStreamCloseTest.kt
+
+NEXT: checkpoint fixed passing step; temporarily remove only the four implementation lines, then rerun focused remote-reset/frame tests to prove red again. Restore the fixed implementation before relevant package checks.
+Current commit before passing checkpoint: e066669e.

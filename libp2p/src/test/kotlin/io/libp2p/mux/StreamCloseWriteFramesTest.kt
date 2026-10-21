@@ -48,8 +48,13 @@ private fun withCloseWriteMux(yamux: Boolean, scenario: (TestChannel, Stream) ->
     val inbound = StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) }
     val mux = if (yamux) {
         YamuxHandler(
-            MultistreamProtocolV1, 1024, null, inbound, true,
-            DEFAULT_MAX_BUFFERED_CONNECTION_WRITES, DEFAULT_ACK_BACKLOG_LIMIT
+            MultistreamProtocolV1,
+            1024,
+            null,
+            inbound,
+            true,
+            DEFAULT_MAX_BUFFERED_CONNECTION_WRITES,
+            DEFAULT_ACK_BACKLOG_LIMIT
         )
     } else {
         MplexHandler(MultistreamProtocolV1, 1024, null, inbound)

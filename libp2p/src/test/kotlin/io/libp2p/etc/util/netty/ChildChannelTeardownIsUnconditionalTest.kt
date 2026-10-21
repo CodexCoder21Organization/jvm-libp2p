@@ -61,7 +61,6 @@ class ChildChannelTeardownIsUnconditionalTest {
         nio.shutdownGracefully(0, 0, TimeUnit.MILLISECONDS).sync()
     }
 
-
     /**
      * A child channel whose parent is ALREADY closed when it registers must still tear down the pipeline
      * its own registration builds.

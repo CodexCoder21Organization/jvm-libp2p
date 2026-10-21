@@ -9,20 +9,20 @@ import io.libp2p.core.dsl.host
 import io.libp2p.core.multistream.StrictProtocolBinding
 import io.libp2p.core.mux.StreamMuxerProtocol
 import io.libp2p.etc.util.netty.mux.RemoteWriteClosed
+import io.libp2p.security.noise.NoiseXXSecureChannel
+import io.libp2p.transport.tcp.TcpTransport
 import io.netty.buffer.ByteBuf
 import io.netty.buffer.Unpooled
 import io.netty.channel.ChannelHandlerContext
 import io.netty.channel.ChannelInboundHandlerAdapter
-import io.libp2p.security.noise.NoiseXXSecureChannel
-import io.libp2p.transport.tcp.TcpTransport
-import org.junit.jupiter.api.Assertions.assertDoesNotThrow
 import org.junit.jupiter.api.Assertions.assertArrayEquals
+import org.junit.jupiter.api.Assertions.assertDoesNotThrow
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
-import java.io.ByteArrayOutputStream
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
+import java.io.ByteArrayOutputStream
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
 
@@ -120,8 +120,11 @@ class StreamCloseWriteTest {
 
                 override fun channelInactive(ctx: ChannelHandlerContext) {
                     outgoing.closeWrite().whenComplete { _, failure ->
-                        if (failure == null) callbackClose.complete(Unit)
-                        else callbackClose.completeExceptionally(failure)
+                        if (failure == null) {
+                            callbackClose.complete(Unit)
+                        } else {
+                            callbackClose.completeExceptionally(failure)
+                        }
                     }
                     ctx.fireChannelInactive()
                 }
@@ -131,7 +134,6 @@ class StreamCloseWriteTest {
             assertDoesNotThrow { callbackClose.get(10, TimeUnit.SECONDS) }
         }
     }
-
 }
 
 private fun withCloseWriteStreams(

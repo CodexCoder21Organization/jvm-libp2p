@@ -91,6 +91,9 @@ abstract class AbstractMuxHandler<TData>(
     /** Size of one retained child payload. Production muxers override this for ByteBuf. */
     protected open fun pendingChildReadSize(data: TData): Int = 1
 
+    /** Returns the queued payload, releasing [data] if its storage is replaced. */
+    protected open fun preparePendingChildRead(data: TData): TData = data
+
     /** Called only after the child pipeline has received a payload. */
     protected open fun onChildReadDelivered(id: MuxId, dataSize: Int) = Unit
 
@@ -184,7 +187,7 @@ abstract class AbstractMuxHandler<TData>(
                         child.closeImpl()
                         return
                     }
-                    pending.messages.add(msg)
+                    pending.messages.add(preparePendingChildRead(msg))
                     pending.bytes += size
                     if (child.config().isAutoRead) drainPendingInbound(child)
                 } else {

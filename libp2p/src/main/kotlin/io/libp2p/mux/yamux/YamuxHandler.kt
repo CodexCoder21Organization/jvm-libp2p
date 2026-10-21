@@ -14,6 +14,7 @@ import io.libp2p.etc.util.netty.mux.MuxChannel
 import io.libp2p.etc.util.netty.mux.MuxId
 import io.libp2p.mux.*
 import io.netty.buffer.ByteBuf
+import io.netty.buffer.Unpooled
 import io.netty.channel.ChannelFuture
 import io.netty.channel.ChannelHandlerContext
 import io.netty.channel.ChannelPromise
@@ -486,6 +487,15 @@ open class YamuxHandler(
         get() = false
 
     override val maxPendingChildReadFrames: Int? = null
+
+    override fun preparePendingChildRead(data: ByteBuf): ByteBuf {
+        try {
+            // A queued slice must not keep already-delivered sibling bytes in its backing buffer.
+            return Unpooled.copiedBuffer(data)
+        } finally {
+            data.release()
+        }
+    }
 
     override fun onChildReadDelivered(id: MuxId, dataSize: Int) {
         streamHandlers[id]?.onBytesDelivered(dataSize)

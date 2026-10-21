@@ -76,3 +76,88 @@ OBSERVED: Mutation control first attempt: 5 executed, 1 Mplex pass, 4 Yamux asse
 - io.libp2p.mux.ChildPauseSiblingStreamTcpTest.yamuxConcurrentPauseResumeOfOneChildNeverStallsSiblingAndKeepsItsOwnOrder(): org.opentest4j.AssertionFailedError: the sibling stream stalled after 0 of 2097154 bytes while the other child was paused by racing callers ==> expected: <true> but was: <false>
 
 OBSERVED: Port restored, helpers moved to package scope, pause caller pools given bounded shutdown waits: restored mux gate 182 executed, 182 passed, 0 failed, 0 skipped, first attempt. Production matches b5ee9114 exactly. Formatting application succeeds. Current commit b5ee9114; next gate is full :libp2p:test plus spotlessCheck and detekt.
+
+## 20:53 UTC — full suite
+OBSERVED: Full :libp2p:test on cabf264f, first attempt: 1153 total, 1150 passed, 1 failed, 2 pre-existing skipped. Static checks are still running.
+
+OBSERVED: io.libp2p.transport.quic.QuicKuboTestJava.pingKubo()
+
+```text
+java.net.ConnectException: Connection refused
+	at java.base/sun.nio.ch.Net.pollConnect(Native Method)
+	at java.base/sun.nio.ch.Net.pollConnectNow(Net.java:694)
+	at java.base/sun.nio.ch.NioSocketImpl.timedFinishConnect(NioSocketImpl.java:542)
+	at java.base/sun.nio.ch.NioSocketImpl.connect(NioSocketImpl.java:592)
+	at java.base/java.net.Socket.connect(Socket.java:751)
+	at java.base/sun.net.NetworkClient.doConnect(NetworkClient.java:178)
+	at java.base/sun.net.www.http.HttpClient.openServer(HttpClient.java:539)
+	at java.base/sun.net.www.http.HttpClient.openServer(HttpClient.java:644)
+	at java.base/sun.net.www.http.HttpClient.<init>(HttpClient.java:290)
+	at java.base/sun.net.www.http.HttpClient.New(HttpClient.java:394)
+	at java.base/sun.net.www.http.HttpClient.New(HttpClient.java:416)
+	at java.base/sun.net.www.protocol.http.HttpURLConnection.getNewHttpClient(HttpURLConnection.java:1327)
+	at java.base/sun.net.www.protocol.http.HttpURLConnection.plainConnect0(HttpURLConnection.java:1260)
+	at java.base/sun.net.www.protocol.http.HttpURLConnection.plainConnect(HttpURLConnection.java:1146)
+	at java.base/sun.net.www.protocol.http.HttpURLConnection.connect(HttpURLConnection.java:1075)
+	at java.base/sun.net.www.protocol.http.HttpURLConnection.getOutputStream0(HttpURLConnection.java:1477)
+	at java.base/sun.net.www.protocol.http.HttpURLConnection.getOutputStream(HttpURLConnection.java:1440)
+	at io.libp2p.transport.quic.QuicKuboTestJava.getKuboPeerId(QuicKuboTestJava.java:65)
+	at io.libp2p.transport.quic.QuicKuboTestJava.pingKubo(QuicKuboTestJava.java:21)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+
+```
+
+OBSERVED: QuicKuboTestJava calls http://localhost:5001/api/v0/id before creating its Host (lines 21, 59–65). That request is refused; no ipfs executable is installed. This test file is unchanged.
+OBSERVED: An additional explicit sibling-reply test was written after the first full suite compiled its test sources, so that run does not include it. It keeps server request stream A paused throughout a 1,675,062-byte server-to-client reply on sibling B, on the same TCP/Noise connection. It will be run first against the old pause behavior, then against the port.
+Current commit: cabf264f680e27588839fdd01a85edffd00eb0a6.
+
+OBSERVED: First-attempt explicit sibling-reply baseline: 1 assertion failure, 0 passes, 0 skips. With the old production pause restored, reply B stops at 262,082/1,675,062 bytes while A stays paused. The same baseline run also reproduces QuicKuboTestJava.pingKubo: Connection refused at its HTTP call, before creating a host. Thus the full-suite Kubo failure occurs with unchanged develop pause code too. Both full traces follow.
+
+io.libp2p.mux.YamuxPausedRequestSiblingReplyTcpTest.pausedRequestReadsMustNotStopSiblingReplyWindowUpdates()
+
+```text
+org.opentest4j.AssertionFailedError: A paused request reader must not block window updates for its sibling's 1675062-byte reply; received 262082 bytes, write completed=false, failure=null ==> expected: <true> but was: <false>
+	at app//org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+	at app//org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+	at app//org.junit.jupiter.api.AssertTrue.failNotTrue(AssertTrue.java:63)
+	at app//org.junit.jupiter.api.AssertTrue.assertTrue(AssertTrue.java:36)
+	at app//org.junit.jupiter.api.Assertions.assertTrue(Assertions.java:214)
+	at app//io.libp2p.mux.YamuxPausedRequestSiblingReplyTcpTest.pausedRequestReadsMustNotStopSiblingReplyWindowUpdates(YamuxPausedRequestSiblingReplyTcpTest.kt:106)
+	at java.base@21.0.12.1/java.lang.reflect.Method.invoke(Method.java:580)
+	at java.base@21.0.12.1/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at java.base@21.0.12.1/java.util.ArrayList.forEach(ArrayList.java:1596)
+
+```
+
+io.libp2p.transport.quic.QuicKuboTestJava.pingKubo()
+
+```text
+java.net.ConnectException: Connection refused
+	at java.base/sun.nio.ch.Net.pollConnect(Native Method)
+	at java.base/sun.nio.ch.Net.pollConnectNow(Net.java:694)
+	at java.base/sun.nio.ch.NioSocketImpl.timedFinishConnect(NioSocketImpl.java:542)
+	at java.base/sun.nio.ch.NioSocketImpl.connect(NioSocketImpl.java:592)
+	at java.base/java.net.Socket.connect(Socket.java:751)
+	at java.base/sun.net.NetworkClient.doConnect(NetworkClient.java:178)
+	at java.base/sun.net.www.http.HttpClient.openServer(HttpClient.java:539)
+	at java.base/sun.net.www.http.HttpClient.openServer(HttpClient.java:644)
+	at java.base/sun.net.www.http.HttpClient.<init>(HttpClient.java:290)
+	at java.base/sun.net.www.http.HttpClient.New(HttpClient.java:394)
+	at java.base/sun.net.www.http.HttpClient.New(HttpClient.java:416)
+	at java.base/sun.net.www.protocol.http.HttpURLConnection.getNewHttpClient(HttpURLConnection.java:1327)
+	at java.base/sun.net.www.protocol.http.HttpURLConnection.plainConnect0(HttpURLConnection.java:1260)
+	at java.base/sun.net.www.protocol.http.HttpURLConnection.plainConnect(HttpURLConnection.java:1146)
+	at java.base/sun.net.www.protocol.http.HttpURLConnection.connect(HttpURLConnection.java:1075)
+	at java.base/sun.net.www.protocol.http.HttpURLConnection.getOutputStream0(HttpURLConnection.java:1477)
+	at java.base/sun.net.www.protocol.http.HttpURLConnection.getOutputStream(HttpURLConnection.java:1440)
+	at io.libp2p.transport.quic.QuicKuboTestJava.getKuboPeerId(QuicKuboTestJava.java:65)
+	at io.libp2p.transport.quic.QuicKuboTestJava.pingKubo(QuicKuboTestJava.java:21)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+
+```
+
+OBSERVED: First full-suite spotlessCheck and detekt gates succeeded for every project (the command failed only on :libp2p:test). Existing skipped tests are QuicServerTestJava.checkConnectionIsNotClosedByTimeout and EchoSampleTest.connect1; neither is edited.

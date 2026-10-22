@@ -2,7 +2,7 @@
 
 Plan
 - [completed] Verify cleanup regression with fix, reversed fix, then restored fix.
-- [in progress] Original Noise class now 9/0 after precise checks; package first complete 57/0; full :libp2p:test running once (--max-workers=2).
+- [completed] Original Noise class 9/0 after precise checks; package first complete 57/0; full :libp2p:test run once: 1159/1/2 (--max-workers=2).
 - [in progress] Separate test/code review and README contract complete; formatting/static checks pending.
 - [pending] Rebase develop, targeted final verification, one PR branch push and PR against develop; process audit.
 
@@ -187,3 +187,8 @@ java.util.concurrent.TimeoutException: Timeout waiting for condition
 	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
 
 ```
+
+2026-10-22 05:05 UTC — full run complete; isolate its one failure
+OBSERVED: Full suite exactly once: 1159 passed / 1 failed / 2 skipped, 1162 CASE lines. Only failure is GossipTwoHostTest.test message larger than mplex frame: TimeoutException at TwoGossipHostTestBase.kt:123 from subscriber wait at GossipTwoHostTest.kt:36. All Noise cases and all concurrent listen-close cases passed. First earlier port failure remains unexplained; its passing full-suite repeat is not counted as a root-cause explanation. Full socket observations are saved; no failing port in this run to attribute.
+OBSERVED: Gossip sender/receiver logs show subscription at 04:59:31.954, then receiver large Mplex frames (1,048,576 + 38 bytes) at 04:59:52.517/.519 and the publish RPC at .753 during cleanup after the subscriber wait. Do not call this merely a slow test; no mechanism established yet. LoggingHandlerShort formats the entire message through super.format before shortening it, so message formatting is a candidate, not a proven cause.
+PLAN: One controlled targeted comparison with the exact origin/develop PlainNettyTransport production source, retaining unchanged Gossip test/assertions/log setup, to check whether this full-suite failure exists without this PR. This is a baseline comparison, not a blind retry. Restore exact fixed source afterward, preserve every result, then static checks and final Noise-targeted gate. No second full-suite run.

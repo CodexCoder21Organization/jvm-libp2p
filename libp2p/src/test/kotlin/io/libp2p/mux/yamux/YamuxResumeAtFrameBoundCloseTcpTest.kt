@@ -75,29 +75,38 @@ class YamuxResumeAtFrameBoundCloseTcpTest {
         try {
             client.start().get(5, TimeUnit.SECONDS)
             server.start().get(5, TimeUnit.SECONDS)
-            val sender = client.newStream<Stream>(listOf("/test/yamux-resume-bound/1.0.0"),
-                server.peerId, server.listenAddresses().single()).controller.get(5, TimeUnit.SECONDS)
+            val sender = client.newStream<Stream>(
+                listOf("/test/yamux-resume-bound/1.0.0"),
+                server.peerId,
+                server.listenAddresses().single()
+            ).controller.get(5, TimeUnit.SECONDS)
             val receiver = accepted.get(5, TimeUnit.SECONDS)
             val child = receiver.nettyChannel
             val parent = child.parent()
             child.config().isAutoRead = false
-            parent.eventLoop().submit(Callable {
-                var frames = 0
-                parent.pipeline().addBefore(parent.pipeline().context(YamuxHandler::class.java).name(),
-                    "resume-order-observer", object : ChannelInboundHandlerAdapter() {
-                        override fun channelRead(ctx: ChannelHandlerContext, msg: Any) {
-                            if (msg is YamuxFrame && msg.id == child.id() &&
-                                msg.type == YamuxType.DATA && msg.length > 0 && ++frames == 65) {
-                                arrivingPayload.complete(msg.data!!)
-                                blockedNextFrame.countDown()
-                                check(continueNextFrame.await(5, TimeUnit.SECONDS)) {
-                                    "The next frame must be released after the public resume call"
+            parent.eventLoop().submit(
+                Callable {
+                    var frames = 0
+                    parent.pipeline().addBefore(
+                        parent.pipeline().context(YamuxHandler::class.java).name(),
+                        "resume-order-observer",
+                        object : ChannelInboundHandlerAdapter() {
+                            override fun channelRead(ctx: ChannelHandlerContext, msg: Any) {
+                                if (msg is YamuxFrame && msg.id == child.id() &&
+                                    msg.type == YamuxType.DATA && msg.length > 0 && ++frames == 65
+                                ) {
+                                    arrivingPayload.complete(msg.data!!)
+                                    blockedNextFrame.countDown()
+                                    check(continueNextFrame.await(5, TimeUnit.SECONDS)) {
+                                        "The next frame must be released after the public resume call"
+                                    }
                                 }
+                                ctx.fireChannelRead(msg)
                             }
-                            ctx.fireChannelRead(msg)
                         }
-                    })
-            }).get(5, TimeUnit.SECONDS)
+                    )
+                }
+            ).get(5, TimeUnit.SECONDS)
             repeat(65) { index ->
                 sender.writeAndFlushWithFuture(Unpooled.wrappedBuffer(byteArrayOf(index.toByte())))
                     .get(5, TimeUnit.SECONDS)
@@ -117,8 +126,11 @@ class YamuxResumeAtFrameBoundCloseTcpTest {
             assertTrue(parent.config().isAutoRead, "Closing the resumed child must leave control traffic readable")
         } finally {
             continueNextFrame.countDown()
-            try { client.stop().get(10, TimeUnit.SECONDS) }
-            finally { server.stop().get(10, TimeUnit.SECONDS) }
+            try {
+                client.stop().get(10, TimeUnit.SECONDS)
+            } finally {
+                server.stop().get(10, TimeUnit.SECONDS)
+            }
         }
     }
 }

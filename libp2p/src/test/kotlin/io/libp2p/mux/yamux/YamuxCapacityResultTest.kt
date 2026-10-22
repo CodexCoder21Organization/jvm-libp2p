@@ -12,8 +12,8 @@ import io.libp2p.core.multistream.ProtocolBinding
 import io.libp2p.core.multistream.ProtocolDescriptor
 import io.libp2p.core.mux.StreamMuxer
 import io.libp2p.etc.CONNECTION
-import io.libp2p.mux.MuxHandler
 import io.libp2p.multistream.MultistreamProtocolDebugV1
+import io.libp2p.mux.MuxHandler
 import io.libp2p.tools.TestChannel
 import io.libp2p.transport.implementation.StreamOverNetty
 import io.netty.buffer.ByteBuf
@@ -448,6 +448,7 @@ class YamuxCapacityResultTest {
             channel.finishAndReleaseAll()
         }
     }
+
     @Test
     fun testDirectHandlerKeepsPendingControllerCause() {
         CapacityPair().use { pair ->
@@ -466,5 +467,4 @@ class YamuxCapacityResultTest {
             assertThat(bytes.refCnt()).isZero()
         }
     }
-
 }

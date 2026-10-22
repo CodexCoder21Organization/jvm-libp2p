@@ -1,9 +1,9 @@
 # Noise child-process qualification
 
 Plan
-- [in progress] Read harness/evidence; measure child startup, work and shutdown.
-- [pending] State mechanism and invariants; deterministic failing regression.
-- [pending] Fix; pass/revert/red/restore; independent test and code review passes.
+- [completed] Read harness/evidence; measure child startup, work and shutdown.
+- [completed] State mechanism and invariants; failing ordering regression.
+- [in progress] Fix passes; reversal queued; independent test/code review passes complete.
 - [pending] First class and Noise-package qualification, full libp2p suite once, format/static checks.
 - [pending] Rebase develop, targeted verification, checkpoint and PR.
 
@@ -54,3 +54,11 @@ OBSERVED: Explicit transport-only 100ms quantum implemented using Netty public S
 
 2026-10-22 03:11 UTC — FIRST FIXED TEST GREEN
 OBSERVED: Same NoiseEstablishedIoQueueTest passes first fixed attempt, 1/0/0, after successful compilation. No test/body/hold duration altered. XML and log preserved. The callback queue now yields to the real established read before the marker. Saving exact fixed source, then restoring old worker construction for the required reversal.
+
+2026-10-22 03:13 UTC — dedicated review passes
+REVIEW (test coverage, independent pass): New regression uses real TCP/Noise hosts, a real established Ping and 64 genuine further Ping calls; gates force the named task-budget interval, not CPU load. First callback writes before the gate; all queued callbacks precede the marker; marker completion safely publishes the ping list. Failure, callback failure, child deadline and host cleanup all release the gate and close owned resources. Existing inline/sequential, computation-order, timeout and transport close/daemon suites remain the neighboring checks; no existing test/fake/fixture/golden changed.
+REVIEW (code, independent adversarial pass): explicit constructor retains the inherited max-pending-task setting and default rejection handling; worker group remains one lazy daemon singleton; boss group, close, channel registration and cancellation paths unchanged. newChild only uses constructor arguments during superclass construction, so no uninitialized subclass fields. Factory helper and private worker subtype are package-level; no new public API, reflection, swallowed exception or dependency. Application callbacks remain non-preemptible, documented in README.
+OBSERVED: Reversal build has been waiting for the shared box gate since 03:11; no source changes are made while it waits.
+
+2026-10-22 03:16 UTC — REVERSAL RED, EXACT FIX RESTORED
+OBSERVED: Replaced only PlainNettyTransport with origin/develop source, retaining the identical new test. Reversal: 1 case, 0 passed / 1 failed / 0 skipped, the same established-read-before-marker assertion failed. Log/XML preserved. Restored out/plain-netty-fixed.kt; cmp confirms byte-for-byte identity with the first passing implementation. No deadline/iteration/assertion changed.

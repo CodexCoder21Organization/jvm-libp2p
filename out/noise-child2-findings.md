@@ -167,3 +167,6 @@ OBSERVED: Precision-only reversal failed the intended ordering assertion; exact 
 
 2026-10-22 04:55:49 UTC
 OBSERVED: precision-restored-targeted, source head 5638106fa2eecfe3211fa4e5dfef2b55cac29bd0: 16 passed / 0 failed / 0 skipped; 16 CASE lines, process exit 0.
+
+2026-10-22 04:57:21 UTC
+OBSERVED: noise-package-first, source head 528ca1b00db7e6778ce175f52b61c6d01c8d31d4: 57 passed / 0 failed / 0 skipped; 57 CASE lines, process exit 0.

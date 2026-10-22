@@ -109,3 +109,12 @@ Invariant table (renders the ownership rules recorded before the transport edit)
 2026-10-22 03:42:15 UTC OBSERVED: starting qualification-class-first
 
 2026-10-22 03:45:39 UTC OBSERVED: qualification-class-first first attempt: 16 cases, 15 passed / 1 failed / 0 skipped, exit 1. Full traces in out/qualification-class-first-failure-traces.txt.
+
+2026-10-22 03:45:42 UTC OBSERVED: checkpoint 6601371f4ba1f0902543203be18645e69a351dc2
+
+2026-10-22 03:45:45 UTC OBSERVED: starting noise-package-first
+
+2026-10-22 03:49 UTC — cleanup mechanism still open
+OBSERVED: After both fixes the original inline case passes and fairness prints p95=147ms, elapsed=13409ms, but the 15s process-exit assertion still fails with proof output present. Class+transport total 16 cases, 15 passed / 1 failed / 0 skipped. This isolates remaining time after successful workload. Earlier JFR/live stack already captured PlainNettyTransport.close:180 initializing and starting unused client boss loops.
+OBSERVED: Stopped the tracked qualification helper and its current package Gradle client by numeric PID before the scheduled full suite. Package attempt is INTERRUPTED, with no complete total; full suite NOT STARTED. Continuing the known cleanup mechanism rather than running a full suite against a known unfinished fix.
+INVARIANT before cleanup edit: only listening transports create/own an accept group; closing a client transport must not create one. listen/server creation and close already share the transport monitor, so close snapshots only an initialized group under that monitor; repeated close uses the same group, and no post-close listen may create one. New public real TCP/Noise/JFR test records only ThreadStart names during client.stop and must initially observe the unwanted accept loop. No thread or heap output is produced.

@@ -67,3 +67,20 @@ org.opentest4j.AssertionFailedError: Port 33713 leaked after 83/200 parallel lis
 
 ```
 INFER: The port assertion alone does not identify which process held that shared ephemeral port; the rejected notification names a separate listen-future conversion after leaving the lock. No evidence yet distinguishes a transport leak from another process using the temporarily unbound port. This remains an OPEN qualification finding, not a claimed baseline issue or a passing lifecycle suite. No existing test/assertion changed or retried. Proceeding to the explicitly requested first Noise class attempt; inspect precise port ownership if lifecycle failure recurs in the one full run.
+
+2026-10-22 04:35 UTC — first original Noise class: 8/1
+OBSERVED: First NoiseHandshakeOffEventLoopTest attempt in this lane: 8 passed / 1 failed / 0 skipped. Fairness child completed (not process deadline failure), p95=584ms, elapsed=9499ms, all 644 crypto tasks off-loop. Inline/sequential and all other original cases passed. Full trace:
+```
+io.libp2p.security.noise.NoiseHandshakeOffEventLoopTest :: established connection stays responsive during concurrent Noise handshakes()
+java.lang.AssertionError: Noise handshake starvation child JVM failed:
+Noise handshake storm: peers=160 pingLatenciesMs=[1, 1, 1, 2, 2, 3, 3, 3, 4, 8, 9, 11, 14, 39, 50, 66, 453, 510, 584, 592] p95Ms=584 elapsedMs=9499 execution=NoiseHandshakeExecutionSnapshot(inlineHandshakes=0, offloadedHandshakes=322, inlineCryptoTasks=0, inlineCryptoTasksOffEventLoop=0, offloadedCryptoTasks=644, offloadedCryptoTasksOnEventLoop=0)
+Exception in thread "main" java.lang.IllegalStateException: Established ping p95 was 584ms during 160 concurrent Noise handshakes; handshake crypto must not block the shared Netty worker
+	at io.libp2p.security.noise.NoiseHandshakeStarvationHarness.main(NoiseHandshakeOffEventLoopTest.kt:409)
+
+	at io.libp2p.security.noise.NoiseHandshakeOffEventLoopTest.established connection stays responsive during concurrent Noise handshakes(NoiseHandshakeOffEventLoopTest.kt:77)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+
+```
+INFER: Cleanup process-exit issue is resolved for this run, but 100ms queued-task policy does not by itself ensure the original fairness contract. Need profile event-loop work outside the observed crypto tasks, including I/O-ready batches versus queued callback batches; no further code change until mechanism and a fail-first public reproducer are established. Package/full qualification paused for this known unfinished issue.

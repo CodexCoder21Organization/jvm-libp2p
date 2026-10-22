@@ -73,9 +73,11 @@ abstract class PlainNettyTransport(
     // its run loop after shutdownGracefully under CI starvation cannot hold the forked
     // test JVM open past the runner's 30s kill (the "test body done, Process timed out,
     // JVM pid gone" flake). Shut down in close().
-    private var bossGroup by lazyVar {
+    private val bossGroupDelegate = lazy {
         MultiThreadIoEventLoopGroup(1, DefaultThreadFactory("libp2p-nio-boss", true), NioIoHandler.newFactory())
     }
+
+    private val bossGroup by bossGroupDelegate
 
     private var client by lazyVar {
         Bootstrap().apply {
@@ -134,10 +136,12 @@ abstract class PlainNettyTransport(
         // listener can slip in during the shutdownGracefully phase below.
         val listenersToClose: List<Channel>
         val channelsToClose: List<Channel>
+        val bossGroupToClose: EventLoopGroup?
         synchronized(this@PlainNettyTransport) {
             closed = true
             listenersToClose = listeners.values.toList()
             channelsToClose = channels.toList()
+            bossGroupToClose = if (bossGroupDelegate.isInitialized()) bossGroup else null
         }
 
         val unbindsCompleted = listenersToClose
@@ -182,9 +186,11 @@ abstract class PlainNettyTransport(
             // single transport — a daemon group cannot hold the JVM open, so leaving it
             // running is safe, and shutting it down here would tear the worker loop out
             // from under every other live host in the JVM.
-            CompletableFuture.allOf(
-                bossGroup.shutdownGracefully(0, 5, TimeUnit.SECONDS).toVoidCompletableFuture()
-            ).thenApply { }
+            if (bossGroupToClose == null) {
+                CompletableFuture.completedFuture(Unit)
+            } else {
+                bossGroupToClose.shutdownGracefully(0, 5, TimeUnit.SECONDS).toVoidCompletableFuture()
+            }
         }
     } // close
 

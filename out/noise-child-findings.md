@@ -16,3 +16,8 @@ INFER: Cold class loading precedes first harness output. JFR and live measuremen
 2026-10-22 02:52 UTC
 OBSERVED: Baseline JFR has 112 execution/wait events, with stack depth truncated before harness callers. Main samples include manifest parse/verification between 01:57:43.895 and 01:57:45.133, Ed25519 initial table work at 01:57:45.300–45.364, Noise Curve25519 work at 01:57:48.679. The supplied proof print was at 10.475 seconds and process exit at 11.202 seconds. This is sampled evidence, not a complete stage timeline.
 OBSERVED: getconf reports 8 online processors and cgroup cpu.max is unlimited; the source computes 4 Noise workers on this machine. No evidence yet of an oversized pool. Build preparation has reached compileKotlin.
+
+2026-10-22 02:55 UTC — checkpoint df1f4208f2304b22c28527cae937293922c80cf1
+OBSERVED: Preparation is compiling test Kotlin. Scratch-only instrumented copy compiled successfully through boxrun; it adds timestamps at main, recorder, host build/start/stop. No production or test source edited. Diagnostic child is running with periodic jstack summaries and a CPU/wait-only JFR at stackdepth 128. Diagnostic overhead means this run is not a test qualification.
+OBSERVED: Both parent paths start whole-process deadlines immediately after ProcessBuilder.start (test lines 51–64 and 699–710), before any host/classpath initialization. Output is read to EOF, but child println writes to the pipe during execution; no evidence yet that output buffering causes the empty baseline capture.
+INFER: HandshakeState creation (NoiseXXSecureChannel.kt:188) precedes admission to the computation executor (line 528 onward), so observer counts do not account for construction. Whether this contributed to measured p95 is not established.

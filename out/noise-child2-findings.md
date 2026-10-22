@@ -133,3 +133,6 @@ A failure occurred while executing org.jetbrains.kotlin.compilerRunner.GradleCom
 Compilation error. See log for more details
 ```
 OBSERVED: Replaced the deprecated accessor with inherited ticker().nanoTime() for both deadline creation and comparison. No suppression, changed budget or dependency. The first executed fixed test remains pending. Full build log in out/short-queue-green-first.log.
+
+2026-10-22 04:52:03 UTC
+OBSERVED: short-queue-green-clock, source head f96f08c4efc33cdab24c51f00e1bd78d41124e0d: 1 passed / 0 failed / 0 skipped; 1 CASE lines, process exit 0.

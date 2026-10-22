@@ -42,6 +42,7 @@ class YamuxHandlerTest : MuxHandlerAbstractTest() {
     override val remoteMuxIdGenerator = YamuxStreamIdGenerator(!isLocalConnectionInitiator).toIterator()
 
     private val readFrameQueue = ArrayDeque<AbstractTestMuxFrame>()
+    private val releasedChildReads = mutableListOf<ByteBuf>()
     fun Long.toMuxId() = YamuxId(parentChannelId, this)
 
     override fun createMuxHandler(streamHandler: StreamHandler<*>): MuxHandler =
@@ -55,6 +56,11 @@ class YamuxHandlerTest : MuxHandlerAbstractTest() {
             ackBacklogLimit,
             initialWindowSize
         ) {
+            override fun releaseMessage(msg: ByteBuf) {
+                releasedChildReads += msg
+                super.releaseMessage(msg)
+            }
+
             // MuxHandler consumes the exception. Override this behaviour for testing
             @Deprecated("Deprecated in Java")
             override fun exceptionCaught(ctx: ChannelHandlerContext, cause: Throwable) {
@@ -142,6 +148,39 @@ class YamuxHandlerTest : MuxHandlerAbstractTest() {
         assertThat(readYamuxFrame()).isNull()
         assertThat(childHandlers.single().inboundMessages).isEmpty()
         assertThat(allocatedBufs).allMatch { it.refCnt() == 1 }
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = ["reset", "child close", "parent close"])
+    fun closingPausedStreamsReleasesEveryQueuedCopy(closeMode: String) {
+        val streamIds = List(2) { openStreamRemote() }
+        drainYamuxFrames(::readYamuxFrame)
+        childHandlers.forEach { it.ctx.channel().config().isAutoRead = false }
+        streamIds.forEach { streamId ->
+            repeat(3) { writeStream(streamId, "42".repeat(initialWindowSize / 3)) }
+        }
+        val inputs = allocatedBufs.toList()
+        assertThat(inputs).hasSize(6).allMatch { it.refCnt() == 1 }
+        assertThat(childHandlers.flatMap { it.inboundMessages }).isEmpty()
+        assertThat(releasedChildReads).isEmpty()
+
+        when (closeMode) {
+            "reset" -> streamIds.forEach { resetStream(it) }
+            "child close" -> childHandlers.forEach { it.ctx.channel().close().sync() }
+            "parent close" -> ech.close().sync()
+            else -> error("Unknown close mode '$closeMode'; expected reset, child close, or parent close")
+        }
+        ech.runPendingTasks()
+
+        assertThat(childHandlers).allMatch { !it.ctx.channel().isOpen }
+        assertThat(childHandlers.flatMap { it.inboundMessages }).isEmpty()
+        assertThat(inputs).allMatch { it.refCnt() == 1 }
+        // Observe the actual queue releases: the input references were released before close.
+        assertThat(releasedChildReads).describedAs("Queued copies released on %s", closeMode).hasSize(inputs.size)
+        releasedChildReads.forEach { copy ->
+            assertThat(inputs).noneMatch { it === copy }
+            assertThat(copy.refCnt()).describedAs("Queued copy after %s", closeMode).isZero()
+        }
     }
 
     @Test

@@ -5,6 +5,7 @@ cmd=['./gradlew','--no-daemon','--max-workers=2',':libp2p:test']
 for s in selectors: cmd += ['--tests',s]
 cmd += ['--rerun']
 (d/'command.json').write_text(json.dumps(cmd))
+for old in Path('libp2p/build/test-results/test').glob('TEST-*.xml'): old.unlink()
 try:
  with (d/'run.log').open('w') as log: r=subprocess.run(cmd,stdout=log,stderr=subprocess.STDOUT,timeout=900); status=r.returncode
 except subprocess.TimeoutExpired: status=124

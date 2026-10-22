@@ -5,7 +5,7 @@ Plan:
 - [complete] Add library-boundary reproducer and push first red checkpoint.
 - [complete] Add negotiated binding, optional capability and typed setup result.
 - [complete] Targeted checks, reversal control, correctness and test review.
-- [in progress] One documented complete suite, PR and final file.
+- [in progress] Complete suite and baseline analysis finished; create draft PR and final file.
 Scope: jvm-libp2p only; no publication, merge, queue or deployment. Stop after PR creation without CI monitoring.
 Required reading: approved rFURR2-design.md and rFURR2-findings.md read in full. The final design uses Yamux; the earlier findings include superseded Mplex wording.
 
@@ -58,3 +58,18 @@ OBSERVED 2026-10-22 22:03 UTC: Complete suite still queued on the shared local s
 Correctness review refinement while the complete suite is still queued: the new MuxHandler close observer originally completed every pending controller with a generic cause when no capacity cause existed. That would extend ordinary-close behavior for custom stream handlers. Narrowed the observer to recorded capacity causes only, preserving the prior ordinary-close path. Added a direct StreamHandler case without ProtocolSelect so this observer's required capacity behavior is checked independently. The queued complete suite has not started and will use the updated committed head.
 
 OBSERVED: Narrowed close observer plus the direct-handler case passed 153/153 targeted controls on first attempt, zero skipped. This includes 24 new cases. The complete suite is still queued and has not read the source tree. The next checkpoint is the final code head for that one queued suite.
+
+OBSERVED 2026-10-22 22:10 UTC: Final code head e7153395 is pushed. Capacity-only close observer controls passed 153/153 on first attempt; final formatting/static gates pass. The one complete suite remains queued on the shared local slot, session 95961. No other test run is active in this lane.
+
+OBSERVED 2026-10-22 22:19 UTC: Session 95961 remains queued on the shared suite slot with no suite output. Final head and passing targeted/static results are unchanged. No new background command or source edit.
+
+OBSERVED 2026-10-22 22:22 UTC: The shared slot was acquired and the one complete Gradle suite is running at e7153395. Session 95961 remains tracked; no interruption or second suite run.
+
+OBSERVED: The one complete suite finished (exit 1) in 2m 8s: 1211 tests, 20 red, 2 skipped. All 24 new cases passed on first attempt, with zero skips. Full XML and console logs retained under .git/furr3/full-suite-results and .git/furr3/suite.log in this checkout. No suite was repeated or interrupted. Existing FORK.md already notes native TLS setup and port-binding problems; targeted baseline checks will distinguish those observations from this change.
+
+OBSERVED: Targeted unchanged-baseline control at e15e0f1947842be7ef6836c116c14ba47cc8eea1 ran all eight affected existing classes: 29 tests, 20 red, 1 skipped. All 20 full-suite red cases match the baseline by exact class and test-case name; zero cases are unique to the feature head or the baseline control. Baseline logs/XML remain under .git/furr3/baseline.log and .git/furr3/baseline-results. Root categories include port binding and native TLS setup; FORK.md already records those categories. No test, native configuration, port value, timeout or iteration count was changed.
+INFER: The complete suite's 20 red cases predate this implementation. The requested new binding and its 24 cases are green, but this checkout cannot claim a clean full-suite result. The PR will be DRAFT and report that limit explicitly. No further complete suite will run. The assumption of a green existing suite is refuted by the unchanged-baseline control.
+
+OBSERVED: Restored feature head passes 24/24 new cases again on first attempt; final formatting/static checks also pass. The suite's 2 skips and all 20 red cases are existing cases; the new cases have zero skips. Complete-suite first-attempt counts are 1189 passed, 20 red, 2 skipped (1211 total). Targeted baseline control is 8 passed, 20 red, 1 skipped (29 total), with exact identity match for all 20 red cases.
+Final branch layout: fix/laneFURR3-yamux-capacity retains the exact suite-tested code head e7153395f4a1a05860906366cc46e48ce8fc6422. The requested wip/laneFURR3-evidence branch adds only final verification notes after that code head, so the PR can preserve the complete suite's exact head while the final analysis is durable.
+Bar audit: repository and source commit DONE; binding and optional API DONE; exact-child typed setup propagation DONE; negotiated compatibility DONE; byte ownership/framing and lifecycle controls DONE; fail-first and reversal DONE; one complete documented suite DONE with 20 unchanged-baseline errors; clean existing suite REFUTED by exact baseline matches; publication/merge/queue/deployment restrictions OBSERVED; draft PR and final file next.

@@ -91,3 +91,27 @@ MECHANISM: Our worker's 100ms policy delegates to a timed drain that checks ever
 REPRODUCER: New NoiseEstablishedIoCheckpointTest retains the real Host/TCP/Noise/Ping path and held 200ms callback, but queues just one further genuine ping and a marker. The established read must precede that marker. Existing queue test remains byte-for-byte unchanged; no existing assertion, limit, deadline or iteration edited.
 INVARIANTS before policy refinement: worker owns per-drain budget state on its event-loop thread only; check deadline before taking each subsequent ordinary queued callback, leaving unpolled work in FIFO. Always allow a first task, including after a long scheduled-queue transfer. Restore previous budget state in finally so callback close/re-entry cannot leave a stale deadline. Delegate task execution, scheduled task transfer, counters, tail tasks and shutdown to Netty unchanged; inactive outside a timed drain. New short-queue ordering test plus existing 64-ping queue, lifecycle and original Noise class cover these paths. No public mutable resource or persisted state added.
 PLAN: new test assertion-red with current implementation, precision refinement green, precision-only reversal red, restore; original class verification; first complete package/full gates and final PR if time permits. The p95 result still needs verification after the proposed refinement; this is not claimed as solved yet.
+
+2026-10-22 04:41 UTC — short queue FIRST RED
+OBSERVED: New NoiseEstablishedIoCheckpointTest: 0 passed / 1 failed / 0 skipped. Compiled and failed on the established-read-before-marker assertion with the current 100ms policy; not a compile/deadline failure. Full trace:
+```
+io.libp2p.security.noise.NoiseEstablishedIoCheckpointTest :: established reads run after the budget with fewer than sixty four queued callbacks()
+org.opentest4j.AssertionFailedError: Exception in thread "main" org.opentest4j.AssertionFailedError: An established TCP read must run before the next queued callback batch after the transport task quantum ==> expected: <true> but was: <false>
+	at org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+	at org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+	at org.junit.jupiter.api.AssertTrue.failNotTrue(AssertTrue.java:63)
+	at org.junit.jupiter.api.AssertTrue.assertTrue(AssertTrue.java:36)
+	at org.junit.jupiter.api.Assertions.assertTrue(Assertions.java:214)
+	at io.libp2p.security.noise.NoiseEstablishedIoCheckpointHarness.main(NoiseEstablishedIoCheckpointTest.kt:99)
+ ==> expected: <0> but was: <1>
+	at app//org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+	at app//org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+	at app//org.junit.jupiter.api.AssertEquals.failNotEqual(AssertEquals.java:197)
+	at app//org.junit.jupiter.api.AssertEquals.assertEquals(AssertEquals.java:150)
+	at app//org.junit.jupiter.api.Assertions.assertEquals(Assertions.java:563)
+	at app//io.libp2p.security.noise.NoiseEstablishedIoCheckpointTest.established reads run after the budget with fewer than sixty four queued callbacks(NoiseEstablishedIoCheckpointTest.kt:35)
+	at java.base@21.0.12.1/java.lang.reflect.Method.invoke(Method.java:580)
+	at java.base@21.0.12.1/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at java.base@21.0.12.1/java.util.ArrayList.forEach(ArrayList.java:1596)
+
+```

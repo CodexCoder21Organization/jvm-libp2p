@@ -372,4 +372,28 @@ private class TransportIoEventLoop(
     RejectedExecutionHandlers.reject(),
     // Poll established connections between callback batches, including when Noise uses workers.
     100
-)
+) {
+    private var taskBudget: TransportTaskBudget? = null
+
+    override fun runAllTasks(timeoutNanos: Long): Boolean {
+        val previousBudget = taskBudget
+        taskBudget = if (timeoutNanos > 0) TransportTaskBudget(getCurrentTimeNanos() + timeoutNanos) else null
+        return try {
+            super.runAllTasks(timeoutNanos)
+        } finally {
+            taskBudget = previousBudget
+        }
+    }
+
+    override fun pollTask(): Runnable? {
+        val budget = taskBudget
+        if (budget != null) {
+            // Netty checks time after 64 tasks; this transport yields between callbacks.
+            if (!budget.firstTask && getCurrentTimeNanos() - budget.deadlineNanos >= 0) return null
+            budget.firstTask = false
+        }
+        return super.pollTask()
+    }
+}
+
+private class TransportTaskBudget(val deadlineNanos: Long, var firstTask: Boolean = true)

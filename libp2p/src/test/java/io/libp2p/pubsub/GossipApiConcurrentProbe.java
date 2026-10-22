@@ -1,10 +1,11 @@
 package io.libp2p.pubsub;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.*;
 import org.junit.jupiter.api.Test;
-import static org.assertj.core.api.Assertions.assertThat;
 
 public class GossipApiConcurrentProbe {
   @Test
@@ -14,12 +15,17 @@ public class GossipApiConcurrentProbe {
     List<Future<?>> work = new ArrayList<>();
     try {
       for (int caller = 0; caller < 64; caller++) {
-        work.add(callers.submit(() -> {
-          for (int iteration = 0; iteration < 32; iteration++) {
-            try { new GossipApiTest().testFastMessageId(); }
-            catch (Throwable failure) { failures.add(failure); }
-          }
-        }));
+        work.add(
+            callers.submit(
+                () -> {
+                  for (int iteration = 0; iteration < 32; iteration++) {
+                    try {
+                      new GossipApiTest().testFastMessageId();
+                    } catch (Throwable failure) {
+                      failures.add(failure);
+                    }
+                  }
+                }));
       }
       for (Future<?> item : work) item.get(90, TimeUnit.SECONDS);
       for (Throwable failure : failures) failure.printStackTrace();

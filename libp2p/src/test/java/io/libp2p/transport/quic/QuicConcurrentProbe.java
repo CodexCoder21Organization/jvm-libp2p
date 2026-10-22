@@ -1,10 +1,11 @@
 package io.libp2p.transport.quic;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.*;
 import org.junit.jupiter.api.Test;
-import static org.assertj.core.api.Assertions.assertThat;
 
 public class QuicConcurrentProbe {
   @Test
@@ -14,12 +15,18 @@ public class QuicConcurrentProbe {
     List<Future<?>> work = new ArrayList<>();
     try {
       for (int caller = 0; caller < 8; caller++) {
-        work.add(callers.submit(() -> {
-          for (int iteration = 0; iteration < 32; iteration++) {
-            try { new QuicServerTestJava().connectionLevelQuicExceptionIsHandledAndCleansUpOutboundResources(); }
-            catch (Throwable failure) { failures.add(failure); }
-          }
-        }));
+        work.add(
+            callers.submit(
+                () -> {
+                  for (int iteration = 0; iteration < 32; iteration++) {
+                    try {
+                      new QuicServerTestJava()
+                          .connectionLevelQuicExceptionIsHandledAndCleansUpOutboundResources();
+                    } catch (Throwable failure) {
+                      failures.add(failure);
+                    }
+                  }
+                }));
       }
       for (Future<?> item : work) item.get(240, TimeUnit.SECONDS);
       for (Throwable failure : failures) failure.printStackTrace();

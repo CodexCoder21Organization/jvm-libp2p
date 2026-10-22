@@ -8,8 +8,8 @@ Publish jvm-libp2p built from exactly e15e0f1947842be7ef6836c116c14ba47cc8eea1, 
 ## Plan
 - [done] Locate fork publishing history, current consumer coordinate, and required documentation.
 - [done] Confirm an unused version and build the exact requested source commit locally.
-- [in progress] Publish with the Maven publishing CLI; download JAR and POM, compare SHA-256, and inspect merged bytecode.
-- [pending] Push final evidence, report coordinate and consumer edit, and confirm all started background work has ended.
+- [done] Publish with the Maven publishing CLI; download JAR and POM, compare SHA-256, and inspect merged bytecode.
+- [in progress] Push final evidence, report coordinate and consumer edit, and confirm all started background work has ended.
 
 ## Observations
 - OBSERVED 09:43 UTC: Read github-repos and publish-maven-artifact skills. Explicit lane publishing authorization covers the skill confirmation step. Pre-built Gradle artifacts can be uploaded with --artifact-dir and HTTP API.
@@ -45,3 +45,21 @@ Publish jvm-libp2p built from exactly e15e0f1947842be7ef6836c116c14ba47cc8eea1, 
 
 - OBSERVED 10:19 UTC: Local artifact build PASSED on its first actual compilation (1m39s; nine tasks executed), exit 0. Both earlier lock waits ended before Gradle started. No test suite was invoked. Source HEAD/tree remain exact and checkout is clean. Staged only the main JAR and Gradle-generated POM, with the same dependency declarations and snapshot-38 release metadata.
 - OBSERVED: Local artifact hashes: {"jvm-libp2p-1.3.0-codexcoder21-snapshot-38.jar": {"sha256": "1ea6b524b036651136937376964fe0948020a7d503f4c927481d5258e340ebad", "bytes": 1834011}, "jvm-libp2p-1.3.0-codexcoder21-snapshot-38.pom": {"sha256": "9225a2350aa4c4d0d2d0705e93edf53b8a1cd9fc2812284fa0e02eaa4c6f996d", "bytes": 6358}}.
+
+- OBSERVED 10:20 UTC: Publisher 0.0.6 exited 0 and reported community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-38. Immediately downloaded both published payloads; both returned HTTP 200 and matched the staged SHA-256 byte-for-byte. No existing version was overwritten.
+- OBSERVED: Published JAR (1,834,011 bytes) SHA-256 1ea6b524b036651136937376964fe0948020a7d503f4c927481d5258e340ebad; published POM (6,358 bytes) SHA-256 9225a2350aa4c4d0d2d0705e93edf53b8a1cd9fc2812284fa0e02eaa4c6f996d. The POM has 27 resolved dependencies, identical to the prior POM dependency declarations. The JAR is the ordinary library artifact without bundled Netty classes.
+- OBSERVED: javap -p -c on the downloaded JAR shows YamuxHandler.coalescePendingChildRead, sealPendingChildRead, preparePendingChildRead(ByteBuf,long), and getPauseParentReadsForPausedChild returning iconst_0/ireturn. AbstractMuxHandler also contains the merged hooks. The staged YamuxHandler/AbstractMuxHandler class bytes matched the fresh local compiler output before publication.
+- OBSERVED: Exact source HEAD e15e0f1947842be7ef6836c116c14ba47cc8eea1 and tree 73b8c674c3f29fe41b189ba9a48d57bfe05dc786 are unchanged and the source checkout is clean after building and publishing. No consumer repository was modified, no PR was opened, no merge or deployment was performed, and no test suite was invoked. Own Gradle daemon 45740 already ended.
+
+## Consumer change
+
+UrlProtocol build.kts line 57 currently pins snapshot-25. Replace that one declaration with:
+
+```kotlin
+MavenPrebuilt2("community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-38"),
+```
+
+## Artifact URLs
+
+- JAR: https://kotlin.directory/community/kotlin/libp2p/jvm-libp2p/1.3.0-codexcoder21-snapshot-38/jvm-libp2p-1.3.0-codexcoder21-snapshot-38.jar
+- POM: https://kotlin.directory/community/kotlin/libp2p/jvm-libp2p/1.3.0-codexcoder21-snapshot-38/jvm-libp2p-1.3.0-codexcoder21-snapshot-38.pom

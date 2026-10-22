@@ -4,8 +4,8 @@ Plan:
 - [complete] Locate consumed fork; read design, source and test guidance.
 - [complete] Add library-boundary reproducer and push first red checkpoint.
 - [complete] Add negotiated binding, optional capability and typed setup result.
-- [in progress] Targeted checks, reversal control, correctness and test review.
-- [pending] One documented complete suite, PR and final file.
+- [complete] Targeted checks, reversal control, correctness and test review.
+- [in progress] One documented complete suite, PR and final file.
 Scope: jvm-libp2p only; no publication, merge, queue or deployment. Stop after PR creation without CI monitoring.
 Required reading: approved rFURR2-design.md and rFURR2-findings.md read in full. The final design uses Yamux; the earlier findings include superseded Mplex wording.
 
@@ -43,3 +43,10 @@ Test review (separate pass): identified missing coverage for an actually cancell
 Correctness review (separate pass): checked capacity capability is selected only by the distinct ID; existing constructor and Stream descriptors remain; terminal cause is recorded before protocol completion, close callbacks and controller completion; bytes are released in a finally; missing-child reset frames cannot allocate or change siblings. Receiver marker creation uses the inherited Yamux write-budget accounting and codec. No production, dependency or artifact version changes.
 
 OBSERVED: Expanded targeted controls: 152/152 green on first attempt, 0 red and 0 skipped. Includes all 23 new cases plus existing Yamux, Mplex, protocol-selection-close and selected-controller-close tests. Compiled Stream, YamuxStreamMuxer and MplexStreamMuxer hashes are unchanged; javap Stream descriptors compare exactly. No existing test file changes.
+
+OBSERVED: Reversal control restored production sources to red scaffold 800e4cd3, retaining the expanded tests: 23 executed once, 14 red and 9 green. The original marked-reset/TCP cases are red again, as are the newly added zero-limit, optional-operation, cancelled-stream and binding-validation cases. Restored implementation from f70fdb71 immediately afterwards; no test was changed for the reversal. This is a deterministic reason/ordering control, with no scheduler tuning.
+OBSERVED: Test evidence has remained in the lane's own checkout; no other checkout or production service was touched. No whole suite has run yet. The next command restores the same targeted controls and runs formatting/static gates, followed by the single complete Gradle suite through the shared local suite slot.
+
+OBSERVED: Restored implementation passes 23/23 new cases on first attempt. :libp2p:spotlessCheck and :libp2p:detekt both pass. Targeted earlier controls were 152/152. Reversal was 14/23 red with the same expanded tests, followed by 23/23 green on restore. No retries, skips, existing test edits or parameter changes.
+Complete-suite decision: this is a Gradle repository, not a kompile repository. Per scope item 4, use documented ./gradlew :libp2p:test, with --no-daemon --max-workers=2 and the shared local suite slot to serialize complete suites on this machine. There is no scripts/test.bash here and no remote kompile run was started. The complete suite will run once from the committed final code head; logs stay under this checkout's .git/furr3/.
+Bar audit before suite: repo located DONE; negotiated receiver/opener path DONE; optional interface and typed exception DONE; Stream and existing binding descriptors and bytes preserved DONE; new/new and mixed compatibility DONE; byte framing, duplicate/late, unknown and buffer release DONE; reversal DONE; no publication/merge/queue/deployment DONE; complete suite and PR IN PROGRESS.

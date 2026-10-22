@@ -18,3 +18,5 @@ OBSERVED: first evidence milestone is remote at https://github.com/CodexCoder21O
 Plan: original/cross-thread probes DONE; reversal check TODO; mux/compatibility control RUNNING; Noise RUNNING; final verdict TODO.
 
 2026-10-22T23:51:47.759514+00:00 OBSERVED: mux/negotiation controls 274/274 first attempt, zero red/skips/extra attempts = 242 existing +27 capacity +5 review cases. Both mixed Yamux directions and both mixed Mplex directions included. Exact commands/XML under .review/R66b/mux-compatibility. Reversal control now uses only the four pre-F66 production files temporarily in this own checkout; source will be restored before checkpointing.
+
+2026-10-22T23:52:40.179676+00:00 OBSERVED: reversal control is red on first attempt for all four probes (4/4), zero skips or extra attempts. Original two identify the earlier callback result ordering; new cases also observe that the handler result is not settled before notification/closure. No PR source changed; all four source files restored byte-for-byte to pinned head immediately afterward. XML archived under .review/R66b/reversal-probes.

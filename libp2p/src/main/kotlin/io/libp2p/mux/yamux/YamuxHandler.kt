@@ -325,11 +325,10 @@ open class YamuxHandler(
             drainBufferAndMaybeClose()
         }
 
-        fun closeForReadOverflow(child: MuxChannel<ByteBuf>, cause: Throwable) {
+        fun recordReadOverflow(cause: Throwable) {
             // Keep the descriptive queue failure for any pending reply. The muxer has already
             // released held input before close fails writes and invokes application callbacks.
             resetCause = cause
-            child.close()
         }
 
         fun onLocalClose(
@@ -494,8 +493,15 @@ open class YamuxHandler(
         get() = false
 
     override fun onChildReadOverflow(child: MuxChannel<ByteBuf>, cause: Throwable) {
-        val handler = streamHandlers[child.id]
-        if (handler != null) handler.closeForReadOverflow(child, cause) else child.close()
+        streamHandlers[child.id]?.recordReadOverflow(cause)
+        // Netty may fail the child's outbound buffer before the mux write promise propagates.
+        // Keep the same terminal cause visible to every application write on this child.
+        child.attr(WRITE_FAILURE).set(cause)
+        try {
+            child.pipeline().fireExceptionCaught(cause)
+        } finally {
+            super.onChildReadOverflow(child, cause)
+        }
     }
 
     override fun preparePendingChildRead(data: ByteBuf): ByteBuf {

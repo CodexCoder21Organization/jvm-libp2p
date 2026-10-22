@@ -31,7 +31,8 @@ private fun drainYamuxFrames(readFrame: () -> YamuxFrame?): List<YamuxFrame> = g
 private fun windowCredit(frames: List<YamuxFrame>, streamId: Long): Long =
     frames.filter { it.type == YamuxType.WINDOW_UPDATE && it.id.id == streamId }.sumOf { it.length }
 
-class YamuxHandlerTest(private val pendingReadFrameLimit: Int = 64) : MuxHandlerAbstractTest() {
+class YamuxHandlerTest : MuxHandlerAbstractTest() {
+    var pendingReadFrameLimit: Int = 64
 
     override val maxFrameDataLength = 256
     private val maxBufferedConnectionWrites = 512
@@ -56,7 +57,8 @@ class YamuxHandlerTest(private val pendingReadFrameLimit: Int = 64) : MuxHandler
             ackBacklogLimit,
             initialWindowSize
         ) {
-            override val maxPendingChildReadFrames: Int = pendingReadFrameLimit
+            override val maxPendingChildReadFrames: Int
+                get() = pendingReadFrameLimit
 
             override fun releaseMessage(msg: ByteBuf) {
                 releasedChildReads += msg
@@ -339,6 +341,8 @@ class YamuxHandlerTest(private val pendingReadFrameLimit: Int = 64) : MuxHandler
 
     @Test
     fun pausedChildAcceptsManySmallFramesWithinItsWindow() {
+        // Exercise window accounting independently of the default frame admission limit.
+        pendingReadFrameLimit = 128
         val streamId = openStreamRemote()
         readYamuxFrameOrThrow()
         val handler = childHandlers.single()

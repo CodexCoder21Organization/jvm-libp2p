@@ -12,8 +12,8 @@ import io.libp2p.transport.tcp.TcpTransport
 import io.netty.buffer.ByteBuf
 import io.netty.buffer.Unpooled
 import io.netty.channel.Channel
-import io.netty.channel.ChannelInboundHandlerAdapter
 import io.netty.channel.ChannelHandlerContext
+import io.netty.channel.ChannelInboundHandlerAdapter
 import io.netty.channel.SimpleChannelInboundHandler
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -224,21 +224,25 @@ class YamuxPausedStreamKeepsConnectionReadingTest {
             pausedChannel.config().isAutoRead = false
             settle(pausedChannel)
             val atPressure = CountDownLatch(1)
-            connection.eventLoop().submit(Callable {
-                var frames = 0
-                connection.pipeline().addBefore(
-                    connection.pipeline().context(YamuxHandler::class.java).name(),
-                    "queued-frame-observer",
-                    object : ChannelInboundHandlerAdapter() {
-                        override fun channelRead(ctx: ChannelHandlerContext, msg: Any) {
-                            ctx.fireChannelRead(msg)
-                            if (msg is YamuxFrame && msg.id == pausedChannel.id() &&
-                                msg.type == YamuxType.DATA && msg.length > 0 && ++frames == 64
-                            ) atPressure.countDown()
+            connection.eventLoop().submit(
+                Callable {
+                    var frames = 0
+                    connection.pipeline().addBefore(
+                        connection.pipeline().context(YamuxHandler::class.java).name(),
+                        "queued-frame-observer",
+                        object : ChannelInboundHandlerAdapter() {
+                            override fun channelRead(ctx: ChannelHandlerContext, msg: Any) {
+                                ctx.fireChannelRead(msg)
+                                if (msg is YamuxFrame && msg.id == pausedChannel.id() &&
+                                    msg.type == YamuxType.DATA && msg.length > 0 && ++frames == 64
+                                ) {
+                                    atPressure.countDown()
+                                }
+                            }
                         }
-                    }
-                )
-            }).get(5, TimeUnit.SECONDS)
+                    )
+                }
+            ).get(5, TimeUnit.SECONDS)
             repeat(64) {
                 sender.writeAndFlushWithFuture(Unpooled.wrappedBuffer(byteArrayOf(it.toByte())))
                     .get(5, TimeUnit.SECONDS)

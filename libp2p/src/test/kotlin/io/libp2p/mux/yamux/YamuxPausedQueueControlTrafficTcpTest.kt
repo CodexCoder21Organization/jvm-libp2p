@@ -12,14 +12,13 @@ import io.libp2p.transport.tcp.TcpTransport
 import io.netty.buffer.ByteBuf
 import io.netty.buffer.Unpooled
 import io.netty.channel.Channel
-import io.netty.channel.ChannelInboundHandlerAdapter
 import io.netty.channel.ChannelHandlerContext
+import io.netty.channel.ChannelInboundHandlerAdapter
 import io.netty.channel.SimpleChannelInboundHandler
-import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import java.io.ByteArrayOutputStream
 import java.util.concurrent.Callable
 import java.util.concurrent.CompletableFuture
@@ -44,14 +43,7 @@ private const val PAUSED_STREAM_PROTOCOL = "/test/yamux-paused-stream/1.0.0"
  */
 class YamuxPausedQueueControlTrafficTcpTest {
 
-    private class Responder(val stream: StreamOverNetty) {
-        val received = ByteArrayOutputStream()
-        val receivedBytes = java.util.concurrent.atomic.AtomicInteger()
-
-        fun snapshot(): ByteArray = synchronized(received) { received.toByteArray() }
-    }
-
-    private val responders = LinkedBlockingQueue<Responder>()
+    private val responders = LinkedBlockingQueue<ControlTrafficResponder>()
 
     private val binding = object : StrictProtocolBinding<Stream>(
         PAUSED_STREAM_PROTOCOL,
@@ -60,7 +52,7 @@ class YamuxPausedQueueControlTrafficTcpTest {
                 CompletableFuture.completedFuture(stream)
 
             override fun onStartResponder(stream: Stream): CompletableFuture<Stream> {
-                val responder = Responder(stream as StreamOverNetty)
+                val responder = ControlTrafficResponder(stream as StreamOverNetty)
                 stream.nettyChannel.pipeline().addLast(object : SimpleChannelInboundHandler<ByteBuf>() {
                     override fun channelRead0(ctx: ChannelHandlerContext, msg: ByteBuf) {
                         val bytes = ByteArray(msg.readableBytes())
@@ -75,45 +67,16 @@ class YamuxPausedQueueControlTrafficTcpTest {
         }
     ) {}
 
-    private fun newHost(listen: Boolean): Host = host {
-        identity { random() }
-        transports { +::TcpTransport }
-        secureChannels { add(::PlaintextInsecureChannel) }
-        muxers { add(StreamMuxerProtocol.getYamux()) }
-        if (listen) network { listen("/ip4/127.0.0.1/tcp/0") }
-        protocols { add(binding) }
-    }
-
-    private fun Host.openStream(server: Host): Stream =
-        newStream<Stream>(listOf(PAUSED_STREAM_PROTOCOL), server.peerId, server.listenAddresses().single())
-            .controller.get(5, TimeUnit.SECONDS)
-
-    private fun nextResponder(): Responder =
-        responders.poll(5, TimeUnit.SECONDS)
-            ?: throw AssertionError("the server did not accept the expected stream within 5 seconds")
-
-    /** Runs a no-op on [channel]'s event loop so an off-loop autoRead change has been reconciled. */
-    private fun settle(channel: Channel) {
-        channel.eventLoop().submit(Callable {}).get(5, TimeUnit.SECONDS)
-    }
-
-    private fun awaitBytes(responder: Responder, expected: Int, what: String) {
-        val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
-        while (responder.receivedBytes.get() < expected && System.nanoTime() < deadline) Thread.sleep(5)
-        assertEquals(expected, responder.receivedBytes.get(), "$what: delivered byte count")
-    }
-
-    private fun payload(size: Int, seed: Int): ByteArray = ByteArray(size) { ((it * 31) xor seed).toByte() }
-
-    @Test
-    fun saturatedPausedRequestCompletesItsReplyOrExplicitlyResets() {
-        val client = newHost(false)
-        val server = newHost(true)
+    @ParameterizedTest
+    @ValueSource(ints = [64, 1000])
+    fun saturatedPausedRequestCompletesItsReplyOrExplicitlyResets(frameCount: Int) {
+        val client = newHost(false, binding)
+        val server = newHost(true, binding)
         try {
             client.start().get(5, TimeUnit.SECONDS)
             server.start().get(5, TimeUnit.SECONDS)
             val sender = client.openStream(server) as StreamOverNetty
-            val paused = nextResponder()
+            val paused = nextControlTrafficResponder(responders)
             val received = java.util.concurrent.atomic.AtomicInteger()
             sender.nettyChannel.pipeline().addLast(object : SimpleChannelInboundHandler<ByteBuf>() {
                 override fun channelRead0(ctx: ChannelHandlerContext, msg: ByteBuf) {
@@ -124,27 +87,31 @@ class YamuxPausedQueueControlTrafficTcpTest {
             paused.stream.nettyChannel.config().isAutoRead = false
             settle(connection)
             val thresholdRead = CountDownLatch(1)
-            connection.eventLoop().submit(Callable {
-                var frames = 0
-                connection.pipeline().addBefore(
-                    connection.pipeline().context(YamuxHandler::class.java).name(),
-                    "pressure-observer",
-                    object : ChannelInboundHandlerAdapter() {
-                        override fun channelRead(ctx: ChannelHandlerContext, msg: Any) {
-                            ctx.fireChannelRead(msg)
-                            if (msg is YamuxFrame && msg.id == paused.stream.nettyChannel.id() &&
-                                msg.type == YamuxType.DATA && msg.length > 0 && ++frames == 65
-                            ) thresholdRead.countDown()
+            connection.eventLoop().submit(
+                Callable {
+                    var frames = 0
+                    connection.pipeline().addBefore(
+                        connection.pipeline().context(YamuxHandler::class.java).name(),
+                        "pressure-observer",
+                        object : ChannelInboundHandlerAdapter() {
+                            override fun channelRead(ctx: ChannelHandlerContext, msg: Any) {
+                                ctx.fireChannelRead(msg)
+                                if (msg is YamuxFrame && msg.id == paused.stream.nettyChannel.id() &&
+                                    msg.type == YamuxType.DATA && msg.length > 0 && ++frames == minOf(frameCount, 65)
+                                ) {
+                                    thresholdRead.countDown()
+                                }
+                            }
                         }
-                    }
-                )
-            }).get(5, TimeUnit.SECONDS)
-            val writes = (0 until 1_000).map { index ->
+                    )
+                }
+            ).get(5, TimeUnit.SECONDS)
+            val writes = (0 until frameCount).map { index ->
                 sender.writeAndFlushWithFuture(Unpooled.wrappedBuffer(byteArrayOf(index.toByte())))
             }
             // A local pressure reset may reject writes not yet handed to TCP.
             writes.forEach { it.handle { _, _ -> Unit }.get(5, TimeUnit.SECONDS) }
-            assertTrue(thresholdRead.await(5, TimeUnit.SECONDS), "65 small frames must reach the receiver")
+            assertTrue(thresholdRead.await(5, TimeUnit.SECONDS), "The pressure boundary must reach the receiver")
             val reply = payload(4 * 1024 * 1024, 0x19)
             val finished = paused.stream.writeAndFlushWithFuture(Unpooled.wrappedBuffer(reply))
             // A real request handler may resume only after this write completes.
@@ -152,6 +119,7 @@ class YamuxPausedQueueControlTrafficTcpTest {
             try {
                 val failure = finished.handle { _, cause -> cause }.get(5, TimeUnit.SECONDS)
                 if (failure != null) {
+                    assertEquals(1000, frameCount, "64 paused frames must still permit the complete reply")
                     // A bounded receiver may reset this stream, but it must finish the reset.
                     paused.stream.closeFuture().get(5, TimeUnit.SECONDS)
                     sender.closeFuture().get(5, TimeUnit.SECONDS)
@@ -165,45 +133,53 @@ class YamuxPausedQueueControlTrafficTcpTest {
                 throw AssertionError("Reply cannot finish while its request reader is paused: received=${received.get()} expected=${reply.size} parentAutoRead=${connection.config().isAutoRead}", failure)
             }
         } finally {
-            try { client.stop().get(10, TimeUnit.SECONDS) }
-            finally { server.stop().get(10, TimeUnit.SECONDS) }
+            try {
+                client.stop().get(10, TimeUnit.SECONDS)
+            } finally {
+                server.stop().get(10, TimeUnit.SECONDS)
+            }
         }
     }
 
-    @Test
-    fun remoteResetDoesNotWaitForPausedRequestDelivery() {
-        val client = newHost(false)
-        val server = newHost(true)
+    @ParameterizedTest
+    @ValueSource(ints = [64, 1000])
+    fun remoteResetDoesNotWaitForPausedRequestDelivery(frameCount: Int) {
+        val client = newHost(false, binding)
+        val server = newHost(true, binding)
         try {
             client.start().get(5, TimeUnit.SECONDS)
             server.start().get(5, TimeUnit.SECONDS)
             val sender = client.openStream(server)
-            val paused = nextResponder()
+            val paused = nextControlTrafficResponder(responders)
             val connection = paused.stream.nettyChannel.parent()
             paused.stream.nettyChannel.config().isAutoRead = false
             settle(connection)
             val thresholdRead = CountDownLatch(1)
-            connection.eventLoop().submit(Callable {
-                var frames = 0
-                connection.pipeline().addBefore(
-                    connection.pipeline().context(YamuxHandler::class.java).name(),
-                    "pressure-observer",
-                    object : ChannelInboundHandlerAdapter() {
-                        override fun channelRead(ctx: ChannelHandlerContext, msg: Any) {
-                            ctx.fireChannelRead(msg)
-                            if (msg is YamuxFrame && msg.id == paused.stream.nettyChannel.id() &&
-                                msg.type == YamuxType.DATA && msg.length > 0 && ++frames == 65
-                            ) thresholdRead.countDown()
+            connection.eventLoop().submit(
+                Callable {
+                    var frames = 0
+                    connection.pipeline().addBefore(
+                        connection.pipeline().context(YamuxHandler::class.java).name(),
+                        "pressure-observer",
+                        object : ChannelInboundHandlerAdapter() {
+                            override fun channelRead(ctx: ChannelHandlerContext, msg: Any) {
+                                ctx.fireChannelRead(msg)
+                                if (msg is YamuxFrame && msg.id == paused.stream.nettyChannel.id() &&
+                                    msg.type == YamuxType.DATA && msg.length > 0 && ++frames == minOf(frameCount, 65)
+                                ) {
+                                    thresholdRead.countDown()
+                                }
+                            }
                         }
-                    }
-                )
-            }).get(5, TimeUnit.SECONDS)
-            val writes = (0 until 1_000).map { index ->
+                    )
+                }
+            ).get(5, TimeUnit.SECONDS)
+            val writes = (0 until frameCount).map { index ->
                 sender.writeAndFlushWithFuture(Unpooled.wrappedBuffer(byteArrayOf(index.toByte())))
             }
             // A local pressure reset may reject writes not yet handed to TCP.
             writes.forEach { it.handle { _, _ -> Unit }.get(5, TimeUnit.SECONDS) }
-            assertTrue(thresholdRead.await(5, TimeUnit.SECONDS), "65 small frames must reach the receiver")
+            assertTrue(thresholdRead.await(5, TimeUnit.SECONDS), "The pressure boundary must reach the receiver")
             sender.close().get(5, TimeUnit.SECONDS)
             try {
                 paused.stream.closeFuture().get(5, TimeUnit.SECONDS)
@@ -212,9 +188,40 @@ class YamuxPausedQueueControlTrafficTcpTest {
                 throw AssertionError("Remote reset cannot close the paused stream: parentAutoRead=${connection.config().isAutoRead} childOpen=${paused.stream.nettyChannel.isOpen}", failure)
             }
         } finally {
-            try { client.stop().get(10, TimeUnit.SECONDS) }
-            finally { server.stop().get(10, TimeUnit.SECONDS) }
+            try {
+                client.stop().get(10, TimeUnit.SECONDS)
+            } finally {
+                server.stop().get(10, TimeUnit.SECONDS)
+            }
         }
     }
-
 }
+
+private class ControlTrafficResponder(val stream: StreamOverNetty) {
+    val received = ByteArrayOutputStream()
+    val receivedBytes = java.util.concurrent.atomic.AtomicInteger()
+}
+
+private fun newHost(listen: Boolean, binding: StrictProtocolBinding<Stream>): Host = host {
+    identity { random() }
+    transports { +::TcpTransport }
+    secureChannels { add(::PlaintextInsecureChannel) }
+    muxers { add(StreamMuxerProtocol.getYamux()) }
+    if (listen) network { listen("/ip4/127.0.0.1/tcp/0") }
+    protocols { add(binding) }
+}
+
+private fun Host.openStream(server: Host): Stream =
+    newStream<Stream>(listOf(PAUSED_STREAM_PROTOCOL), server.peerId, server.listenAddresses().single())
+        .controller.get(5, TimeUnit.SECONDS)
+
+private fun nextControlTrafficResponder(responders: LinkedBlockingQueue<ControlTrafficResponder>): ControlTrafficResponder =
+    responders.poll(5, TimeUnit.SECONDS)
+        ?: throw AssertionError("the server did not accept the expected stream within 5 seconds")
+
+/** Runs a no-op on [channel]'s event loop so an off-loop autoRead change has been reconciled. */
+private fun settle(channel: Channel) {
+    channel.eventLoop().submit(Callable {}).get(5, TimeUnit.SECONDS)
+}
+
+private fun payload(size: Int, seed: Int): ByteArray = ByteArray(size) { ((it * 31) xor seed).toByte() }

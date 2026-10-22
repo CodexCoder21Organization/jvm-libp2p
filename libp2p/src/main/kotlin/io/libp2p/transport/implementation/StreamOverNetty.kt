@@ -41,7 +41,8 @@ open class StreamOverNetty(
                 result.complete(Unit)
             } else {
                 result.completeExceptionally(
-                    connectionWriteFailure()
+                    nettyChannel.attr(WRITE_FAILURE).get()
+                        ?: connectionWriteFailure()
                         ?: it.cause()
                         ?: ConnectionClosedException("Stream write failed without a reported cause: $nettyChannel")
                 )

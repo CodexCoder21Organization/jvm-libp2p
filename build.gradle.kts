@@ -37,9 +37,9 @@ configure(
 ) {
     // CodexCoder21 fork: published under an unambiguously non-upstream Maven coordinate.
     // The group id (community.kotlin.libp2p) is owned by CodexCoder21 — we deliberately do NOT
-    // publish under io.libp2p because that namespace belongs to upstream libp2p. When the next
-    // upstream release containing PR #412 (https://github.com/libp2p/jvm-libp2p/pull/412) is cut,
-    // downstream projects should migrate back to io.libp2p and this fork will be retired.
+    // publish under io.libp2p because that namespace belongs to upstream libp2p. Upstream 1.3.8
+    // includes the original shutdown change; downstreams still need the remaining fork fixes
+    // listed in FORK.md before the fork can be retired.
     group = "community.kotlin.libp2p"
     // NOTE on versioning: snapshot-6 and snapshot-7 were already published to kotlin.directory by
     // other in-flight branches with DIFFERENT content (the publish API refuses to overwrite an
@@ -83,7 +83,8 @@ configure(
     // snapshot-35: make child write-close idempotent after full close, reset, and callback re-entry.
     // snapshot-36: drain accepted child writes before half-close with Yamux and Mplex.
     // snapshot-37: pause Yamux delivery and credit per stream while parent reads continue.
-    version = "1.3.0-codexcoder21-snapshot-37"
+    // snapshot-38: merge current upstream and preserve shared dial cancellation ownership.
+    version = "1.3.0-codexcoder21-snapshot-38"
 
     apply(plugin = "kotlin")
     apply(plugin = "idea")

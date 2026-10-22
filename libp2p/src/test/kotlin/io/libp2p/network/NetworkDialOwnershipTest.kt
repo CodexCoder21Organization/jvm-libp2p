@@ -14,6 +14,7 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit.SECONDS
 
 class NetworkDialOwnershipTest {
@@ -92,6 +93,37 @@ class NetworkDialOwnershipTest {
             val surplus = transport.results[1].get(10, SECONDS)
             surplus.closeFuture().get(10, SECONDS)
             assertThat(survivor.closeFuture().isDone).isFalse()
+        }
+    }
+
+    @Test
+    fun `cancelling the original caller keeps a connection reused during its callback`() {
+        withOwnedDialHosts { client, server, transport ->
+            val address = server.listenAddresses().first()
+            val published = CompletableFuture<Connection>()
+            val releaseCallback = CountDownLatch(1)
+            client.addConnectionHandler(ConnectionHandler { connection ->
+                published.complete(connection)
+                check(releaseCallback.await(5, SECONDS)) {
+                    "The test did not release the connection callback within 5 seconds"
+                }
+            })
+            val first = client.network.connect(server.peerId, address)
+            transport.gates.single().complete(Unit)
+            try {
+                val connection = published.get(5, SECONDS)
+                val reused = client.network.connect(server.peerId, address).get(5, SECONDS)
+                assertThat(reused).isSameAs(connection)
+                assertThat(first.cancel(true)).isTrue()
+                assertThat(transport.results.single().isCancelled).isFalse()
+                releaseCallback.countDown()
+                transport.results.single().get(10, SECONDS)
+                val ping = Ping().dial(client, server.peerId, address).controller.get(10, SECONDS)
+                assertThat(ping.ping().get(5, SECONDS)).isGreaterThanOrEqualTo(0L)
+                assertThat(reused.closeFuture().isDone).isFalse()
+            } finally {
+                releaseCallback.countDown()
+            }
         }
     }
 

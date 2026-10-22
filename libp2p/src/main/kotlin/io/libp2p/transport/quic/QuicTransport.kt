@@ -79,11 +79,6 @@ class QuicTransport(
     private val listeners = mutableMapOf<Multiaddr, Channel>()
     private val channels = mutableListOf<Channel>()
 
-    // DAEMON event-loop threads (via an explicit DefaultThreadFactory) so a worker
-    // that is slow to exit its run loop under CI starvation cannot hold the forked
-    // JVM open past the runner's kill — matching PlainNettyTransport. Kept per-instance
-    // (shut down in close()) because QUIC is not on the high-fan-out host path that
-    // motivated PlainNettyTransport's shared worker group.
     /** Tracks active listener DatagramChannels by address family. */
     internal val listenerChannelsByFamily = ConcurrentHashMap<AddressFamily, Channel>()
 
@@ -163,6 +158,7 @@ class QuicTransport(
     /** Pending hole punches keyed by the remote address we are trying to reach. */
     private val pendingHolePunches = ConcurrentHashMap<InetSocketAddress, PendingHolePunch>()
 
+    // Each QUIC transport owns daemon workers and closes them during transport shutdown.
     private var workerGroup by lazyVar {
         MultiThreadIoEventLoopGroup(DefaultThreadFactory("libp2p-quic-worker", true), NioIoHandler.newFactory())
     }

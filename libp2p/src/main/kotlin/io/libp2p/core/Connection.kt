@@ -10,10 +10,11 @@ interface Connection : P2PChannel {
     /**
      * Explicitly requests another close attempt after a failed close has settled.
      *
-     * If close has not started, starts it. If the latest attempt is pending, observes
+     * For [io.libp2p.transport.implementation.ConnectionOverNetty], if close has not
+     * started, starts it. If the latest attempt is pending, observes
      * that attempt without submitting another. After success, completes successfully
      * without another close request. Each settled failure permits a later explicit retry.
-     * Ordinary [close] calls retain their original result, including after a retry.
+     * Its ordinary [close] calls retain their original result, including after a retry.
      * Completing or cancelling the returned future must not change the owned attempt.
      *
      * The default delegates to [close] for implementations without retained close failures.

@@ -80,6 +80,9 @@ class RelayConnectionRetryTest {
       connection.retryClose().get(5, TimeUnit.SECONDS);
       assertEquals(
           2, requests.get(), "A closed relay stream must stay closed on subsequent retry.");
+      // Relay connections keep their existing stream-close policy: a later close can succeed.
+      connection.close().get(5, TimeUnit.SECONDS);
+      assertEquals(2, requests.get(), "Ordinary close of a closed relay stream must stay a no-op.");
       assertTrue(
           client.getNetwork().getConnections().stream().anyMatch(c -> !c.closeFuture().isDone()),
           "Closing the relayed connection must leave its shared connection to the relay open.");

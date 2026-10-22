@@ -168,7 +168,7 @@ parent channel. Repeated calls wait for that operation and report its original f
 fails; they do not issue another close. Completing or cancelling one caller's returned future
 does not complete the operation or another caller's shutdown future.
 
-For a Netty-backed `Connection`, `retryClose()` explicitly requests a new physical close after
+For `ConnectionOverNetty`, `retryClose()` explicitly requests a new physical close after
 the latest attempt has failed. A call before closing starts the initial attempt; a call while
 an attempt is pending shares that attempt. Every retry reports its own result. Once an attempt
 succeeds, later retries succeed without another physical request. Ordinary `close()` calls keep

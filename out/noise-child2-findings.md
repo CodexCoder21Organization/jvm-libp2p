@@ -1,9 +1,9 @@
 # Noise child-process qualification, continuation
 
 Plan
-- [in progress] Verify cleanup regression with fix, reversed fix, then restored fix.
-- [pending] First complete NoiseHandshakeOffEventLoopTest, Noise package, full :libp2p:test once (--max-workers=2).
-- [pending] Independent test/code review, formatting/static checks and README cleanup contract.
+- [completed] Verify cleanup regression with fix, reversed fix, then restored fix.
+- [in progress] Original Noise class now 9/0 after precise checks; package first complete 57/0; full :libp2p:test running once (--max-workers=2).
+- [in progress] Separate test/code review and README contract complete; formatting/static checks pending.
 - [pending] Rebase develop, targeted final verification, one PR branch push and PR against develop; process audit.
 
 2026-10-22 04:11 UTC
@@ -120,7 +120,7 @@ org.opentest4j.AssertionFailedError: Exception in thread "main" org.opentest4j.A
 OBSERVED: Current committed/pushed source 95455997. The short-queue first red is in the checkpoint history with its full trace. First fixed run acquired boxrun slot 2 at 04:43:51 after a queue; no CASE lines yet. Using Gradle --offline now that initial builds have resolved every test dependency; this changes build resolution only, with identical selectors, JVM settings and test contracts.
 REVIEW (tests, independent pass): new short-queue case is separate; old 64-ping case is unchanged. Both force a callback across the existing 100ms policy with a latch await, real TCP writes and real Ping, then discriminate on read/marker order rather than a performance threshold. A short queue must expose the missing between-callback check, whereas the 64-item case reaches Netty's periodic check. Finally always releases the callback and closes both real hosts. First failure was the intended assertion.
 REVIEW (code, independent pass): private worker's budget is confined to its event-loop thread. First task always runs; later polls check the inherited Netty monotonic clock before removing work, preserving queued FIFO. A finally restores the prior budget even for nested entry or exceptions. Delegate still owns scheduled transfer, execution, counters, tail tasks and shutdown; polling is unchanged outside a positive timed drain. No new public API, dependency, reflection, exception handling, limit change or global mutable state. Existing Noise close/re-entry tests and transport lifecycle checks remain verification gates.
-OBSERVED: The earlier parallel-listen port failure is still unresolved. A bounded external observation helper is ready to capture socket rows and numeric owner/ancestor PIDs only while that test runs in the next broader selection/full suite. No process environments or thread/heap outputs are read/printed.
+OBSERVED: The earlier parallel-listen port failure is still unresolved. A bounded external observation helper is ready to capture socket rows and numeric owner/ancestor PIDs only while that test runs in the next broader selection/full suite. No process environments are read; no full thread or heap outputs are printed.
 
 2026-10-22 04:48 UTC — first implementation build: zero tests
 OBSERVED: short-queue-green-first exited 1 during compileKotlin, no CASE lines, 0 tests verified. Exact compiler output:
@@ -170,3 +170,20 @@ OBSERVED: precision-restored-targeted, source head 5638106fa2eecfe3211fa4e5dfef2
 
 2026-10-22 04:57:21 UTC
 OBSERVED: noise-package-first, source head 528ca1b00db7e6778ce175f52b61c6d01c8d31d4: 57 passed / 0 failed / 0 skipped; 57 CASE lines, process exit 0.
+
+2026-10-22 04:59 UTC — full-suite run in progress
+OBSERVED: Current committed/pushed checkpoint 11b07df7. Precise-check first executed test 1/0, reversal 0/1 at identical ordering assertion, restored targeted 16/0 (original Noise class 9/0, p95 105ms, elapsed 3381ms), first complete Noise package 57/0/0. Single full suite is running; it has reached pubsub tests. No whole-suite total claimed yet. Static checks and final rebase/targeted gate remain. Existing-test edits remain only inherited child logging; four new regression classes, no existing test weakened.
+
+2026-10-22 05:01:41 UTC
+OBSERVED: full-suite-first, source head 11b07df7ed406593fa57bbbb550f48060b92f43a: 1159 passed / 1 failed / 2 skipped; 1162 CASE lines, process exit 1.
+Full failure traces:
+```
+io.libp2p.pubsub.gossip.GossipTwoHostTest :: test message larger than mplex frame()
+java.util.concurrent.TimeoutException: Timeout waiting for condition
+	at io.libp2p.pubsub.gossip.TwoGossipHostTestBase.waitFor(TwoGossipHostTestBase.kt:123)
+	at io.libp2p.pubsub.gossip.GossipTwoHostTest.test message larger than mplex frame(GossipTwoHostTest.kt:36)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+
+```

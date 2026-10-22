@@ -1,10 +1,10 @@
 # FURR3 findings
 Started 2026-10-22 UTC.
 Plan:
-- [in progress] Locate consumed fork; read design, source and test guidance.
-- [pending] Add library-boundary reproducer and push first red checkpoint.
-- [pending] Add negotiated binding, optional capability and typed setup result.
-- [pending] Targeted checks, reversal control, correctness and test review.
+- [complete] Locate consumed fork; read design, source and test guidance.
+- [complete] Add library-boundary reproducer and push first red checkpoint.
+- [complete] Add negotiated binding, optional capability and typed setup result.
+- [in progress] Targeted checks, reversal control, correctness and test review.
 - [pending] One documented complete suite, PR and final file.
 Scope: jvm-libp2p only; no publication, merge, queue or deployment. Stop after PR creation without CI monitoring.
 Required reading: approved rFURR2-design.md and rFURR2-findings.md read in full. The final design uses Yamux; the earlier findings include superseded Mplex wording.
@@ -37,3 +37,9 @@ Targeted class io.libp2p.mux.yamux.YamuxCapacityResultTest: tests=11, red=8, ski
 
 OBSERVED: Implementation targeted run is green: 15/15 first attempt, zero skipped, zero test retries configured. Both capacity test classes passed, including 4 real TCP/Noise compatibility combinations. Capacity frames now complete pending setup futures with the same typed cause before close callbacks, while completed futures retain their prior result. The optional operation sends ordinary reset on legacy sessions. New mux admission checks the bound before allocating a child or a stream handler.
 Plan: red reproducer and implementation complete. Next: independent correctness/test review, add any identified boundary controls, reversal red, final targeted controls and the one complete suite.
+
+OBSERVED: Boundary expansion passed 19/19 on first attempt, no skipped tests. The zero limit admits no child; a released slot admits a later child; legacy markers remain ordinary; repeated capacity close writes one 13-byte frame with RST-only flags and byte 1. Existing source bindings and Stream.kt remain unchanged. First red checkpoint: https://github.com/CodexCoder21Organization/jvm-libp2p/commit/800e4cd3 . Passing implementation checkpoint: https://github.com/CodexCoder21Organization/jvm-libp2p/commit/611c1dbe .
+Test review (separate pass): identified missing coverage for an actually cancelled pending stream future, completed setup followed by a marker, selected-ID validation and negative-limit diagnostics; added those cases. No existing test was edited. Only the initial new helper was corrected to advance its own event loop. No timeout or iteration count changed.
+Correctness review (separate pass): checked capacity capability is selected only by the distinct ID; existing constructor and Stream descriptors remain; terminal cause is recorded before protocol completion, close callbacks and controller completion; bytes are released in a finally; missing-child reset frames cannot allocate or change siblings. Receiver marker creation uses the inherited Yamux write-budget accounting and codec. No production, dependency or artifact version changes.
+
+OBSERVED: Expanded targeted controls: 152/152 green on first attempt, 0 red and 0 skipped. Includes all 23 new cases plus existing Yamux, Mplex, protocol-selection-close and selected-controller-close tests. Compiled Stream, YamuxStreamMuxer and MplexStreamMuxer hashes are unchanged; javap Stream descriptors compare exactly. No existing test file changes.

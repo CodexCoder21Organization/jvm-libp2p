@@ -1,12 +1,12 @@
 diff --git a/README.md b/README.md
-index 6f764940..225ba230 100644
+index 6f764940..cd1ff1c8 100644
 --- a/README.md
 +++ b/README.md
 @@ -168,6 +168,25 @@ parent channel. Repeated calls wait for that operation and report its original f
  fails; they do not issue another close. Completing or cancelling one caller's returned future
  does not complete the operation or another caller's shutdown future.
  
-+For a Netty-backed `Connection`, `retryClose()` explicitly requests a new physical close after
++For `ConnectionOverNetty`, `retryClose()` explicitly requests a new physical close after
 +the latest attempt has failed. A call before closing starts the initial attempt; a call while
 +an attempt is pending shares that attempt. Every retry reports its own result. Once an attempt
 +succeeds, later retries succeed without another physical request. Ordinary `close()` calls keep
@@ -29,10 +29,10 @@ index 6f764940..225ba230 100644
  
  Deterministic Gossip simulator which may simulate networks as large as 10000 of peers
 diff --git a/libp2p/src/main/kotlin/io/libp2p/core/Connection.kt b/libp2p/src/main/kotlin/io/libp2p/core/Connection.kt
-index 64eb52b6..c6932ab8 100644
+index 64eb52b6..88707e52 100644
 --- a/libp2p/src/main/kotlin/io/libp2p/core/Connection.kt
 +++ b/libp2p/src/main/kotlin/io/libp2p/core/Connection.kt
-@@ -4,8 +4,23 @@ import io.libp2p.core.multiformats.Multiaddr
+@@ -4,8 +4,24 @@ import io.libp2p.core.multiformats.Multiaddr
  import io.libp2p.core.mux.StreamMuxer
  import io.libp2p.core.security.SecureChannel
  import io.libp2p.core.transport.Transport
@@ -42,10 +42,11 @@ index 64eb52b6..c6932ab8 100644
 +    /**
 +     * Explicitly requests another close attempt after a failed close has settled.
 +     *
-+     * If close has not started, starts it. If the latest attempt is pending, observes
++     * For [io.libp2p.transport.implementation.ConnectionOverNetty], if close has not
++     * started, starts it. If the latest attempt is pending, observes
 +     * that attempt without submitting another. After success, completes successfully
 +     * without another close request. Each settled failure permits a later explicit retry.
-+     * Ordinary [close] calls retain their original result, including after a retry.
++     * Its ordinary [close] calls retain their original result, including after a retry.
 +     * Completing or cancelling the returned future must not change the owned attempt.
 +     *
 +     * The default delegates to [close] for implementations without retained close failures.
@@ -148,10 +149,10 @@ index 7aa611ca..db2d8b22 100644
  }
 diff --git a/libp2p/src/test/java/io/libp2p/core/RelayConnectionRetryTest.java b/libp2p/src/test/java/io/libp2p/core/RelayConnectionRetryTest.java
 new file mode 100644
-index 00000000..e9f30a54
+index 00000000..e718ab39
 --- /dev/null
 +++ b/libp2p/src/test/java/io/libp2p/core/RelayConnectionRetryTest.java
-@@ -0,0 +1,138 @@
+@@ -0,0 +1,141 @@
 +package io.libp2p.core;
 +
 +import static org.junit.jupiter.api.Assertions.*;
@@ -234,6 +235,9 @@ index 00000000..e9f30a54
 +      connection.retryClose().get(5, TimeUnit.SECONDS);
 +      assertEquals(
 +          2, requests.get(), "A closed relay stream must stay closed on subsequent retry.");
++      // Relay connections keep their existing stream-close policy: a later close can succeed.
++      connection.close().get(5, TimeUnit.SECONDS);
++      assertEquals(2, requests.get(), "Ordinary close of a closed relay stream must stay a no-op.");
 +      assertTrue(
 +          client.getNetwork().getConnections().stream().anyMatch(c -> !c.closeFuture().isDone()),
 +          "Closing the relayed connection must leave its shared connection to the relay open.");

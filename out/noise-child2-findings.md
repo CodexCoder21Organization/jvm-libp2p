@@ -136,3 +136,31 @@ OBSERVED: Replaced the deprecated accessor with inherited ticker().nanoTime() fo
 
 2026-10-22 04:52:03 UTC
 OBSERVED: short-queue-green-clock, source head f96f08c4efc33cdab24c51f00e1bd78d41124e0d: 1 passed / 0 failed / 0 skipped; 1 CASE lines, process exit 0.
+
+2026-10-22 04:54:04 UTC
+OBSERVED: short-queue-reversal, source head d8b632936a957e07e1353e2f6d79b5dfc40c59fe: 0 passed / 1 failed / 0 skipped; 1 CASE lines, process exit 1.
+Full failure traces:
+```
+io.libp2p.security.noise.NoiseEstablishedIoCheckpointTest :: established reads run after the budget with fewer than sixty four queued callbacks()
+org.opentest4j.AssertionFailedError: Exception in thread "main" org.opentest4j.AssertionFailedError: An established TCP read must run before the next queued callback batch after the transport task quantum ==> expected: <true> but was: <false>
+	at org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+	at org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+	at org.junit.jupiter.api.AssertTrue.failNotTrue(AssertTrue.java:63)
+	at org.junit.jupiter.api.AssertTrue.assertTrue(AssertTrue.java:36)
+	at org.junit.jupiter.api.Assertions.assertTrue(Assertions.java:214)
+	at io.libp2p.security.noise.NoiseEstablishedIoCheckpointHarness.main(NoiseEstablishedIoCheckpointTest.kt:99)
+ ==> expected: <0> but was: <1>
+	at app//org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+	at app//org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+	at app//org.junit.jupiter.api.AssertEquals.failNotEqual(AssertEquals.java:197)
+	at app//org.junit.jupiter.api.AssertEquals.assertEquals(AssertEquals.java:150)
+	at app//org.junit.jupiter.api.Assertions.assertEquals(Assertions.java:563)
+	at app//io.libp2p.security.noise.NoiseEstablishedIoCheckpointTest.established reads run after the budget with fewer than sixty four queued callbacks(NoiseEstablishedIoCheckpointTest.kt:35)
+	at java.base@21.0.12.1/java.lang.reflect.Method.invoke(Method.java:580)
+	at java.base@21.0.12.1/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at java.base@21.0.12.1/java.util.ArrayList.forEach(ArrayList.java:1596)
+
+```
+
+2026-10-22 04:54:04 UTC
+OBSERVED: Precision-only reversal failed the intended ordering assertion; exact fixed bytes restored. Queue budget, logging and cleanup changes retained throughout.

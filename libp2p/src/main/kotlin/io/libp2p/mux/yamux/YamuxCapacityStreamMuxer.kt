@@ -10,6 +10,7 @@ import io.libp2p.core.mux.StreamMuxer
 import io.libp2p.core.mux.StreamMuxerDebug
 import java.util.concurrent.CompletableFuture
 
+/** Yamux with a per-child capacity result, enabled only by its distinct negotiated protocol ID. */
 class YamuxCapacityStreamMuxer(
     val inboundStreamHandler: StreamHandler<*>,
     private val multistreamProtocol: MultistreamProtocol,
@@ -22,6 +23,12 @@ class YamuxCapacityStreamMuxer(
     override var muxFramesDebugHandler: ChannelVisitor<Connection>? = null
 
     override fun initChannel(ch: P2PChannel, selectedProtocol: String): CompletableFuture<out StreamMuxer.Session> {
+        require(selectedProtocol == "/urlprotocol/yamux-capacity/1.0.0") {
+            "Capacity Yamux requires selected protocol /urlprotocol/yamux-capacity/1.0.0, but received $selectedProtocol"
+        }
+        require(maxInboundStreams >= 0) {
+            "Maximum inbound streams must be nonnegative, but received $maxInboundStreams"
+        }
         val muxSessionReady = CompletableFuture<StreamMuxer.Session>()
 
         val yamuxFrameCodec = YamuxFrameCodec()

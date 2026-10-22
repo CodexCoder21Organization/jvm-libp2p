@@ -405,8 +405,8 @@ open class YamuxHandler(
                     data!!.getUnsignedByte(data.readerIndex()).toInt() == 1
                 if (size > 0 && !capacity) {
                     LoggerFactory.getLogger(YamuxHandler::class.java).debug(
-                        "Unrecognized Yamux reset reason on stream {}: bodyBytes={}; using ordinary reset",
-                        msg.id, size
+                        "Unrecognized Yamux reset reason on stream {}: bodyBytes={}, firstByte={}; using ordinary reset",
+                        msg.id, size, data!!.getUnsignedByte(data.readerIndex())
                     )
                 }
                 if (capacity) {

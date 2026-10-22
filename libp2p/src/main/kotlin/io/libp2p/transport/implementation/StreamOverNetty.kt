@@ -6,6 +6,7 @@ import io.libp2p.core.PeerId
 import io.libp2p.core.Stream
 import io.libp2p.core.StreamCapacityReset
 import io.libp2p.etc.PROTOCOL
+import io.libp2p.etc.StreamSetupFuture
 import io.libp2p.etc.WRITE_FAILURE
 import io.libp2p.etc.types.toVoidCompletableFuture
 import io.libp2p.etc.util.netty.mux.MuxChannel
@@ -18,7 +19,7 @@ open class StreamOverNetty(
     initiator: Boolean
 ) : Stream, StreamCapacityReset, P2PChannelOverNetty(ch, initiator) {
     init {
-        nettyChannel.attr(PROTOCOL).set(CompletableFuture())
+        nettyChannel.attr(PROTOCOL).set(StreamSetupFuture<String>().also { it.channel = nettyChannel })
     }
 
     /**

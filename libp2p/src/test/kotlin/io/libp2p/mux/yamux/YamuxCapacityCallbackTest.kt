@@ -148,10 +148,16 @@ class YamuxCapacityCallbackTest {
             pair.client.runPendingTasks()
             val stream = opening.stream.get(5, TimeUnit.SECONDS) as StreamOverNetty
             assertThat(opening.controller.isDone).isFalse()
+            pending.whenComplete { _, _ ->
+                stream.getProtocol().complete("/callback/1.0.0")
+                opening.controller.complete(stream)
+            }
             val bytes = callbackBytes((stream.nettyChannel.id() as YamuxId).id, byteArrayOf(1))
             pair.client.writeInbound(bytes)
             assertThat(callbackResult(stream.getProtocol())).isInstanceOf(StreamCapacityException::class.java)
-            assertThat(callbackResult(opening.controller)).isInstanceOf(StreamCapacityException::class.java)
+            val cause = callbackResult(stream.getProtocol())
+            assertThat(callbackResult(pending)).isSameAs(cause)
+            assertThat(callbackResult(opening.controller)).isSameAs(cause)
             assertThat(bytes.refCnt()).isZero()
             assertThat(pair.client.isOpen).isTrue()
         }
@@ -168,10 +174,16 @@ class YamuxCapacityCallbackTest {
             pair.client.runPendingTasks()
             val stream = opening.stream.get(5, TimeUnit.SECONDS) as StreamOverNetty
             assertThat(opening.controller.isDone).isFalse()
+            pending.whenComplete { _, _ ->
+                stream.getProtocol().completeExceptionally(IllegalStateException("Handler callback result"))
+                opening.controller.completeExceptionally(IllegalStateException("Handler callback result"))
+            }
             val bytes = callbackBytes((stream.nettyChannel.id() as YamuxId).id, byteArrayOf(1))
             pair.client.writeInbound(bytes)
             assertThat(callbackResult(stream.getProtocol())).isInstanceOf(StreamCapacityException::class.java)
-            assertThat(callbackResult(opening.controller)).isInstanceOf(StreamCapacityException::class.java)
+            val cause = callbackResult(stream.getProtocol())
+            assertThat(callbackResult(pending)).isSameAs(cause)
+            assertThat(callbackResult(opening.controller)).isSameAs(cause)
             assertThat(bytes.refCnt()).isZero()
         }
     }

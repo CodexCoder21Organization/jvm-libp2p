@@ -295,7 +295,7 @@ index 00000000..e718ab39
 +  }
 +}
 diff --git a/libp2p/src/test/kotlin/io/libp2p/transport/ConnectionCloseRetryTest.kt b/libp2p/src/test/kotlin/io/libp2p/transport/ConnectionCloseRetryTest.kt
-index 92dd6c08..36b9c459 100644
+index 92dd6c08..3f30fa9a 100644
 --- a/libp2p/src/test/kotlin/io/libp2p/transport/ConnectionCloseRetryTest.kt
 +++ b/libp2p/src/test/kotlin/io/libp2p/transport/ConnectionCloseRetryTest.kt
 @@ -1,6 +1,7 @@
@@ -320,7 +320,7 @@ index 92dd6c08..36b9c459 100644
  
  class ConnectionCloseRetryTest {
      // Netty 4.2 exposes explicit handler execution only through this deprecated overload.
-@@ -62,19 +67,248 @@ class ConnectionCloseRetryTest {
+@@ -62,19 +67,251 @@ class ConnectionCloseRetryTest {
              connection.retryClose().get(5, TimeUnit.SECONDS)
              assertEquals(2, requests.get(), "A successful retry is terminal; later retries must not submit another close.")
          } finally {
@@ -406,7 +406,10 @@ index 92dd6c08..36b9c459 100644
 +                requests.incrementAndGet()
 +                promise.setFailure(failure)
 +            }
-+            val first = connection.retryClose()
++            // On the event loop the injected failure settles before retryClose returns.
++            val first = connection.nettyChannel.eventLoop().submit<CompletableFuture<Unit>> {
++                connection.retryClose()
++            }.get(5, TimeUnit.SECONDS)
 +            assertSame(failure, retryCloseFailure(first))
 +            assertEquals(1, requests.get(), "A retry on an untouched connection starts only its initial close.")
 +            assertSame(failure, retryCloseFailure(connection.close()))
@@ -576,7 +579,7 @@ index 92dd6c08..36b9c459 100644
      transports { add(::TcpTransport) }
      secureChannels { add(::NoiseXXSecureChannel) }
      muxers { add(StreamMuxerProtocol.getYamux()) }
-@@ -88,5 +322,51 @@ private fun retryCloseFailure(future: CompletableFuture<Unit>): Throwable {
+@@ -88,5 +325,51 @@ private fun retryCloseFailure(future: CompletableFuture<Unit>): Throwable {
      return failure
  }
  

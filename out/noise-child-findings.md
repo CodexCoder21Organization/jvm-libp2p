@@ -48,3 +48,9 @@ OBSERVED: At 03:08 UTC status RUNNING: no PR, no source fix yet, no subagents. N
 
 2026-10-22 03:09 UTC — FIRST NEW TEST RED
 OBSERVED: NoiseEstablishedIoQueueTest first attempt: 1 case, 0 passed / 1 failed / 0 skipped, compiling successfully and failing the intended child assertion (not a timeout): An established TCP read must run before the next queued callback batch after the transport task quantum ==> expected true but was false. Full stack trace in out/queue-red-first.log and XML copied to out/queue-red-first.xml. The parent correctly observes child exit 1. This establishes the exact queued-task/I-O ordering defect before any production edit.
+
+2026-10-22 03:10 UTC — implementation under test
+OBSERVED: Explicit transport-only 100ms quantum implemented using Netty public SingleThreadIoEventLoop constructor, retaining inherited DEFAULT_MAX_PENDING_TASKS, default rejection handling, shared daemon group and all transport lifecycle paths. README adds public scheduling behavior and an asynchronous Ping usage example. No existing test edited. New regression is compiling/running for its first fixed attempt.
+
+2026-10-22 03:11 UTC — FIRST FIXED TEST GREEN
+OBSERVED: Same NoiseEstablishedIoQueueTest passes first fixed attempt, 1/0/0, after successful compilation. No test/body/hold duration altered. XML and log preserved. The callback queue now yields to the real established read before the marker. Saving exact fixed source, then restoring old worker construction for the required reversal.

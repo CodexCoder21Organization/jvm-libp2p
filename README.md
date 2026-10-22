@@ -60,6 +60,29 @@ Legend:
 
 For autonomous Netty loops, competing handshakes or queued work send computation to the shared workers. An uncontended loop keeps computation inline. Once a handshake uses the workers, subsequent computations keep their per-channel order there. Embedded channels remain synchronous on their caller-driven loops.
 
+The shared TCP/WebSocket worker returns to socket I/O between queued callback batches with a
+100 ms task-processing budget. This keeps established traffic moving while new connections queue
+registration, negotiation and ready callbacks, including when Noise computation uses separate
+workers. An individual application callback still runs to completion, so callbacks should compose
+asynchronous operations rather than wait on incomplete futures.
+
+For example, a Ping connection remains usable while other peers connect:
+
+```kotlin
+import io.libp2p.core.Host
+import io.libp2p.protocol.Ping
+import java.util.concurrent.CompletableFuture
+
+fun pingWhileConnecting(monitor: Host, peers: List<Host>, relay: Host): CompletableFuture<Long> {
+    val address = relay.listenAddresses().single()
+    return Ping().dial(monitor, relay.peerId, address).controller.thenCompose { controller ->
+        val connections = peers.map { it.network.connect(relay.peerId, address) }
+        val ping = controller.ping()
+        CompletableFuture.allOf(*connections.toTypedArray()).thenCompose { ping }
+    }
+}
+```
+
 ## Noise identity preparation
 
 A `NoiseXXSecureChannel` prepares its static key and signed identity payload when it is constructed,

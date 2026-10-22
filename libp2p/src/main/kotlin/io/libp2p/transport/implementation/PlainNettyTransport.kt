@@ -20,15 +20,21 @@ import io.netty.channel.Channel
 import io.netty.channel.ChannelHandler
 import io.netty.channel.ChannelOption
 import io.netty.channel.EventLoopGroup
+import io.netty.channel.IoEventLoop
+import io.netty.channel.IoEventLoopGroup
+import io.netty.channel.IoHandlerFactory
+import io.netty.channel.SingleThreadIoEventLoop
 import io.netty.channel.MultiThreadIoEventLoopGroup
 import io.netty.channel.nio.NioIoHandler
 import io.netty.channel.socket.nio.NioServerSocketChannel
 import io.netty.channel.socket.nio.NioSocketChannel
 import io.netty.util.concurrent.DefaultThreadFactory
+import io.netty.util.concurrent.RejectedExecutionHandlers
 import java.net.InetSocketAddress
 import java.net.SocketAddress
 import java.time.Duration
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.Executor
 import java.util.concurrent.TimeUnit
 
 /**
@@ -335,7 +341,29 @@ abstract class PlainNettyTransport(
         // workerGroup property and close()). Sharing caps total worker threads at
         // O(cores) regardless of how many hosts the process spins up.
         private val sharedWorkerGroup: EventLoopGroup by lazy {
-            MultiThreadIoEventLoopGroup(DefaultThreadFactory("libp2p-nio-worker", true), NioIoHandler.newFactory())
+            transportWorkerGroup()
         }
     }
 }
+
+private fun transportWorkerGroup(): EventLoopGroup = object : MultiThreadIoEventLoopGroup(
+    DefaultThreadFactory("libp2p-nio-worker", true),
+    NioIoHandler.newFactory()
+) {
+    override fun newChild(executor: Executor, ioHandlerFactory: IoHandlerFactory, vararg args: Any): IoEventLoop =
+        TransportIoEventLoop(this, executor, ioHandlerFactory)
+}
+
+private class TransportIoEventLoop(
+    parent: IoEventLoopGroup,
+    executor: Executor,
+    ioHandlerFactory: IoHandlerFactory
+) : SingleThreadIoEventLoop(
+    parent,
+    executor,
+    ioHandlerFactory,
+    DEFAULT_MAX_PENDING_TASKS,
+    RejectedExecutionHandlers.reject(),
+    // Poll established connections between callback batches, including when Noise uses workers.
+    100
+)

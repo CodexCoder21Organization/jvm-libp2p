@@ -1,0 +1,12 @@
+# FIX64 — address REV64 findings on https://github.com/CodexCoder21Organization/jvm-libp2p/pull/64 (start head 00d446b7)
+
+OBSERVED 09:03 UTC: fresh clone at /tmp/claude-501/-code/2abf611d-5e04-4919-84a8-d7b72869d40c/scratchpad/workspace/fix64, PR head 00d446b7, origin/develop is an ancestor.
+INFER: Mplex over TCP cannot deterministically deliver frame 65 while paused (Mplex stops parent reads on pause, so only frames already in the current transport read reach the handler). Chose a Yamux receiver with merging declined (test-only YamuxHandler subclass via a custom StreamMuxerProtocol over real TCP) for SHOULD-FIX 1; it reaches the same frame-bound path Mplex uses in production.
+OBSERVED: targeted run (ResumeAtFrameBound*, PausedYamux*, YamuxHandlerTest): 81 tests, 0 failures, first run (Gradle has no retry layer).
+OBSERVED mutation M2 (drain-before-admit branch condition prefixed with false, AbstractMuxHandler.kt:197): 6 tests, 3 failed on first run — all three new *WhenMergeIsDeclined variants ("Resuming before the next frame reaches Yamux must deliver all 65 bytes; actual=0 childOpen=false"; RePause and Close: "Resume must begin draining the held FIFO"). The three merging-on originals passed. Source restored, git status clean for main.
+OBSERVED mutation seal no-op (YamuxHandler.sealPendingChildRead): new YamuxHandlerTest.pausedChildMergesSmallFramesAtTheProductionFrameBound and PausedYamuxMergedBackingStorageTest fail; after the NIT-5 capacity assertion, YamuxPausedManySmallFramesTcpTest also fails (expected readable [1 x63, 9937] vs capacities differing). Restored.
+OBSERVED mutation always-decline merging (coalescePendingChildRead returns false): both new production tests and the TCP small-frames test fail. Restored.
+OBSERVED: spotlessCheck + detekt pass. Commits b92431d0 (tests) and 495b8f49 (FORK/README) pushed to wip/fix64-review-findings.
+OBSERVED: mux family (io.libp2p.mux.* + io.libp2p.etc.util.netty.mux.*) at 495b8f49, three separate --rerun runs: 216 tests, 0 failures/errors/skips each (211 + 5 new). XML ev/fam1..3.
+OBSERVED: rebase on origin/develop was a no-op (develop already an ancestor). Pushed 495b8f49 to fix/r1-yamux-paused-stream-frame-bound with --force-with-lease from 00d446b7 (fast-forward).
+OBSERVED 09:12 UTC: full suite queued on complete-suite.lock behind C1F and rb1414 lanes (timeout 5400).

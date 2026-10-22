@@ -1,0 +1,498 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.libp2p.mux.yamux.YamuxHandlerTest" tests="1" skipped="0" failures="1" errors="0" timestamp="2026-10-22T09:09:08.573Z" hostname="0418f9b78349" time="0.09">
+  <properties/>
+  <testcase name="pausedChildMergesSmallFramesAtTheProductionFrameBound()" classname="io.libp2p.mux.yamux.YamuxHandlerTest" time="0.09">
+    <failure message="org.opentest4j.AssertionFailedError: &#10;Expecting value to be true but was false" type="org.opentest4j.AssertionFailedError">org.opentest4j.AssertionFailedError: 
+Expecting value to be true but was false
+	at app//io.libp2p.mux.yamux.YamuxHandlerTest.pausedChildMergesSmallFramesAtTheProductionFrameBound(YamuxHandlerTest.kt:382)
+	at java.base@21.0.12.1/java.lang.reflect.Method.invoke(Method.java:580)
+	at java.base@21.0.12.1/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at java.base@21.0.12.1/java.util.ArrayList.forEach(ArrayList.java:1596)
+	Suppressed: java.lang.AssertionError: 
+Expecting empty but was: [io.libp2p.core.ConnectionClosedException: Paused child test/2 inbound queue exceeded: attempted 65 frames and 65 bytes; limits are 64 frames and 300 bytes; resetting the stream
+	at io.libp2p.etc.util.netty.mux.AbstractMuxHandler.childRead(AbstractMuxHandler.kt:218)
+	at io.libp2p.mux.yamux.YamuxHandler.access$childRead(YamuxHandler.kt:37)
+	at io.libp2p.mux.yamux.YamuxHandler$YamuxStreamHandler.handleDataRead(YamuxHandler.kt:164)
+	...(98 remaining lines not displayed - this can be changed with Assertions.setMaxStackTraceElementsDisplayed)]
+		at io.libp2p.mux.MuxHandlerAbstractTest.cleanUpAndCheck(MuxHandlerAbstractTest.kt:93)
+		... 3 more
+</failure>
+  </testcase>
+  <system-out><![CDATA[09:09:08.576 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] REGISTERED
+09:09:08.576 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] ACTIVE
+09:09:08.576 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ, YamuxFrame(id=test/2, type=DATA, flags=SYN, length=0), 0B
+New child channel created
+MuxHandlerAbstractTest.handlerAdded
+MuxHandlerAbstractTest.channelRegistered
+MuxHandlerAbstractTest.channelActive
+09:09:08.579 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] WRITE, YamuxFrame(id=test/2, type=WINDOW_UPDATE, flags=ACK, length=0), 0B
+09:09:08.580 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] FLUSH
+09:09:08.581 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+09:09:08.602 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: YamuxFrame(id=test/2, type=DATA, flags=, length=1, len=1, UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeHeapByteBuf(ridx: 0, widx: 1, cap: 256)), 1B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 00                                              |.               |
++--------+-------------------------------------------------+----------------+
+09:09:08.604 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+09:09:08.605 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: YamuxFrame(id=test/2, type=DATA, flags=, length=1, len=1, UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeHeapByteBuf(ridx: 0, widx: 1, cap: 256)), 1B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 01                                              |.               |
++--------+-------------------------------------------------+----------------+
+09:09:08.605 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+09:09:08.605 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: YamuxFrame(id=test/2, type=DATA, flags=, length=1, len=1, UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeHeapByteBuf(ridx: 0, widx: 1, cap: 256)), 1B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 02                                              |.               |
++--------+-------------------------------------------------+----------------+
+09:09:08.605 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+09:09:08.605 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: YamuxFrame(id=test/2, type=DATA, flags=, length=1, len=1, UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeHeapByteBuf(ridx: 0, widx: 1, cap: 256)), 1B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 03                                              |.               |
++--------+-------------------------------------------------+----------------+
+09:09:08.606 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+09:09:08.606 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: YamuxFrame(id=test/2, type=DATA, flags=, length=1, len=1, UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeHeapByteBuf(ridx: 0, widx: 1, cap: 256)), 1B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 04                                              |.               |
++--------+-------------------------------------------------+----------------+
+09:09:08.606 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+09:09:08.606 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: YamuxFrame(id=test/2, type=DATA, flags=, length=1, len=1, UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeHeapByteBuf(ridx: 0, widx: 1, cap: 256)), 1B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 05                                              |.               |
++--------+-------------------------------------------------+----------------+
+09:09:08.606 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+09:09:08.606 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: YamuxFrame(id=test/2, type=DATA, flags=, length=1, len=1, UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeHeapByteBuf(ridx: 0, widx: 1, cap: 256)), 1B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 06                                              |.               |
++--------+-------------------------------------------------+----------------+
+09:09:08.606 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+09:09:08.607 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: YamuxFrame(id=test/2, type=DATA, flags=, length=1, len=1, UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeHeapByteBuf(ridx: 0, widx: 1, cap: 256)), 1B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 07                                              |.               |
++--------+-------------------------------------------------+----------------+
+09:09:08.607 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+09:09:08.607 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: YamuxFrame(id=test/2, type=DATA, flags=, length=1, len=1, UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeHeapByteBuf(ridx: 0, widx: 1, cap: 256)), 1B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 08                                              |.               |
++--------+-------------------------------------------------+----------------+
+09:09:08.607 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+09:09:08.607 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: YamuxFrame(id=test/2, type=DATA, flags=, length=1, len=1, UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeHeapByteBuf(ridx: 0, widx: 1, cap: 256)), 1B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 09                                              |.               |
++--------+-------------------------------------------------+----------------+
+09:09:08.607 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+09:09:08.607 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: YamuxFrame(id=test/2, type=DATA, flags=, length=1, len=1, UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeHeapByteBuf(ridx: 0, widx: 1, cap: 256)), 1B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 0a                                              |.               |
++--------+-------------------------------------------------+----------------+
+09:09:08.607 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+09:09:08.607 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: YamuxFrame(id=test/2, type=DATA, flags=, length=1, len=1, UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeHeapByteBuf(ridx: 0, widx: 1, cap: 256)), 1B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 0b                                              |.               |
++--------+-------------------------------------------------+----------------+
+09:09:08.607 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+09:09:08.607 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: YamuxFrame(id=test/2, type=DATA, flags=, length=1, len=1, UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeHeapByteBuf(ridx: 0, widx: 1, cap: 256)), 1B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 0c                                              |.               |
++--------+-------------------------------------------------+----------------+
+09:09:08.607 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+09:09:08.607 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: YamuxFrame(id=test/2, type=DATA, flags=, length=1, len=1, UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeHeapByteBuf(ridx: 0, widx: 1, cap: 256)), 1B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 0d                                              |.               |
++--------+-------------------------------------------------+----------------+
+09:09:08.608 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+09:09:08.608 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: YamuxFrame(id=test/2, type=DATA, flags=, length=1, len=1, UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeHeapByteBuf(ridx: 0, widx: 1, cap: 256)), 1B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 0e                                              |.               |
++--------+-------------------------------------------------+----------------+
+09:09:08.609 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+09:09:08.610 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: YamuxFrame(id=test/2, type=DATA, flags=, length=1, len=1, UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeHeapByteBuf(ridx: 0, widx: 1, cap: 256)), 1B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 0f                                              |.               |
++--------+-------------------------------------------------+----------------+
+09:09:08.610 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+09:09:08.610 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: YamuxFrame(id=test/2, type=DATA, flags=, length=1, len=1, UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeHeapByteBuf(ridx: 0, widx: 1, cap: 256)), 1B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 10                                              |.               |
++--------+-------------------------------------------------+----------------+
+09:09:08.610 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+09:09:08.611 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: YamuxFrame(id=test/2, type=DATA, flags=, length=1, len=1, UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeHeapByteBuf(ridx: 0, widx: 1, cap: 256)), 1B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 11                                              |.               |
++--------+-------------------------------------------------+----------------+
+09:09:08.611 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+09:09:08.612 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: YamuxFrame(id=test/2, type=DATA, flags=, length=1, len=1, UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeHeapByteBuf(ridx: 0, widx: 1, cap: 256)), 1B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 12                                              |.               |
++--------+-------------------------------------------------+----------------+
+09:09:08.612 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+09:09:08.613 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: YamuxFrame(id=test/2, type=DATA, flags=, length=1, len=1, UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeHeapByteBuf(ridx: 0, widx: 1, cap: 256)), 1B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 13                                              |.               |
++--------+-------------------------------------------------+----------------+
+09:09:08.613 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+09:09:08.613 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: YamuxFrame(id=test/2, type=DATA, flags=, length=1, len=1, UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeHeapByteBuf(ridx: 0, widx: 1, cap: 256)), 1B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 14                                              |.               |
++--------+-------------------------------------------------+----------------+
+09:09:08.613 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+09:09:08.613 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: YamuxFrame(id=test/2, type=DATA, flags=, length=1, len=1, UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeHeapByteBuf(ridx: 0, widx: 1, cap: 256)), 1B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 15                                              |.               |
++--------+-------------------------------------------------+----------------+
+09:09:08.614 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+09:09:08.614 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: YamuxFrame(id=test/2, type=DATA, flags=, length=1, len=1, UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeHeapByteBuf(ridx: 0, widx: 1, cap: 256)), 1B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 16                                              |.               |
++--------+-------------------------------------------------+----------------+
+09:09:08.615 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+09:09:08.615 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: YamuxFrame(id=test/2, type=DATA, flags=, length=1, len=1, UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeHeapByteBuf(ridx: 0, widx: 1, cap: 256)), 1B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 17                                              |.               |
++--------+-------------------------------------------------+----------------+
+09:09:08.616 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+09:09:08.616 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: YamuxFrame(id=test/2, type=DATA, flags=, length=1, len=1, UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeHeapByteBuf(ridx: 0, widx: 1, cap: 256)), 1B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 18                                              |.               |
++--------+-------------------------------------------------+----------------+
+09:09:08.617 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+09:09:08.617 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: YamuxFrame(id=test/2, type=DATA, flags=, length=1, len=1, UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeHeapByteBuf(ridx: 0, widx: 1, cap: 256)), 1B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 19                                              |.               |
++--------+-------------------------------------------------+----------------+
+09:09:08.617 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+09:09:08.619 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: YamuxFrame(id=test/2, type=DATA, flags=, length=1, len=1, UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeHeapByteBuf(ridx: 0, widx: 1, cap: 256)), 1B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 1a                                              |.               |
++--------+-------------------------------------------------+----------------+
+09:09:08.620 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+09:09:08.620 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: YamuxFrame(id=test/2, type=DATA, flags=, length=1, len=1, UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeHeapByteBuf(ridx: 0, widx: 1, cap: 256)), 1B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 1b                                              |.               |
++--------+-------------------------------------------------+----------------+
+09:09:08.621 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+09:09:08.621 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: YamuxFrame(id=test/2, type=DATA, flags=, length=1, len=1, UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeHeapByteBuf(ridx: 0, widx: 1, cap: 256)), 1B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 1c                                              |.               |
++--------+-------------------------------------------------+----------------+
+09:09:08.621 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+09:09:08.621 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: YamuxFrame(id=test/2, type=DATA, flags=, length=1, len=1, UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeHeapByteBuf(ridx: 0, widx: 1, cap: 256)), 1B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 1d                                              |.               |
++--------+-------------------------------------------------+----------------+
+09:09:08.622 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+09:09:08.622 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: YamuxFrame(id=test/2, type=DATA, flags=, length=1, len=1, UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeHeapByteBuf(ridx: 0, widx: 1, cap: 256)), 1B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 1e                                              |.               |
++--------+-------------------------------------------------+----------------+
+09:09:08.622 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+09:09:08.622 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: YamuxFrame(id=test/2, type=DATA, flags=, length=1, len=1, UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeHeapByteBuf(ridx: 0, widx: 1, cap: 256)), 1B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 1f                                              |.               |
++--------+-------------------------------------------------+----------------+
+09:09:08.622 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+09:09:08.622 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: YamuxFrame(id=test/2, type=DATA, flags=, length=1, len=1, UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeHeapByteBuf(ridx: 0, widx: 1, cap: 256)), 1B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 20                                              |                |
++--------+-------------------------------------------------+----------------+
+09:09:08.622 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+09:09:08.622 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: YamuxFrame(id=test/2, type=DATA, flags=, length=1, len=1, UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeHeapByteBuf(ridx: 0, widx: 1, cap: 256)), 1B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 21                                              |!               |
++--------+-------------------------------------------------+----------------+
+09:09:08.622 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+09:09:08.622 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: YamuxFrame(id=test/2, type=DATA, flags=, length=1, len=1, UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeHeapByteBuf(ridx: 0, widx: 1, cap: 256)), 1B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 22                                              |"               |
++--------+-------------------------------------------------+----------------+
+09:09:08.622 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+09:09:08.622 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: YamuxFrame(id=test/2, type=DATA, flags=, length=1, len=1, UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeHeapByteBuf(ridx: 0, widx: 1, cap: 256)), 1B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 23                                              |#               |
++--------+-------------------------------------------------+----------------+
+09:09:08.623 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+09:09:08.623 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: YamuxFrame(id=test/2, type=DATA, flags=, length=1, len=1, UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeHeapByteBuf(ridx: 0, widx: 1, cap: 256)), 1B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 24                                              |$               |
++--------+-------------------------------------------------+----------------+
+09:09:08.623 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+09:09:08.623 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: YamuxFrame(id=test/2, type=DATA, flags=, length=1, len=1, UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeHeapByteBuf(ridx: 0, widx: 1, cap: 256)), 1B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 25                                              |%               |
++--------+-------------------------------------------------+----------------+
+09:09:08.623 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+09:09:08.624 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: YamuxFrame(id=test/2, type=DATA, flags=, length=1, len=1, UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeHeapByteBuf(ridx: 0, widx: 1, cap: 256)), 1B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 26                                              |&               |
++--------+-------------------------------------------------+----------------+
+09:09:08.624 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+09:09:08.625 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: YamuxFrame(id=test/2, type=DATA, flags=, length=1, len=1, UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeHeapByteBuf(ridx: 0, widx: 1, cap: 256)), 1B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 27                                              |'               |
++--------+-------------------------------------------------+----------------+
+09:09:08.625 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+09:09:08.626 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: YamuxFrame(id=test/2, type=DATA, flags=, length=1, len=1, UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeHeapByteBuf(ridx: 0, widx: 1, cap: 256)), 1B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 28                                              |(               |
++--------+-------------------------------------------------+----------------+
+09:09:08.626 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+09:09:08.626 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: YamuxFrame(id=test/2, type=DATA, flags=, length=1, len=1, UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeHeapByteBuf(ridx: 0, widx: 1, cap: 256)), 1B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 29                                              |)               |
++--------+-------------------------------------------------+----------------+
+09:09:08.626 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+09:09:08.626 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: YamuxFrame(id=test/2, type=DATA, flags=, length=1, len=1, UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeHeapByteBuf(ridx: 0, widx: 1, cap: 256)), 1B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 2a                                              |*               |
++--------+-------------------------------------------------+----------------+
+09:09:08.628 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+09:09:08.628 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: YamuxFrame(id=test/2, type=DATA, flags=, length=1, len=1, UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeHeapByteBuf(ridx: 0, widx: 1, cap: 256)), 1B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 2b                                              |+               |
++--------+-------------------------------------------------+----------------+
+09:09:08.628 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+09:09:08.628 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: YamuxFrame(id=test/2, type=DATA, flags=, length=1, len=1, UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeHeapByteBuf(ridx: 0, widx: 1, cap: 256)), 1B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 2c                                              |,               |
++--------+-------------------------------------------------+----------------+
+09:09:08.628 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+09:09:08.628 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: YamuxFrame(id=test/2, type=DATA, flags=, length=1, len=1, UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeHeapByteBuf(ridx: 0, widx: 1, cap: 256)), 1B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 2d                                              |-               |
++--------+-------------------------------------------------+----------------+
+09:09:08.629 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+09:09:08.629 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: YamuxFrame(id=test/2, type=DATA, flags=, length=1, len=1, UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeHeapByteBuf(ridx: 0, widx: 1, cap: 256)), 1B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 2e                                              |.               |
++--------+-------------------------------------------------+----------------+
+09:09:08.629 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+09:09:08.630 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: YamuxFrame(id=test/2, type=DATA, flags=, length=1, len=1, UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeHeapByteBuf(ridx: 0, widx: 1, cap: 256)), 1B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 2f                                              |/               |
++--------+-------------------------------------------------+----------------+
+09:09:08.631 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+09:09:08.631 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: YamuxFrame(id=test/2, type=DATA, flags=, length=1, len=1, UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeHeapByteBuf(ridx: 0, widx: 1, cap: 256)), 1B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 30                                              |0               |
++--------+-------------------------------------------------+----------------+
+09:09:08.631 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+09:09:08.631 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: YamuxFrame(id=test/2, type=DATA, flags=, length=1, len=1, UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeHeapByteBuf(ridx: 0, widx: 1, cap: 256)), 1B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 31                                              |1               |
++--------+-------------------------------------------------+----------------+
+09:09:08.631 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+09:09:08.631 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: YamuxFrame(id=test/2, type=DATA, flags=, length=1, len=1, UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeHeapByteBuf(ridx: 0, widx: 1, cap: 256)), 1B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 32                                              |2               |
++--------+-------------------------------------------------+----------------+
+09:09:08.631 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+09:09:08.631 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: YamuxFrame(id=test/2, type=DATA, flags=, length=1, len=1, UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeHeapByteBuf(ridx: 0, widx: 1, cap: 256)), 1B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 33                                              |3               |
++--------+-------------------------------------------------+----------------+
+09:09:08.631 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+09:09:08.631 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: YamuxFrame(id=test/2, type=DATA, flags=, length=1, len=1, UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeHeapByteBuf(ridx: 0, widx: 1, cap: 256)), 1B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 34                                              |4               |
++--------+-------------------------------------------------+----------------+
+09:09:08.631 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+09:09:08.631 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: YamuxFrame(id=test/2, type=DATA, flags=, length=1, len=1, UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeHeapByteBuf(ridx: 0, widx: 1, cap: 256)), 1B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 35                                              |5               |
++--------+-------------------------------------------------+----------------+
+09:09:08.632 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+09:09:08.632 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: YamuxFrame(id=test/2, type=DATA, flags=, length=1, len=1, UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeHeapByteBuf(ridx: 0, widx: 1, cap: 256)), 1B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 36                                              |6               |
++--------+-------------------------------------------------+----------------+
+09:09:08.632 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+09:09:08.633 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: YamuxFrame(id=test/2, type=DATA, flags=, length=1, len=1, UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeHeapByteBuf(ridx: 0, widx: 1, cap: 256)), 1B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 37                                              |7               |
++--------+-------------------------------------------------+----------------+
+09:09:08.633 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+09:09:08.646 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: YamuxFrame(id=test/2, type=DATA, flags=, length=1, len=1, UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeHeapByteBuf(ridx: 0, widx: 1, cap: 256)), 1B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 38                                              |8               |
++--------+-------------------------------------------------+----------------+
+09:09:08.648 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+09:09:08.651 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: YamuxFrame(id=test/2, type=DATA, flags=, length=1, len=1, UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeHeapByteBuf(ridx: 0, widx: 1, cap: 256)), 1B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 39                                              |9               |
++--------+-------------------------------------------------+----------------+
+09:09:08.651 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+09:09:08.651 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: YamuxFrame(id=test/2, type=DATA, flags=, length=1, len=1, UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeHeapByteBuf(ridx: 0, widx: 1, cap: 256)), 1B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 3a                                              |:               |
++--------+-------------------------------------------------+----------------+
+09:09:08.651 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+09:09:08.651 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: YamuxFrame(id=test/2, type=DATA, flags=, length=1, len=1, UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeHeapByteBuf(ridx: 0, widx: 1, cap: 256)), 1B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 3b                                              |;               |
++--------+-------------------------------------------------+----------------+
+09:09:08.651 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+09:09:08.651 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: YamuxFrame(id=test/2, type=DATA, flags=, length=1, len=1, UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeHeapByteBuf(ridx: 0, widx: 1, cap: 256)), 1B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 3c                                              |<               |
++--------+-------------------------------------------------+----------------+
+09:09:08.651 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+09:09:08.651 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: YamuxFrame(id=test/2, type=DATA, flags=, length=1, len=1, UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeHeapByteBuf(ridx: 0, widx: 1, cap: 256)), 1B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 3d                                              |=               |
++--------+-------------------------------------------------+----------------+
+09:09:08.651 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+09:09:08.651 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: YamuxFrame(id=test/2, type=DATA, flags=, length=1, len=1, UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeHeapByteBuf(ridx: 0, widx: 1, cap: 256)), 1B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 3e                                              |>               |
++--------+-------------------------------------------------+----------------+
+09:09:08.652 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+09:09:08.652 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: YamuxFrame(id=test/2, type=DATA, flags=, length=1, len=1, UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeHeapByteBuf(ridx: 0, widx: 1, cap: 256)), 1B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 3f                                              |?               |
++--------+-------------------------------------------------+----------------+
+09:09:08.652 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+09:09:08.652 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: YamuxFrame(id=test/2, type=DATA, flags=, length=1, len=1, UnpooledByteBufAllocator$InstrumentedUnpooledUnsafeHeapByteBuf(ridx: 0, widx: 1, cap: 256)), 1B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 40                                              |@               |
++--------+-------------------------------------------------+----------------+
+09:09:08.652 [Test worker] [?[33mWARN?[m] io.libp2p.etc.util.netty.mux.AbstractMuxHandler - Paused child test/2 inbound queue exceeded: attempted 65 frames and 65 bytes; limits are 64 frames and 300 bytes; resetting the stream
+MuxHandlerAbstractTest.exceptionCaught
+09:09:08.652 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] WRITE, YamuxFrame(id=test/2, type=DATA, flags=RST, length=0), 0B
+09:09:08.652 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] FLUSH
+MuxHandlerAbstractTest.channelInactive
+MuxHandlerAbstractTest.channelUnregistered
+MuxHandlerAbstractTest.handlerRemoved
+09:09:08.652 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+09:09:08.661 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/255.255.255.255:777 - R:/255.255.255.255:255] CLOSE
+09:09:08.662 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/0.0.0.0:777 ! R:/255.255.255.255:255] INACTIVE
+09:09:08.662 [Test worker] [?[1;31mERROR?[m] io.netty.handler.logging.LoggingHandler - [id: 0xtest, L:/0.0.0.0:777 ! R:/255.255.255.255:255] UNREGISTERED
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

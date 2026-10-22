@@ -132,12 +132,12 @@ Each child stream channel keeps one Netty `ChannelConfig` for its lifetime. For 
 
 | Muxer | Paused child | Parent reads and other streams |
 | --- | --- | --- |
-| Yamux | Holds its own delivery and receive-window credit. Held payloads are bounded by its receive window, and credit is returned only after delivery. | Parent reads continue, so sibling streams and window updates for replies on the paused stream keep flowing. |
+| Yamux | Holds its own delivery and receive-window credit. Held payloads are bounded by 64 frames and its receive window, and credit is returned only after delivery. | Parent reads continue, so sibling streams and window updates for replies on the paused stream keep flowing. |
 | Mplex | Holds payloads up to 64 frames and four maximum-length frames' worth of bytes. | Mplex has no per-stream flow control. Parent reads pause while any child is paused and restore the earlier parent setting when all paused children resume or close. |
 
 For a paused Yamux stream, the retained payload backing storage is bounded by that stream's receive window even when transport buffers also contain sibling traffic. Writing a reply leaves the read pause in effect until the application explicitly resumes it.
 
-A stream that exceeds its applicable limit is closed and its held payloads are released. Setting `autoRead = false` directly on the parent channel stops transport reads for every stream under either muxer. Pausing and resuming a child preserves an already paused parent.
+A stream that exceeds its applicable limit is reset before another payload is retained, and its held payloads are released. For Yamux, frame 65 resets only that stream; the local queue error reports the attempted frames and bytes and both limits. Any pending reply fails, and the peer receives a Yamux reset. Applications should handle that write failure; resuming a reset stream does not deliver rejected input. Setting `autoRead = false` directly on the parent channel stops transport reads for every stream under either muxer. Pausing and resuming a child preserves an already paused parent.
 
 A Yamux request handler can pause further request delivery while asynchronously writing a reply larger than its receive window:
 

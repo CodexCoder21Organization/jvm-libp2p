@@ -325,6 +325,13 @@ open class YamuxHandler(
             drainBufferAndMaybeClose()
         }
 
+        fun closeForReadOverflow(child: MuxChannel<ByteBuf>, cause: Throwable) {
+            // Keep the descriptive queue failure for any pending reply. The muxer has already
+            // released held input before close fails writes and invokes application callbacks.
+            resetCause = cause
+            child.close()
+        }
+
         fun onLocalClose(
             cause: Throwable = ConnectionClosedException("Yamux stream was reset with buffered data: $id")
         ) {
@@ -486,7 +493,10 @@ open class YamuxHandler(
     override val pauseParentReadsForPausedChild: Boolean
         get() = false
 
-    override val maxPendingChildReadFrames: Int? = null
+    override fun onChildReadOverflow(child: MuxChannel<ByteBuf>, cause: Throwable) {
+        val handler = streamHandlers[child.id]
+        if (handler != null) handler.closeForReadOverflow(child, cause) else child.close()
+    }
 
     override fun preparePendingChildRead(data: ByteBuf): ByteBuf {
         try {

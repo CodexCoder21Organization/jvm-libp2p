@@ -25,12 +25,6 @@ private val log = LoggerFactory.getLogger(AbstractMuxHandler::class.java)
  */
 const val DEFAULT_MAX_INBOUND_STREAMS: Int = 512
 
-/**
- * Frames a paused child of a flow-controlled muxer may queue before parent reads stop. See
- * [AbstractMuxHandler.pausedChildFramesBeforeParentPause].
- */
-const val DEFAULT_PAUSED_CHILD_FRAMES_BEFORE_PARENT_PAUSE: Int = 64
-
 abstract class AbstractMuxHandler<TData>(
     /**
      * Maximum number of concurrently-open INBOUND (remote-initiated) substreams permitted on this
@@ -88,19 +82,10 @@ abstract class AbstractMuxHandler<TData>(
      */
     protected open val pauseParentReadsForPausedChild: Boolean = true
 
-    /**
-     * When [pauseParentReadsForPausedChild] is `false`, the number of frames a paused child may queue
-     * before parent reads stop anyway. The receive window bounds a paused child's queued bytes but not
-     * its frame count: a remote sending one-byte frames could otherwise make one stream retain about
-     * one buffer object per window byte. Normal senders stay far below this bound because each write
-     * becomes one frame of up to the maximum frame size.
-     */
-    protected open val pausedChildFramesBeforeParentPause: Int = DEFAULT_PAUSED_CHILD_FRAMES_BEFORE_PARENT_PAUSE
-
     /** A finite limit for payloads a paused child may hold before it is closed. */
     protected open val maxPendingChildReadBytes: Long = 4L * 1024 * 1024
 
-    /** Mplex bounds empty frames; windowed muxers may rely on their receive window instead. */
+    /** Bounds retained payload objects independently of the byte budget. */
     protected open val maxPendingChildReadFrames: Int? = 64
 
     /** Size of one retained child payload. Production muxers override this for ByteBuf. */
@@ -193,13 +178,18 @@ abstract class AbstractMuxHandler<TData>(
                         (frameLimit != null && pending.messages.size >= frameLimit)
                     ) {
                         releaseMessage(msg)
-                        log.warn(
-                            "Paused child {} exceeded its inbound queue limit of {} bytes or {} frames; closing the child",
-                            id,
-                            maxPendingChildReadBytes,
-                            frameLimit ?: "unlimited"
+                        val cause = ConnectionClosedException(
+                            "Paused child $id inbound queue exceeded: attempted ${pending.messages.size + 1} frames " +
+                                "and ${pending.bytes + size} bytes; limits are $frameLimit frames " +
+                                "and $maxPendingChildReadBytes bytes; resetting the stream"
                         )
-                        child.closeImpl()
+                        log.warn(cause.message)
+                        // Write-failure callbacks may resume this child during reset. Release the
+                        // queue before those callbacks so rejected payloads cannot be delivered.
+                        pendingInbound.remove(id)
+                        while (pending.messages.isNotEmpty()) releaseMessage(pending.messages.removeFirst())
+                        pending.bytes = 0
+                        onChildReadOverflow(child, cause)
                         return
                     }
                     pending.messages.add(preparePendingChildRead(msg))
@@ -210,6 +200,11 @@ abstract class AbstractMuxHandler<TData>(
                 }
             }
         }
+    }
+
+    /** Reset locally so the peer is told to stop sending to this child. */
+    protected open fun onChildReadOverflow(child: MuxChannel<TData>, cause: Throwable) {
+        child.close()
     }
 
     internal fun childAutoReadChanged(child: MuxChannel<TData>) {
@@ -233,11 +228,7 @@ abstract class AbstractMuxHandler<TData>(
     }
 
     private fun pauseChild(child: MuxChannel<TData>) {
-        if (!pauseParentReadsForPausedChild &&
-            (pendingInbound[child.id]?.messages?.size ?: 0) < pausedChildFramesBeforeParentPause
-        ) {
-            return
-        }
+        if (!pauseParentReadsForPausedChild) return
         synchronized(parentReadLock) {
             if (!child.isOpen || child.config().isAutoRead || !pausedChildren.add(child.id)) return
             val parentChannel = getChannelHandlerContext().channel()

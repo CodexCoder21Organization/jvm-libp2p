@@ -12,6 +12,7 @@ import io.libp2p.transport.tcp.TcpTransport
 import io.netty.buffer.ByteBuf
 import io.netty.buffer.Unpooled
 import io.netty.channel.Channel
+import io.netty.channel.ChannelInboundHandlerAdapter
 import io.netty.channel.ChannelHandlerContext
 import io.netty.channel.SimpleChannelInboundHandler
 import org.junit.jupiter.api.Assertions.assertArrayEquals
@@ -163,7 +164,7 @@ class YamuxPausedStreamKeepsConnectionReadingTest {
     }
 
     @Test
-    fun pausedStreamReceivingManySmallFramesStillBoundsItsQueueByPausingTheConnection() {
+    fun pausedStreamReceivingManySmallFramesResetsWithoutPausingTheConnection() {
         val client = newHost(false)
         val server = newHost(true)
         try {
@@ -177,31 +178,28 @@ class YamuxPausedStreamKeepsConnectionReadingTest {
             pausedChannel.config().isAutoRead = false
             settle(pausedChannel)
 
-            // One-byte frames cost the window almost nothing, so the window alone does not bound the
-            // number of retained frames. Past a fixed frame count the muxer must stop the connection.
+            // The byte window alone permits many one-byte frames. Overflow must reset only
+            // this stream, rather than stopping control traffic and sibling data on the parent.
             val frameCount = 1_000
             val writes = (0 until frameCount).map { index ->
                 sender.writeAndFlushWithFuture(Unpooled.wrappedBuffer(byteArrayOf(index.toByte())))
             }
-            val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
-            while (connection.config().isAutoRead && System.nanoTime() < deadline) Thread.sleep(5)
-            settle(connection)
-            assertFalse(
-                connection.config().isAutoRead,
-                "a paused stream with many retained small frames must stop reads on its connection"
-            )
-            assertEquals(0, paused.receivedBytes.get(), "a paused stream must not receive data before it resumes")
-
+            paused.stream.closeFuture().get(5, TimeUnit.SECONDS)
+            sender.closeFuture().get(5, TimeUnit.SECONDS)
+            writes.forEach { it.handle { _, _ -> Unit }.get(10, TimeUnit.SECONDS) }
+            assertEquals(0, paused.receivedBytes.get(), "Rejected paused input must never be delivered")
             pausedChannel.config().isAutoRead = true
-            writes.forEach { it.get(10, TimeUnit.SECONDS) }
-            awaitBytes(paused, frameCount, "small frames after resume")
-            assertArrayEquals(
-                ByteArray(frameCount) { it.toByte() },
-                paused.snapshot(),
-                "small frames changed or were reordered"
-            )
             settle(connection)
-            assertTrue(connection.config().isAutoRead, "the connection must read again after the stream resumes")
+            assertEquals(0, paused.receivedBytes.get(), "Resuming a reset stream must not publish rejected data")
+            assertTrue(connection.config().isAutoRead, "Small-frame pressure must leave control traffic readable")
+
+            val siblingSender = client.openStream(server)
+            val sibling = nextResponder()
+            assertTrue(sibling.stream.nettyChannel.parent() === connection, "The same connection must remain usable")
+            val bytes = ByteArray(frameCount) { it.toByte() }
+            siblingSender.writeAndFlushWithFuture(Unpooled.wrappedBuffer(bytes)).get(10, TimeUnit.SECONDS)
+            awaitBytes(sibling, frameCount, "Sibling after paused queue overflow")
+            assertArrayEquals(bytes, sibling.snapshot(), "Sibling data must arrive completely and in order")
         } finally {
             try {
                 client.stop().get(10, TimeUnit.SECONDS)
@@ -225,7 +223,28 @@ class YamuxPausedStreamKeepsConnectionReadingTest {
             val connection = pausedChannel.parent()
             pausedChannel.config().isAutoRead = false
             settle(pausedChannel)
-            sender.writeAndFlushWithFuture(Unpooled.wrappedBuffer(payload(100 * 1024, 0x11)))
+            val atPressure = CountDownLatch(1)
+            connection.eventLoop().submit(Callable {
+                var frames = 0
+                connection.pipeline().addBefore(
+                    connection.pipeline().context(YamuxHandler::class.java).name(),
+                    "queued-frame-observer",
+                    object : ChannelInboundHandlerAdapter() {
+                        override fun channelRead(ctx: ChannelHandlerContext, msg: Any) {
+                            ctx.fireChannelRead(msg)
+                            if (msg is YamuxFrame && msg.id == pausedChannel.id() &&
+                                msg.type == YamuxType.DATA && msg.length > 0 && ++frames == 64
+                            ) atPressure.countDown()
+                        }
+                    }
+                )
+            }).get(5, TimeUnit.SECONDS)
+            repeat(64) {
+                sender.writeAndFlushWithFuture(Unpooled.wrappedBuffer(byteArrayOf(it.toByte())))
+                    .get(5, TimeUnit.SECONDS)
+            }
+            assertTrue(atPressure.await(5, TimeUnit.SECONDS), "Close must run after 64 frames have been queued")
+            assertEquals(0, paused.receivedBytes.get(), "Pressure-state payloads must remain held before close")
 
             val closed = CountDownLatch(1)
             pausedChannel.closeFuture().addListener { closed.countDown() }

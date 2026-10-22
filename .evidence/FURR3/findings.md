@@ -23,3 +23,14 @@ Invariant table:
 | Parent | Transport | Parent close terminal | Capacity never reopens a closed parent | Parent-close control |
 
 OBSERVED: Initial tests and API scaffold added under the repository's Gradle/JUnit layout. The new binding currently delegates to the unchanged handler, so capacity cases should report ordinary closure. Targeted run is downloading the documented Gradle wrapper distribution; no test verdict yet. Test channels use real framing and multistream negotiation, with manual byte delivery to make ordering deterministic.
+
+OBSERVED: Preserved-source baseline hashes:
+libp2p/src/main/kotlin/io/libp2p/core/Stream.kt 7a2239f482f44e1c8eab5bc2b27cf20d07c84fd4ef7f6d47f8c32f9446086c7d
+libp2p/src/main/kotlin/io/libp2p/mux/yamux/YamuxStreamMuxer.kt 3f45f6d3ca35d4d75d05531ec78b47bd677fd66791fd51b1722423d58608f2ea
+libp2p/src/main/kotlin/io/libp2p/mux/mplex/MplexStreamMuxer.kt 4bbf965adfe5073595406fadb1187827f4c8d90740349fc2e52545d723a720e2
+
+OBSERVED: First targeted command completed. The initial embedded-channel harness had not advanced its queued child creation before reading a stream future. This produced setup waits at the test helper rather than the requested capacity assertion, so this run is not evidence of the transport defect. The helper now advances the embedded event loop immediately after opening; budgets and assertions are unchanged. Re-running both capacity test classes before implementation.
+
+OBSERVED: Corrected fail-first targeted run: 15 tests, 9 red, 6 green; each executed once (Gradle/JUnit has no configured test retry). Seven marked-reset setup cases report ConnectionClosedException instead of StreamCapacityException; application capacity new/new over real TCP/Noise also reports ConnectionClosedException; the small mux-limit case remains pending because the scaffold delegates to legacy Yamux. Both mixed TCP directions and old/old pass, as do ordinary reset and actual parent close controls. This demonstrates the missing negotiated signal, rather than scheduler timing.
+Targeted class io.libp2p.mux.yamux.YamuxCapacityHostsTest: tests=4, red=1, skipped=0.
+Targeted class io.libp2p.mux.yamux.YamuxCapacityResultTest: tests=11, red=8, skipped=0.

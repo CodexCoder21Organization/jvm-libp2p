@@ -29,3 +29,20 @@ OBSERVED: Current commit 70ea29e79b83acf44ea8786cb337dade505ed21f. First fixed c
 
 2026-10-22 04:18 UTC — first fixed cleanup GREEN
 OBSERVED: PlainNettyTransportUnusedBossTest first fixed attempt: 1 passed / 0 failed / 0 skipped, BUILD SUCCESSFUL, 7m20s including initial complete compilation. Real test CASE output confirms execution. Fixed source saved byte-for-byte for the cleanup-only reversal; queue and logging changes stay in place. No deadline, iteration, limit or assertion changed.
+
+2026-10-22 04:22 UTC — cleanup reversal RED, fixed source restored
+OBSERVED: Cleanup-only reversal, preserving queue/logging fixes: 0 passed / 1 failed / 0 skipped, exit 1. Failed the intended assertion, not compilation or a deadline. Exact fixed transport restored; cmp confirms byte identity with first green. Full trace:
+```
+io.libp2p.transport.PlainNettyTransportUnusedBossTest :: closing a client connection does not start an unused accept loop()
+org.opentest4j.AssertionFailedError: Closing a client-only host must not create an accept loop, but started [libp2p-nio-boss-4-1] ==> expected: <true> but was: <false>
+	at app//org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+	at app//org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+	at app//org.junit.jupiter.api.AssertTrue.failNotTrue(AssertTrue.java:63)
+	at app//org.junit.jupiter.api.AssertTrue.assertTrue(AssertTrue.java:36)
+	at app//org.junit.jupiter.api.Assertions.assertTrue(Assertions.java:214)
+	at app//io.libp2p.transport.PlainNettyTransportUnusedBossTest.closing a client connection does not start an unused accept loop(PlainNettyTransportUnusedBossTest.kt:35)
+	at java.base@21.0.12.1/java.lang.reflect.Method.invoke(Method.java:580)
+	at java.base@21.0.12.1/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at java.base@21.0.12.1/java.util.ArrayList.forEach(ArrayList.java:1596)
+
+```

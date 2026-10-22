@@ -1,15 +1,15 @@
 Lane F66 started 2026-10-22 UTC.
 
 Plan:
-- IN PROGRESS: read guidance, review evidence, and clone current PR head.
-- TODO: promote two probes; record first-attempt red results and checkpoint.
-- TODO: correct setup result ordering; verify pending and completed outcomes; reversal control.
-- TODO: run 24 new, 242 mux/negotiation, 49 lifecycle cases and one complete suite through shared slot.
-- TODO: review, push PR branch, update description, write final file.
+- DONE: read guidance, review evidence, and clone current PR head.
+- DONE: promote two probes; record first-attempt red results and checkpoint.
+- DONE: correct setup result ordering; verify pending and completed outcomes; reversal control.
+- DONE: run all 24 original capacity cases plus 3 additional cases, 242 mux/negotiation, a 56-case lifecycle superset, and one complete suite through shared slot; exact unchanged-red-set expectation REFUTED by one additional Noise result.
+- DONE: review, push PR branch, update description, write final file.
 
 Constraints: no publication, merge, queue, deploy, assertion changes, or timeout increases.
 
-OBSERVED: PR remains OPEN at e7153395f4a1a05860906366cc46e48ce8fc6422, branch fix/laneFURR3-yamux-capacity; base is develop, not main. Fresh clone workspace/laneF66/jvm-libp2p. Root README read; no root AGENTS.md. Guidance downloaded from DocumentationRepository via gh api. No origin/main exists; use origin/develop for the required current-base rebase.
+OBSERVED: PR remains OPEN at https://github.com/CodexCoder21Organization/jvm-libp2p/commit/e7153395f4a1a05860906366cc46e48ce8fc6422, branch fix/laneFURR3-yamux-capacity; base is develop, not main. Fresh clone workspace/laneF66/jvm-libp2p. Root README read; no root AGENTS.md. Guidance downloaded from DocumentationRepository via gh api. No origin/main exists; use origin/develop for the required current-base rebase.
 
 OBSERVED: both promoted callback probes red on first attempt (2/2), no extra attempts or skipped cases; XML saved in .evidence/F66/red. Tests copied from review branch with fixture names updated and its unrelated third test omitted. Existing tests unchanged. Gradle-native Kotlin tests are used because this repository is a Gradle project.
 The mechanism is protocol-future settlement running synchronous callbacks before the pending handler result and public controller are settled; the evidence that demonstrates it is both deterministic callback probes reporting a different controller result while the protocol reports StreamCapacityException.
@@ -71,3 +71,11 @@ OBSERVED: the additional Noise case passes when selected alone on head and uncha
 OBSERVED: 10 independent targeted selections on unchanged PR head all pass, each one case and no retry XML entries; the preceding baseline single selection and head single selection also pass. Noise source is byte-identical between head and baseline. Thus the additional complete-suite Noise result is not reliably reproduced, and no Noise repair is justified by this evidence. Its exact cause remains unknown. Static tracing: its connection ends while waiting for Noise message 2, before mux negotiation/child setup and before the four F66 changed source paths.
 Validation conclusion: unchanged red-set expectation is REFUTED by the single complete run (21 red versus the 20 original full-suite red identities). All 20 original red identities remain; six also passed in earlier individual baseline/head selections. The additional Noise result is disclosed rather than called a confirmed baseline issue. No second complete suite was run.
 Brief audit: two promoted probes DONE (red first attempt, green, reversal red); recorded cause across pending protocol/handler/controller DONE, including direct-executor completion; prior completed/cancelled outcomes DONE, cancellation return checked; no callback lock DONE; original 24 plus 3 cases and 242 controls DONE first attempt; lifecycle superset 56 plus full suite DONE first attempt; one complete suite DONE; exact unchanged-red-set expectation REFUTED by XML; evidence branch DONE; PR push/description and final files IN PROGRESS.
+
+OBSERVED: final pre-PR check passes 27 capacity cases on attempt 1 with no skips or retry XML entries after successful rebase. Code pushed to the existing PR branch; PR remains OPEN/draft and REST mutation response confirms current code head and exact new description. Only five source/test files are in the PR delta, no build or evidence outputs. Code commit: https://github.com/CodexCoder21Organization/jvm-libp2p/commit/d281e5251be93d12a8aa643cc87d7833b3bab205 . PR: https://github.com/CodexCoder21Organization/jvm-libp2p/pull/66 .
+Tooling note: gh pr edit requests a deprecated Projects classic GraphQL field and did not update the description. Used gh api PATCH with a JSON body file; the returned body matches exactly. No CI monitoring after update.
+
+Final audit: P1 fix, fail-first/reversal evidence, source-only PR push, why-first description, counts, and requested local deliverables are complete. Exact unchanged-red-set validation is not met; the additional Noise result remains unexplained, and is explicitly recorded in the PR. No Noise implementation/test assertions were changed, no timeout or iteration count was altered, no disabled test was added. No publication, merge, queue, deploy, or production operation occurred. PR remains an open draft.
+Read sources: root README; supplied author/design/review findings; Testing Architecture sections Test-Driven Development and Never Calibrate a Reproducer to a Machine; relevant Engineering Philosophy sections through independent review; github-repos, status-report, fix-flakey-test single-case workflow, and report-challenge skill guidance through the read-only worker. The complete guidance documents were not read in full; the lane specifically required the named testing sections.
+Tooling constraint: /home/leslie/.codex/skills/report-challenge/SKILL.md describes automatic PR queue/merge with no record-only option. The lane prohibits both actions, so the CLI was not invoked. The gh pr edit Projects classic issue and successful REST alternative are recorded here and in saved local logs.
+Process audit: ps -eo pid,ppid,args -ww checked internally; no lane background build or monitor processes remain. All spawned worker tasks have finished. No CI monitoring followed the PR update.

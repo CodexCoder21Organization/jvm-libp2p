@@ -115,3 +115,21 @@ org.opentest4j.AssertionFailedError: Exception in thread "main" org.opentest4j.A
 	at java.base@21.0.12.1/java.util.ArrayList.forEach(ArrayList.java:1596)
 
 ```
+
+2026-10-22 04:45 UTC — policy review and current verification
+OBSERVED: Current committed/pushed source 95455997. The short-queue first red is in the checkpoint history with its full trace. First fixed run acquired boxrun slot 2 at 04:43:51 after a queue; no CASE lines yet. Using Gradle --offline now that initial builds have resolved every test dependency; this changes build resolution only, with identical selectors, JVM settings and test contracts.
+REVIEW (tests, independent pass): new short-queue case is separate; old 64-ping case is unchanged. Both force a callback across the existing 100ms policy with a latch await, real TCP writes and real Ping, then discriminate on read/marker order rather than a performance threshold. A short queue must expose the missing between-callback check, whereas the 64-item case reaches Netty's periodic check. Finally always releases the callback and closes both real hosts. First failure was the intended assertion.
+REVIEW (code, independent pass): private worker's budget is confined to its event-loop thread. First task always runs; later polls check the inherited Netty monotonic clock before removing work, preserving queued FIFO. A finally restores the prior budget even for nested entry or exceptions. Delegate still owns scheduled transfer, execution, counters, tail tasks and shutdown; polling is unchanged outside a positive timed drain. No new public API, dependency, reflection, exception handling, limit change or global mutable state. Existing Noise close/re-entry tests and transport lifecycle checks remain verification gates.
+OBSERVED: The earlier parallel-listen port failure is still unresolved. A bounded external observation helper is ready to capture socket rows and numeric owner/ancestor PIDs only while that test runs in the next broader selection/full suite. No process environments or thread/heap outputs are read/printed.
+
+2026-10-22 04:48 UTC — first implementation build: zero tests
+OBSERVED: short-queue-green-first exited 1 during compileKotlin, no CASE lines, 0 tests verified. Exact compiler output:
+```
+e: warnings found and -Werror specified
+w: PlainNettyTransport.kt: (380, 64): 'getCurrentTimeNanos(): Long' is deprecated. Deprecated in Java
+w: PlainNettyTransport.kt: (392, 38): 'getCurrentTimeNanos(): Long' is deprecated. Deprecated in Java
+Execution failed for task ':libp2p:compileKotlin'.
+A failure occurred while executing org.jetbrains.kotlin.compilerRunner.GradleCompilerRunnerWithWorkers$GradleKotlinCompilerWorkAction
+Compilation error. See log for more details
+```
+OBSERVED: Replaced the deprecated accessor with inherited ticker().nanoTime() for both deadline creation and comparison. No suppression, changed budget or dependency. The first executed fixed test remains pending. Full build log in out/short-queue-green-first.log.

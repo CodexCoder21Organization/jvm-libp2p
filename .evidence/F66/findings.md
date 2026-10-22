@@ -59,3 +59,9 @@ The cancellation mechanism is the new wrapper returning completeExceptionally(ca
 OBSERVED: cancellation scenario red on attempt 1 (1 case, no extra attempts). The pending controller receives the capacity exception but cancel returns true; isCancelled remains false. The return should be false. The same code must preserve true for an already-cancelled result. XML saved in .evidence/F66/cancel-red on evidence branch.
 
 2026-10-22 23:16 UTC OBSERVED: final groups pass first attempt after cancellation correction: 242 existing mux/negotiation controls, 27 capacity (24 original +2 promoted +1 cancellation scenario), 56 lifecycle controls, zero red/skipped/extra attempts. The cancellation scenario covers both protocol and public-controller pending/prior-cancelled states. Independent narrow code/test review found no remaining issue; no interface additions. Single complete suite now queued again after successful rebase; earlier queued wrappers never started Gradle.
+
+2026-10-22T23:21:07.910286+00:00 OBSERVED: complete suite queued for shared slot; log bytes 0, task entries 0. No source changes.
+
+2026-10-22T23:26:23.913046+00:00 OBSERVED: complete suite Gradle active; log bytes 61679, task entries 32. No source changes.
+
+2026-10-22 23:27 UTC OBSERVED: single complete Gradle suite exited 1, 1214 cases: 1191 pass, 21 red, 2 skipped, no retry XML entries. All 20 red cases from original full suite are present; six had passed when previously selected individually. Additional red: io.libp2p.security.noise.NoiseHandshakeOffEventLoopTest / initiator times out silent responder while waiting for message 2(). Expected ReadTimeoutException, observed ConnectionClosedException. Checking unchanged code with targeted runs; no second complete suite. Full XML .git/f66-full-evidence. Duplicate class/name identities (15) occur in parameterized control classes, not retry entries; preserve raw XML rather than treating name collisions as retries.

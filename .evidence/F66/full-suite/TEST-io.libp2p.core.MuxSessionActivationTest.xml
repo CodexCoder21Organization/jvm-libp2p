@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.libp2p.core.MuxSessionActivationTest" tests="22" skipped="0" failures="0" errors="0" timestamp="2026-10-22T23:25:08.340Z" hostname="a3d00ba47652" time="0.483">
+  <properties/>
+  <testcase name="offLoopQueuedOpensSettleBeforeParentCloseCompletes(yamux)" classname="io.libp2p.core.MuxSessionActivationTest" time="0.042"/>
+  <testcase name="offLoopQueuedOpensSettleBeforeParentCloseCompletes(mplex)" classname="io.libp2p.core.MuxSessionActivationTest" time="0.02"/>
+  <testcase name="[1] yamux" classname="io.libp2p.core.MuxSessionActivationTest" time="0.021"/>
+  <testcase name="[2] mplex" classname="io.libp2p.core.MuxSessionActivationTest" time="0.019"/>
+  <testcase name="[1] yamux" classname="io.libp2p.core.MuxSessionActivationTest" time="0.027"/>
+  <testcase name="[2] mplex" classname="io.libp2p.core.MuxSessionActivationTest" time="0.018"/>
+  <testcase name="[1] yamux" classname="io.libp2p.core.MuxSessionActivationTest" time="0.027"/>
+  <testcase name="[2] mplex" classname="io.libp2p.core.MuxSessionActivationTest" time="0.029"/>
+  <testcase name="[1] yamux" classname="io.libp2p.core.MuxSessionActivationTest" time="0.024"/>
+  <testcase name="[2] mplex" classname="io.libp2p.core.MuxSessionActivationTest" time="0.017"/>
+  <testcase name="[1] yamux, cancel" classname="io.libp2p.core.MuxSessionActivationTest" time="0.013"/>
+  <testcase name="[2] mplex, cancel" classname="io.libp2p.core.MuxSessionActivationTest" time="0.012"/>
+  <testcase name="[3] yamux, fail" classname="io.libp2p.core.MuxSessionActivationTest" time="0.017"/>
+  <testcase name="[4] mplex, fail" classname="io.libp2p.core.MuxSessionActivationTest" time="0.026"/>
+  <testcase name="[5] yamux, complete" classname="io.libp2p.core.MuxSessionActivationTest" time="0.02"/>
+  <testcase name="[6] mplex, complete" classname="io.libp2p.core.MuxSessionActivationTest" time="0.018"/>
+  <testcase name="earlyCloseObserverReentrySettlesQueuedOpens(yamux, connection)" classname="io.libp2p.core.MuxSessionActivationTest" time="0.026"/>
+  <testcase name="earlyCloseObserverReentrySettlesQueuedOpens(mplex, connection)" classname="io.libp2p.core.MuxSessionActivationTest" time="0.015"/>
+  <testcase name="earlyCloseObserverReentrySettlesQueuedOpens(yamux, pipeline)" classname="io.libp2p.core.MuxSessionActivationTest" time="0.013"/>
+  <testcase name="earlyCloseObserverReentrySettlesQueuedOpens(mplex, pipeline)" classname="io.libp2p.core.MuxSessionActivationTest" time="0.011"/>
+  <testcase name="[1] yamux" classname="io.libp2p.core.MuxSessionActivationTest" time="0.01"/>
+  <testcase name="[2] mplex" classname="io.libp2p.core.MuxSessionActivationTest" time="0.009"/>
+  <system-out><![CDATA[23:25:08.751 [libp2p-nio-worker-3-13] [?[1;31mERROR?[m] io.netty.util.ResourceLeakDetector - LEAK: ByteBuf.release() was not called before it's garbage-collected. See https://netty.io/wiki/reference-counted-objects.html for more information.
+Recent access records: 
+Created at:
+	io.netty.buffer.AdaptiveByteBufAllocator.newDirectBuffer(AdaptiveByteBufAllocator.java:67)
+	io.netty.buffer.AbstractByteBufAllocator.directBuffer(AbstractByteBufAllocator.java:168)
+	io.netty.buffer.AbstractByteBufAllocator.directBuffer(AbstractByteBufAllocator.java:159)
+	io.netty.buffer.AbstractByteBufAllocator.ioBuffer(AbstractByteBufAllocator.java:112)
+	io.netty.handler.codec.MessageToByteEncoder.allocateBuffer(MessageToByteEncoder.java:140)
+	io.netty.handler.codec.MessageToByteEncoder.write(MessageToByteEncoder.java:105)
+	io.netty.handler.codec.ByteToMessageCodec.write(ByteToMessageCodec.java:108)
+	io.netty.channel.AbstractChannelHandlerContext.write(AbstractChannelHandlerContext.java:798)
+	io.netty.channel.AbstractChannelHandlerContext.write(AbstractChannelHandlerContext.java:737)
+	io.netty.handler.logging.LoggingHandler.write(LoggingHandler.java:288)
+	io.netty.channel.AbstractChannelHandlerContext.write(AbstractChannelHandlerContext.java:798)
+	io.netty.channel.AbstractChannelHandlerContext.write(AbstractChannelHandlerContext.java:737)
+	io.libp2p.core.HostTest$TestChannelHandler$visit$1.write(HostTest.kt:255)
+	io.netty.channel.AbstractChannelHandlerContext.write(AbstractChannelHandlerContext.java:798)
+	io.netty.channel.AbstractChannelHandlerContext.write(AbstractChannelHandlerContext.java:731)
+	io.libp2p.mux.mplex.MplexHandler.onChildWrite(MplexHandler.kt:58)
+	io.libp2p.mux.mplex.MplexHandler.onChildWrite(MplexHandler.kt:19)
+	io.libp2p.etc.util.netty.mux.MuxChannel.doWrite(MuxChannel.kt:96)
+	io.netty.channel.AbstractChannel$AbstractUnsafe.flush0(AbstractChannel.java:794)
+	io.netty.channel.AbstractChannel$AbstractUnsafe.flush(AbstractChannel.java:758)
+	io.netty.channel.DefaultChannelPipeline$HeadContext.flush(DefaultChannelPipeline.java:1391)
+	io.netty.channel.AbstractChannelHandlerContext.flush(AbstractChannelHandlerContext.java:754)
+	io.libp2p.multistream.Negotiator$GenericHandler.channelActive(Negotiator.kt:92)
+	io.netty.channel.AbstractChannelHandlerContext.fireChannelActive(AbstractChannelHandlerContext.java:221)
+	io.netty.channel.DefaultChannelPipeline$HeadContext.channelActive(DefaultChannelPipeline.java:1417)
+	io.netty.channel.DefaultChannelPipeline.fireChannelActive(DefaultChannelPipeline.java:862)
+	io.netty.channel.AbstractChannel$AbstractUnsafe.lambda$register0$0(AbstractChannel.java:389)
+	io.netty.util.concurrent.DefaultPromise.notifyListener0(DefaultPromise.java:604)
+	io.netty.util.concurrent.DefaultPromise.notifyListenersNow(DefaultPromise.java:571)
+	io.netty.util.concurrent.DefaultPromise.notifyListeners(DefaultPromise.java:506)
+	io.netty.util.concurrent.DefaultPromise.setValue0(DefaultPromise.java:650)
+	io.netty.util.concurrent.DefaultPromise.setSuccess0(DefaultPromise.java:639)
+	io.netty.util.concurrent.DefaultPromise.setSuccess(DefaultPromise.java:111)
+	io.netty.channel.DefaultChannelPromise.setSuccess(DefaultChannelPromise.java:78)
+	io.netty.channel.DefaultChannelPromise.setSuccess(DefaultChannelPromise.java:73)
+	io.netty.channel.AbstractChannel.doRegister(AbstractChannel.java:960)
+	io.netty.channel.AbstractChannel$AbstractUnsafe.register0(AbstractChannel.java:405)
+	io.netty.channel.AbstractChannel$AbstractUnsafe.register(AbstractChannel.java:346)
+	io.netty.channel.SingleThreadEventLoop.register(SingleThreadEventLoop.java:119)
+	io.netty.channel.SingleThreadEventLoop.register(SingleThreadEventLoop.java:113)
+	io.libp2p.etc.util.netty.mux.AbstractMuxHandler.createChild(AbstractMuxHandler.kt:480)
+	io.libp2p.etc.util.netty.mux.AbstractMuxHandler.newStream$lambda-12(AbstractMuxHandler.kt:500)
+	java.base/java.util.concurrent.CompletableFuture$UniRun.tryFire(CompletableFuture.java:787)
+	java.base/java.util.concurrent.CompletableFuture$Completion.run(CompletableFuture.java:482)
+	io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:148)
+	io.netty.util.concurrent.AbstractEventExecutor.safeExecute(AbstractEventExecutor.java:141)
+	io.netty.util.concurrent.SingleThreadEventExecutor.runAllTasks(SingleThreadEventExecutor.java:535)
+	io.netty.channel.SingleThreadIoEventLoop.run(SingleThreadIoEventLoop.java:201)
+	io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:1195)
+	io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+	io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+	java.base/java.lang.Thread.run(Thread.java:1583)
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

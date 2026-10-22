@@ -11,6 +11,7 @@ import io.libp2p.pubsub.gossip.builders.GossipPeerScoreParamsBuilder
 import io.libp2p.pubsub.gossip.builders.GossipScoreParamsBuilder
 import io.libp2p.pubsub.gossip.builders.GossipTopicScoreParamsBuilder
 import java.time.Duration
+import java.util.Collections
 import kotlin.math.max
 import kotlin.math.min
 
@@ -25,6 +26,23 @@ fun defaultDOut(D: Int, DLow: Int) = min(D / 2, max(DLow - 1, 0))
 // floodPublishMaxMessageSizeThreshold shortcuts
 const val NEVER_FLOOD_PUBLISH = 0
 const val ALWAYS_FLOOD_PUBLISH = Int.MAX_VALUE
+
+// slowPeerPendingBytesThreshold shortcuts
+const val NEVER_DETECT_SLOW_PEER_BY_PENDING_BYTES = Int.MAX_VALUE
+
+/**
+ * Default limit for the bytes a single peer may keep queued for outbound delivery.
+ *
+ * Outbound RPC parts are retained across flushes when they do not fit into a single
+ * protocol-limit-valid RPC, so a peer which stops draining accumulates parts - and the message
+ * payloads they reference - for as long as the connection stays open. Slow-peer handling is what
+ * reclaims that queue, so this limit has to be reachable by a real queue for the retention to be
+ * bounded at all.
+ *
+ * 4 MiB is well above any legitimate steady-state backlog while still bounding total retention to
+ * a predictable amount per peer.
+ */
+const val DEFAULT_SLOW_PEER_PENDING_BYTES_THRESHOLD = 4 * 1024 * 1024
 
 /**
  * Parameters of Gossip 1.1 router
@@ -165,11 +183,6 @@ data class GossipParams(
     val maxTopicsPerPublishedMessage: Int? = null,
 
     /**
-     * [maxSubscriptions] is the maximum number of subscriptions allowed per gossip message.
-     */
-    val maxSubscriptions: Int? = null,
-
-    /**
      * [maxIHaveLength] is the maximum number of messages to include in an IHAVE message.
      * Also controls the maximum number of IHAVE ids we will accept and request with IWANT from a
      * peer within a heartbeat, to protect from IHAVE floods. You should adjust this value from the
@@ -184,22 +197,11 @@ data class GossipParams(
     val maxIHaveMessages: Int = 10,
 
     /**
-     * [maxIWantMessageIds] The maximum number of message ids that can be included across IWANT messages within
-     * a single gossip message
-     */
-    val maxIWantMessageIds: Int? = null,
-
-    /**
      * Time to wait for a message requested through IWANT following an IHAVE advertisement.
      * If the message is not received within this window, a broken promise is declared and
      * the router may apply behavioural penalties.
      */
     val iWantFollowupTime: Duration = 3.seconds,
-
-    /**
-     * [maxGraftMessages] is the maximum number of graft messages allowed per gossip message
-     */
-    val maxGraftMessages: Int? = null,
 
     /**
      * [maxPeersSentInPruneMsg] controls the number of peers to include in prune Peer eXchange.
@@ -210,7 +212,9 @@ data class GossipParams(
     val maxPeersSentInPruneMsg: Int = 16,
 
     /**
-     * [maxPeersAcceptedInPruneMsg] is the maximum number of peers allowed in an incoming prune message
+     * [maxPeersAcceptedInPruneMsg] is the maximum number of peers we take from the Peer eXchange
+     * list of an incoming PRUNE. The PRUNE itself is always processed; any peers beyond this many
+     * are discarded before [connectCallback] is invoked. Set to 0 to ignore PX entirely.
      */
     val maxPeersAcceptedInPruneMsg: Int = 16,
 
@@ -223,11 +227,6 @@ data class GossipParams(
      * before attempting to re-graft.
      */
     val pruneBackoff: Duration = 1.minutes,
-
-    /**
-     * [maxPruneMessages] is the maximum number of prune messages allowed per gossip message
-     */
-    val maxPruneMessages: Int? = null,
 
     /**
      * [gossipRetransmission] controls how many times we will allow a peer to request
@@ -244,22 +243,123 @@ data class GossipParams(
 
     /**
      * [maxIDontWantMessageIds] is the maximum number of IDONTWANT message ids allowed per heartbeat per peer
+     * and must be greater than zero.
      */
     val maxIDontWantMessageIds: Int = maxIHaveLength * maxIHaveMessages,
 
     /**
      * [iDontWantMinMessageSizeThreshold] controls the minimum size (in bytes) that an incoming message needs to be so that an IDONTWANT message is sent to mesh peers.
      * The default is 16 KiB.
+     * To disable sending IDONTWANT messages, set this to a value larger than any permitted message size,
+     * such as [Int.MAX_VALUE].
      */
     val iDontWantMinMessageSizeThreshold: Int = 16384,
 
     /**
      * [iDontWantTTL] Expiry time for cache of received IDONTWANT messages for peers
      */
-    val iDontWantTTL: Duration = 3.seconds
+    val iDontWantTTL: Duration = 3.seconds,
+
+    /**
+     * [slowPeerPendingBytesThreshold] controls when a peer's pending outbound queue is considered
+     * pressured, and therefore when the queue is eligible to be reclaimed through slow-peer
+     * handling. Because retained outbound RPC parts are only ever reclaimed this way, this is the
+     * effective bound on how much a single non-draining peer can retain on the heap.
+     *
+     * Defaults to [DEFAULT_SLOW_PEER_PENDING_BYTES_THRESHOLD]. Set to
+     * [NEVER_DETECT_SLOW_PEER_BY_PENDING_BYTES] to disable detection by pending queue size, but
+     * note that doing so leaves the pending queue of a peer which never drains unbounded.
+     */
+    val slowPeerPendingBytesThreshold: Int = DEFAULT_SLOW_PEER_PENDING_BYTES_THRESHOLD,
+
+    /**
+     * [slowPeerHeartbeatThreshold] controls how many consecutive heartbeats a peer's pending
+     * outbound queue may stay at or above [slowPeerPendingBytesThreshold] before it is processed as
+     * slow through `notifySlowPeer`.
+     */
+    val slowPeerHeartbeatThreshold: Int = 3,
+
+    /**
+     * [maxControlMessageSize] bounds the cumulative wire size of a single inbound RPC's control
+     * plane - everything except `publish` payloads and `RPC.partial`. Because every protobuf
+     * envelope costs at least two wire bytes, this bounds envelope-flooding of every shape with a
+     * single counter, enforced before the frame is decoded.
+     *
+     * The same value bounds the control bytes our own outbound batcher puts into one RPC:
+     * `DefaultGossipRpcPartsQueue.takeBatch` splits a batch once this budget is spent, so the
+     * library cannot emit a frame its own inbound guard would reject, whatever this is set to.
+     * See `ControlBytesBudgetSymmetryTest`.
+     */
+    val maxControlMessageSize: Int = 256 * 1024,
+
+    /**
+     * [maxIDontWantMessageIdsPerRpc] bounds how many IDONTWANT message ids a single outbound RPC
+     * may carry. [maxIDontWantMessageIds] remains the per-heartbeat allowance; this splits that
+     * allowance across RPCs so each one fits inside [maxControlMessageSize].
+     */
+    val maxIDontWantMessageIdsPerRpc: Int = 5000,
+
+    /**
+     * [maxSubscriptionsPerRpc] bounds how many subscription entries a single outbound RPC may
+     * carry. It is an outbound batching limit only: inbound subscription counts are bounded by
+     * [maxControlMessageSize], and by the [io.libp2p.pubsub.TopicSubscriptionFilter] if one is
+     * configured.
+     *
+     * It exists because peers do enforce a count here, and typically drop the whole RPC when it is
+     * exceeded rather than just the surplus subscriptions - go-libp2p ignores the RPC on any
+     * subscription filter error, and [io.libp2p.pubsub.MaxCountTopicSubscriptionFilter] throws.
+     * Since a router announces every subscribed topic in one go when a peer becomes active, a node
+     * subscribed to many topics would otherwise emit a single unacceptable RPC.
+     *
+     * Defaults to go-libp2p's limit. Lower it to match the strictest peer you expect to talk to.
+     */
+    val maxSubscriptionsPerRpc: Int = 500,
+
+    /**
+     * [maxTotalFields] bounds how many protobuf fields a single inbound RPC may contain, summed
+     * across every nesting level. It backstops [maxControlMessageSize], which bounds allocation
+     * only indirectly: the cheapest object protobuf-java will materialise - an empty repeated
+     * sub-message such as `subscriptions` or `control.ihave`, or a retained unknown field - costs
+     * two wire bytes, so a 256 KiB byte budget alone still admits ~131k allocations from one frame.
+     *
+     * Read it against [maxControlMessageSize] rather than on its own: the ratio of the two is a
+     * minimum average wire size per field, and the limit can only fire below that. At the defaults
+     * that is 256 KiB / 65536 = 4 bytes per field, against a floor of 2 for an empty envelope. An
+     * RPC whose fields each carry a message id or a topic name is nowhere near it; only one padded
+     * with empty or near-empty envelopes is.
+     *
+     * The 4-byte ratio is chosen to stay clear of shapes a conformant peer can produce. Neither
+     * go-libp2p nor rust-libp2p bounds field count - go bounds control bytes only, with a
+     * computation equivalent to [maxControlMessageSize] - so the whole burden of not rejecting
+     * honest traffic sits here. Short topic names are the tight case: an app using topics of
+     * ~16 characters, batching subscriptions or small unsigned publishes, lands near 8 bytes per
+     * field and would trip a tighter setting.
+     *
+     * Enforced on both sides: [io.libp2p.pubsub.RpcMessageCountValidator] rejects an inbound RPC over
+     * the limit, and the outbound batcher [io.libp2p.pubsub.gossip.DefaultGossipRpcPartsQueue] splits
+     * batches on the same budget (and refuses a single part that exceeds it), so this library never
+     * emits a frame its own guard would reject.
+     *
+     * The default is a loose backstop rather than a tight cap: for real Ethereum shapes, where each
+     * field carries a ~22-byte message id or a topic, the [maxControlMessageSize] byte budget binds
+     * first, so the field limit mainly catches empty-envelope attacks. A consumer such as Teku may
+     * set a lower value to tighten that catch. Null disables the check.
+     */
+    val maxTotalFields: Int? = 65536,
+
+    /**
+     * [backoffSlack] is the extra time we wait after a PRUNE backoff expires before we
+     * re-GRAFT the peer. The two sides start their backoff clocks at slightly different moments,
+     * so a GRAFT sent right at expiry can still land inside the remote window and be answered with
+     * a PRUNE plus a behaviour penalty. rust-libp2p waits one heartbeat by default and
+     * go-libp2p-pubsub waits two. It only applies to GRAFTs we send; GRAFTs we receive are
+     * checked against the exact backoff. Zero disables the slack. Defaults to one [heartbeatInterval].
+     */
+    val backoffSlack: Duration = heartbeatInterval
 
 ) {
     init {
+        check(!backoffSlack.isNegative, "backoffSlack should be >= 0")
         check(D >= 0, "D should be >= 0")
         check(DOut >= 0, "DOut should be >= 0")
         check(DLow >= 0, "DLow should be >= 0")
@@ -270,7 +370,14 @@ data class GossipParams(
         check(DHigh >= D, "DHigh should be >= D")
         check(gossipFactor in 0.0..1.0, "gossipFactor should be in range [0.0, 1.0]")
         check(floodPublishMaxMessageSizeThreshold >= 0, "floodPublishMaxMessageSizeThreshold should be >= 0")
+        check(maxIDontWantMessageIds > 0, "maxIDontWantMessageIds should be > 0")
         check(iDontWantMinMessageSizeThreshold >= 0, "iDontWantMinMessageSizeThreshold should be >= 0")
+        check(slowPeerPendingBytesThreshold > 0, "slowPeerPendingBytesThreshold should be > 0")
+        check(slowPeerHeartbeatThreshold > 0, "slowPeerHeartbeatThreshold should be > 0")
+        check(maxControlMessageSize > 0, "maxControlMessageSize should be > 0")
+        check(maxIDontWantMessageIdsPerRpc > 0, "maxIDontWantMessageIdsPerRpc should be > 0")
+        check(maxSubscriptionsPerRpc > 0, "maxSubscriptionsPerRpc should be > 0")
+        check(maxTotalFields == null || maxTotalFields > 0, "maxTotalFields should be > 0 or null")
     }
 
     companion object {
@@ -399,6 +506,7 @@ data class GossipPeerScoreParams(
      * router. The router currently applies penalties for the following behaviors:
      * - attempting to re-graft before the prune backoff time has elapsed.
      * - not following up in IWANT requests for messages advertised with IHAVE.
+     * - keeping outbound RPC parts queued above the slow-peer threshold for too many heartbeats.
      *
      * The value of the parameter is the square of the counter over the threshold,
      * which decays with [behaviourPenaltyDecay].
@@ -446,22 +554,46 @@ data class GossipPeerScoreParams(
  * The mapping `topic => GossipTopicScoreParams`
  * If params are not specified for a `topic` explicitly the [defaultParams] is returned
  *
+ * Change params only through [setTopicParams] and [clearTopicParams]: they also tell the score caches
+ * that params changed. [topicParams] is a read-only view and mutating it throws
+ * [UnsupportedOperationException]. It was a mutable map before the caches existed.
+ *
  * @see GossipTopicScoreParams
  */
 class GossipTopicsScoreParams(
     val defaultParams: GossipTopicScoreParams = GossipTopicScoreParams(),
     topicParamsMap: Map<Topic, GossipTopicScoreParams> = mapOf()
 ) {
-    val topicParams: MutableMap<Topic, GossipTopicScoreParams> = topicParamsMap.toMutableMap()
+    private val mutableTopicParams: MutableMap<Topic, GossipTopicScoreParams> = topicParamsMap.toMutableMap()
+
+    /**
+     * Per-topic params, read-only: mutating this map throws [UnsupportedOperationException], modify
+     * params through [setTopicParams] and [clearTopicParams]
+     */
+    val topicParams: Map<Topic, GossipTopicScoreParams> = Collections.unmodifiableMap(mutableTopicParams)
+
+    /**
+     * Incremented on every [setTopicParams] and [clearTopicParams] call, so score caches can tell that
+     * no topic params changed without looking them up
+     */
+    internal var version: Long = 0
+        private set
 
     operator fun get(topic: Topic) = topicParams.getOrDefault(topic, defaultParams)
 
+    /**
+     * Sets the params of [topic]. Neither the map nor [version] is synchronized: call this on the thread
+     * that computes scores, as [GossipScore.updateTopicParams] does through the score executor
+     */
     fun setTopicParams(topic: Topic, params: GossipTopicScoreParams) {
-        topicParams[topic] = params
+        mutableTopicParams[topic] = params
+        version++
     }
 
+    /** Removes the params of [topic] so that [defaultParams] apply; same threading as [setTopicParams] */
     fun clearTopicParams(topic: Topic) {
-        topicParams.remove(topic)
+        mutableTopicParams.remove(topic)
+        version++
     }
 }
 

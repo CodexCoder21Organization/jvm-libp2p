@@ -1,5 +1,6 @@
 package io.libp2p.pubsub
 
+import io.libp2p.etc.util.MessageAndPromise
 import pubsub.pb.Rpc
 import java.util.concurrent.BlockingQueue
 import java.util.concurrent.CompletableFuture
@@ -51,6 +52,36 @@ open class MockRouter(executor: ScheduledExecutorService) : AbstractRouter(
     override fun onInbound(peer: PeerHandler, msg: Any) {
         super.onInbound(peer, msg)
         inboundMessages += msg as Rpc.RPC
+    }
+
+    public override fun pollOutboundMessage(peer: PeerHandler): MessageAndPromise? {
+        return super.pollOutboundMessage(peer)
+    }
+
+    fun pendingPeerCountForTest(): Int = pendingRpcParts.getPeersWithPendingOutboundData().size
+    fun getRpcQueueIfExist(peer: PeerHandler) = pendingRpcParts.getExistingQueue(peer)
+
+    fun enqueuePublishForTest(peer: PeerHandler, msg: Rpc.Message) {
+        pendingRpcParts.getOrCreateQueue(peer).addPublish(msg)
+        notifyOutboundDataAvailable(peer)
+    }
+
+    /**
+     * Queues [msg] for [peer] without notifying the outbound pump, the same way
+     * [submitPublishMessageSilently] does. Pair with [flushAllPendingForTest].
+     */
+    fun queuePublishForTest(peer: PeerHandler, msg: Rpc.Message) {
+        pendingRpcParts.getOrCreateQueue(peer).addPublish(msg)
+    }
+
+    /**
+     * Mirrors [flushAllPending] but returns the peers whose outbound pump was notified,
+     * so tests can check which peers a flush actually wakes up.
+     */
+    fun flushAllPendingForTest(): List<PeerHandler> {
+        val notifiedPeers = pendingRpcParts.getPeersWithPendingOutboundData()
+        notifiedPeers.forEach { notifyOutboundDataAvailable(it) }
+        return notifiedPeers
     }
 
     override fun broadcastOutbound(msg: PubsubMessage): CompletableFuture<Unit> = CompletableFuture.completedFuture(null)

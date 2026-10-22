@@ -1,5 +1,8 @@
 package io.libp2p.etc.util.netty
 
+import io.netty.buffer.ByteBuf
+import io.netty.buffer.ByteBufHolder
+import io.netty.buffer.ByteBufUtil
 import io.netty.channel.ChannelHandlerContext
 import io.netty.handler.logging.ByteBufFormat
 import io.netty.handler.logging.LogLevel
@@ -29,7 +32,19 @@ class LoggingHandlerShort : LoggingHandler {
     var charsCutThreshold = 256
 
     override fun format(ctx: ChannelHandlerContext?, eventName: String?, arg: Any?): String {
-        val orig = super.format(ctx, eventName, arg)
+        val buffer = when (arg) {
+            is ByteBuf -> arg
+            is ByteBufHolder -> arg.content()
+            else -> null
+        }
+        val visibleRows = maxHeadingLines.toLong() + maxTrailingLines + linesCutThreshold
+        val orig = if (buffer != null && byteBufFormat() == ByteBufFormat.HEX_DUMP &&
+            buffer.readableBytes().toLong() > visibleRows * 16
+        ) {
+            formatShortBuffer(ctx, eventName, arg, buffer, maxHeadingLines, maxTrailingLines)
+        } else {
+            super.format(ctx, eventName, arg)
+        }
         val lines = orig.lines()
         val extraLines = lines.size - (maxHeadingLines + maxTrailingLines)
 
@@ -54,5 +69,34 @@ class LoggingHandlerShort : LoggingHandler {
             }
         }
         return shortLines.joinToString("\n")
+    }
+}
+
+// Read only the ranges that can appear in the shortened log. The payload is borrowed:
+// formatting must leave its indexes and reference count unchanged.
+private fun formatShortBuffer(
+    ctx: ChannelHandlerContext?,
+    eventName: String?,
+    message: Any?,
+    buffer: ByteBuf,
+    headingRows: Int,
+    trailingRows: Int
+): String {
+    val length = buffer.readableBytes()
+    val headingBytes = minOf(length.toLong(), headingRows.toLong() * 16).toInt()
+    val trailingBytes = minOf((length - headingBytes).toLong(), trailingRows.toLong() * 16).toInt()
+    val start = buffer.readerIndex()
+    return buildString {
+        append(ctx?.channel()).append(' ').append(eventName).append(": ")
+        if (message is ByteBufHolder) append(message).append(", ")
+        append(length).append('B')
+        if (headingBytes > 0) {
+            append('\n').append(ByteBufUtil.prettyHexDump(buffer, start, headingBytes))
+        }
+        append("\n............. more ").append(length - headingBytes - trailingBytes)
+            .append(" bytes .............\n")
+        if (trailingBytes > 0) {
+            append(ByteBufUtil.prettyHexDump(buffer, start + length - trailingBytes, trailingBytes))
+        }
     }
 }

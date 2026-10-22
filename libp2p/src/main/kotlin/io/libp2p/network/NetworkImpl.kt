@@ -11,9 +11,11 @@ import io.libp2p.core.multiformats.Multiaddr
 import io.libp2p.core.multiformats.Protocol
 import io.libp2p.core.transport.Transport
 import io.libp2p.etc.types.anyComplete
+import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.atomic.AtomicBoolean
 
 class NetworkImpl(
     override val transports: List<Transport>,
@@ -25,7 +27,7 @@ class NetworkImpl(
      */
     override val connections = CopyOnWriteArrayList<Connection>()
 
-    private val pendingDials = ConcurrentHashMap<PendingDialKey, CompletableFuture<Connection>>()
+    private val pendingDials = ConcurrentHashMap<PendingDialKey, PendingDial>()
 
     /**
      * The connection [connect] settled on for each peer, so that every caller of [connect] — and
@@ -96,17 +98,21 @@ class NetworkImpl(
     override fun connect(id: PeerId, preHandler: ChannelVisitor<P2PChannel>?, vararg addrs: Multiaddr): CompletableFuture<Connection> {
         // we already have a connection for this peer, short circuit.
         findActiveConnection(id)
-            ?.apply { return CompletableFuture.completedFuture(this) }
+            ?.apply { return CompletableFuture.completedFuture(retainOneConnectionPerPeer(id, this)) }
 
-        val connectionFuts = addrs.map { it.withP2P(id) }
+        val aggregate = CompletableFuture<Connection>()
+        val subscriptions = addrs.map { it.withP2P(id) }
             .mapNotNull { addr ->
                 transports.firstOrNull { transport -> transport.handles(addr) }
-                    ?.let { transport ->
-                        pendingDial(id, addr, transport, preHandler)
-                            .thenApply { connection -> retainOneConnectionPerPeer(id, connection) }
-                    }
+                    ?.let { transport -> pendingDial(id, addr, transport, preHandler, aggregate) }
             }
-        return anyComplete(connectionFuts)
+        aggregate.whenComplete { _, _ ->
+            subscriptions.forEach { releaseDialSubscription(pendingDials, it) }
+        }
+        anyComplete(subscriptions.map { it.future }).whenComplete { connection, error ->
+            if (error == null) aggregate.complete(connection) else aggregate.completeExceptionally(error)
+        }
+        return aggregate
     }
 
     /**
@@ -146,32 +152,64 @@ class NetworkImpl(
         id: PeerId,
         addr: Multiaddr,
         transport: Transport,
-        preHandler: ChannelVisitor<P2PChannel>?
-    ): CompletableFuture<Connection> {
+        preHandler: ChannelVisitor<P2PChannel>?,
+        aggregate: CompletableFuture<Connection>
+    ): DialSubscription {
         val transportAddress = Multiaddr(addr.components.filterNot { it.protocol in Protocol.PEER_ID_PROTOCOLS })
         val key = PendingDialKey(id, transportAddress, preHandler)
-        val newPendingDial = CompletableFuture<Connection>()
-        pendingDials.putIfAbsent(key, newPendingDial)
-            ?.apply { return subscriberFuture(this) }
-
-        // An inbound or differently-addressed outbound connection may have completed between the
-        // caller's established-connection check and installing this address-level pending dial.
-        findActiveConnection(id)
-            ?.also {
-                completePendingDial(key, newPendingDial, it, null)
-                return subscriberFuture(newPendingDial)
+        var startsDial = false
+        var abandoned: AbandonedDial? = null
+        val subscription = synchronized(pendingDials) {
+            pendingDials[key]?.let { abandoned = abandonUnusedDial(pendingDials, it) }
+            val pending = pendingDials.getOrPut(key) {
+                startsDial = true
+                PendingDial(key)
             }
+            val future = pending.result.thenApply { connection ->
+                if (aggregate.isDone) throw CancellationException("Connect request for peer $id already completed")
+                pending.owned.set(true)
+                retainOneConnectionPerPeer(id, connection)
+            }
+            DialSubscription(aggregate, future, pending).also { pending.subscribers += it }
+        }
+        cancelAbandonedDial(abandoned)
+        if (!startsDial) return subscription
+        val pending = subscription.pending
 
-        try {
-            transport.dial(addr, createHookedConnHandler(connectionHandler), preHandler)
-                .whenComplete { connection, error ->
-                    completePendingDial(key, newPendingDial, connection, error)
-                }
-        } catch (error: Exception) {
-            completePendingDial(key, newPendingDial, null, error)
+        // Reuse a connection that arrived while this address entry was being installed.
+        findActiveConnection(id)?.also {
+            completePendingDial(pending, it, null, ownsConnection = false)
+            return subscription
         }
 
-        return subscriberFuture(newPendingDial)
+        try {
+            val handler = ConnectionHandler { connection ->
+                val publish = synchronized(pendingDials) {
+                    if (pending.abandoned || pending.subscribers.none { !it.aggregate.isDone }) {
+                        false
+                    } else {
+                        // Network owns a published connection before application callbacks run.
+                        pending.owned.set(true)
+                        true
+                    }
+                }
+                if (publish) {
+                    createHookedConnHandler(connectionHandler).handleConnection(connection)
+                } else {
+                    connection.close()
+                }
+            }
+            val physical = transport.dial(addr, handler, preHandler)
+            val cancel = synchronized(pendingDials) {
+                pending.physical = physical
+                pending.abandoned && !pending.owned.get()
+            }
+            physical.whenComplete { connection, error -> completePendingDial(pending, connection, error) }
+            if (cancel && !physical.isDone) physical.cancel(true)
+        } catch (error: Exception) {
+            completePendingDial(pending, null, error)
+        }
+        return subscription
     }
 
     private fun findActiveConnection(id: PeerId): Connection? {
@@ -185,34 +223,93 @@ class NetworkImpl(
         return null
     }
 
-    private fun subscriberFuture(pendingDial: CompletableFuture<Connection>): CompletableFuture<Connection> =
-        pendingDial.thenApply { it }
-
     private fun completePendingDial(
-        key: PendingDialKey,
-        pendingDial: CompletableFuture<Connection>,
+        pending: PendingDial,
         connection: Connection?,
-        error: Throwable?
+        error: Throwable?,
+        ownsConnection: Boolean = true
     ) {
-        pendingDials.remove(key, pendingDial)
-        if (error == null) {
-            pendingDial.complete(connection!!)
+        val needed = synchronized(pendingDials) {
+            pendingDials.remove(pending.key, pending)
+            !pending.abandoned
+        }
+        if (error != null) {
+            pending.result.completeExceptionally(error)
         } else {
-            pendingDial.completeExceptionally(error)
+            val completed = requireNotNull(connection) {
+                "Transport dial for peer ${pending.key.peerId} completed without a connection or an error"
+            }
+            // A callback may publish a connection before its physical dial future completes.
+            // Settle it even when its original caller left during that callback.
+            val selected = if (pending.owned.get()) {
+                retainOneConnectionPerPeer(pending.key.peerId, completed)
+            } else {
+                completed
+            }
+            if (needed) pending.result.complete(selected)
+            if (ownsConnection && !pending.owned.get()) completed.close()
         }
     }
+}
 
-    /**
-     * [address] contains transport components only: [peerId] represents peer identity independently,
-     * so equivalent `/ipfs/` and `/p2p/` spellings share a pending dial.
-     *
-     * [preHandler] is part of the key because a raw transport channel can invoke only the handler
-     * supplied to its own dial. Distinct handler instances therefore never silently share a dial;
-     * null, the same instance, or an explicitly equal implementation may share safely.
-     */
-    private data class PendingDialKey(
-        val peerId: PeerId,
-        val address: Multiaddr,
-        val preHandler: ChannelVisitor<P2PChannel>?
-    )
+/**
+ * [address] contains transport components only: [peerId] represents peer identity independently,
+ * so equivalent `/ipfs/` and `/p2p/` spellings share a pending dial.
+ *
+ * [preHandler] is part of the key because a raw transport channel can invoke only the handler
+ * supplied to its own dial. Distinct handler instances therefore never silently share a dial;
+ * null, the same instance, or an explicitly equal implementation may share safely.
+ */
+private data class PendingDialKey(
+    val peerId: PeerId,
+    val address: Multiaddr,
+    val preHandler: ChannelVisitor<P2PChannel>?
+)
+
+private class PendingDial(val key: PendingDialKey) {
+    val result = CompletableFuture<Connection>()
+    val subscribers = mutableSetOf<DialSubscription>()
+    val owned = AtomicBoolean()
+    var physical: CompletableFuture<Connection>? = null
+    var abandoned = false
+}
+
+private class DialSubscription(
+    val aggregate: CompletableFuture<Connection>,
+    val future: CompletableFuture<Connection>,
+    val pending: PendingDial
+)
+
+private class AbandonedDial(
+    val result: CompletableFuture<Connection>,
+    val physical: CompletableFuture<Connection>?
+)
+
+// Called with the pending-dial map locked; callbacks and transport cancellation run outside it.
+private fun abandonUnusedDial(
+    pendingDials: MutableMap<PendingDialKey, PendingDial>,
+    pending: PendingDial
+): AbandonedDial? {
+    if (pending.result.isDone || pending.subscribers.any { !it.aggregate.isDone }) return null
+    pending.abandoned = true
+    if (pendingDials[pending.key] === pending) pendingDials.remove(pending.key)
+    return AbandonedDial(pending.result, if (pending.owned.get()) null else pending.physical)
+}
+
+private fun cancelAbandonedDial(abandoned: AbandonedDial?) {
+    if (abandoned == null) return
+    abandoned.result.cancel(false)
+    abandoned.physical?.takeUnless { it.isDone }?.cancel(true)
+}
+
+private fun releaseDialSubscription(
+    pendingDials: MutableMap<PendingDialKey, PendingDial>,
+    subscription: DialSubscription
+) {
+    val abandoned = synchronized(pendingDials) {
+        subscription.pending.subscribers.remove(subscription)
+        abandonUnusedDial(pendingDials, subscription.pending)
+    }
+    subscription.future.cancel(false)
+    cancelAbandonedDial(abandoned)
 }

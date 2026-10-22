@@ -11,6 +11,8 @@ import io.libp2p.pubsub.gossip.GossipParams;
 import io.libp2p.pubsub.gossip.GossipParamsKt;
 import io.libp2p.pubsub.gossip.GossipRouter;
 import io.libp2p.pubsub.gossip.builders.GossipRouterBuilder;
+import io.libp2p.tools.schedulers.ControlledExecutorServiceImpl;
+import io.libp2p.tools.schedulers.TimeControllerImpl;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -41,6 +43,9 @@ public class GossipApiTest {
     List<TestPubsubMessage> createdMessages = new ArrayList<>();
 
     GossipRouterBuilder routerBuilder = new GossipRouterBuilder();
+    TimeControllerImpl timeController = new TimeControllerImpl();
+    routerBuilder.setScheduledAsyncExecutor(new ControlledExecutorServiceImpl(timeController));
+    routerBuilder.setCurrentTimeSupplier(timeController::getTime);
     routerBuilder.setSeenCache(new FastIdSeenCache<>(msg -> msg.getProtobufMessage().getData()));
     routerBuilder.setMessageFactory(
         m -> {

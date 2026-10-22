@@ -2,7 +2,7 @@
 >
 > **TLDR:** Critical information about this fork is located in **[FORK.md](FORK.md)**
 >
-> **This is a temporary fork of [libp2p/jvm-libp2p](https://github.com/libp2p/jvm-libp2p) maintained by [CodexCoder21](https://github.com/CodexCoder21Organization).** It publishes a snapshot of upstream `develop` to [kotlin.directory](https://kotlin.directory) as `community.kotlin.libp2p:jvm-libp2p` to unblock downstream projects until upstream catches up — it carries the Netty 4.2 thread-shutdown fix plus several narrowly-scoped connection-lifecycle and resource-exhaustion fixes. See **[FORK.md](FORK.md)** for why this fork exists, what it carries, when it goes away, and how to build and release it.
+> **This is a temporary fork of [libp2p/jvm-libp2p](https://github.com/libp2p/jvm-libp2p) maintained by [CodexCoder21](https://github.com/CodexCoder21Organization).** It publishes a snapshot of upstream `develop` to [kotlin.directory](https://kotlin.directory) as `community.kotlin.libp2p:jvm-libp2p` to unblock downstream projects until upstream catches up — it carries connection lifecycle and buffering fixes beyond upstream 1.3.8, which already includes the original Netty shutdown change. See **[FORK.md](FORK.md)** for why this fork exists, what it carries, when it goes away, and how to build and release it.
 >
 > ---
 
@@ -163,10 +163,53 @@ whose close future has completed are removed and skipped during selection, even 
 asynchronous table-removal continuation has not run yet. A request made in that interval therefore
 starts a fresh transport dial instead of receiving a connection whose muxer is already closed.
 
+Concurrent `Network.connect` calls share a pending dial for the same peer, transport address and
+equal pre-handler. Cancelling or completing one caller's future releases only that caller's interest.
+When no caller still needs an unfinished, unpublished dial, the network cancels its transport future.
+A late connection nobody owns is closed. A connection already exposed to network callbacks remains
+network-owned and reusable, including while its original dial future is still completing. Calls racing overlapping address
+lists still converge on one live connection per peer, and successful surplus connections close.
+
+```kotlin
+import io.libp2p.core.Connection
+import io.libp2p.core.Network
+import io.libp2p.core.PeerId
+import io.libp2p.core.multiformats.Multiaddr
+import java.util.concurrent.CompletableFuture
+
+fun keepSecondConnect(network: Network, peer: PeerId, address: Multiaddr): CompletableFuture<Connection> {
+    val first = network.connect(peer, address)
+    val second = network.connect(peer, address)
+    first.cancel(true)
+    return second
+}
+```
+
 Connection close and transport shutdown share one physical close operation for each Netty
 parent channel. Repeated calls wait for that operation and report its original failure if it
 fails; they do not issue another close. Completing or cancelling one caller's returned future
 does not complete the operation or another caller's shutdown future.
+
+## Short stream logs
+
+`LoggingHandlerShort` includes a buffer's full byte count and selected leading and trailing bytes
+in large hex logs. It reads only those selected ranges, so logging a large message does not scan
+hidden payload bytes, including with Netty's detailed leak detection enabled. Formatting preserves
+the buffer's contents, indexes and reference count. Small buffers and `ByteBufFormat.SIMPLE` retain
+Netty's usual formatting.
+
+```kotlin
+import io.libp2p.core.Stream
+import io.libp2p.etc.util.netty.LoggingHandlerShort
+import io.netty.handler.logging.LogLevel
+
+fun addStreamLogging(stream: Stream) {
+    stream.pushHandler(LoggingHandlerShort("peer-stream", LogLevel.INFO).apply {
+        maxHeadingLines = 50
+        maxTrailingLines = 10
+    })
+}
+```
 
 ## Gossip simulator
 

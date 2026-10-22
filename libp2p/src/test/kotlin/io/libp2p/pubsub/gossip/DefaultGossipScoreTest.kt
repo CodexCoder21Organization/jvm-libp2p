@@ -11,6 +11,7 @@ import io.libp2p.etc.types.toBytesBigEndian
 import io.libp2p.etc.types.toProtobuf
 import io.libp2p.etc.util.P2PService
 import io.libp2p.pubsub.DefaultPubsubMessage
+import io.libp2p.pubsub.MessageRejectReason
 import io.libp2p.pubsub.Topic
 import io.libp2p.tools.schedulers.ControlledExecutorServiceImpl
 import io.libp2p.tools.schedulers.TimeControllerImpl
@@ -127,12 +128,12 @@ class DefaultGossipScoreTest {
 
         // Invalid msg should decrement score
         val invalidMsg = DefaultPubsubMessage(createRpcMessage(topic, 2))
-        score.notifyUnseenInvalidMessage(peer.peerId, invalidMsg)
+        score.notifyUnseenInvalidMessage(peer.peerId, invalidMsg, MessageRejectReason.ValidationFailed)
         assertThat(score.score(peer.peerId)).isEqualTo(2.5)
 
         // Invalid msg for unknown topic should not decrement score
         val unknownInvalidMsg = DefaultPubsubMessage(createRpcMessage(otherTopic, 2))
-        score.notifyUnseenInvalidMessage(peer.peerId, unknownInvalidMsg)
+        score.notifyUnseenInvalidMessage(peer.peerId, unknownInvalidMsg, MessageRejectReason.ValidationFailed)
         assertThat(score.score(peer.peerId)).isEqualTo(2.5)
 
         // Advance time to activate low delivery penalty
@@ -339,13 +340,38 @@ class DefaultGossipScoreTest {
 
         // After delivering an invalid message, we should get a penalty
         val msg = DefaultPubsubMessage(createRpcMessage(topic))
-        score.notifyUnseenInvalidMessage(peer.peerId, msg)
+        score.notifyUnseenInvalidMessage(peer.peerId, msg, MessageRejectReason.ValidationFailed)
         assertThat(score.score(peer.peerId)).isEqualTo(-2.0)
 
         // Refresh to decay score
         // counter 1 decays to 0.5, score = weight * counter^2 = -0.5
         score.refreshScores()
         assertThat(score.score(peer.peerId)).isEqualTo(-0.5)
+    }
+
+    @Test
+    fun `legacy rejection callback still penalises the sender`() {
+        val peer = mockPeer()
+        val topic: Topic = "testTopic"
+        val topicScoreParams = GossipTopicScoreParams.builder()
+            .topicWeight(1.0)
+            .invalidMessageDeliveriesWeight(-2.0)
+            .build()
+        val scoreParams = GossipScoreParams(
+            topicsScoreParams = GossipTopicsScoreParams(
+                GossipTopicScoreParams.builder().build(),
+                mutableMapOf(Pair(topic, topicScoreParams))
+            )
+        )
+        val timeController = TimeControllerImpl()
+        timeController.addTime(1.hours)
+        val score = DefaultGossipScore(scoreParams, ControlledExecutorServiceImpl(timeController), { timeController.time })
+        score.notifyMeshed(peer.peerId, topic)
+
+        @Suppress("DEPRECATION")
+        score.notifyUnseenInvalidMessage(peer.peerId, DefaultPubsubMessage(createRpcMessage(topic)))
+
+        assertThat(score.score(peer.peerId)).isEqualTo(-2.0)
     }
 
     @Test
@@ -634,7 +660,7 @@ class DefaultGossipScoreTest {
 
         // After delivering an invalid message, we should get a penalty
         val msg = DefaultPubsubMessage(createRpcMessage(topic))
-        score.notifyUnseenInvalidMessage(peer.peerId, msg)
+        score.notifyUnseenInvalidMessage(peer.peerId, msg, MessageRejectReason.ValidationFailed)
         assertThat(score.score(peer.peerId)).isEqualTo(-2.0)
 
         // Update params and check score is updated
@@ -716,7 +742,7 @@ class DefaultGossipScoreTest {
 
             // Deliver an invalid message
             val invalidMsg = DefaultPubsubMessage(createRpcMessage(curTopic, 2))
-            score.notifyUnseenInvalidMessage(peer.peerId, invalidMsg)
+            score.notifyUnseenInvalidMessage(peer.peerId, invalidMsg, MessageRejectReason.ValidationFailed)
         }
 
         // Increase time in mesh past activation period
@@ -817,6 +843,167 @@ class DefaultGossipScoreTest {
         assertEquals(0.0, score.score(peer3))
         assertEquals(-1.0, score.score(peer4))
         assertEquals(-1.0, score.score(peer5))
+    }
+
+    @Test
+    fun `cached topics score is reused only while every topic score is unchanged`() {
+        val topicParams1 = GossipTopicScoreParams(
+            topicWeight = 1.0,
+            timeInMeshWeight = 0.5,
+            timeInMeshQuantum = 1.seconds,
+            timeInMeshCap = 10.0,
+            firstMessageDeliveriesWeight = 2.0,
+            firstMessageDeliveriesDecay = 0.9,
+            firstMessageDeliveriesCap = 4.0,
+            meshMessageDeliveriesWeight = -1.0,
+            meshMessageDeliveriesDecay = 0.9,
+            meshMessageDeliveriesThreshold = 3.0,
+            meshMessageDeliveriesCap = 5.0,
+            meshMessageDeliveriesActivation = 2.seconds,
+            meshMessageDeliveryWindow = 2.seconds,
+            meshFailurePenaltyWeight = -1.0,
+            meshFailurePenaltyDecay = 0.9,
+            invalidMessageDeliveriesWeight = -0.5,
+            invalidMessageDeliveriesDecay = .9
+        )
+        val topicParams2 = topicParams1.copy(topicWeight = 0.7, timeInMeshQuantum = 3.seconds, firstMessageDeliveriesCap = 2.0)
+        val topics = (0 until 20).map { "topic-$it" }
+        val topicsScoreParams = GossipTopicsScoreParams(
+            GossipTopicScoreParams(),
+            topics.associateWith { if (it.hashCode() % 2 == 0) topicParams1 else topicParams2 }
+        )
+        val scoreParams = GossipScoreParams(GossipPeerScoreParams(decayInterval = 1.hours), topicsScoreParams)
+        val timeController = TimeControllerImpl()
+        timeController.addTime(1.hours)
+        val score = DefaultGossipScore(scoreParams, ControlledExecutorServiceImpl(timeController), { timeController.time })
+        val peers = (0 until 3).map { PeerId.random() }
+        peers.forEach { score.notifyConnected(it, Multiaddr.fromString("/ip4/127.0.0.1")) }
+
+        val random = java.util.Random(1)
+        var seqNo = 0
+        repeat(5000) {
+            val peer = peers[random.nextInt(peers.size)]
+            val topic = topics[random.nextInt(topics.size)]
+            when (random.nextInt(10)) {
+                0 -> score.notifyMeshed(peer, topic)
+                1 -> score.notifyPruned(peer, topic)
+                2 -> score.notifyUnseenValidMessage(peer, DefaultPubsubMessage(createRpcMessage(topic, ++seqNo)))
+                3 -> score.notifyUnseenInvalidMessage(peer, DefaultPubsubMessage(createRpcMessage(topic, ++seqNo)), MessageRejectReason.ValidationFailed)
+                4 -> score.notifySeenMessage(peer, DefaultPubsubMessage(createRpcMessage(topic, seqNo)), Optional.empty())
+                5 -> timeController.addTime(random.nextInt(1500).millis)
+                6 -> score.refreshScores()
+                7 -> topicsScoreParams.setTopicParams(topic, if (random.nextBoolean()) topicParams1 else topicParams2)
+                8 -> topicsScoreParams.clearTopicParams(topic)
+                // 9: no event, the next scores come from the cache
+            }
+
+            peers.forEach { peerId ->
+                val peerScores = score.peerScores[peerId]!!
+                val cachedSum = peerScores.calcTopicsScore(timeController.time)
+                // each topic either returns its own cached value or recomputes it, as it did before the
+                // peer level cache existed: a stale peer level sum shows up as a mismatch here
+                val perTopicSum = peerScores.topicScores.values.sumOf { it.calcTopicScore(timeController.time) }
+                // exact equality holds because both sums add the topics in insertion order: the list in
+                // PeerScores and the LinkedHashMap behind topicScores
+                assertThat(cachedSum).isEqualTo(perTopicSum)
+            }
+        }
+    }
+
+    @Test
+    fun `score reflects topic params set within the time in mesh quantum`() {
+        val peer = mockPeer()
+        val topic = "testTopic"
+        val topicScoreParams = GossipTopicScoreParams.builder()
+            .topicWeight(1.0)
+            .timeInMeshQuantum(1.hours)
+            .firstMessageDeliveriesCap(4.0)
+            .firstMessageDeliveriesWeight(2.0)
+            .firstMessageDeliveriesDecay(0.5)
+            .build()
+        val topicsScoreParams = GossipTopicsScoreParams(GossipTopicScoreParams.builder().build(), mapOf(topic to topicScoreParams))
+        val scoreParams = GossipScoreParams(peerScoreParams = GossipPeerScoreParams.builder().build(), topicsScoreParams = topicsScoreParams)
+        val timeController = TimeControllerImpl()
+        timeController.addTime(1.hours)
+        val score = DefaultGossipScore(scoreParams, ControlledExecutorServiceImpl(timeController), { timeController.time })
+
+        score.notifyUnseenValidMessage(peer.peerId, DefaultPubsubMessage(createRpcMessage(topic)))
+        assertThat(score.score(peer.peerId)).isEqualTo(2.0)
+
+        topicsScoreParams.setTopicParams(topic, topicScoreParams.copy(topicWeight = 3.0))
+        assertThat(score.score(peer.peerId)).isEqualTo(6.0)
+
+        // setting the same params instance again does not change the score
+        topicsScoreParams.setTopicParams(topic, topicsScoreParams[topic])
+        assertThat(score.score(peer.peerId)).isEqualTo(6.0)
+
+        topicsScoreParams.clearTopicParams(topic)
+        assertThat(score.score(peer.peerId)).isEqualTo(0.0)
+    }
+
+    @Test
+    fun `cached topic score is kept across params updates of other topics`() {
+        val peer = mockPeer()
+        val topic = "testTopic"
+        val otherTopic = "otherTopic"
+        val topicScoreParams = GossipTopicScoreParams.builder()
+            .topicWeight(1.0)
+            .timeInMeshWeight(1.0)
+            .timeInMeshQuantum(1.seconds)
+            .timeInMeshCap(100.0)
+            .build()
+        val topicsScoreParams = GossipTopicsScoreParams(GossipTopicScoreParams.builder().build(), mapOf(topic to topicScoreParams))
+        val scoreParams = GossipScoreParams(peerScoreParams = GossipPeerScoreParams.builder().build(), topicsScoreParams = topicsScoreParams)
+        val timeController = TimeControllerImpl()
+        timeController.addTime(1.hours)
+        val score = DefaultGossipScore(scoreParams, ControlledExecutorServiceImpl(timeController), { timeController.time })
+
+        score.notifyMeshed(peer.peerId, topic)
+        timeController.addTime(2.seconds)
+        // P1: 2 s in mesh over a 1 s quantum
+        assertThat(score.score(peer.peerId)).isEqualTo(2.0)
+
+        // within the quantum the cached value is kept although more time passed in mesh
+        timeController.addTime(500.millis)
+        assertThat(score.score(peer.peerId)).isEqualTo(2.0)
+
+        // params of another topic are set: this topic's params are the same instance, so still cached
+        topicsScoreParams.setTopicParams(otherTopic, topicScoreParams)
+        assertThat(score.score(peer.peerId)).isEqualTo(2.0)
+
+        // this topic's params are replaced by an equal instance: recomputed with 2.5 s in mesh
+        topicsScoreParams.setTopicParams(topic, topicScoreParams.copy())
+        assertThat(score.score(peer.peerId)).isEqualTo(2.5)
+    }
+
+    @Test
+    fun `recompute window follows the time in mesh quantum of updated params`() {
+        val peer = mockPeer()
+        val topic = "testTopic"
+        val topicScoreParams = GossipTopicScoreParams.builder()
+            .topicWeight(1.0)
+            .timeInMeshWeight(1.0)
+            .timeInMeshQuantum(10.seconds)
+            .timeInMeshCap(100.0)
+            .build()
+        val topicsScoreParams = GossipTopicsScoreParams(GossipTopicScoreParams.builder().build(), mapOf(topic to topicScoreParams))
+        val scoreParams = GossipScoreParams(peerScoreParams = GossipPeerScoreParams.builder().build(), topicsScoreParams = topicsScoreParams)
+        val timeController = TimeControllerImpl()
+        timeController.addTime(1.hours)
+        val score = DefaultGossipScore(scoreParams, ControlledExecutorServiceImpl(timeController), { timeController.time })
+
+        score.notifyMeshed(peer.peerId, topic)
+        timeController.addTime(10.seconds)
+        // P1: 10 s in mesh over a 10 s quantum
+        assertThat(score.score(peer.peerId)).isEqualTo(1.0)
+
+        // the quantum shrinks to 1 s: recomputed now (11 s / 1 s) and again after one more second,
+        // where the old 10 s window would still have served the cached value
+        topicsScoreParams.setTopicParams(topic, topicScoreParams.copy(timeInMeshQuantum = 1.seconds))
+        timeController.addTime(1.seconds)
+        assertThat(score.score(peer.peerId)).isEqualTo(11.0)
+        timeController.addTime(1.seconds)
+        assertThat(score.score(peer.peerId)).isEqualTo(12.0)
     }
 
     private fun createRpcMessage(topic: String, seqNo: Int = 1): Rpc.Message {

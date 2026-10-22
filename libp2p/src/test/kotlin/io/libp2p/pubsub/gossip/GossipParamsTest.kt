@@ -1,8 +1,10 @@
 package io.libp2p.pubsub.gossip
 
+import io.libp2p.etc.types.toWBytes
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import java.time.Duration
 
 class GossipParamsTest {
 
@@ -12,6 +14,36 @@ class GossipParamsTest {
     fun `test default gossip params`() {
         GossipParams.builder()
             .build()
+    }
+
+    @Test
+    fun `backoffSlack defaults to one heartbeat interval`() {
+        assertEquals(Duration.ofSeconds(1), GossipParams().backoffSlack)
+        assertEquals(Duration.ofSeconds(1), GossipParams.builder().build().backoffSlack)
+        assertEquals(Duration.ofMillis(700), GossipParams(heartbeatInterval = Duration.ofMillis(700)).backoffSlack)
+        assertEquals(
+            Duration.ofMillis(700),
+            GossipParams.builder().heartbeatInterval(Duration.ofMillis(700)).build().backoffSlack
+        )
+    }
+
+    @Test
+    fun `explicit backoffSlack wins regardless of setter order`() {
+        assertEquals(
+            Duration.ofSeconds(3),
+            GossipParams.builder().backoffSlack(Duration.ofSeconds(3)).heartbeatInterval(Duration.ofMillis(700)).build().backoffSlack
+        )
+        assertEquals(
+            Duration.ofSeconds(3),
+            GossipParams.builder().heartbeatInterval(Duration.ofMillis(700)).backoffSlack(Duration.ofSeconds(3)).build().backoffSlack
+        )
+        assertEquals(Duration.ZERO, GossipParams.builder().backoffSlack(Duration.ZERO).build().backoffSlack)
+    }
+
+    @Test
+    fun `negative backoffSlack is rejected`() {
+        assertThrows<IllegalArgumentException> { GossipParams(backoffSlack = Duration.ofSeconds(-1)) }
+        assertThrows<IllegalArgumentException> { GossipParams.builder().backoffSlack(Duration.ofSeconds(-1)).build() }
     }
 
     @Test
@@ -82,6 +114,16 @@ class GossipParamsTest {
                 .build()
         }
         assertEquals("DHigh should be >= 0", exception.message)
+    }
+
+    @Test
+    fun `test invalid max IDONTWANT message IDs is zero`() {
+        val exception = assertThrows<IllegalArgumentException> {
+            GossipParams.builder()
+                .maxIDontWantMessageIds(0)
+                .build()
+        }
+        assertEquals("maxIDontWantMessageIds should be > 0", exception.message)
     }
 
     @Test
@@ -163,6 +205,64 @@ class GossipParamsTest {
                 .build()
         }
         assertEquals("gossipFactor should be in range [0.0, 1.0]", exception.message)
+    }
+
+    @Test
+    fun `test invalid slow peer pending bytes threshold`() {
+        val exception = assertThrows<IllegalArgumentException> {
+            GossipParams.builder()
+                .slowPeerPendingBytesThreshold(0)
+                .build()
+        }
+        assertEquals("slowPeerPendingBytesThreshold should be > 0", exception.message)
+    }
+
+    @Test
+    fun `test invalid slow peer heartbeat threshold`() {
+        val exception = assertThrows<IllegalArgumentException> {
+            GossipParams.builder()
+                .slowPeerHeartbeatThreshold(0)
+                .build()
+        }
+        assertEquals("slowPeerHeartbeatThreshold should be > 0", exception.message)
+    }
+
+    @Test
+    fun `test invalid maxTotalFields is zero`() {
+        val exception = assertThrows<IllegalArgumentException> {
+            GossipParams.builder()
+                .maxTotalFields(0)
+                .build()
+        }
+        assertEquals("maxTotalFields should be > 0 or null", exception.message)
+    }
+
+    @Test
+    fun `maxIDontWantMessageIdsPerRpc defaults to 5000 and is independently settable`() {
+        assertEquals(5000, GossipParams().maxIDontWantMessageIdsPerRpc)
+        assertEquals(5000, GossipParams.builder().build().maxIDontWantMessageIdsPerRpc)
+        assertEquals(
+            77,
+            GossipParams.builder().maxIDontWantMessageIdsPerRpc(77).build().maxIDontWantMessageIdsPerRpc
+        )
+    }
+
+    @Test
+    fun `takeBatch splits IDONTWANT across RPCs at the per-RPC cap`() {
+        val params = GossipParams(maxIDontWantMessageIds = 50_000, maxIDontWantMessageIdsPerRpc = 5_000)
+        val queue = object : DefaultGossipRpcPartsQueue(params) {}
+        repeat(50_000) { queue.addIDontWant(ByteArray(20) { b -> (it + b).toByte() }.toWBytes()) }
+
+        var batches = 0
+        var worst = 0
+        while (true) {
+            val batch = queue.takeBatch() ?: break
+            batches++
+            worst = maxOf(worst, batch.rpc.control.idontwantList.sumOf { it.messageIDsCount })
+        }
+
+        assertEquals(10, batches)
+        assertEquals(5_000, worst)
     }
 
     /* GossipScoreParams */

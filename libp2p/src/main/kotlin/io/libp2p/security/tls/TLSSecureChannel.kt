@@ -119,6 +119,10 @@ fun buildTlsHandler(
         .ciphers(listOf("TLS_AES_128_GCM_SHA256", "TLS_AES_256_GCM_SHA384", "TLS_CHACHA20_POLY1305_SHA256"))
         .clientAuth(ClientAuth.REQUIRE)
         .trustManager(Libp2pTrustManager(expectedRemotePeer))
+        // Netty (4.2.18+) verifies the peer hostname ("HTTPS") by default. libp2p certificates
+        // carry no hostname: the peer is authenticated by the libp2p extension in
+        // Libp2pTrustManager, so hostname verification must stay off.
+        .endpointIdentificationAlgorithm(null)
         .sslProvider(SslProvider.OPENSSL)
         .secureRandom(nonBlockingSecureRandom())
         .applicationProtocolConfig(
@@ -150,11 +154,12 @@ fun buildTlsHandler(
                     NegotiatedStreamMuxer(mux, nextProtocol)
                 }
                 .firstOrNull()
+            val remoteIdentity = verifyAndExtractIdentity(engine.session.peerCertificates)
             handshakeComplete.complete(
                 SecureChannel.Session(
                     PeerId.fromPubKey(localKey.publicKey()),
-                    verifyAndExtractPeerId(engine.session.peerCertificates),
-                    getPublicKeyFromCert(engine.session.peerCertificates),
+                    remoteIdentity.peerId,
+                    remoteIdentity.pubKey,
                     selectedMuxer
                 )
             )
@@ -278,7 +283,27 @@ fun getContentVerifier(bcX509Cert: X509CertificateHolder): ContentVerifierProvid
     return BcECContentVerifierProviderBuilder(DefaultDigestAlgorithmIdentifierFinder()).build(bcX509Cert)
 }
 
-fun verifyAndExtractPeerId(chain: Array<Certificate>): PeerId {
+/**
+ * The libp2p identity that a TLS peer asserts via the libp2p certificate extension.
+ *
+ * Both [peerId] and [pubKey] are derived from the SAME unmarshalled libp2p host public key
+ * embedded in the certificate extension (OID 1.3.6.1.4.1.53594.1.1). This guarantees the
+ * invariant `PeerId.fromPubKey(pubKey) == peerId`, which downstream consumers
+ * (e.g. signed-record verification) rely on.
+ */
+data class TlsPeerIdentity(val peerId: PeerId, val pubKey: PubKey)
+
+/**
+ * Validate a peer's libp2p TLS certificate (chain of exactly one self-signed cert) and
+ * return the libp2p identity (peer id + libp2p host public key) carried in its extension.
+ *
+ * Validation steps mirror the libp2p TLS specification:
+ *  - extract the libp2p host public key + signature from the extension (OID 1.3.6.1.4.1.53594.1.1);
+ *  - verify the signature is over `certificatePrefix || cert.subjectPublicKeyInfo` using the libp2p key;
+ *  - verify the cert's self-signature using its (ephemeral) subject key;
+ *  - check the cert's validity period.
+ */
+fun verifyAndExtractIdentity(chain: Array<Certificate>): TlsPeerIdentity {
     if (chain.size != 1) {
         throw java.lang.IllegalStateException("Cert chain must have exactly 1 element!")
     }
@@ -314,8 +339,17 @@ fun verifyAndExtractPeerId(chain: Array<Certificate>): PeerId {
     if (bcCert.startDate.date.after(now)) {
         throw IllegalStateException("TLS certificate is not valid yet!")
     }
-    return PeerId.fromPubKey(pubKey)
+    return TlsPeerIdentity(PeerId.fromPubKey(pubKey), pubKey)
 }
+
+/**
+ * Backwards-compatible helper that returns only the [PeerId] portion of [verifyAndExtractIdentity].
+ *
+ * Prefer [verifyAndExtractIdentity] at session-construction sites so that the libp2p pubkey
+ * can be exposed via `SecureChannel.Session.remotePubKey` without re-parsing the certificate.
+ */
+fun verifyAndExtractPeerId(chain: Array<Certificate>): PeerId =
+    verifyAndExtractIdentity(chain).peerId
 
 fun getAlgorithmName(oid: String): String {
     if ("1.2.840.113549.1.1.1".equals(oid)) {

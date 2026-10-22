@@ -143,7 +143,10 @@ class ConnectionCloseRetryTest {
                 requests.incrementAndGet()
                 promise.setFailure(failure)
             }
-            val first = connection.retryClose()
+            // On the event loop the injected failure settles before retryClose returns.
+            val first = connection.nettyChannel.eventLoop().submit<CompletableFuture<Unit>> {
+                connection.retryClose()
+            }.get(5, TimeUnit.SECONDS)
             assertSame(failure, retryCloseFailure(first))
             assertEquals(1, requests.get(), "A retry on an untouched connection starts only its initial close.")
             assertSame(failure, retryCloseFailure(connection.close()))

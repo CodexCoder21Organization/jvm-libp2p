@@ -201,4 +201,37 @@ class YamuxCapacityCallbackTest {
         }
     }
 
+    @Test
+    fun testCapacityKeepsControllerCancellation() {
+        for (cancelBeforeCapacity in listOf(false, true)) {
+            CallbackPair().use { pair ->
+                val pending = CompletableFuture<Stream>()
+                val opening = (pair.clientSession as MuxHandler).createStream(StreamHandler<Stream> { pending })
+                pair.client.runPendingTasks()
+                val stream = opening.stream.get(5, TimeUnit.SECONDS) as StreamOverNetty
+                if (cancelBeforeCapacity) {
+                    assertThat(opening.controller.cancel(false)).isTrue()
+                }
+                var controllerCancelled: Boolean? = null
+                var protocolCancelled: Boolean? = null
+                pending.whenComplete { _, _ ->
+                    controllerCancelled = opening.controller.cancel(false)
+                    protocolCancelled = stream.getProtocol().cancel(false)
+                }
+                val bytes = callbackBytes((stream.nettyChannel.id() as YamuxId).id, byteArrayOf(1))
+                pair.client.writeInbound(bytes)
+                assertThat(controllerCancelled).isEqualTo(cancelBeforeCapacity)
+                assertThat(opening.controller.isCancelled).isEqualTo(cancelBeforeCapacity)
+                assertThat(protocolCancelled).isFalse()
+                assertThat(stream.getProtocol().isCancelled).isFalse()
+                val cause = callbackResult(stream.getProtocol())
+                assertThat(cause).isInstanceOf(StreamCapacityException::class.java)
+                assertThat(callbackResult(pending)).isSameAs(cause)
+                if (!cancelBeforeCapacity) {
+                    assertThat(callbackResult(opening.controller)).isSameAs(cause)
+                }
+                assertThat(bytes.refCnt()).isZero()
+            }
+        }
+    }
 }

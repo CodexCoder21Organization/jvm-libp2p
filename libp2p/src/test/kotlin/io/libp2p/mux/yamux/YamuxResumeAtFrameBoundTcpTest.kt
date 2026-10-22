@@ -69,28 +69,37 @@ class YamuxResumeAtFrameBoundTcpTest {
         try {
             client.start().get(5, TimeUnit.SECONDS)
             server.start().get(5, TimeUnit.SECONDS)
-            val sender = client.newStream<Stream>(listOf("/test/yamux-resume-bound/1.0.0"),
-                server.peerId, server.listenAddresses().single()).controller.get(5, TimeUnit.SECONDS)
+            val sender = client.newStream<Stream>(
+                listOf("/test/yamux-resume-bound/1.0.0"),
+                server.peerId,
+                server.listenAddresses().single()
+            ).controller.get(5, TimeUnit.SECONDS)
             val receiver = accepted.get(5, TimeUnit.SECONDS)
             val child = receiver.nettyChannel
             val parent = child.parent()
             child.config().isAutoRead = false
-            parent.eventLoop().submit(Callable {
-                var frames = 0
-                parent.pipeline().addBefore(parent.pipeline().context(YamuxHandler::class.java).name(),
-                    "resume-order-observer", object : ChannelInboundHandlerAdapter() {
-                        override fun channelRead(ctx: ChannelHandlerContext, msg: Any) {
-                            if (msg is YamuxFrame && msg.id == child.id() &&
-                                msg.type == YamuxType.DATA && msg.length > 0 && ++frames == 65) {
-                                blockedNextFrame.countDown()
-                                check(continueNextFrame.await(5, TimeUnit.SECONDS)) {
-                                    "The next frame must be released after the public resume call"
+            parent.eventLoop().submit(
+                Callable {
+                    var frames = 0
+                    parent.pipeline().addBefore(
+                        parent.pipeline().context(YamuxHandler::class.java).name(),
+                        "resume-order-observer",
+                        object : ChannelInboundHandlerAdapter() {
+                            override fun channelRead(ctx: ChannelHandlerContext, msg: Any) {
+                                if (msg is YamuxFrame && msg.id == child.id() &&
+                                    msg.type == YamuxType.DATA && msg.length > 0 && ++frames == 65
+                                ) {
+                                    blockedNextFrame.countDown()
+                                    check(continueNextFrame.await(5, TimeUnit.SECONDS)) {
+                                        "The next frame must be released after the public resume call"
+                                    }
                                 }
+                                ctx.fireChannelRead(msg)
                             }
-                            ctx.fireChannelRead(msg)
                         }
-                    })
-            }).get(5, TimeUnit.SECONDS)
+                    )
+                }
+            ).get(5, TimeUnit.SECONDS)
             repeat(65) { index ->
                 sender.writeAndFlushWithFuture(Unpooled.wrappedBuffer(byteArrayOf(index.toByte())))
                     .get(5, TimeUnit.SECONDS)
@@ -100,15 +109,20 @@ class YamuxResumeAtFrameBoundTcpTest {
             child.config().isAutoRead = true
             assertTrue(child.config().isAutoRead, "The public resume flag must be visible before the next frame reaches Yamux")
             continueNextFrame.countDown()
-            assertTrue(allDelivered.await(5, TimeUnit.SECONDS),
-                "Resuming before the next frame reaches Yamux must deliver all 65 bytes; actual=${delivered.get()} childOpen=${child.isOpen}")
+            assertTrue(
+                allDelivered.await(5, TimeUnit.SECONDS),
+                "Resuming before the next frame reaches Yamux must deliver all 65 bytes; actual=${delivered.get()} childOpen=${child.isOpen}"
+            )
             assertEquals(65, delivered.get())
             assertEquals((0 until 65).toList(), receivedBytes.toList(), "Resumed payloads must keep FIFO order")
             assertTrue(child.isOpen, "A resumed stream must remain open")
         } finally {
             continueNextFrame.countDown()
-            try { client.stop().get(10, TimeUnit.SECONDS) }
-            finally { server.stop().get(10, TimeUnit.SECONDS) }
+            try {
+                client.stop().get(10, TimeUnit.SECONDS)
+            } finally {
+                server.stop().get(10, TimeUnit.SECONDS)
+            }
         }
     }
 }

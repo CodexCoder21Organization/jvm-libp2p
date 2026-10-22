@@ -168,35 +168,50 @@ abstract class AbstractMuxHandler<TData>(
             }
 
             else -> {
-                if (!child.config().isAutoRead) pauseChild(child)
-                val queued = pendingInbound[id]
-                if (!child.config().isAutoRead || queued != null) {
-                    val pending = queued ?: PendingInbound<TData>().also { pendingInbound[id] = it }
-                    val size = pendingChildReadSize(msg)
-                    val frameLimit = maxPendingChildReadFrames
-                    if (pending.bytes + size > maxPendingChildReadBytes ||
-                        (frameLimit != null && pending.messages.size >= frameLimit)
-                    ) {
-                        releaseMessage(msg)
-                        val cause = ConnectionClosedException(
-                            "Paused child $id inbound queue exceeded: attempted ${pending.messages.size + 1} frames " +
-                                "and ${pending.bytes + size} bytes; limits are $frameLimit frames " +
-                                "and $maxPendingChildReadBytes bytes; resetting the stream"
-                        )
-                        log.warn(cause.message)
-                        // Write-failure callbacks may resume this child during reset. Release the
-                        // queue before those callbacks so rejected payloads cannot be delivered.
-                        pendingInbound.remove(id)
-                        while (pending.messages.isNotEmpty()) releaseMessage(pending.messages.removeFirst())
-                        pending.bytes = 0
-                        onChildReadOverflow(child, cause)
-                        return
+                while (true) {
+                    val autoRead = child.config().isAutoRead
+                    val queued = pendingInbound[id]
+                    // An off-loop resume changes the flag before its drain task reaches this loop.
+                    // Drain the FIFO before deciding whether this frame needs paused capacity.
+                    if (autoRead && queued != null && !queued.draining) {
+                        drainPendingInbound(child)
+                        // A read callback may close the child or pause it again.
+                        if (!child.isOpen) {
+                            releaseMessage(msg)
+                            return
+                        }
+                        continue
                     }
-                    pending.messages.add(preparePendingChildRead(msg))
-                    pending.bytes += size
-                    if (child.config().isAutoRead) drainPendingInbound(child)
-                } else {
-                    deliverToChild(child, msg, false)
+                    if (!autoRead) pauseChild(child)
+                    if (!autoRead || queued != null) {
+                        val pending = queued ?: PendingInbound<TData>().also { pendingInbound[id] = it }
+                        val size = pendingChildReadSize(msg)
+                        val frameLimit = maxPendingChildReadFrames
+                        if (pending.bytes + size > maxPendingChildReadBytes ||
+                            (frameLimit != null && pending.messages.size >= frameLimit)
+                        ) {
+                            releaseMessage(msg)
+                            val cause = ConnectionClosedException(
+                                "Paused child $id inbound queue exceeded: attempted ${pending.messages.size + 1} frames " +
+                                    "and ${pending.bytes + size} bytes; limits are $frameLimit frames " +
+                                    "and $maxPendingChildReadBytes bytes; resetting the stream"
+                            )
+                            log.warn(cause.message)
+                            // Write-failure callbacks may resume this child during reset. Release the
+                            // queue before those callbacks so rejected payloads cannot be delivered.
+                            pendingInbound.remove(id)
+                            while (pending.messages.isNotEmpty()) releaseMessage(pending.messages.removeFirst())
+                            pending.bytes = 0
+                            onChildReadOverflow(child, cause)
+                            return
+                        }
+                        pending.messages.add(preparePendingChildRead(msg))
+                        pending.bytes += size
+                        if (child.config().isAutoRead) drainPendingInbound(child)
+                    } else {
+                        deliverToChild(child, msg, false)
+                    }
+                    return
                 }
             }
         }

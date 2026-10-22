@@ -107,12 +107,14 @@ class NetworkDialOwnershipTest {
             val address = server.listenAddresses().first()
             val published = CompletableFuture<Connection>()
             val releaseCallback = CountDownLatch(1)
-            client.addConnectionHandler(ConnectionHandler { connection ->
-                published.complete(connection)
-                check(releaseCallback.await(5, SECONDS)) {
-                    "The test did not release the connection callback within 5 seconds"
+            client.addConnectionHandler(
+                ConnectionHandler { connection ->
+                    published.complete(connection)
+                    check(releaseCallback.await(5, SECONDS)) {
+                        "The test did not release the connection callback within 5 seconds"
+                    }
                 }
-            })
+            )
             val first = client.network.connect(server.peerId, address)
             transport.gates.single().complete(Unit)
             try {

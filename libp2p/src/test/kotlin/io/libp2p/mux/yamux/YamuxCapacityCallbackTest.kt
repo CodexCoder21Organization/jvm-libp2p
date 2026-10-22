@@ -140,65 +140,65 @@ class YamuxCapacityCallbackTest {
     @Test
     fun testProtocolCallbackKeepsCapacityControllerResult() {
         for (useAsync in listOf(false, true)) {
-        CallbackPair().use { pair ->
-            val pending = CompletableFuture<Stream>()
-            val opening = (pair.clientSession as MuxHandler).createStream(StreamHandler<Stream> { stream ->
-                stream.getProtocol().whenComplete { _, _ -> pending.complete(stream) }
-                pending
-            })
-            pair.client.runPendingTasks()
-            val stream = opening.stream.get(5, TimeUnit.SECONDS) as StreamOverNetty
-            assertThat(opening.controller.isDone).isFalse()
-            pending.whenComplete { _, _ ->
-                if (useAsync) {
-                    stream.getProtocol().completeAsync({ "/callback/1.0.0" }, { it.run() })
-                    opening.controller.completeAsync({ stream }, { it.run() })
-                } else {
-                    stream.getProtocol().complete("/callback/1.0.0")
-                    opening.controller.complete(stream)
+            CallbackPair().use { pair ->
+                val pending = CompletableFuture<Stream>()
+                val opening = (pair.clientSession as MuxHandler).createStream(StreamHandler<Stream> { stream ->
+                    stream.getProtocol().whenComplete { _, _ -> pending.complete(stream) }
+                    pending
+                })
+                pair.client.runPendingTasks()
+                val stream = opening.stream.get(5, TimeUnit.SECONDS) as StreamOverNetty
+                assertThat(opening.controller.isDone).isFalse()
+                pending.whenComplete { _, _ ->
+                    if (useAsync) {
+                        stream.getProtocol().completeAsync({ "/callback/1.0.0" }, { it.run() })
+                        opening.controller.completeAsync({ stream }, { it.run() })
+                    } else {
+                        stream.getProtocol().complete("/callback/1.0.0")
+                        opening.controller.complete(stream)
+                    }
                 }
+                val bytes = callbackBytes((stream.nettyChannel.id() as YamuxId).id, byteArrayOf(1))
+                pair.client.writeInbound(bytes)
+                assertThat(callbackResult(stream.getProtocol())).isInstanceOf(StreamCapacityException::class.java)
+                val cause = callbackResult(stream.getProtocol())
+                assertThat(callbackResult(pending)).isSameAs(cause)
+                assertThat(callbackResult(opening.controller)).isSameAs(cause)
+                assertThat(bytes.refCnt()).isZero()
+                assertThat(pair.client.isOpen).isTrue()
             }
-            val bytes = callbackBytes((stream.nettyChannel.id() as YamuxId).id, byteArrayOf(1))
-            pair.client.writeInbound(bytes)
-            assertThat(callbackResult(stream.getProtocol())).isInstanceOf(StreamCapacityException::class.java)
-            val cause = callbackResult(stream.getProtocol())
-            assertThat(callbackResult(pending)).isSameAs(cause)
-            assertThat(callbackResult(opening.controller)).isSameAs(cause)
-            assertThat(bytes.refCnt()).isZero()
-            assertThat(pair.client.isOpen).isTrue()
-        }
         }
     }
 
     @Test
     fun testProtocolCallbackKeepsCapacityControllerError() {
         for (useAsync in listOf(false, true)) {
-        CallbackPair().use { pair ->
-            val pending = CompletableFuture<Stream>()
-            val opening = (pair.clientSession as MuxHandler).createStream(StreamHandler<Stream> { stream ->
-                stream.getProtocol().whenComplete { _, _ -> pending.completeExceptionally(IllegalStateException("Protocol callback result")) }
-                pending
-            })
-            pair.client.runPendingTasks()
-            val stream = opening.stream.get(5, TimeUnit.SECONDS) as StreamOverNetty
-            assertThat(opening.controller.isDone).isFalse()
-            pending.whenComplete { _, _ ->
-                if (useAsync) {
-                    stream.getProtocol().completeAsync({ throw IllegalStateException("Handler callback result") }, { it.run() })
-                    opening.controller.completeAsync({ throw IllegalStateException("Handler callback result") }, { it.run() })
-                } else {
-                    stream.getProtocol().completeExceptionally(IllegalStateException("Handler callback result"))
-                    opening.controller.completeExceptionally(IllegalStateException("Handler callback result"))
+            CallbackPair().use { pair ->
+                val pending = CompletableFuture<Stream>()
+                val opening = (pair.clientSession as MuxHandler).createStream(StreamHandler<Stream> { stream ->
+                    stream.getProtocol().whenComplete { _, _ -> pending.completeExceptionally(IllegalStateException("Protocol callback result")) }
+                    pending
+                })
+                pair.client.runPendingTasks()
+                val stream = opening.stream.get(5, TimeUnit.SECONDS) as StreamOverNetty
+                assertThat(opening.controller.isDone).isFalse()
+                pending.whenComplete { _, _ ->
+                    if (useAsync) {
+                        stream.getProtocol().completeAsync({ throw IllegalStateException("Handler callback result") }, { it.run() })
+                        opening.controller.completeAsync({ throw IllegalStateException("Handler callback result") }, { it.run() })
+                    } else {
+                        stream.getProtocol().completeExceptionally(IllegalStateException("Handler callback result"))
+                        opening.controller.completeExceptionally(IllegalStateException("Handler callback result"))
+                    }
                 }
+                val bytes = callbackBytes((stream.nettyChannel.id() as YamuxId).id, byteArrayOf(1))
+                pair.client.writeInbound(bytes)
+                assertThat(callbackResult(stream.getProtocol())).isInstanceOf(StreamCapacityException::class.java)
+                val cause = callbackResult(stream.getProtocol())
+                assertThat(callbackResult(pending)).isSameAs(cause)
+                assertThat(callbackResult(opening.controller)).isSameAs(cause)
+                assertThat(bytes.refCnt()).isZero()
             }
-            val bytes = callbackBytes((stream.nettyChannel.id() as YamuxId).id, byteArrayOf(1))
-            pair.client.writeInbound(bytes)
-            assertThat(callbackResult(stream.getProtocol())).isInstanceOf(StreamCapacityException::class.java)
-            val cause = callbackResult(stream.getProtocol())
-            assertThat(callbackResult(pending)).isSameAs(cause)
-            assertThat(callbackResult(opening.controller)).isSameAs(cause)
-            assertThat(bytes.refCnt()).isZero()
-        }
         }
     }
 

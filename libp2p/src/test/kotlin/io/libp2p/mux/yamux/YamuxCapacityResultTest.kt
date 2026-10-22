@@ -374,6 +374,7 @@ class YamuxCapacityResultTest {
             }
         }
     }
+
     @Test
     fun testCancelledStreamFutureKeepsPendingControllerCause() {
         CapacityPair().use { pair ->
@@ -415,7 +416,8 @@ class YamuxCapacityResultTest {
         val channel = TestChannel("capacity-selection-check", true)
         try {
             val binding = YamuxCapacityStreamMuxer(
-                StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) }, MultistreamProtocolDebugV1()
+                StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) },
+                MultistreamProtocolDebugV1()
             )
             val cause = org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
                 binding.initChannel(channel.attr(CONNECTION).get(), "/yamux/1.0.0")
@@ -433,7 +435,9 @@ class YamuxCapacityResultTest {
         val channel = TestChannel("capacity-limit-check", true)
         try {
             val binding = YamuxCapacityStreamMuxer(
-                StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) }, MultistreamProtocolDebugV1(), maxInboundStreams = -1
+                StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) },
+                MultistreamProtocolDebugV1(),
+                maxInboundStreams = -1
             )
             val cause = org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
                 binding.initChannel(channel.attr(CONNECTION).get(), "/urlprotocol/yamux-capacity/1.0.0")
@@ -443,5 +447,4 @@ class YamuxCapacityResultTest {
             channel.finishAndReleaseAll()
         }
     }
-
 }

@@ -3,7 +3,7 @@
 Plan
 - [completed] Read harness/evidence; measure child startup, work and shutdown.
 - [completed] State mechanism and invariants; failing ordering regression.
-- [in progress] Fix passes; reversal queued; independent test/code review passes complete.
+- [in progress] Task-drain fix passes and reverses red; startup regression queued after original deadlines still fail. Independent test/code review passes complete for task-drain change.
 - [pending] First class and Noise-package qualification, full libp2p suite once, format/static checks.
 - [pending] Rebase develop, targeted verification, checkpoint and PR.
 
@@ -70,3 +70,6 @@ OBSERVED: First restored selected run includes complete NoiseHandshakeOffEventLo
 OBSERVED: First fixed broader selection: 15 cases, 13 passed / 2 failed / 0 skipped. Original Noise class 7/2/0: inline child exceeds unchanged 10s with empty output; fairness child exceeds unchanged 15s with empty output. New ordering regression passes; all five transport lifecycle tests pass. Full traces in out/fixed-class-first-failure-traces.txt. This refutes the claim that the transport scheduling fix alone resolves qualification.
 OBSERVED: Both baseline JFR and fresh child profile name Log4j plugin discovery/configuration during first-host setup before any proof. New NoiseChildStartupTest launches the real inline harness with the JVM public class-load trace and asserts the proof completes without loading Log4j PluginManager. This tests removal of the identified startup work, not a machine-dependent timing threshold. It is being run before a logging change.
 INFER: Qualification children need no plugin/configuration discovery to prove crypto scheduling; choosing the API lightweight logging context before host initialization should remove that measured startup path without changing any existing deadline or assertion. This inference is not counted as fixed until the new test flips and original cases pass.
+
+2026-10-22 03:25 UTC — startup check queued
+OBSERVED: The new startup regression is queued at the box gate; no result claimed. Exact Log4j API dependency is 2.25.4. Its ProviderUtil supports selecting the API SimpleProvider through the documented provider property; selecting it avoids constructing the Core LoggerContext/PluginManager path identified in the profile. Official property documentation read at https://logging.apache.org/log4j/2.x/manual/systemproperties.html (provider available since 2.24.0). The main library logging configuration will not change; the policy is confined to dedicated child-JVM harness entry points.

@@ -164,3 +164,6 @@ org.opentest4j.AssertionFailedError: Exception in thread "main" org.opentest4j.A
 
 2026-10-22 04:54:04 UTC
 OBSERVED: Precision-only reversal failed the intended ordering assertion; exact fixed bytes restored. Queue budget, logging and cleanup changes retained throughout.
+
+2026-10-22 04:55:49 UTC
+OBSERVED: precision-restored-targeted, source head 5638106fa2eecfe3211fa4e5dfef2b55cac29bd0: 16 passed / 0 failed / 0 skipped; 16 CASE lines, process exit 0.

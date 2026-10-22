@@ -25,7 +25,13 @@ import java.util.concurrent.atomic.AtomicInteger
 
 class YamuxResumeAtFrameBoundRePauseTcpTest {
     @Test
-    fun callbackPauseWhileDrainingLeavesRoomForTheArrivingFrame() {
+    fun callbackPauseWhileDrainingLeavesRoomForTheArrivingFrame() = runScenario(StreamMuxerProtocol.getYamux())
+
+    // Without merging the 65th frame needs a free slot, so it is admitted only after the drain.
+    @Test
+    fun callbackPauseWhileDrainingLeavesRoomForTheArrivingFrameWhenMergeIsDeclined() = runScenario(mergeDeclinedYamux())
+
+    private fun runScenario(serverMuxer: StreamMuxerProtocol) {
         val accepted = CompletableFuture<StreamOverNetty>()
         val delivered = AtomicInteger()
         val firstDelivered = CountDownLatch(1)
@@ -67,7 +73,7 @@ class YamuxResumeAtFrameBoundRePauseTcpTest {
             identity { random() }
             transports { +::TcpTransport }
             secureChannels { add(::PlaintextInsecureChannel) }
-            muxers { add(StreamMuxerProtocol.getYamux()) }
+            muxers { add(serverMuxer) }
             network { listen("/ip4/127.0.0.1/tcp/0") }
             protocols { add(binding) }
         }

@@ -14,6 +14,7 @@ import io.libp2p.tools.readAllBytesAndRelease
 import io.netty.buffer.ByteBuf
 import io.netty.buffer.Unpooled
 import io.netty.channel.ChannelHandlerContext
+import io.netty.channel.ChannelInboundHandlerAdapter
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.RepeatedTest
@@ -32,7 +33,8 @@ private fun windowCredit(frames: List<YamuxFrame>, streamId: Long): Long =
     frames.filter { it.type == YamuxType.WINDOW_UPDATE && it.id.id == streamId }.sumOf { it.length }
 
 class YamuxHandlerTest : MuxHandlerAbstractTest() {
-    var pendingReadFrameLimit: Int = 64
+    // null keeps the production frame bound; tests that isolate other behaviour may raise it.
+    var pendingReadFrameLimit: Int? = null
 
     override val maxFrameDataLength = 256
     private val maxBufferedConnectionWrites = 512
@@ -57,8 +59,8 @@ class YamuxHandlerTest : MuxHandlerAbstractTest() {
             ackBacklogLimit,
             initialWindowSize
         ) {
-            override val maxPendingChildReadFrames: Int
-                get() = pendingReadFrameLimit
+            override val maxPendingChildReadFrames: Int?
+                get() = pendingReadFrameLimit ?: super.maxPendingChildReadFrames
 
             override fun releaseMessage(msg: ByteBuf) {
                 releasedChildReads += msg
@@ -356,6 +358,40 @@ class YamuxHandlerTest : MuxHandlerAbstractTest() {
         child.config().isAutoRead = true
         ech.runPendingTasks()
         assertThat(handler.inboundMessages).hasSize(65).allMatch { it == "42" }
+    }
+
+    @Test
+    fun pausedChildMergesSmallFramesAtTheProductionFrameBound() {
+        val streamId = openStreamRemote()
+        readYamuxFrameOrThrow()
+        val handler = childHandlers.single()
+        val child = handler.ctx.channel()
+        val deliveredCapacities = mutableListOf<Int>()
+        child.pipeline().addFirst(object : ChannelInboundHandlerAdapter() {
+            override fun channelRead(ctx: ChannelHandlerContext, msg: Any) {
+                var backing = msg as ByteBuf
+                while (backing.unwrap() != null) backing = backing.unwrap()
+                deliveredCapacities += backing.capacity()
+                ctx.fireChannelRead(msg)
+            }
+        })
+        child.config().isAutoRead = false
+
+        val payloads = List(65) { "%02x".format(it) }
+        payloads.forEach { writeStream(streamId, it) }
+        assertThat(child.isOpen).isTrue()
+        assertThat(handler.inboundMessages).isEmpty()
+
+        child.config().isAutoRead = true
+        ech.runPendingTasks()
+        // 64 held copies: the 65th payload is appended to the 64th, so it arrives in the same read.
+        assertThat(handler.inboundMessages)
+            .containsExactlyElementsOf(payloads.take(63) + (payloads[63] + payloads[64]))
+        assertThat(deliveredCapacities)
+            .describedAs("Each delivered copy must own exactly its readable bytes")
+            .containsExactlyElementsOf(List(63) { 1 } + 2)
+        assertThat(deliveredCapacities.sum()).isEqualTo(65)
+        assertThat(child.isOpen).isTrue()
     }
 
     @Test

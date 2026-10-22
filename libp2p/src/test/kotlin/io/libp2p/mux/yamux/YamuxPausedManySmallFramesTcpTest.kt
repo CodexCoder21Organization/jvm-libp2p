@@ -41,6 +41,8 @@ class YamuxPausedManySmallFramesTcpTest {
         val deliveredBytes = AtomicInteger()
         val deliveredReads = AtomicInteger()
         val receivedBytes = ConcurrentLinkedQueue<Int>()
+        // (readable bytes, backing capacity) of each delivered buffer.
+        val deliveredStorage = ConcurrentLinkedQueue<Pair<Int, Int>>()
         val allDelivered = CountDownLatch(smallFrameCount)
         val allFramesReachedYamux = CountDownLatch(smallFrameCount)
         val trailingDelivered = CountDownLatch(smallFrameCount + 1)
@@ -53,6 +55,9 @@ class YamuxPausedManySmallFramesTcpTest {
                     netty.nettyChannel.pipeline().addLast(object : SimpleChannelInboundHandler<ByteBuf>() {
                         override fun channelRead0(ctx: ChannelHandlerContext, msg: ByteBuf) {
                             val count = msg.readableBytes()
+                            var backing = msg
+                            while (backing.unwrap() != null) backing = backing.unwrap()
+                            deliveredStorage.add(count to backing.capacity())
                             repeat(count) { receivedBytes.add(msg.readUnsignedByte().toInt()) }
                             deliveredReads.incrementAndGet()
                             deliveredBytes.addAndGet(count)
@@ -146,6 +151,14 @@ class YamuxPausedManySmallFramesTcpTest {
                 "A paused stream holding $smallFrameCount one-byte frames retained $readsAfterResume payload " +
                     "objects; it must retain at most $maxRetainedPayloadObjects"
             )
+            val heldStorage = deliveredStorage.toList()
+            assertEquals(readsAfterResume, heldStorage.size)
+            assertEquals(
+                heldStorage.map { it.first },
+                heldStorage.map { it.second },
+                "Each delivered held copy must own exactly its readable bytes (readable sizes vs backing capacities)"
+            )
+            assertEquals(smallFrameCount, heldStorage.sumOf { it.second }, "Delivered held storage must equal the held bytes")
             assertTrue(child.isOpen, "A resumed stream must remain open")
 
             sender.writeAndFlushWithFuture(Unpooled.wrappedBuffer(byteArrayOf(0x5a))).get(5, TimeUnit.SECONDS)

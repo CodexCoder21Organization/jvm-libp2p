@@ -4,8 +4,23 @@ import io.libp2p.core.multiformats.Multiaddr
 import io.libp2p.core.mux.StreamMuxer
 import io.libp2p.core.security.SecureChannel
 import io.libp2p.core.transport.Transport
+import java.util.concurrent.CompletableFuture
 
 interface Connection : P2PChannel {
+    /**
+     * Explicitly requests another close attempt after a failed close has settled.
+     *
+     * If close has not started, starts it. If the latest attempt is pending, observes
+     * that attempt without submitting another. After success, completes successfully
+     * without another close request. Each settled failure permits a later explicit retry.
+     * Ordinary [close] calls retain their original result, including after a retry.
+     * Completing or cancelling the returned future must not change the owned attempt.
+     *
+     * The default delegates to [close] for implementations without retained close failures.
+     * Implementations that retain a failed close result must override this operation.
+     */
+    fun retryClose(): CompletableFuture<Unit> = close()
+
     /**
      * Returns the [io.libp2p.core.mux.StreamMuxer.Session] which is capable of creating
      * new [Stream]s

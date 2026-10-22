@@ -62,3 +62,11 @@ OBSERVED: Reversal build has been waiting for the shared box gate since 03:11; n
 
 2026-10-22 03:16 UTC — REVERSAL RED, EXACT FIX RESTORED
 OBSERVED: Replaced only PlainNettyTransport with origin/develop source, retaining the identical new test. Reversal: 1 case, 0 passed / 1 failed / 0 skipped, the same established-read-before-marker assertion failed. Log/XML preserved. Restored out/plain-netty-fixed.kt; cmp confirms byte-for-byte identity with the first passing implementation. No deadline/iteration/assertion changed.
+
+2026-10-22 03:20 UTC — restored qualification running
+OBSERVED: First restored selected run includes complete NoiseHandshakeOffEventLoopTest, new queue regression and all three PlainNettyTransport lifecycle classes, --max-workers=2. spotlessApply changed only import order in new production imports; no existing tests or assertions edited. New queue regression already reports SUCCESS. Remaining per-test results are still being collected, so no total claimed yet.
+
+2026-10-22 03:23 UTC — FIRST FIXED CLASS STILL FAILS STARTUP
+OBSERVED: First fixed broader selection: 15 cases, 13 passed / 2 failed / 0 skipped. Original Noise class 7/2/0: inline child exceeds unchanged 10s with empty output; fairness child exceeds unchanged 15s with empty output. New ordering regression passes; all five transport lifecycle tests pass. Full traces in out/fixed-class-first-failure-traces.txt. This refutes the claim that the transport scheduling fix alone resolves qualification.
+OBSERVED: Both baseline JFR and fresh child profile name Log4j plugin discovery/configuration during first-host setup before any proof. New NoiseChildStartupTest launches the real inline harness with the JVM public class-load trace and asserts the proof completes without loading Log4j PluginManager. This tests removal of the identified startup work, not a machine-dependent timing threshold. It is being run before a logging change.
+INFER: Qualification children need no plugin/configuration discovery to prove crypto scheduling; choosing the API lightweight logging context before host initialization should remove that measured startup path without changing any existing deadline or assertion. This inference is not counted as fixed until the new test flips and original cases pass.

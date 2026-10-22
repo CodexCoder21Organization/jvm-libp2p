@@ -23,8 +23,8 @@ import io.netty.channel.EventLoopGroup
 import io.netty.channel.IoEventLoop
 import io.netty.channel.IoEventLoopGroup
 import io.netty.channel.IoHandlerFactory
-import io.netty.channel.SingleThreadIoEventLoop
 import io.netty.channel.MultiThreadIoEventLoopGroup
+import io.netty.channel.SingleThreadIoEventLoop
 import io.netty.channel.nio.NioIoHandler
 import io.netty.channel.socket.nio.NioServerSocketChannel
 import io.netty.channel.socket.nio.NioSocketChannel

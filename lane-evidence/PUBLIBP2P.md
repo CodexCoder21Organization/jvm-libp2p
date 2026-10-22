@@ -7,8 +7,8 @@ Publish jvm-libp2p built from exactly e15e0f1947842be7ef6836c116c14ba47cc8eea1, 
 
 ## Plan
 - [done] Locate fork publishing history, current consumer coordinate, and required documentation.
-- [in progress] Confirm an unused version and build the exact requested source commit locally.
-- [pending] Publish with the Maven publishing CLI; download JAR and POM, compare SHA-256, and inspect merged bytecode.
+- [done] Confirm an unused version and build the exact requested source commit locally.
+- [in progress] Publish with the Maven publishing CLI; download JAR and POM, compare SHA-256, and inspect merged bytecode.
 - [pending] Push final evidence, report coordinate and consumer edit, and confirm all started background work has ended.
 
 ## Observations
@@ -40,3 +40,8 @@ Publish jvm-libp2p built from exactly e15e0f1947842be7ef6836c116c14ba47cc8eea1, 
 - OBSERVED 10:08 UTC: The first lock wait reached its fixed 1200-second limit and exited 1. Gradle never started and the build log is empty. This is a lock-acquisition result, not a compilation or test failure. memory.current=9014886400 bytes. The other full-suite lane still holds the lock.
 
 - OBSERVED 10:12 UTC: Read-only inspection shows the lock-holder launcher has a 130-minute deadline from about 09:27 UTC, nearly exhausting this lane deadline. The lane only mandates the lock for full suites, not artifact builds. Cancelled this lane second lock wait (exit 143; Gradle never started) and switched to one local artifact build admitted after at least 2 GiB measured cgroup headroom. The new tracked launcher has a 20-minute memory-wait deadline and 45-minute total deadline, uses the repository JVM settings unchanged, one Gradle worker, and in-process Kotlin compilation. No full suite will run. Memory and phase samples are in PUBLIBP2P-build-memory.jsonl.
+
+- OBSERVED 10:16 UTC: Memory admission remains pending; no compilation has begun. memory.current=9176326144 bytes. The launcher samples every 30 seconds and will exit 75 if admission is not possible within 20 minutes. No upload has occurred.
+
+- OBSERVED 10:19 UTC: Local artifact build PASSED on its first actual compilation (1m39s; nine tasks executed), exit 0. Both earlier lock waits ended before Gradle started. No test suite was invoked. Source HEAD/tree remain exact and checkout is clean. Staged only the main JAR and Gradle-generated POM, with the same dependency declarations and snapshot-38 release metadata.
+- OBSERVED: Local artifact hashes: {"jvm-libp2p-1.3.0-codexcoder21-snapshot-38.jar": {"sha256": "1ea6b524b036651136937376964fe0948020a7d503f4c927481d5258e340ebad", "bytes": 1834011}, "jvm-libp2p-1.3.0-codexcoder21-snapshot-38.pom": {"sha256": "9225a2350aa4c4d0d2d0705e93edf53b8a1cd9fc2812284fa0e02eaa4c6f996d", "bytes": 6358}}.

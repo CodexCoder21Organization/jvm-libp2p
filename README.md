@@ -191,6 +191,10 @@ parent channel. Repeated calls wait for that operation and report its original f
 fails; they do not issue another close. Completing or cancelling one caller's returned future
 does not complete the operation or another caller's shutdown future.
 
+Closing a TCP or WebSocket client that never listened does not create an accept-loop group.
+A listening transport closes its own accept loop after its channels close; other hosts keep
+using the shared worker loops.
+
 ## Gossip simulator
 
 Deterministic Gossip simulator which may simulate networks as large as 10000 of peers

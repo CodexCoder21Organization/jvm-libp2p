@@ -315,3 +315,29 @@ OBSERVED: First restored run after direct-refCnt control: 187 passed / 0 failed 
 OBSERVED: Only round change to existing fixture: YamuxHandlerTest.createMuxHandler inherits releaseMessage before; after, its public delegating override records actual release buffers. No existing test method/assertion edited, skipped, weakened; no timeout/iteration/limit changes.
 Plan: test gap, both red controls, both green restorations, dedicated reviews, static checks complete. Remaining: develop rebase, requested pre-push mux gate, one existing PR branch push, body update, final process cleanup.
 Current commit: 237761a3743a0dd30119fea983e46f95a97ccdd9.
+
+## Pre-push gate — cached invocation verifies nothing
+OBSERVED: Fetch/rebase origin/develop completed; HEAD remains 237761a3743a0dd30119fea983e46f95a97ccdd9 and origin/develop is an ancestor. First pre-push test invocation reports test UP-TO-DATE with zero per-test result lines. This verifies no tests and is not counted as a pass. Running again with Gradle task-specific --rerun (without rebuilding test classes) to execute all selected cases.
+
+## Final pre-push execution — pass
+OBSERVED: Explicit task-specific --rerun executed 187 tests: 187 passed / 0 failed / 0 skipped, including all three new cleanup cases and 45 Mplex cases. Actual per-test log counts match XML. All 1,166 compiled Kotlin test/fixture hashes unchanged since the one successful compilation. Same owned warm daemon 1452038 throughout. No full suite run.
+OBSERVED: Final diff from pinned head contains only 39 added test lines in YamuxHandlerTest.kt. Working tree clean, no added artifacts. Production sources unchanged. Static checks passed first attempt.
+Current commit: 237761a3743a0dd30119fea983e46f95a97ccdd9.
+
+## Final delivery and cleanup
+OBSERVED: Existing PR branch pushed exactly once, d933ef4c → 237761a3743a0dd30119fea983e46f95a97ccdd9. git ls-remote independently confirms that final head. PR body patched through REST with Review round 2, first-attempt counts, full findings link, all fixture edits, and required footer. Its first line remains exactly `do not merge: awaiting owner approval of the existing-test edits listed below`. The PATCH response still carried the old head metadata; the remote Git branch itself is verified at the new head. No CI status was requested or watched.
+OBSERVED: Owned Gradle daemon 1452038 stopped by numeric PID after every tracked build/test command completed. ps -eo pid,args -ww confirms it is absent; before/after snapshots saved in /tmp/p2p63-fix3-*-cleanup.ps. No background process started by this task remains. Working tree clean; no build artifacts tracked.
+
+Brief audit:
+- DONE: queued-copy release asserted for reset, child close, parent close, two paused streams with three copies each.
+- DONE: exact review cleanup mutation fails all three new cases; restore passes 187/187.
+- DONE: additional direct-release omission fails all three refCnt-zero assertions; restore passes 187/187.
+- DONE: Mplex coverage unaffected, 45/45 in both controls and every green gate.
+- DONE: test-only diff, existing assertions/limits/timeouts/iterations unchanged; the only fixture change is a delegating public releaseMessage observation.
+- DONE: one warm Gradle daemon; test classes compiled once; unchanged 1,166 class hashes throughout.
+- DONE: spotlessCheck and detekt first attempts pass; final develop rebase and actual 187-case rerun pass (first cached invocation verified zero tests, explicitly recorded).
+- DONE: single existing-PR push and Review round 2 body update, preserving do-not-merge first line.
+- DONE: findings checkpointed outside PR diff and final process cleanup verified.
+Published coordinates: none. No merge, queue entry, deployment, production change, or CI watch. Unfinished: none within the requested lane scope.
+Final head: 237761a3743a0dd30119fea983e46f95a97ccdd9.
+PR: https://github.com/CodexCoder21Organization/jvm-libp2p/pull/63

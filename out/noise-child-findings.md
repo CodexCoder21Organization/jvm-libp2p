@@ -83,3 +83,23 @@ PLAN: The understood remaining stages run sequentially in one tracked boxrun slo
 2026-10-22 03:31:56 UTC OBSERVED: starting startup-green-first
 
 2026-10-22 03:40:50 UTC OBSERVED: startup-green-first first attempt: 1 cases, 1 passed / 0 failed / 0 skipped, exit 0. Full traces in out/startup-green-first-failure-traces.txt.
+
+2026-10-22 03:40:53 UTC OBSERVED: checkpoint a8c1bb3ed16f5d23fd7141495c60bd9053b68dfa
+
+2026-10-22 03:40:54 UTC OBSERVED: starting startup-reversal
+
+2026-10-22 03:41 UTC — review of child logging change
+REVIEW (test coverage, independent pass): startup regression launches the public harness main through the JVM class-loading trace, first confirms the real Noise proof and normal exit, then rejects the specific plugin-discovery class named by the profile. Its old-code failure is an assertion after successful work, so it discriminates on the avoidable dependency path rather than elapsed machine time. The unchanged original inline, sequential, saturation and fairness assertions still exercise all child modes after the common setup call.
+REVIEW (code, independent adversarial pass): the two entry points select SimpleProvider before host/recorder initialization can access the library logger; strings in the helper do not initialize LogManager early. INFO/WARN/ERROR remain enabled. Properties are confined to these already separate JVMs, so parent tests and library consumers retain their logging setup. New helper is private and package-level; no dependency, reflection, production logging or error handling changed. Documents read: CONTRACT.md, README.md, FORK.md, Testing Architecture (the two required sections), Engineering Philosophy, exact Netty/Log4j bytecode and official Log4j provider documentation.
+
+Invariant table (renders the ownership rules recorded before the transport edit)
+| Resource | Create / own / close | Terminal / caller observations | Callback, in-flight close, restart | Public test |
+| --- | --- | --- | --- | --- |
+| Shared worker group | Lazy transport factory / process / JVM exit | Daemon, shared; host close cannot close siblings | Same serial loop on re-entry; per-host close unchanged; no persistence | Existing daemon and listen/close tests; Noise class |
+| Queued callback batch and established socket reads | Netty worker / same worker / drained as work finishes | Worker task budget 100ms; one callback runs to completion | After held callback returns, ready I/O precedes another callback batch; no persistence | New queue-order regression, red/green/reversal |
+| Qualification child and output pipe | Parent test / parent until exit / bounded wait then close | Proof and child status observed; reader closes at EOF | Finally stops an unfinished child; no persisted state | Existing child cases and both new child regressions |
+| Child logger selection | Child main / child / JVM exit | Lightweight provider, INFO/WARN/ERROR; no plugin discovery | Set before logger access; parent unaffected; new process sets again | New startup regression, first red confirmed; green/reversal running |
+
+2026-10-22 03:42:12 UTC OBSERVED: startup-reversal first attempt: 1 cases, 0 passed / 1 failed / 0 skipped, exit 1. Full traces in out/startup-reversal-failure-traces.txt.
+
+2026-10-22 03:42:12 UTC OBSERVED: startup reversal failed on the intended plugin-discovery assertion; exact logging fix restored.

@@ -190,6 +190,27 @@ parent channel. Repeated calls wait for that operation and report its original f
 fails; they do not issue another close. Completing or cancelling one caller's returned future
 does not complete the operation or another caller's shutdown future.
 
+## Short stream logs
+
+`LoggingHandlerShort` includes a buffer's full byte count and selected leading and trailing bytes
+in large hex logs. It reads only those selected ranges, so logging a large message does not scan
+hidden payload bytes, including with Netty's detailed leak detection enabled. Formatting preserves
+the buffer's contents, indexes and reference count. Small buffers and `ByteBufFormat.SIMPLE` retain
+Netty's usual formatting.
+
+```kotlin
+import io.libp2p.core.Stream
+import io.libp2p.etc.util.netty.LoggingHandlerShort
+import io.netty.handler.logging.LogLevel
+
+fun addStreamLogging(stream: Stream) {
+    stream.pushHandler(LoggingHandlerShort("peer-stream", LogLevel.INFO).apply {
+        maxHeadingLines = 50
+        maxTrailingLines = 10
+    })
+}
+```
+
 ## Gossip simulator
 
 Deterministic Gossip simulator which may simulate networks as large as 10000 of peers

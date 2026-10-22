@@ -1,6 +1,10 @@
 ```groovy
 import org.gradle.api.publish.maven.MavenPublication
 
+gradle.beforeProject { project ->
+    project.ext.set("kotlin.compiler.execution.strategy", "in-process")
+}
+
 gradle.projectsEvaluated {
     allprojects {
         version = "1.3.0-codexcoder21-snapshot-38"

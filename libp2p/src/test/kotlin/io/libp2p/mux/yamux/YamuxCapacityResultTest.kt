@@ -12,6 +12,7 @@ import io.libp2p.core.multistream.ProtocolBinding
 import io.libp2p.core.multistream.ProtocolDescriptor
 import io.libp2p.core.mux.StreamMuxer
 import io.libp2p.etc.CONNECTION
+import io.libp2p.mux.MuxHandler
 import io.libp2p.multistream.MultistreamProtocolDebugV1
 import io.libp2p.tools.TestChannel
 import io.libp2p.transport.implementation.StreamOverNetty
@@ -447,4 +448,23 @@ class YamuxCapacityResultTest {
             channel.finishAndReleaseAll()
         }
     }
+    @Test
+    fun testDirectHandlerKeepsPendingControllerCause() {
+        CapacityPair().use { pair ->
+            val pending = CompletableFuture<Stream>()
+            val opening = (pair.clientSession as MuxHandler).createStream(StreamHandler<Stream> { pending })
+            pair.client.runPendingTasks()
+            val stream = opening.stream.get(5, TimeUnit.SECONDS) as StreamOverNetty
+            val bytes = capacityBytes((stream.nettyChannel.id() as YamuxId).id, byteArrayOf(1))
+            pair.client.writeInbound(bytes)
+            val cause = capacityResult(opening.controller)
+            assertThat(cause).isInstanceOf(StreamCapacityException::class.java)
+            assertThat(capacityResult(stream.getProtocol())).isSameAs(cause)
+            pending.complete(stream)
+            assertThat(capacityResult(opening.controller)).isSameAs(cause)
+            assertThat(pair.client.isOpen).isTrue()
+            assertThat(bytes.refCnt()).isZero()
+        }
+    }
+
 }

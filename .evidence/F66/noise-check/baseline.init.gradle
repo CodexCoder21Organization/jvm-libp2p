@@ -1,0 +1,25 @@
+import org.gradle.api.tasks.testing.Test
+
+gradle.projectsEvaluated {
+    def laneProject = gradle.rootProject.project(':libp2p')
+    def standard = laneProject.tasks.named('test', Test).get()
+    (1..10).each { index ->
+        laneProject.tasks.register(String.format('f66Noise%02d', index), Test) {
+            dependsOn laneProject.tasks.named('testClasses')
+            testClassesDirs = standard.testClassesDirs
+            classpath = standard.classpath
+            useJUnitPlatform()
+            systemProperties = standard.systemProperties
+            jvmArgs = standard.jvmArgs
+            minHeapSize = standard.minHeapSize
+            maxHeapSize = standard.maxHeapSize
+            enableAssertions = standard.enableAssertions
+            javaLauncher.set(standard.javaLauncher)
+            maxParallelForks = standard.maxParallelForks
+            timeout.set(standard.timeout)
+            filter {
+                includeTestsMatching 'io.libp2p.security.noise.NoiseHandshakeOffEventLoopTest.initiator times out silent responder while waiting for message 2'
+            }
+        }
+    }
+}

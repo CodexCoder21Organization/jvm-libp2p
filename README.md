@@ -132,12 +132,12 @@ Each child stream channel keeps one Netty `ChannelConfig` for its lifetime. For 
 
 | Muxer | Paused child | Parent reads and other streams |
 | --- | --- | --- |
-| Yamux | Holds its own delivery and receive-window credit. Held payloads are bounded by its receive window, and credit is returned only after delivery. | Parent reads continue, so sibling streams and window updates for replies on the paused stream keep flowing. |
+| Yamux | Holds its own delivery and receive-window credit. Held bytes are bounded by its receive window, and credit is returned only after delivery. A paused stream holds at most 64 payload copies: once it holds 64, later payloads are appended to the newest copy, so a peer that stays inside the window is never reset for its frame sizes. | Parent reads continue, so sibling streams and window updates for replies on the paused stream keep flowing. |
 | Mplex | Holds payloads up to 64 frames and four maximum-length frames' worth of bytes. | Mplex has no per-stream flow control. Parent reads pause while any child is paused and restore the earlier parent setting when all paused children resume or close. |
 
-For a paused Yamux stream, the retained payload backing storage is bounded by that stream's receive window even when transport buffers also contain sibling traffic. Writing a reply leaves the read pause in effect until the application explicitly resumes it.
+For a paused Yamux stream, the retained payload backing storage is bounded by that stream's receive window even when transport buffers also contain sibling traffic. While a merged copy grows or is trimmed to its exact size, its old and new storage briefly coexist, so the momentary peak for that stream can exceed the window by up to the size of that copy. Writing a reply leaves the read pause in effect until the application explicitly resumes it.
 
-A stream that exceeds its applicable limit is closed and its held payloads are released. Setting `autoRead = false` directly on the parent channel stops transport reads for every stream under either muxer. Pausing and resuming a child preserves an already paused parent.
+An Mplex stream that exceeds its limits is reset before another payload is retained, and its held payloads are released. A Yamux peer that sends past the receive window violates the protocol; the connection is closed and held payloads are released, as before. Because payloads may be merged while paused, a resumed Yamux stream can receive fewer, larger reads than the frames the peer sent; the bytes and their order are unchanged. Resuming from another thread drains held payloads in order before admitting the next frame. A read callback may pause delivery again or close the stream during that drain. Setting `autoRead = false` directly on the parent channel stops transport reads for every stream under either muxer. Pausing and resuming a child preserves an already paused parent.
 
 A Yamux request handler can pause further request delivery while asynchronously writing a reply larger than its receive window:
 

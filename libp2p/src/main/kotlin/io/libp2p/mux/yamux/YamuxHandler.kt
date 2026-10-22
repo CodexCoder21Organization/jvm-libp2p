@@ -325,6 +325,12 @@ open class YamuxHandler(
             drainBufferAndMaybeClose()
         }
 
+        fun recordReadOverflow(cause: Throwable) {
+            // Keep the descriptive queue failure for any pending reply. The muxer has already
+            // released held input before close fails writes and invokes application callbacks.
+            resetCause = cause
+        }
+
         fun onLocalClose(
             cause: Throwable = ConnectionClosedException("Yamux stream was reset with buffered data: $id")
         ) {
@@ -486,15 +492,48 @@ open class YamuxHandler(
     override val pauseParentReadsForPausedChild: Boolean
         get() = false
 
-    override val maxPendingChildReadFrames: Int? = null
-
-    override fun preparePendingChildRead(data: ByteBuf): ByteBuf {
+    override fun onChildReadOverflow(child: MuxChannel<ByteBuf>, cause: Throwable) {
+        streamHandlers[child.id]?.recordReadOverflow(cause)
+        // Netty may fail the child's outbound buffer before the mux write promise propagates.
+        // Keep the same terminal cause visible to every application write on this child.
+        child.attr(WRITE_FAILURE).set(cause)
         try {
-            // A queued slice must not keep already-delivered sibling bytes in its backing buffer.
-            return Unpooled.copiedBuffer(data)
+            child.pipeline().fireExceptionCaught(cause)
+        } finally {
+            super.onChildReadOverflow(child, cause)
+        }
+    }
+
+    override fun preparePendingChildRead(data: ByteBuf, retainedBytes: Long): ByteBuf {
+        try {
+            // A queued copy must not keep already-delivered sibling bytes in its backing buffer.
+            // It starts at exactly its payload size. Its growth limit, used only when later payloads
+            // are merged into it, keeps this stream's held storage within the receive window.
+            val size = data.readableBytes()
+            val maxCapacity = maxOf(size.toLong(), maxPendingChildReadBytes - retainedBytes)
+                .coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+            return Unpooled.buffer(size, maxCapacity).writeBytes(data)
         } finally {
             data.release()
         }
+    }
+
+    // At the frame bound a paused stream merges further payloads into its newest copy instead of
+    // being reset: the receive window already bounds held bytes, and a peer that stays inside it
+    // may choose any frame size.
+    override fun coalescePendingChildRead(tail: ByteBuf, data: ByteBuf): Boolean {
+        if (data.readableBytes() > tail.maxWritableBytes()) return false
+        try {
+            tail.writeBytes(data)
+        } finally {
+            data.release()
+        }
+        return true
+    }
+
+    override fun sealPendingChildRead(data: ByteBuf) {
+        // Growth may leave spare capacity; held and delivered copies own exactly their bytes.
+        if (data.capacity() > data.writerIndex()) data.capacity(data.writerIndex())
     }
 
     override fun onChildReadDelivered(id: MuxId, dataSize: Int) {

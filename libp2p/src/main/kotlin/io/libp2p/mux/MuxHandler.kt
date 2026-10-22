@@ -64,10 +64,9 @@ abstract class MuxHandler(
         val controller = CompletableFuture<T>()
         val muxChannel = newStream { channel ->
             channel.closeFuture().addListener {
-                controller.completeExceptionally(
-                    channel.attr(STREAM_SETUP_CAUSE).get()
-                        ?: ConnectionClosedException("Stream closed during setup: ${channel.id}")
-                )
+                channel.attr(STREAM_SETUP_CAUSE).get()?.let { cause ->
+                    controller.completeExceptionally(cause)
+                }
             }
             streamHandler.handleStream(createStream(channel)).forward(controller)
         }

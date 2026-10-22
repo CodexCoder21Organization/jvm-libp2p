@@ -5,6 +5,7 @@ import io.libp2p.core.InternalErrorException
 import io.libp2p.core.Libp2pException
 import io.libp2p.etc.STREAM
 import io.libp2p.etc.STREAM_SETUP_CAUSE
+import io.libp2p.etc.STREAM_SETUP_RESULT
 import io.libp2p.etc.types.forwardException
 import io.libp2p.etc.types.hasCauseOfType
 import io.netty.channel.ChannelFuture
@@ -430,6 +431,7 @@ abstract class AbstractMuxHandler<TData>(
         child.attr(STREAM_SETUP_CAUSE).compareAndSet(null, cause)
         val terminalCause = child.attr(STREAM_SETUP_CAUSE).get()
         try {
+            child.attr(STREAM_SETUP_RESULT).get()?.completeExceptionally(terminalCause)
             child.attr(STREAM).get()?.getProtocol()?.completeExceptionally(terminalCause)
             child.pipeline().fireExceptionCaught(terminalCause)
         } finally {

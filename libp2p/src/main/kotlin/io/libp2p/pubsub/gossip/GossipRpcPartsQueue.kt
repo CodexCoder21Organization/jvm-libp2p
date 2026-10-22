@@ -2,10 +2,13 @@ package io.libp2p.pubsub.gossip
 
 import io.libp2p.core.PeerId
 import io.libp2p.etc.types.toProtobuf
-import io.libp2p.pubsub.DefaultRpcPartsQueue
+import io.libp2p.pubsub.AbstractRpcPartsQueue
 import io.libp2p.pubsub.MessageId
+import io.libp2p.pubsub.RpcPartsBatch
 import io.libp2p.pubsub.RpcPartsQueue
+import io.libp2p.pubsub.TooLargeMessageException
 import io.libp2p.pubsub.Topic
+import io.libp2p.pubsub.countUnknownFields
 import pubsub.pb.Rpc
 
 interface GossipRpcPartsQueue : RpcPartsQueue {
@@ -14,6 +17,9 @@ interface GossipRpcPartsQueue : RpcPartsQueue {
     fun addIHaves(messageIds: Collection<MessageId>, topic: Topic) = messageIds.forEach { addIHave(it, topic) }
     fun addIWant(messageId: MessageId)
     fun addIWants(messageIds: Collection<MessageId>) = messageIds.forEach { addIWant(it) }
+
+    fun addIDontWant(messageId: MessageId)
+    fun addIDontWants(messageIds: Collection<MessageId>) = messageIds.forEach { addIDontWant(it) }
 
     fun addGraft(topic: Topic)
 
@@ -27,20 +33,24 @@ interface GossipRpcPartsQueue : RpcPartsQueue {
      */
     fun addPrune(topic: Topic, backoffSeconds: Long, backoffPeers: List<PeerId>)
 
-    // TODO Need to check if we should handle when control extension and extension messages could be separated by split  (https://github.com/libp2p/jvm-libp2p/issues/440)
     fun addControlExtensions(ctrlMessage: Rpc.ControlExtensions)
 }
 
 /**
- * Default [RpcPartsQueue] implementation
+ * Gossip-aware [RpcPartsQueue] implementation.
+ *
+ * The queue respects gossip message-count limits, [GossipParams.maxGossipMessageSize] and
+ * [GossipParams.maxControlMessageSize] when selecting parts for [takeBatch]. Size limiting uses
+ * each part's conservative standalone RPC estimate, so a batch can be split before the actual
+ * merged protobuf RPC is built.
  *
  * NOT thread safe
  */
 open class DefaultGossipRpcPartsQueue(
     private val params: GossipParams
-) : DefaultRpcPartsQueue(), GossipRpcPartsQueue {
+) : AbstractRpcPartsQueue(), GossipRpcPartsQueue {
 
-    protected data class IHavePart(val messageId: MessageId, val topic: Topic) : AbstractPart {
+    protected data class IHavePart(val messageId: MessageId, val topic: Topic) : AbstractPart() {
         override fun appendToBuilder(builder: Rpc.RPC.Builder) {
             val ctrlBuilder = builder.controlBuilder
             val iHaveBuilder = ctrlBuilder.ihaveBuilderList
@@ -49,9 +59,12 @@ open class DefaultGossipRpcPartsQueue(
 
             iHaveBuilder.addMessageIDs(messageId.toProtobuf())
         }
+
+        // control + ihave entry + topicID + messageID
+        override val estimatedMaxFieldCount: Int get() = 4
     }
 
-    protected data class IWantPart(val messageId: MessageId) : AbstractPart {
+    protected data class IWantPart(val messageId: MessageId) : AbstractPart() {
         override fun appendToBuilder(builder: Rpc.RPC.Builder) {
             val ctrlBuilder = builder.controlBuilder
             val iWantBuilder = if (ctrlBuilder.iwantBuilderList.isEmpty()) {
@@ -61,15 +74,37 @@ open class DefaultGossipRpcPartsQueue(
             }
             iWantBuilder.addMessageIDs(messageId.toProtobuf())
         }
+
+        // control + iwant entry + messageID
+        override val estimatedMaxFieldCount: Int get() = 3
     }
 
-    protected data class GraftPart(val topic: Topic) : AbstractPart {
+    protected data class IDontWantPart(val messageId: MessageId) : AbstractPart() {
+        override fun appendToBuilder(builder: Rpc.RPC.Builder) {
+            val ctrlBuilder = builder.controlBuilder
+            val iDontWantBuilder = if (ctrlBuilder.idontwantBuilderList.isEmpty()) {
+                ctrlBuilder.addIdontwantBuilder()
+            } else {
+                ctrlBuilder.getIdontwantBuilder(0)
+            }
+            iDontWantBuilder.addMessageIDs(messageId.toProtobuf())
+        }
+
+        // control + idontwant entry + messageID
+        override val estimatedMaxFieldCount: Int get() = 3
+    }
+
+    protected data class GraftPart(val topic: Topic) : AbstractPart() {
         override fun appendToBuilder(builder: Rpc.RPC.Builder) {
             builder.controlBuilder.addGraftBuilder().setTopicID(topic)
         }
+
+        // control + graft entry + topicID
+        override val estimatedMaxFieldCount: Int get() = 3
     }
 
-    protected data class PrunePart(val topic: Topic, val backoffSeconds: Long?, val backoffPeers: List<PeerId>) : AbstractPart {
+    protected data class PrunePart(val topic: Topic, val backoffSeconds: Long?, val backoffPeers: List<PeerId>) :
+        AbstractPart() {
         override fun appendToBuilder(builder: Rpc.RPC.Builder) {
             val pruneBuilder = builder.controlBuilder.addPruneBuilder()
             pruneBuilder.setTopicID(topic)
@@ -82,13 +117,69 @@ open class DefaultGossipRpcPartsQueue(
                 )
             }
         }
+
+        // control + prune entry + topicID, then backoff plus (peers entry + peerID) per peer.
+        override val estimatedMaxFieldCount: Int
+            get() = 3 + if (backoffSeconds != null) 1 + 2 * backoffPeers.size else 0
     }
 
-    protected data class ControlExtensionPart(val ctrlExtension: Rpc.ControlExtensions) : AbstractPart {
+    protected data class ControlExtensionPart(val ctrlExtension: Rpc.ControlExtensions) : AbstractPart() {
         override fun appendToBuilder(builder: Rpc.RPC.Builder) {
             builder.controlBuilder.setExtensions(ctrlExtension)
         }
+
+        // control + extensions, then one per set flag. The inbound walker does not descend into the
+        // extension's sub-messages, and ControlExtensions holds only scalars, so this is flat.
+        // Pinned against the inbound walker by RpcPartsFieldCountTest; schema changes are guarded
+        // by RpcSchemaAccountingTest.
+        // The extension is immutable, so count once instead of walking its unknown fields
+        // again at enqueue and during batching.
+        override val estimatedMaxFieldCount: Int =
+            2 +
+                (if (ctrlExtension.hasPartialMessages()) 1 else 0) +
+                (if (ctrlExtension.hasTestExtension()) 1 else 0) +
+                countUnknownFields(ctrlExtension.unknownFields)
     }
+
+    protected val priorityPartLists = listOf(
+        mutableListOf<AbstractPart>(),
+        mutableListOf(),
+        mutableListOf()
+    )
+
+    override fun addPart(part: AbstractPart) {
+        if (part.estimatedMaxSerializedSize > params.maxGossipMessageSize) {
+            throw TooLargeMessageException(
+                "RPC part estimated serialized size ${part.estimatedMaxSerializedSize} exceeds " +
+                    "maxGossipMessageSize ${params.maxGossipMessageSize}: $part"
+            )
+        }
+        // Reject a part that alone exceeds the inbound field budget. takeBatch emits a lone
+        // over-budget part rather than stall, so without this guard such a part would be sent and
+        // rejected pre-decode by a peer running this same code, breaking outbound/inbound symmetry.
+        val maxFields = params.maxTotalFields
+        if (maxFields != null && part.estimatedMaxFieldCount > maxFields) {
+            throw TooLargeMessageException(
+                "RPC part estimated field count ${part.estimatedMaxFieldCount} exceeds " +
+                    "maxTotalFields $maxFields: $part"
+            )
+        }
+        priorityPartList(part).add(part)
+        addPartSize(part)
+    }
+
+    private fun priorityPartList(part: AbstractPart): MutableList<AbstractPart> =
+        when (part) {
+            is ControlExtensionPart,
+            is IDontWantPart -> priorityPartLists[URGENT_CONTROL_PRIORITY]
+            is SubscriptionPart,
+            is GraftPart,
+            is PrunePart -> priorityPartLists[STATE_CONTROL_PRIORITY]
+            is PublishPart,
+            is IHavePart,
+            is IWantPart -> priorityPartLists[BULK_PRIORITY]
+            else -> priorityPartLists[BULK_PRIORITY]
+        }
 
     override fun addIHave(messageId: MessageId, topic: Topic) {
         addPart(IHavePart(messageId, topic))
@@ -96,6 +187,10 @@ open class DefaultGossipRpcPartsQueue(
 
     override fun addIWant(messageId: MessageId) {
         addPart(IWantPart(messageId))
+    }
+
+    override fun addIDontWant(messageId: MessageId) {
+        addPart(IDontWantPart(messageId))
     }
 
     override fun addGraft(topic: Topic) {
@@ -114,39 +209,96 @@ open class DefaultGossipRpcPartsQueue(
         addPart(ControlExtensionPart(ctrlMessage))
     }
 
-    override fun takeMerged(): List<Rpc.RPC> {
-        val ret = mutableListOf<Rpc.RPC>()
+    override fun isEmpty(): Boolean = priorityPartLists.all { it.isEmpty() }
+
+    override fun takeBatch(): RpcPartsBatch? {
+        val topmostPriorityList = priorityPartLists.firstOrNull { it.isNotEmpty() } ?: return null
+        return takeBatch(topmostPriorityList)
+    }
+
+    override fun dropLowPriority() {
+        dropParts(priorityPartLists[BULK_PRIORITY])
+    }
+
+    private fun takeBatch(priorityParts: MutableList<AbstractPart>): RpcPartsBatch? {
+        var publishCount = params.maxPublishedMessages ?: Int.MAX_VALUE
+        var iHaveCount = params.maxIHaveLength
+        var iDontWantCount = params.maxIDontWantMessageIdsPerRpc
+        var subscriptionCount = params.maxSubscriptionsPerRpc
+        var sizeLeft = params.maxGossipMessageSize
+
+        /**
+         * Remaining control-plane bytes for this batch, mirroring the inbound
+         * [GossipParams.maxControlMessageSize] guard so we never emit an RPC a peer running this
+         * same code would reject pre-decode. Per-category counters cannot enforce this on their
+         * own: publish, IHAVE and IWANT parts share the BULK priority list and are merged into one
+         * RPC, so only a cumulative byte counter bounds their sum.
+         *
+         * Publish payloads are exempt on the inbound side, so only a publish part's envelope
+         * overhead is charged here. [AbstractPart.estimatedMaxSerializedSize] is a standalone-RPC
+         * estimate and over-counts once parts merge and share protobuf wrappers, which errs towards
+         * splitting a batch earlier than strictly required.
+         *
+         * [GossipParams.maxSubscriptionsPerRpc] is the one count that the byte budget does not
+         * subsume, because peers enforce subscriptions by count and drop the whole RPC when the
+         * count is exceeded.
+         */
+        var controlLeft = params.maxControlMessageSize
+
+        /**
+         * Remaining protobuf field budget for this batch, mirroring the inbound
+         * [GossipParams.maxTotalFields] guard so we never emit an RPC a peer running this same code
+         * would reject pre-decode. The control-byte budget does not subsume this: a publish's `data`
+         * payload is exempt from [controlLeft] but each `data` field still costs one field inbound,
+         * so a burst of small-envelope publishes can stay within the byte budgets while overflowing
+         * the field count.
+         */
+        var fieldsLeft = params.maxTotalFields ?: Int.MAX_VALUE
+
         var partIdx = 0
-        while (partIdx < parts.size) {
-            val builder = Rpc.RPC.newBuilder()
 
-            var publishCount = params.maxPublishedMessages ?: Int.MAX_VALUE
-            var subscriptionCount = params.maxSubscriptions ?: Int.MAX_VALUE
-            var iHaveCount = params.maxIHaveLength
-            var iWantCount = params.maxIWantMessageIds ?: Int.MAX_VALUE
-            var graftCount = params.maxGraftMessages ?: Int.MAX_VALUE
-            var pruneCount = params.maxPruneMessages ?: Int.MAX_VALUE
-
-            while (partIdx < parts.size &&
-                publishCount > 0 && subscriptionCount > 0 && iHaveCount > 0 &&
-                iWantCount > 0 && graftCount > 0 && pruneCount > 0
-            ) {
-                val part = parts[partIdx++]
-                when (part) {
-                    is PublishPart -> publishCount--
-                    is SubscriptionPart -> subscriptionCount--
-                    is IHavePart -> iHaveCount--
-                    is IWantPart -> iWantCount--
-                    is GraftPart -> graftCount--
-                    is PrunePart -> pruneCount--
-                }
-
-                part.appendToBuilder(builder)
+        while (partIdx < priorityParts.size &&
+            publishCount > 0 && iHaveCount > 0 && iDontWantCount > 0 && subscriptionCount > 0
+        ) {
+            val part = priorityParts[partIdx]
+            when (part) {
+                is PublishPart -> publishCount--
+                is IHavePart -> iHaveCount--
+                is IDontWantPart -> iDontWantCount--
+                is SubscriptionPart -> subscriptionCount--
             }
-            ret += builder.build()
+            sizeLeft -= part.estimatedMaxSerializedSize
+            controlLeft -= when (part) {
+                is PublishPart -> part.estimatedMaxSerializedSize - part.message.data.size()
+                else -> part.estimatedMaxSerializedSize
+            }
+            fieldsLeft -= part.estimatedMaxFieldCount
+            // A part that alone exceeds a budget is still emitted, otherwise the queue would
+            // never drain past it.
+            if (partIdx > 0 && (sizeLeft < 0 || controlLeft < 0 || fieldsLeft < 0)) {
+                break
+            }
+            partIdx++
         }
+        if (partIdx == 0) return null
 
-        parts.clear()
+        val batchParts: MutableList<AbstractPart> = priorityParts.subList(0, partIdx)
+        val ret = createBatch(batchParts)
+        removePartsSize(batchParts)
+        batchParts.clear()
+
         return ret
+    }
+
+    override fun dropAll(exception: Exception) {
+        mergePromises(priorityPartLists.flatten()).completeExceptionally(exception)
+        super.dropAll(exception)
+        priorityPartLists.forEach { it.clear() }
+    }
+
+    private companion object {
+        const val URGENT_CONTROL_PRIORITY = 0
+        const val STATE_CONTROL_PRIORITY = 1
+        const val BULK_PRIORITY = 2
     }
 }

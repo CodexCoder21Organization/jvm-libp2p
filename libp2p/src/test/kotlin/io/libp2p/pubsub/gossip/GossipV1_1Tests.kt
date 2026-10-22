@@ -7,7 +7,9 @@ import com.google.protobuf.ByteString
 import io.libp2p.core.PeerId
 import io.libp2p.core.pubsub.*
 import io.libp2p.etc.types.*
+import io.libp2p.pubsub.DeterministicFuzz
 import io.libp2p.pubsub.MockRouter
+import io.libp2p.pubsub.TooLargeMessageException
 import io.netty.buffer.ByteBuf
 import io.netty.buffer.Unpooled
 import io.netty.channel.ChannelHandler
@@ -57,6 +59,24 @@ class GossipV1_1Tests : GossipTestsBase() {
         val msg = newMessage("topic1", 0L, "Hello".toByteArray())
         test.gossipRouter.publish(msg)
         test.mockRouter.waitForMessage { it.publishCount > 0 }
+    }
+
+    @Test
+    fun `publishing too large message fails with TooLargeMessageException`() {
+        val msg = newMessage("topic1", 0L, "too-large".toByteArray())
+        val standalonePublishSize = Rpc.RPC.newBuilder()
+            .addPublish(msg.protobufMessage)
+            .buildPartial()
+            .serializedSize
+        val test = TwoRoutersTest(GossipParams(maxGossipMessageSize = standalonePublishSize - 1))
+
+        test.mockRouter.subscribe("topic1")
+
+        val publishFuture = test.gossipRouter.publish(msg)
+
+        assertThrows(TooLargeMessageException::class.java) {
+            publishFuture.getX()
+        }
     }
 
     @Test
@@ -303,6 +323,123 @@ class GossipV1_1Tests : GossipTestsBase() {
 
         // After the backoff expires, the next heartbeat is allowed to GRAFT.
         test.fuzz.timeController.addTime(20.seconds)
+        test.mockRouter.waitForMessage {
+            it.hasControl() &&
+                it.control.graftCount > 0 && it.control.getGraft(0).topicID == "topic1"
+        }
+    }
+
+    @Test
+    fun testRegraftWaitsForBackoffSlack() {
+        // Regression test for https://github.com/libp2p/jvm-libp2p/issues/536
+        //
+        // The two sides of a PRUNE start their backoff clocks at slightly different moments, so a
+        // GRAFT sent exactly at expiry can still land inside the remote peer's window, earning a
+        // P7 penalty and another full backoff. go-libp2p-pubsub and rust-libp2p both wait an extra
+        // slack period before re-GRAFTing; receiving a GRAFT keeps the strict check.
+        val test = TwoRoutersTest()
+
+        test.mockRouter.subscribe("topic1")
+        test.gossipRouter.subscribe("topic1")
+
+        test.fuzz.timeController.addTime(2.seconds)
+        test.mockRouter.waitForMessage { it.hasControl() && it.control.graftCount > 0 }
+        test.mockRouter.inboundMessages.clear()
+
+        val pruneMsg = Rpc.RPC.newBuilder().setControl(
+            Rpc.ControlMessage.newBuilder().addPrune(
+                Rpc.ControlPrune.newBuilder()
+                    .setTopicID("topic1")
+                    .setBackoff(30)
+            )
+        ).build()
+        test.mockRouter.sendToSingle(pruneMsg)
+
+        // Exactly at backoff expiry we are still inside the slack window: no GRAFT yet.
+        test.fuzz.timeController.addTime(30.seconds)
+        assertEquals(
+            0,
+            test.mockRouter.inboundMessages
+                .count { it.hasControl() && it.control.graftCount > 0 },
+            "must not re-GRAFT before backoff + slack has elapsed"
+        )
+
+        // One slack period (default: one heartbeat interval) later the GRAFT goes out.
+        test.fuzz.timeController.addTime(1.seconds)
+        test.mockRouter.waitForMessage {
+            it.hasControl() &&
+                it.control.graftCount > 0 && it.control.getGraft(0).topicID == "topic1"
+        }
+    }
+
+    @Test
+    fun testInboundGraftAcceptedDuringSlack() {
+        // Slack only delays GRAFTs we send. A GRAFT received exactly at backoff expiry is valid
+        // per spec and must be accepted without a PRUNE or a behaviour penalty.
+        val test = TwoRoutersTest()
+
+        test.mockRouter.subscribe("topic1")
+        test.gossipRouter.subscribe("topic1")
+
+        test.fuzz.timeController.addTime(2.seconds)
+        test.mockRouter.waitForMessage { it.hasControl() && it.control.graftCount > 0 }
+
+        val pruneMsg = Rpc.RPC.newBuilder().setControl(
+            Rpc.ControlMessage.newBuilder().addPrune(
+                Rpc.ControlPrune.newBuilder()
+                    .setTopicID("topic1")
+                    .setBackoff(30)
+            )
+        ).build()
+        test.mockRouter.sendToSingle(pruneMsg)
+        test.fuzz.timeController.addTime(30.seconds)
+        test.mockRouter.inboundMessages.clear()
+
+        val graftMsg = Rpc.RPC.newBuilder().setControl(
+            Rpc.ControlMessage.newBuilder().addGraft(
+                Rpc.ControlGraft.newBuilder().setTopicID("topic1")
+            )
+        ).build()
+        test.mockRouter.sendToSingle(graftMsg)
+
+        val peerHandler = test.gossipRouter.peers.first()
+        assertTrue(test.gossipRouter.mesh["topic1"]!!.contains(peerHandler), "inbound GRAFT at expiry must be accepted")
+        assertEquals(0, test.mockRouter.inboundMessages.count { it.hasControl() && it.control.pruneCount > 0 })
+        assertEquals(0.0, test.gossipRouter.score.testPeerScores.values.first().behaviorPenalty)
+    }
+
+    @Test
+    fun testSubscribeRespectsBackoffSlack() {
+        // subscribe() seeds the mesh directly; it must honour the slack window as well.
+        val test = TwoRoutersTest()
+
+        test.mockRouter.subscribe("topic1")
+        test.fuzz.timeController.addTime(1.seconds)
+
+        val pruneMsg = Rpc.RPC.newBuilder().setControl(
+            Rpc.ControlMessage.newBuilder().addPrune(
+                Rpc.ControlPrune.newBuilder()
+                    .setTopicID("topic1")
+                    .setBackoff(30)
+            )
+        ).build()
+        test.mockRouter.sendToSingle(pruneMsg)
+        test.fuzz.timeController.addTime(100.millis)
+
+        // Land exactly on backoff expiry, then subscribe.
+        test.fuzz.timeController.addTime(30.seconds)
+        test.mockRouter.inboundMessages.clear()
+        test.gossipRouter.subscribe("topic1")
+        test.fuzz.timeController.addTime(500.millis)
+
+        assertEquals(
+            0,
+            test.mockRouter.inboundMessages
+                .count { it.hasControl() && it.control.graftCount > 0 },
+            "subscribe() must not GRAFT a peer inside the backoff slack window"
+        )
+
+        test.fuzz.timeController.addTime(2.seconds)
         test.mockRouter.waitForMessage {
             it.hasControl() &&
                 it.control.graftCount > 0 && it.control.getGraft(0).topicID == "topic1"
@@ -1184,14 +1321,11 @@ class GossipV1_1Tests : GossipTestsBase() {
             createPruneMessage(topic, test.gossipRouter.params.maxPeersAcceptedInPruneMsg + 1)
         )
 
-        // prune message should be dropped because too many peers
-        assertEquals(1, test.gossipRouter.mesh[topic]!!.size)
-
-        test.mockRouter.sendToSingle(
-            createPruneMessage(topic, test.gossipRouter.params.maxPeersAcceptedInPruneMsg)
-        )
-
-        // prune message should now be processed
+        // The PRUNE is processed regardless of its PX peer-list size: maxPeersAcceptedInPruneMsg
+        // now only bounds how many peers processPrunePeers() passes to the PX connectCallback
+        // (GossipRouter.kt processPrunePeers .take(...)) — it no longer gates whether the PRUNE
+        // itself is accepted, since that decode/list-count rejection was removed as subsumed by
+        // the control-byte budget (teku-internal#317).
         assertEquals(0, test.gossipRouter.mesh[topic]!!.size)
     }
 
@@ -1456,6 +1590,165 @@ class GossipV1_1Tests : GossipTestsBase() {
         val publishedCount = test.mockRouters.flatMap { it.inboundMessages }.count { it.publishCount > 0 }
 
         assertEquals(expectedPublishedCount, publishedCount)
+    }
+
+    @Test
+    fun `pollOutboundMessages should return null when empty instead of exception`() {
+        val test = TwoRoutersTest()
+        val peer = test.mockRouter.peers.single()
+        test.connection.conn2.ch1.setWritableForTest(false)
+
+        assertEquals(0, test.mockRouter.pendingPeerCountForTest())
+        assertNull(test.mockRouter.pollOutboundMessage(peer))
+        assertEquals(0, test.mockRouter.pendingPeerCountForTest())
+
+        test.mockRouter.enqueuePublishForTest(peer, newProtoMessage("topic1", 0L, "Hello".toByteArray()))
+
+        assertEquals(1, test.mockRouter.pendingPeerCountForTest())
+        assertNotNull(test.mockRouter.pollOutboundMessage(peer))
+        assertEquals(0, test.mockRouter.pendingPeerCountForTest())
+        assertNull(test.mockRouter.pollOutboundMessage(peer))
+        assertEquals(0, test.mockRouter.pendingPeerCountForTest())
+    }
+
+    @Test
+    fun `late outbound poll after disconnect does not retain peer pending parts`() {
+        val test = TwoRoutersTest()
+        val peer = test.mockRouter.peers.single()
+        test.connection.conn2.ch1.setWritableForTest(false)
+
+        test.mockRouter.enqueuePublishForTest(peer, newProtoMessage("topic1", 0L, "Hello".toByteArray()))
+
+        assertNotNull(test.mockRouter.getRpcQueueIfExist(peer))
+
+        test.connection.disconnect()
+        test.connection.connections
+            .flatMap { listOf(it.ch1, it.ch2) }
+            .forEach { it.runPendingTasks() }
+
+        assertNull(test.mockRouter.getRpcQueueIfExist(peer))
+
+        assertNull(test.mockRouter.pollOutboundMessage(peer))
+        assertNull(test.mockRouter.getRpcQueueIfExist(peer))
+    }
+
+    @Test
+    fun `single outbound wake drains all split publish batches`() {
+        val test = TwoRoutersTest(GossipParams(maxPublishedMessages = 1))
+        test.mockRouter.subscribe("topic1")
+
+        val outboundChannel = test.connection.conn1.ch1
+        outboundChannel.setWritableForTest(false)
+
+        val msg1 = newMessage("topic1", 1L, "Hello-1".toByteArray())
+        val msg2 = newMessage("topic1", 2L, "Hello-2".toByteArray())
+        val publishFuture1 = test.gossipRouter.publish(msg1)
+        val publishFuture2 = test.gossipRouter.publish(msg2)
+
+        outboundChannel.runPendingTasks()
+        assertFalse(publishFuture1.isDone)
+        assertFalse(publishFuture2.isDone)
+
+        outboundChannel.setWritableForTest(true)
+        outboundChannel.runPendingTasks()
+
+        publishFuture1.get(5, TimeUnit.SECONDS)
+        publishFuture2.get(5, TimeUnit.SECONDS)
+
+        val rpc1 = test.mockRouter.waitForMessage { it.publishCount > 0 }
+        val rpc2 = test.mockRouter.waitForMessage { it.publishCount > 0 }
+
+        assertEquals(listOf("Hello-1"), rpc1.publishList.map { it.data.toStringUtf8() })
+        assertEquals(listOf("Hello-2"), rpc2.publishList.map { it.data.toStringUtf8() })
+    }
+
+    /**
+     * A [MockRouter] hub connected to two [MockRouter] peers, with handles on the hub's
+     * outbound channel to each peer so tests can block and unblock the outbound pump.
+     */
+    private class HubWithTwoPeersTest {
+        val fuzz = DeterministicFuzz()
+        val hub = fuzz.createMockRouter()
+        val peerA = fuzz.createMockRouter()
+        val peerB = fuzz.createMockRouter()
+        val hubRouter = hub.router as MockRouter
+        val peerARouter = peerA.router as MockRouter
+        val peerBRouter = peerB.router as MockRouter
+        val connectionA = hub.connectSemiDuplex(peerA, null, LogLevel.ERROR)
+        val connectionB = hub.connectSemiDuplex(peerB, null, LogLevel.ERROR)
+        val hubOutboundToA = connectionA.conn1.ch1
+        val hubOutboundToB = connectionB.conn1.ch1
+        val handlerA = hubRouter.peers.single { it.peerId == peerA.peerId }
+        val handlerB = hubRouter.peers.single { it.peerId == peerB.peerId }
+    }
+
+    private fun MockRouter.waitForPublishData(count: Int): List<String> {
+        val data = mutableListOf<String>()
+        while (data.size < count) {
+            data += waitForMessage { it.publishCount > 0 }.publishList.map { it.data.toStringUtf8() }
+        }
+        return data
+    }
+
+    @Test
+    fun `flush notifies only peers with new parts since the previous flush`() {
+        val test = HubWithTwoPeersTest()
+        // block both outbound channels so queued parts stay pending (pumps BLOCKED, queues non-empty)
+        test.hubOutboundToA.setWritableForTest(false)
+        test.hubOutboundToB.setWritableForTest(false)
+
+        test.hubRouter.queuePublishForTest(test.handlerA, newProtoMessage("topic1", 1L, "A-1".toByteArray()))
+        test.hubRouter.queuePublishForTest(test.handlerB, newProtoMessage("topic1", 2L, "B-1".toByteArray()))
+        assertEquals(setOf(test.handlerA, test.handlerB), test.hubRouter.flushAllPendingForTest().toSet())
+        assertFalse(test.hubRouter.getRpcQueueIfExist(test.handlerA)!!.isEmpty())
+        assertFalse(test.hubRouter.getRpcQueueIfExist(test.handlerB)!!.isEmpty())
+
+        // only A gets new parts: B's queue is still non-empty but B was already notified
+        test.hubRouter.queuePublishForTest(test.handlerA, newProtoMessage("topic1", 3L, "A-2".toByteArray()))
+        assertEquals(listOf(test.handlerA), test.hubRouter.flushAllPendingForTest())
+
+        // nothing new since the last flush: nobody is notified even though both queues are non-empty
+        assertEquals(emptyList<Any>(), test.hubRouter.flushAllPendingForTest())
+
+        // the earlier notifications are enough for both pumps to drain once writable again
+        test.hubOutboundToA.setWritableForTest(true)
+        test.hubOutboundToB.setWritableForTest(true)
+        assertEquals(listOf("A-1", "A-2"), test.peerARouter.waitForPublishData(2))
+        assertEquals(listOf("B-1"), test.peerBRouter.waitForPublishData(1))
+        assertTrue(test.peerARouter.inboundMessages.none { it.publishCount > 0 })
+        assertTrue(test.peerBRouter.inboundMessages.none { it.publishCount > 0 })
+        assertTrue(test.hubRouter.getRpcQueueIfExist(test.handlerA)!!.isEmpty())
+        assertTrue(test.hubRouter.getRpcQueueIfExist(test.handlerB)!!.isEmpty())
+    }
+
+    @Test
+    fun `peer with parts queued while its pump is idle is notified once and delivered`() {
+        val test = HubWithTwoPeersTest()
+
+        test.hubRouter.queuePublishForTest(test.handlerA, newProtoMessage("topic1", 1L, "A-1".toByteArray()))
+        assertEquals(listOf(test.handlerA), test.hubRouter.flushAllPendingForTest())
+
+        assertEquals(listOf("A-1"), test.peerARouter.waitForPublishData(1))
+        assertTrue(test.hubRouter.getRpcQueueIfExist(test.handlerA)!!.isEmpty())
+        assertTrue(test.peerBRouter.inboundMessages.isEmpty())
+
+        assertEquals(emptyList<Any>(), test.hubRouter.flushAllPendingForTest())
+    }
+
+    @Test
+    fun `disconnected peer with queued parts is not notified by a later flush`() {
+        val test = HubWithTwoPeersTest()
+        test.hubOutboundToA.setWritableForTest(false)
+
+        test.hubRouter.queuePublishForTest(test.handlerA, newProtoMessage("topic1", 1L, "A-1".toByteArray()))
+
+        test.connectionA.disconnect()
+        test.connectionA.connections
+            .flatMap { listOf(it.ch1, it.ch2) }
+            .forEach { it.runPendingTasks() }
+
+        assertNull(test.hubRouter.getRpcQueueIfExist(test.handlerA))
+        assertEquals(emptyList<Any>(), test.hubRouter.flushAllPendingForTest())
     }
 
     private fun createGraftMessage(topic: String): Rpc.RPC {

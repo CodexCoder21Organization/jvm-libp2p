@@ -1,0 +1,72 @@
+```text
+Compiled from "YamuxHandler.kt"
+public class io.libp2p.mux.yamux.YamuxHandler extends io.libp2p.mux.MuxHandler {
+  private final io.libp2p.core.multistream.MultistreamProtocol multistreamProtocol;
+  private final int maxFrameDataLength;
+  private final boolean connectionInitiator;
+  private final int maxBufferedConnectionWrites;
+  private final int ackBacklogLimit;
+  private final int initialWindowSize;
+  private final io.libp2p.mux.yamux.YamuxStreamIdGenerator idGenerator;
+  private final java.util.Map<io.libp2p.etc.util.netty.mux.MuxId, io.libp2p.mux.yamux.YamuxHandler$YamuxStreamHandler> streamHandlers;
+  private long pendingChildWriteBytes;
+  private long activeChildWriteBytes;
+  private final java.util.IdentityHashMap<io.netty.buffer.ByteBuf, java.lang.Integer> activeChildWrites;
+  private java.lang.Long firstUnwritableNanos;
+  private io.libp2p.mux.YamuxOutboundBufferExceededException terminalWriteFailure;
+  private final java.util.concurrent.CompletableFuture<java.lang.Long> goAwayPromise;
+  private final java.lang.Integer maxPendingChildReadFrames;
+  public io.libp2p.mux.yamux.YamuxHandler(io.libp2p.core.multistream.MultistreamProtocol, int, java.util.concurrent.CompletableFuture<io.libp2p.core.mux.StreamMuxer$Session>, io.libp2p.core.StreamHandler<?>, boolean, int, int, int);
+  public io.libp2p.mux.yamux.YamuxHandler(io.libp2p.core.multistream.MultistreamProtocol, int, java.util.concurrent.CompletableFuture, io.libp2p.core.StreamHandler, boolean, int, int, int, int, kotlin.jvm.internal.DefaultConstructorMarker);
+  protected io.libp2p.core.multistream.MultistreamProtocol getMultistreamProtocol();
+  protected int getMaxFrameDataLength();
+  public final java.util.concurrent.CompletableFuture<java.lang.Long> getGoAwayPromise();
+  private final io.libp2p.mux.yamux.YamuxHandler$YamuxStreamHandler getStreamHandlerOrThrow(io.libp2p.etc.util.netty.mux.MuxId);
+  private final io.libp2p.mux.yamux.YamuxHandler$YamuxStreamHandler getStreamHandlerOrReleaseAndThrow(io.libp2p.etc.util.netty.mux.MuxId, io.netty.buffer.ByteBuf);
+  public void channelUnregistered(io.netty.channel.ChannelHandlerContext);
+  public void channelRead(io.netty.channel.ChannelHandlerContext, java.lang.Object);
+  private final io.netty.channel.ChannelFuture writeAndFlushFrame(io.libp2p.mux.yamux.YamuxFrame);
+  private final void updateUnwritableStart(long);
+  private final long currentUnwritableDurationMillis();
+  private final java.lang.String describeRemotePeer(io.netty.channel.ChannelHandlerContext);
+  private final void abruptlyCloseConnection();
+  private final void validateSynRemoteMuxId(io.libp2p.etc.util.netty.mux.MuxId);
+  public io.netty.channel.ChannelFuture onChildWrite(io.libp2p.etc.util.netty.mux.MuxChannel<io.netty.buffer.ByteBuf>, io.netty.buffer.ByteBuf);
+  public java.lang.Integer pendingChildWriteSize$libp2p(io.netty.buffer.ByteBuf);
+  protected long getMaxPendingChildReadBytes();
+  protected boolean getPauseParentReadsForPausedChild();
+  protected java.lang.Integer getMaxPendingChildReadFrames();
+  protected io.netty.buffer.ByteBuf preparePendingChildRead(io.netty.buffer.ByteBuf);
+  protected void onChildReadDelivered(io.libp2p.etc.util.netty.mux.MuxId, int);
+  public java.lang.Throwable onPendingChildWrite$libp2p(io.libp2p.etc.util.netty.mux.MuxChannel<io.netty.buffer.ByteBuf>, int);
+  public void onPendingChildWriteComplete$libp2p(io.libp2p.etc.util.netty.mux.MuxChannel<io.netty.buffer.ByteBuf>, io.netty.buffer.ByteBuf, int);
+  protected void onLocalOpen(io.libp2p.etc.util.netty.mux.MuxChannel<io.netty.buffer.ByteBuf>);
+  private final void onRemoteYamuxOpen(io.libp2p.etc.util.netty.mux.MuxId);
+  private final void verifyAckBacklogLimitNotReached(io.libp2p.etc.util.netty.mux.MuxId, boolean);
+  private final io.libp2p.mux.yamux.YamuxHandler$YamuxStreamHandler createYamuxStreamHandler(io.libp2p.etc.util.netty.mux.MuxId, boolean);
+  protected void onLocalDisconnect(io.libp2p.etc.util.netty.mux.MuxChannel<io.netty.buffer.ByteBuf>);
+  protected void onLocalClose(io.libp2p.etc.util.netty.mux.MuxChannel<io.netty.buffer.ByteBuf>);
+  protected void onChildClosed(io.libp2p.etc.util.netty.mux.MuxChannel<io.netty.buffer.ByteBuf>);
+  private final void handlePing(io.libp2p.mux.yamux.YamuxFrame);
+  private final void handleGoAway(io.libp2p.mux.yamux.YamuxFrame);
+  private final int calculateTotalBufferedWrites();
+  protected io.libp2p.mux.yamux.YamuxId generateNextId();
+  private static final void writeAndFlushFrame$lambda-3(io.netty.channel.ChannelHandlerContext);
+  public io.netty.channel.ChannelFuture onChildWrite(io.libp2p.etc.util.netty.mux.MuxChannel, java.lang.Object);
+  public java.lang.Integer pendingChildWriteSize$libp2p(java.lang.Object);
+  public java.lang.Object preparePendingChildRead(java.lang.Object);
+  public void onPendingChildWriteComplete$libp2p(io.libp2p.etc.util.netty.mux.MuxChannel, java.lang.Object, int);
+  public io.libp2p.etc.util.netty.mux.MuxId generateNextId();
+  public static final int access$getInitialWindowSize$p(io.libp2p.mux.yamux.YamuxHandler);
+  public static final void access$childRead(io.libp2p.mux.yamux.YamuxHandler, io.libp2p.etc.util.netty.mux.MuxId, io.netty.buffer.ByteBuf);
+  public static final io.netty.channel.ChannelFuture access$writeAndFlushFrame(io.libp2p.mux.yamux.YamuxHandler, io.libp2p.mux.yamux.YamuxFrame);
+  public static final void access$onRemoteDisconnect(io.libp2p.mux.yamux.YamuxHandler, io.libp2p.etc.util.netty.mux.MuxId);
+  public static final void access$onRemoteClose(io.libp2p.mux.yamux.YamuxHandler, io.libp2p.etc.util.netty.mux.MuxId);
+  public static final int access$calculateTotalBufferedWrites(io.libp2p.mux.yamux.YamuxHandler);
+  public static final int access$getMaxBufferedConnectionWrites$p(io.libp2p.mux.yamux.YamuxHandler);
+  public static final java.util.IdentityHashMap access$getActiveChildWrites$p(io.libp2p.mux.yamux.YamuxHandler);
+  public static final void access$setActiveChildWriteBytes$p(io.libp2p.mux.yamux.YamuxHandler, long);
+  public static final long access$getActiveChildWriteBytes$p(io.libp2p.mux.yamux.YamuxHandler);
+}
+
+```

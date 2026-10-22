@@ -211,6 +211,7 @@ class YamuxCapacityCallbackTest {
                 val stream = opening.stream.get(5, TimeUnit.SECONDS) as StreamOverNetty
                 if (cancelBeforeCapacity) {
                     assertThat(opening.controller.cancel(false)).isTrue()
+                    assertThat(stream.getProtocol().cancel(false)).isTrue()
                 }
                 var controllerCancelled: Boolean? = null
                 var protocolCancelled: Boolean? = null
@@ -222,12 +223,12 @@ class YamuxCapacityCallbackTest {
                 pair.client.writeInbound(bytes)
                 assertThat(controllerCancelled).isEqualTo(cancelBeforeCapacity)
                 assertThat(opening.controller.isCancelled).isEqualTo(cancelBeforeCapacity)
-                assertThat(protocolCancelled).isFalse()
-                assertThat(stream.getProtocol().isCancelled).isFalse()
-                val cause = callbackResult(stream.getProtocol())
+                assertThat(protocolCancelled).isEqualTo(cancelBeforeCapacity)
+                assertThat(stream.getProtocol().isCancelled).isEqualTo(cancelBeforeCapacity)
+                val cause = callbackResult(pending)
                 assertThat(cause).isInstanceOf(StreamCapacityException::class.java)
-                assertThat(callbackResult(pending)).isSameAs(cause)
                 if (!cancelBeforeCapacity) {
+                    assertThat(callbackResult(stream.getProtocol())).isSameAs(cause)
                     assertThat(callbackResult(opening.controller)).isSameAs(cause)
                 }
                 assertThat(bytes.refCnt()).isZero()

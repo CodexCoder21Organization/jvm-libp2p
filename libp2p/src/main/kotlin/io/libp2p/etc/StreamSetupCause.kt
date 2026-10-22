@@ -44,6 +44,8 @@ internal class StreamSetupFuture<T> : CompletableFuture<T>() {
 
     override fun cancel(mayInterruptIfRunning: Boolean): Boolean {
         val cause = channel?.attr(STREAM_SETUP_CAUSE)?.get()
-        return if (cause == null) super.cancel(mayInterruptIfRunning) else super.completeExceptionally(cause)
+        if (cause == null) return super.cancel(mayInterruptIfRunning)
+        super.completeExceptionally(cause)
+        return isCancelled
     }
 }

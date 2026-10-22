@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="io.libp2p.mux.yamux.YamuxOutboundBufferBudgetRefCountTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-10-22T23:03:25.494Z" hostname="a3d00ba47652" time="0.419">
+<testsuite name="io.libp2p.mux.yamux.YamuxOutboundBufferBudgetRefCountTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-10-22T23:15:37.300Z" hostname="a3d00ba47652" time="1.338">
   <properties/>
-  <testcase name="inbound data is released when window update budget rejection closes connection()" classname="io.libp2p.mux.yamux.YamuxOutboundBufferBudgetRefCountTest" time="0.263"/>
-  <testcase name="budget rejection releases retained outbound slices that were not written()" classname="io.libp2p.mux.yamux.YamuxOutboundBufferBudgetRefCountTest" time="0.095"/>
-  <testcase name="budget close fails undelivered in-flight parent write futures()" classname="io.libp2p.mux.yamux.YamuxOutboundBufferBudgetRefCountTest" time="0.059"/>
-  <system-out><![CDATA[23:03:25.757 [nioEventLoopGroup-194-1] [?[33mWARN?[m] io.netty.channel.DefaultChannelPipeline - An exceptionCaught() event was fired, and it reached at the tail of the pipeline. It usually means the last handler in the pipeline did not handle the exception.
-io.libp2p.mux.YamuxOutboundBufferExceededException: Yamux parent outbound buffer exceeded configured budget; peer=QmUmvDe5F5vgaxXugev4SyFLeJfERXNn8CP6CsZx63u2ED, pendingBytes=2144, attemptedFrameBytes=12, projectedPendingBytes=2156, budgetBytes=1024, overBudgetDurationMillis=0, channel=[id: 0xcc3f8609, L:/127.0.0.1:36344 - R:/127.0.0.1:33447]. Closing stalled connection.
+  <testcase name="inbound data is released when window update budget rejection closes connection()" classname="io.libp2p.mux.yamux.YamuxOutboundBufferBudgetRefCountTest" time="0.756"/>
+  <testcase name="budget rejection releases retained outbound slices that were not written()" classname="io.libp2p.mux.yamux.YamuxOutboundBufferBudgetRefCountTest" time="0.307"/>
+  <testcase name="budget close fails undelivered in-flight parent write futures()" classname="io.libp2p.mux.yamux.YamuxOutboundBufferBudgetRefCountTest" time="0.272"/>
+  <system-out><![CDATA[23:15:37.839 [nioEventLoopGroup-194-1] [?[33mWARN?[m] io.netty.channel.DefaultChannelPipeline - An exceptionCaught() event was fired, and it reached at the tail of the pipeline. It usually means the last handler in the pipeline did not handle the exception.
+io.libp2p.mux.YamuxOutboundBufferExceededException: Yamux parent outbound buffer exceeded configured budget; peer=Qma2bLQbc7LAoFHoioMS6gm9ADMjN4zwR7br5dzVAReWwH, pendingBytes=2144, attemptedFrameBytes=12, projectedPendingBytes=2156, budgetBytes=1024, overBudgetDurationMillis=1, channel=[id: 0xaa5e9fba, L:/127.0.0.1:43864 - R:/127.0.0.1:45977]. Closing stalled connection.
 	at io.libp2p.mux.yamux.YamuxHandler.writeAndFlushFrame(YamuxHandler.kt:471)
 	at io.libp2p.mux.yamux.YamuxHandler.access$writeAndFlushFrame(YamuxHandler.kt:39)
 	at io.libp2p.mux.yamux.YamuxHandler$YamuxStreamHandler.onBytesDelivered(YamuxHandler.kt:177)
@@ -33,8 +33,8 @@ io.libp2p.mux.YamuxOutboundBufferExceededException: Yamux parent outbound buffer
 	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
 	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
 	at java.base/java.lang.Thread.run(Thread.java:1583)
-23:03:25.853 [nioEventLoopGroup-195-1] [?[33mWARN?[m] io.netty.channel.DefaultChannelPipeline - An exceptionCaught() event was fired, and it reached at the tail of the pipeline. It usually means the last handler in the pipeline did not handle the exception.
-io.libp2p.mux.YamuxOutboundBufferExceededException: Yamux parent outbound buffer exceeded configured budget; peer=QmbBfBvMpWm79mUBxWH3asunuujrZf1giTxaYUtXuHVJti, pendingBytes=504, attemptedFrameBytes=268, projectedPendingBytes=772, budgetBytes=600, overBudgetDurationMillis=0, channel=[id: 0xacf02be9, L:/127.0.0.1:46602 - R:/127.0.0.1:37603]. Closing stalled connection.
+23:15:38.350 [nioEventLoopGroup-195-1] [?[33mWARN?[m] io.netty.channel.DefaultChannelPipeline - An exceptionCaught() event was fired, and it reached at the tail of the pipeline. It usually means the last handler in the pipeline did not handle the exception.
+io.libp2p.mux.YamuxOutboundBufferExceededException: Yamux parent outbound buffer exceeded configured budget; peer=QmeHbGwFxvxtWEoi5Qn1MzdNJLrqUdYKwDbvYRAkpfaWHA, pendingBytes=504, attemptedFrameBytes=268, projectedPendingBytes=772, budgetBytes=600, overBudgetDurationMillis=0, channel=[id: 0x63d88808, L:/127.0.0.1:48402 - R:/127.0.0.1:42999]. Closing stalled connection.
 	at io.libp2p.mux.yamux.YamuxHandler.writeAndFlushFrame(YamuxHandler.kt:471)
 	at io.libp2p.mux.yamux.YamuxHandler.access$writeAndFlushFrame(YamuxHandler.kt:39)
 	at io.libp2p.mux.yamux.YamuxHandler$YamuxStreamHandler.drainBufferAndMaybeClose(YamuxHandler.kt:253)
@@ -57,8 +57,8 @@ io.libp2p.mux.YamuxOutboundBufferExceededException: Yamux parent outbound buffer
 	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
 	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
 	at java.base/java.lang.Thread.run(Thread.java:1583)
-23:03:25.912 [nioEventLoopGroup-196-1] [?[33mWARN?[m] io.netty.channel.DefaultChannelPipeline - An exceptionCaught() event was fired, and it reached at the tail of the pipeline. It usually means the last handler in the pipeline did not handle the exception.
-io.libp2p.mux.YamuxOutboundBufferExceededException: Yamux parent outbound buffer exceeded configured budget; peer=QmbSDB1uDmS7MJvXjzMsD8ap3MFtreakbZEgVRMXvJfzc3, pendingBytes=396, attemptedFrameBytes=112, projectedPendingBytes=508, budgetBytes=500, overBudgetDurationMillis=0, channel=[id: 0x7dc7908e, L:/127.0.0.1:34048 - R:/127.0.0.1:35157]. Closing stalled connection.
+23:15:38.627 [nioEventLoopGroup-196-1] [?[33mWARN?[m] io.netty.channel.DefaultChannelPipeline - An exceptionCaught() event was fired, and it reached at the tail of the pipeline. It usually means the last handler in the pipeline did not handle the exception.
+io.libp2p.mux.YamuxOutboundBufferExceededException: Yamux parent outbound buffer exceeded configured budget; peer=QmS5pP2d8HDfP17fbzjL7jfNgypsF97tLChGXRjtwF7vjM, pendingBytes=396, attemptedFrameBytes=112, projectedPendingBytes=508, budgetBytes=500, overBudgetDurationMillis=0, channel=[id: 0x2b39ec17, L:/127.0.0.1:39238 - R:/127.0.0.1:34533]. Closing stalled connection.
 	at io.libp2p.mux.yamux.YamuxHandler.writeAndFlushFrame(YamuxHandler.kt:471)
 	at io.libp2p.mux.yamux.YamuxHandler.access$writeAndFlushFrame(YamuxHandler.kt:39)
 	at io.libp2p.mux.yamux.YamuxHandler$YamuxStreamHandler.drainBufferAndMaybeClose(YamuxHandler.kt:253)

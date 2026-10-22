@@ -77,3 +77,9 @@ OBSERVED: The new startup regression is queued at the box gate; no result claime
 2026-10-22 03:31 UTC — STARTUP REGRESSION FIRST RED
 OBSERVED: New NoiseChildStartupTest compiled and failed on its first intended assertion after the real inline proof completed: Noise qualification children must not discover logging plugins before exercising their handshake contract. Counts 1 case, 0 passed / 1 failed / 0 skipped. Full trace preserved in out/startup-red-first-failure-traces.txt. This is the profiled avoidable class-loading path, not a compile failure or timing assertion.
 PLAN: The understood remaining stages run sequentially in one tracked boxrun slot, with a hard 03:53 UTC deadline and per-stage deadlines: apply child-only logging selection, new-test green, logging-only reversal red, restore, original class + lifecycle + static gates, Noise package, full libp2p suite exactly once. Each stage rebases, checks disk, records fresh per-test counts and checkpoints only to wip/usage-noise-child-ckpt.
+
+2026-10-22 03:31:51 UTC OBSERVED: Only both dedicated child entry points now select the API lightweight logging provider before host setup; INFO/WARN/ERROR remain enabled. Existing test edits: NoiseHandshakeOffEventLoopTest.kt, two main entry points add configureNoiseChildLogging; a private package helper sets provider/INFO. No existing assertion, limit, iteration, fake, fixture or golden changed.
+
+2026-10-22 03:31:56 UTC OBSERVED: starting startup-green-first
+
+2026-10-22 03:40:50 UTC OBSERVED: startup-green-first first attempt: 1 cases, 1 passed / 0 failed / 0 skipped, exit 0. Full traces in out/startup-green-first-failure-traces.txt.

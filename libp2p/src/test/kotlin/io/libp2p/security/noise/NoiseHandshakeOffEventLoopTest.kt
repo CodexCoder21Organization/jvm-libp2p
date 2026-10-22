@@ -347,6 +347,7 @@ private fun readMultistreamMessage(input: InputStream): String {
 object NoiseHandshakeStarvationHarness {
     @JvmStatic
     fun main(@Suppress("UNUSED_PARAMETER") args: Array<String>) {
+        configureNoiseChildLogging()
         val startedAt = System.nanoTime()
         val executionRecorder = NoiseHandshakeExecutionRecorder().also { it.install() }
         val hosts = mutableListOf<Host>()
@@ -419,6 +420,7 @@ object NoiseHandshakeStarvationHarness {
 object NoiseHandshakePathHarness {
     @JvmStatic
     fun main(args: Array<String>) {
+        configureNoiseChildLogging()
         when (args.singleOrNull()) {
             "inline" -> verifySingleInlineHandshake()
             "sequential" -> verifySequentialInlineHandshakes()
@@ -736,3 +738,9 @@ private const val MAX_SEQUENTIAL_HANDSHAKE_MILLIS = 20_000
 private const val SATURATED_DIALERS = 120
 private const val SATURATION_EXECUTOR_THREADS = 2
 private const val SATURATION_QUEUE_CAPACITY = 256
+
+private fun configureNoiseChildLogging() {
+    // These dedicated children exercise Noise scheduling, without logging plugin discovery.
+    System.setProperty("log4j2.provider", "org.apache.logging.log4j.simple.internal.SimpleProvider")
+    System.setProperty("org.apache.logging.log4j.simplelog.level", "INFO")
+}

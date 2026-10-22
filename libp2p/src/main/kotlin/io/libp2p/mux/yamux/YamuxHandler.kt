@@ -2,6 +2,7 @@ package io.libp2p.mux.yamux
 
 import io.libp2p.core.ConnectionClosedException
 import io.libp2p.core.Libp2pException
+import io.libp2p.core.StreamCapacityException
 import io.libp2p.core.StreamHandler
 import io.libp2p.core.multistream.MultistreamProtocol
 import io.libp2p.core.mux.StreamMuxer
@@ -20,6 +21,7 @@ import io.netty.channel.ChannelHandlerContext
 import io.netty.channel.ChannelPromise
 import io.netty.util.ReferenceCountUtil
 import io.netty.util.concurrent.PromiseCombiner
+import org.slf4j.LoggerFactory
 import java.util.IdentityHashMap
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
@@ -44,6 +46,8 @@ open class YamuxHandler(
     private val ackBacklogLimit: Int,
     private val initialWindowSize: Int = INITIAL_WINDOW_SIZE
 ) : MuxHandler(ready, inboundStreamHandler) {
+
+    protected open val capacityResetSupported: Boolean = false
 
     private inner class YamuxStreamHandler(
         val id: MuxId,
@@ -331,6 +335,18 @@ open class YamuxHandler(
             resetCause = cause
         }
 
+        fun sendCapacityReset() {
+            if (resetSent) return
+            resetSent = true
+            val cause = StreamCapacityException("Receiver stream capacity reached for stream $id")
+            resetCause = cause
+            try {
+                writeCapacityReset(id)
+            } finally {
+                dispose(cause)
+            }
+        }
+
         fun onLocalClose(
             cause: Throwable = ConnectionClosedException("Yamux stream was reset with buffered data: $id")
         ) {
@@ -381,6 +397,29 @@ open class YamuxHandler(
     override fun channelRead(ctx: ChannelHandlerContext, msg: Any) {
         msg as YamuxFrame
 
+        if (capacityResetSupported && msg.type == YamuxType.DATA && YamuxFlag.RST in msg.flags) {
+            try {
+                val data = msg.data
+                val size = data?.readableBytes() ?: 0
+                val capacity = msg.flags == YamuxFlag.RST.asSet && size == 1 &&
+                    data!!.getUnsignedByte(data.readerIndex()).toInt() == 1
+                if (size > 0 && !capacity) {
+                    LoggerFactory.getLogger(YamuxHandler::class.java).debug(
+                        "Unrecognized Yamux reset reason on stream {}: bodyBytes={}; using ordinary reset",
+                        msg.id, size
+                    )
+                }
+                if (capacity) {
+                    onRemoteClose(msg.id, StreamCapacityException("Peer stream capacity reached for locally initiated stream ${msg.id}"))
+                } else {
+                    onRemoteClose(msg.id)
+                }
+            } finally {
+                ReferenceCountUtil.release(msg.data)
+            }
+            return
+        }
+
         when (msg.type) {
             YamuxType.PING -> handlePing(msg)
             YamuxType.GO_AWAY -> handleGoAway(msg)
@@ -390,6 +429,10 @@ open class YamuxHandler(
                     try {
                         validateSynRemoteMuxId(msg.id)
                         onRemoteYamuxOpen(msg.id)
+                        if (capacityResetSupported && !streamHandlers.containsKey(msg.id)) {
+                            ReferenceCountUtil.release(msg.data)
+                            return
+                        }
                     } catch (cause: Throwable) {
                         ReferenceCountUtil.release(msg.data)
                         throw cause
@@ -580,6 +623,10 @@ open class YamuxHandler(
     }
 
     private fun onRemoteYamuxOpen(id: MuxId) {
+        if (capacityResetSupported && isInboundCapacityReached()) {
+            onRemoteOpen(id)
+            return
+        }
         verifyAckBacklogLimitNotReached(id, false)
         createYamuxStreamHandler(id, false).onRemoteOpen()
         onRemoteOpen(id)
@@ -597,6 +644,30 @@ open class YamuxHandler(
         val streamHandler = YamuxStreamHandler(id, outbound)
         streamHandlers[id] = streamHandler
         return streamHandler
+    }
+
+    override fun resetRemoteSubstream(id: MuxId) {
+        if (capacityResetSupported) {
+            streamHandlers.remove(id)?.dispose()
+            writeCapacityReset(id)
+        }
+    }
+
+    private fun writeCapacityReset(id: MuxId) {
+        writeAndFlushFrame(
+            YamuxFrame(id, YamuxType.DATA, YamuxFlag.RST.asSet, 1, Unpooled.buffer(1, 1).writeByte(1))
+        )
+    }
+
+    internal override fun resetForCapacity(child: MuxChannel<ByteBuf>): ChannelFuture {
+        if (capacityResetSupported && child.isOpen && getChannelHandlerContext().channel().isOpen) {
+            try {
+                streamHandlers[child.id]?.sendCapacityReset()
+            } finally {
+                child.close()
+            }
+        }
+        return child.close()
     }
 
     override fun onLocalDisconnect(child: MuxChannel<ByteBuf>) {

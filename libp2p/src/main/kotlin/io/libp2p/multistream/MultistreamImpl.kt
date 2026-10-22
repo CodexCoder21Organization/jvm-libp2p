@@ -5,6 +5,8 @@ import io.libp2p.core.P2PChannel
 import io.libp2p.core.P2PChannelHandler
 import io.libp2p.core.Stream
 import io.libp2p.core.multistream.Multistream
+import io.libp2p.etc.STREAM_SETUP_CAUSE
+import io.libp2p.transport.implementation.P2PChannelOverNetty
 import io.libp2p.core.multistream.ProtocolBinding
 import java.time.Duration
 import java.util.concurrent.CompletableFuture
@@ -54,7 +56,8 @@ class MultistreamImpl<TController>(
 // A visitor can close a stream before negotiation handlers exist to observe its close event.
 private fun <T> settleClosedNegotiation(channel: P2PChannel, controller: CompletableFuture<T>): Boolean {
     if (!channel.closeFuture().isDone) return false
-    val failure = ConnectionClosedException("Channel closed before protocol negotiation: $channel")
+    val failure = (channel as? P2PChannelOverNetty)?.nettyChannel?.attr(STREAM_SETUP_CAUSE)?.get()
+        ?: ConnectionClosedException("Channel closed before protocol negotiation: $channel")
     (channel as? Stream)?.getProtocol()?.completeExceptionally(failure)
     controller.completeExceptionally(failure)
     return true

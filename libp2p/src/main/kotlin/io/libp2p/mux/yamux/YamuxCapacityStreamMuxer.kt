@@ -28,14 +28,15 @@ class YamuxCapacityStreamMuxer(
         ch.pushHandler(yamuxFrameCodec)
         muxFramesDebugHandler?.also { it.visit(ch as Connection) }
         ch.pushHandler(
-            YamuxHandler(
+            YamuxCapacityHandler(
                 multistreamProtocol,
                 yamuxFrameCodec.maxFrameDataLength,
                 muxSessionReady,
                 inboundStreamHandler,
                 ch.isInitiator,
                 maxBufferedConnectionWrites,
-                ackBacklogLimit
+                ackBacklogLimit,
+                maxInboundStreams
             )
         )
 

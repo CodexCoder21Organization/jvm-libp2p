@@ -2,6 +2,7 @@ package io.libp2p.etc.util.netty.mux
 
 import io.libp2p.core.ConnectionClosedException
 import io.libp2p.etc.util.netty.AbstractChildChannel
+import io.netty.channel.ChannelFuture
 import io.netty.channel.ChannelHandlerContext
 import io.netty.channel.ChannelMetadata
 import io.netty.channel.ChannelOutboundBuffer
@@ -24,6 +25,8 @@ class MuxChannel<TData>(
     var localDisconnected = false
     private var localDisconnectRequested = false
     private var waitingForParentWrite = false
+
+    internal fun resetForCapacity(): ChannelFuture = parent.resetForCapacity(this)
 
     override fun onAutoReadChanged() {
         parent.childAutoReadChanged(this)

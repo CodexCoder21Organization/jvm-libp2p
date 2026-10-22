@@ -9,6 +9,7 @@ import io.libp2p.core.multistream.ProtocolBinding
 import io.libp2p.core.mux.StreamMuxer
 import io.libp2p.etc.CONNECTION
 import io.libp2p.etc.STREAM
+import io.libp2p.etc.STREAM_SETUP_CAUSE
 import io.libp2p.etc.types.forward
 import io.libp2p.etc.types.forwardException
 import io.libp2p.etc.util.netty.mux.AbstractMuxHandler
@@ -61,12 +62,21 @@ abstract class MuxHandler(
 
     fun <T> createStream(streamHandler: StreamHandler<T>): StreamPromise<T> {
         val controller = CompletableFuture<T>()
-        val muxChannel = newStream {
-            streamHandler.handleStream(createStream(it)).forward(controller)
+        val muxChannel = newStream { channel ->
+            channel.closeFuture().addListener {
+                controller.completeExceptionally(
+                    channel.attr(STREAM_SETUP_CAUSE).get()
+                        ?: ConnectionClosedException("Stream closed during setup: ${channel.id}")
+                )
+            }
+            streamHandler.handleStream(createStream(channel)).forward(controller)
         }
         // Observe the owned creation result, independently of the caller's mutable stream future.
         muxChannel.forwardException(controller)
-        val stream = muxChannel.thenApply { it.attr(STREAM).get() }
+        val stream = muxChannel.thenApply {
+            it.attr(STREAM_SETUP_CAUSE).get()?.let { cause -> throw cause }
+            it.attr(STREAM).get()
+        }
         return StreamPromise(stream, controller)
     }
 

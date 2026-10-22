@@ -313,4 +313,65 @@ class YamuxCapacityResultTest {
         }
     }
 
+    @Test
+    fun testReleasedSlotAcceptsNextChild() {
+        CapacityPair(muxLimit = 1, applicationCapacity = false).use { pair ->
+            val first = pair.open()
+            pair.exchange()
+            first.controller.get(5, TimeUnit.SECONDS).close()
+            pair.exchange()
+            val next = pair.open()
+            pair.exchange()
+            pair.verifySibling(next.controller.get(5, TimeUnit.SECONDS))
+            assertThat(pair.admitted).isEqualTo(2)
+        }
+    }
+
+    @Test
+    fun testZeroCapacityCreatesNoInboundChild() {
+        CapacityPair(muxLimit = 0, applicationCapacity = false).use { pair ->
+            val opening = pair.open()
+            pair.exchange()
+            assertThat(capacityResult(opening.controller)).isInstanceOf(StreamCapacityException::class.java)
+            assertThat(pair.admitted).isZero()
+            assertThat(pair.client.isOpen).isTrue()
+            assertThat(pair.server.isOpen).isTrue()
+        }
+    }
+
+    @Test
+    fun testLegacyMarkerKeepsOrdinaryResult() {
+        CapacityPair(false, false).use { pair ->
+            val opening = pair.open()
+            val stream = opening.stream.get(5, TimeUnit.SECONDS) as StreamOverNetty
+            val bytes = capacityBytes((stream.nettyChannel.id() as YamuxId).id, byteArrayOf(1))
+            pair.client.writeInbound(bytes)
+            assertThat(capacityResult(opening.controller)).isInstanceOf(ConnectionClosedException::class.java)
+            assertThat(pair.client.isOpen).isTrue()
+            assertThat(bytes.refCnt()).isZero()
+        }
+    }
+
+    @Test
+    fun testRepeatedCapacityCloseSendsOneReset() {
+        CapacityPair().use { pair ->
+            val opening = pair.open()
+            val stream = opening.stream.get(5, TimeUnit.SECONDS) as StreamOverNetty
+            generateSequence { pair.client.readOutbound<ByteBuf>() }.forEach { it.release() }
+            val operation = stream as StreamCapacityReset
+            operation.resetForCapacity().get(5, TimeUnit.SECONDS)
+            operation.resetForCapacity().get(5, TimeUnit.SECONDS)
+            val frames = generateSequence { pair.client.readOutbound<ByteBuf>() }.toList()
+            try {
+                assertThat(frames).hasSize(1)
+                assertThat(frames.single().readableBytes()).isEqualTo(13)
+                assertThat(frames.single().getUnsignedShort(2)).isEqualTo(8)
+                assertThat(frames.single().getInt(8)).isEqualTo(1)
+                assertThat(frames.single().getByte(12)).isEqualTo(1.toByte())
+            } finally {
+                frames.forEach { it.release() }
+            }
+        }
+    }
+
 }

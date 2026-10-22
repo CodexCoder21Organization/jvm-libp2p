@@ -10,6 +10,11 @@ import io.libp2p.core.multiformats.Multiaddr
 import io.libp2p.protocol.Ping
 import io.libp2p.transport.ConnectionUpgrader
 import io.libp2p.transport.tcp.TcpTransport
+import io.netty.buffer.ByteBuf
+import io.netty.channel.ChannelHandlerContext
+import io.netty.channel.ChannelOutboundHandlerAdapter
+import io.netty.channel.ChannelPromise
+import io.netty.util.ReferenceCountUtil
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CompletableFuture
@@ -128,6 +133,51 @@ class NetworkDialOwnershipTest {
     }
 
     @Test
+    fun `last subscriber cancellation closes a real TCP channel during Noise negotiation`() {
+        val server = host {
+            network { listen("/ip4/127.0.0.1/tcp/0") }
+            protocols { +Ping() }
+        }
+        lateinit var transport: RecordingOwnedTcpTransport
+        val client = host {
+            transports {
+                add { upgrader -> RecordingOwnedTcpTransport(upgrader).also { transport = it } }
+            }
+            protocols { +Ping() }
+        }
+        val channelSeen = CompletableFuture<P2PChannel>()
+        val noiseFrameHeld = CompletableFuture<Unit>()
+        val holdNoise = object : ChannelOutboundHandlerAdapter() {
+            override fun write(ctx: ChannelHandlerContext, msg: Any, promise: ChannelPromise) {
+                if (msg is ByteBuf && msg.readableBytes() >= 32) {
+                    ReferenceCountUtil.release(msg)
+                    promise.setSuccess()
+                    noiseFrameHeld.complete(Unit)
+                } else {
+                    ctx.write(msg, promise)
+                }
+            }
+        }
+        try {
+            CompletableFuture.allOf(server.start(), client.start()).get(10, SECONDS)
+            val connect = client.network.connect(
+                server.peerId,
+                ChannelVisitor { channel ->
+                    channel.pushHandler(holdNoise)
+                    channelSeen.complete(channel)
+                },
+                server.listenAddresses().single()
+            )
+            noiseFrameHeld.get(5, SECONDS)
+            assertThat(connect.cancel(true)).isTrue()
+            assertThat(transport.results.single().isCancelled).isTrue()
+            channelSeen.get(5, SECONDS).closeFuture().get(5, SECONDS)
+        } finally {
+            CompletableFuture.allOf(client.stop(), server.stop()).get(10, SECONDS)
+        }
+    }
+
+    @Test
     fun `a cancellation callback can immediately subscribe to a fresh dial`() {
         withOwnedDialHosts { client, server, transport ->
             val address = server.listenAddresses().first()
@@ -203,4 +253,15 @@ private class OwnedDialTcpTransport(
             }
         return result
     }
+}
+
+private class RecordingOwnedTcpTransport(upgrader: ConnectionUpgrader) : TcpTransport(upgrader) {
+    val results = CopyOnWriteArrayList<CompletableFuture<Connection>>()
+
+    override fun dial(
+        addr: Multiaddr,
+        connHandler: ConnectionHandler,
+        preHandler: ChannelVisitor<P2PChannel>?
+    ): CompletableFuture<Connection> =
+        super.dial(addr, connHandler, preHandler).also { results += it }
 }

@@ -46,3 +46,24 @@ org.opentest4j.AssertionFailedError: Closing a client-only host must not create 
 	at java.base@21.0.12.1/java.util.ArrayList.forEach(ArrayList.java:1596)
 
 ```
+
+2026-10-22 04:24 UTC
+OBSERVED: Current committed checkpoint efa6ef72 (remote wip/usage-noise-child2-ckpt). Cleanup red-green-red proof now complete: prior old implementation 0/1, first fixed 1/0, cleanup-only reversal 0/1 with exact unused accept-thread assertion. Fixed source restored byte-for-byte. Restored regression plus existing lifecycle classes is running; boxrun slot 1 acquired at 04:23:11 after a short queue. No original Noise class/package/full run started in this lane yet.
+
+2026-10-22 04:29 UTC — restored cleanup GREEN, neighboring failure
+OBSERVED: Restored transport selection first attempt: 5 passed / 1 failed / 0 skipped. The new cleanup regression passed again; both shutdown timing checks, daemon check and serial listen-close test passed. Parallel listen-close failed on port 33713, 83/200 iterations beginning at 108. Log also records rejected future-listener notification at iterations 108 and 191 after the accept event loop closed. Full assertion trace:
+```
+io.libp2p.transport.PlainNettyTransportConcurrentListenCloseTest :: parallel listen and close from separate threads must not leak the listener channel()
+org.opentest4j.AssertionFailedError: Port 33713 leaked after 83/200 parallel listen-close races (first at iter 108). iter=108: port 33713 not released. BindException: Address already in use ==> expected: <true> but was: <false>
+	at app//org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+	at app//org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+	at app//org.junit.jupiter.api.AssertTrue.failNotTrue(AssertTrue.java:63)
+	at app//org.junit.jupiter.api.AssertTrue.assertTrue(AssertTrue.java:36)
+	at app//org.junit.jupiter.api.Assertions.assertTrue(Assertions.java:214)
+	at app//io.libp2p.transport.PlainNettyTransportConcurrentListenCloseTest.parallel listen and close from separate threads must not leak the listener channel(PlainNettyTransportConcurrentListenCloseTest.kt:189)
+	at java.base@21.0.12.1/java.lang.reflect.Method.invoke(Method.java:580)
+	at java.base@21.0.12.1/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at java.base@21.0.12.1/java.util.ArrayList.forEach(ArrayList.java:1596)
+
+```
+INFER: The port assertion alone does not identify which process held that shared ephemeral port; the rejected notification names a separate listen-future conversion after leaving the lock. No evidence yet distinguishes a transport leak from another process using the temporarily unbound port. This remains an OPEN qualification finding, not a claimed baseline issue or a passing lifecycle suite. No existing test/assertion changed or retried. Proceeding to the explicitly requested first Noise class attempt; inspect precise port ownership if lifecycle failure recurs in the one full run.

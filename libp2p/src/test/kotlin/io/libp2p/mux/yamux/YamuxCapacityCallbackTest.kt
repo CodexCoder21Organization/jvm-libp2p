@@ -113,7 +113,7 @@ private class CallbackPair(
         exchange()
         clientSession = clientReady.get(5, TimeUnit.SECONDS)
         serverReady.get(5, TimeUnit.SECONDS)
-        
+
         assertThat(selected.get(5, TimeUnit.SECONDS)).isEqualTo(if (clientNew && serverNew) "/urlprotocol/yamux-capacity/1.0.0" else if (legacyMplex) "/mplex/6.7.0" else "/yamux/1.0.0")
     }
     fun open(): StreamPromise<Stream> = clientSession.createStream(listOf(protocol)).also { client.runPendingTasks() }

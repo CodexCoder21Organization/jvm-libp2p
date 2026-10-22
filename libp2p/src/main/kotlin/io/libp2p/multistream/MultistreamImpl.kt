@@ -5,9 +5,9 @@ import io.libp2p.core.P2PChannel
 import io.libp2p.core.P2PChannelHandler
 import io.libp2p.core.Stream
 import io.libp2p.core.multistream.Multistream
+import io.libp2p.core.multistream.ProtocolBinding
 import io.libp2p.etc.STREAM_SETUP_CAUSE
 import io.libp2p.transport.implementation.P2PChannelOverNetty
-import io.libp2p.core.multistream.ProtocolBinding
 import java.time.Duration
 import java.util.concurrent.CompletableFuture
 

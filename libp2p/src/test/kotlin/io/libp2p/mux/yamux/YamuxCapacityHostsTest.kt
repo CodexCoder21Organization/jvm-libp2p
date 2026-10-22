@@ -37,8 +37,10 @@ class YamuxCapacityHostsTest {
                 }
                 +StreamMuxerProtocol { multistream, protocols ->
                     YamuxStreamMuxer(
-                        multistream.createMultistream(protocols).toStreamHandler(), multistream,
-                        DEFAULT_MAX_BUFFERED_CONNECTION_WRITES, DEFAULT_ACK_BACKLOG_LIMIT
+                        multistream.createMultistream(protocols).toStreamHandler(),
+                        multistream,
+                        DEFAULT_MAX_BUFFERED_CONNECTION_WRITES,
+                        DEFAULT_ACK_BACKLOG_LIMIT
                     ).also {
                         if (observe) it.muxFramesDebugHandler = ChannelVisitor { selected.set("/yamux/1.0.0") }
                     }
@@ -50,12 +52,14 @@ class YamuxCapacityHostsTest {
         val client = makeHost(clientNew, true)
         val server = makeHost(serverNew, false)
         val admissions = AtomicInteger()
-        server.addStreamVisitor(ChannelVisitor { stream ->
-            if (!stream.isInitiator && admissions.incrementAndGet() > 1) {
-                val capacity = stream as? StreamCapacityReset
-                if (capacity == null) stream.reset() else capacity.resetForCapacity()
+        server.addStreamVisitor(
+            ChannelVisitor { stream ->
+                if (!stream.isInitiator && admissions.incrementAndGet() > 1) {
+                    val capacity = stream as? StreamCapacityReset
+                    if (capacity == null) stream.reset() else capacity.resetForCapacity()
+                }
             }
-        })
+        )
         try {
             client.start().get(5, TimeUnit.SECONDS)
             server.start().get(5, TimeUnit.SECONDS)

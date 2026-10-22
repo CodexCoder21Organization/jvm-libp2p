@@ -1,7 +1,6 @@
 package io.libp2p.mux.yamux
 
 import io.libp2p.core.ChannelVisitor
-import io.libp2p.core.ConnectionClosedException
 import io.libp2p.core.P2PChannel
 import io.libp2p.core.Stream
 import io.libp2p.core.StreamCapacityException

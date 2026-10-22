@@ -85,14 +85,31 @@ abstract class AbstractMuxHandler<TData>(
     /** A finite limit for payloads a paused child may hold before it is closed. */
     protected open val maxPendingChildReadBytes: Long = 4L * 1024 * 1024
 
-    /** Bounds retained payload objects independently of the byte budget. */
+    /**
+     * Bounds retained payload objects independently of the byte budget. At this bound a payload is
+     * merged into the newest held payload when [coalescePendingChildRead] accepts it; otherwise the
+     * child is reset.
+     */
     protected open val maxPendingChildReadFrames: Int? = 64
 
     /** Size of one retained child payload. Production muxers override this for ByteBuf. */
     protected open fun pendingChildReadSize(data: TData): Int = 1
 
-    /** Returns the queued payload, releasing [data] if its storage is replaced. */
-    protected open fun preparePendingChildRead(data: TData): TData = data
+    /**
+     * Returns the queued payload, releasing [data] if its storage is replaced. [retainedBytes] is the
+     * payload size the paused child already holds.
+     */
+    protected open fun preparePendingChildRead(data: TData, retainedBytes: Long): TData = data
+
+    /**
+     * Called when a paused child already holds [maxPendingChildReadFrames] payloads. Appends [data]
+     * to [tail], the newest held payload, and returns `true` after taking ownership of [data].
+     * Returning `false` resets the child as a queue overflow.
+     */
+    protected open fun coalescePendingChildRead(tail: TData, data: TData): Boolean = false
+
+    /** Called before a held payload is delivered or a newer payload is held after it. */
+    protected open fun sealPendingChildRead(data: TData) = Unit
 
     /** Called only after the child pipeline has received a payload. */
     protected open fun onChildReadDelivered(id: MuxId, dataSize: Int) = Unit
@@ -168,6 +185,10 @@ abstract class AbstractMuxHandler<TData>(
             }
 
             else -> {
+                // Terminates: each `continue` follows a drain, which returns only after the child
+                // closed (handled below), autoRead read false, or the held FIFO emptied (its entry is
+                // then removed). The next pass therefore delivers directly, holds the frame while
+                // paused, or releases it. Another pass needs another thread to flip autoRead again.
                 while (true) {
                     val autoRead = child.config().isAutoRead
                     val queued = pendingInbound[id]
@@ -187,9 +208,12 @@ abstract class AbstractMuxHandler<TData>(
                         val pending = queued ?: PendingInbound<TData>().also { pendingInbound[id] = it }
                         val size = pendingChildReadSize(msg)
                         val frameLimit = maxPendingChildReadFrames
-                        if (pending.bytes + size > maxPendingChildReadBytes ||
-                            (frameLimit != null && pending.messages.size >= frameLimit)
-                        ) {
+                        val tail = pending.messages.peekLast()
+                        val atFrameLimit = frameLimit != null && pending.messages.size >= frameLimit
+                        val withinBytes = pending.bytes + size <= maxPendingChildReadBytes
+                        // At the frame limit a muxer may take ownership of msg by merging it into the tail.
+                        val merged = withinBytes && atFrameLimit && tail != null && coalescePendingChildRead(tail, msg)
+                        if (!withinBytes || (atFrameLimit && !merged)) {
                             releaseMessage(msg)
                             val cause = ConnectionClosedException(
                                 "Paused child $id inbound queue exceeded: attempted ${pending.messages.size + 1} frames " +
@@ -205,7 +229,10 @@ abstract class AbstractMuxHandler<TData>(
                             onChildReadOverflow(child, cause)
                             return
                         }
-                        pending.messages.add(preparePendingChildRead(msg))
+                        if (!merged) {
+                            if (tail != null) sealPendingChildRead(tail)
+                            pending.messages.add(preparePendingChildRead(msg, pending.bytes))
+                        }
                         pending.bytes += size
                         if (child.config().isAutoRead) drainPendingInbound(child)
                     } else {
@@ -272,6 +299,7 @@ abstract class AbstractMuxHandler<TData>(
             while (child.isOpen && child.config().isAutoRead && queued.messages.isNotEmpty()) {
                 val msg = queued.messages.removeFirst()
                 queued.bytes -= pendingChildReadSize(msg)
+                sealPendingChildRead(msg)
                 delivered = true
                 deliverToChild(child, msg, true)
             }

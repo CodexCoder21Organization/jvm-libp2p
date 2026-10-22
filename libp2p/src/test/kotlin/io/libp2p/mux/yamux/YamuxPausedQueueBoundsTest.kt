@@ -417,8 +417,8 @@ private class QueueBoundsFixture : AutoCloseable {
         DEFAULT_ACK_BACKLOG_LIMIT,
         pausedQueueTestWindowSize
     ) {
-        override fun preparePendingChildRead(data: ByteBuf): ByteBuf {
-            val copy = super.preparePendingChildRead(data)
+        override fun preparePendingChildRead(data: ByteBuf, retainedBytes: Long): ByteBuf {
+            val copy = super.preparePendingChildRead(data, retainedBytes)
             retainedCopies += copy
             return copy
         }

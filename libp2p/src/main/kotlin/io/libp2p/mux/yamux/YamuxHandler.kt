@@ -504,13 +504,36 @@ open class YamuxHandler(
         }
     }
 
-    override fun preparePendingChildRead(data: ByteBuf): ByteBuf {
+    override fun preparePendingChildRead(data: ByteBuf, retainedBytes: Long): ByteBuf {
         try {
-            // A queued slice must not keep already-delivered sibling bytes in its backing buffer.
-            return Unpooled.copiedBuffer(data)
+            // A queued copy must not keep already-delivered sibling bytes in its backing buffer.
+            // It starts at exactly its payload size. Its growth limit, used only when later payloads
+            // are merged into it, keeps this stream's held storage within the receive window.
+            val size = data.readableBytes()
+            val maxCapacity = maxOf(size.toLong(), maxPendingChildReadBytes - retainedBytes)
+                .coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+            return Unpooled.buffer(size, maxCapacity).writeBytes(data)
         } finally {
             data.release()
         }
+    }
+
+    // At the frame bound a paused stream merges further payloads into its newest copy instead of
+    // being reset: the receive window already bounds held bytes, and a peer that stays inside it
+    // may choose any frame size.
+    override fun coalescePendingChildRead(tail: ByteBuf, data: ByteBuf): Boolean {
+        if (data.readableBytes() > tail.maxWritableBytes()) return false
+        try {
+            tail.writeBytes(data)
+        } finally {
+            data.release()
+        }
+        return true
+    }
+
+    override fun sealPendingChildRead(data: ByteBuf) {
+        // Growth may leave spare capacity; held and delivered copies own exactly their bytes.
+        if (data.capacity() > data.writerIndex()) data.capacity(data.writerIndex())
     }
 
     override fun onChildReadDelivered(id: MuxId, dataSize: Int) {

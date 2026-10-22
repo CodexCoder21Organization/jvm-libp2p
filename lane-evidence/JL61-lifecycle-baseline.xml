@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.libp2p.transport.ConnectionCloseRetryTest" tests="7" skipped="0" failures="7" errors="0" timestamp="2026-10-22T21:56:34.476Z" hostname="0418f9b78349" time="0.957">
+  <properties/>
+  <testcase name="explicitRetryClosesRealConnectionAfterFailureAndKeepsOrdinaryResult()" classname="io.libp2p.transport.ConnectionCloseRetryTest" time="0.819">
+    <failure message="java.util.concurrent.ExecutionException: java.io.IOException: Cannot close test connection: physical close attempt 1 failed." type="java.util.concurrent.ExecutionException">java.util.concurrent.ExecutionException: java.io.IOException: Cannot close test connection: physical close attempt 1 failed.
+	at java.base/java.util.concurrent.CompletableFuture.reportGet(CompletableFuture.java:396)
+	at java.base/java.util.concurrent.CompletableFuture.get(CompletableFuture.java:2096)
+	at io.libp2p.transport.ConnectionCloseRetryTest.explicitRetryClosesRealConnectionAfterFailureAndKeepsOrdinaryResult(ConnectionCloseRetryTest.kt:61)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+Caused by: java.io.IOException: Cannot close test connection: physical close attempt 1 failed.
+	at io.libp2p.transport.ConnectionCloseRetryTest.explicitRetryClosesRealConnectionAfterFailureAndKeepsOrdinaryResult(ConnectionCloseRetryTest.kt:39)
+	... 3 more
+</failure>
+  </testcase>
+  <testcase name="concurrentRetriesShareHeldAttemptAndIsolateCallerFutureChanges()" classname="io.libp2p.transport.ConnectionCloseRetryTest" time="0.061">
+    <failure message="org.opentest4j.AssertionFailedError: 8192 explicit callers must share one pending retry after the initial failure. ==&gt; expected: &lt;2&gt; but was: &lt;1&gt;" type="org.opentest4j.AssertionFailedError">org.opentest4j.AssertionFailedError: 8192 explicit callers must share one pending retry after the initial failure. ==&gt; expected: &lt;2&gt; but was: &lt;1&gt;
+	at app//org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+	at app//org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+	at app//org.junit.jupiter.api.AssertEquals.failNotEqual(AssertEquals.java:197)
+	at app//org.junit.jupiter.api.AssertEquals.assertEquals(AssertEquals.java:150)
+	at app//org.junit.jupiter.api.Assertions.assertEquals(Assertions.java:563)
+	at app//io.libp2p.transport.ConnectionCloseRetryTest$concurrentRetriesShareHeldAttemptAndIsolateCallerFutureChanges$1.invoke(ConnectionCloseRetryTest.kt:149)
+	at app//io.libp2p.transport.ConnectionCloseRetryTest$concurrentRetriesShareHeldAttemptAndIsolateCallerFutureChanges$1.invoke(ConnectionCloseRetryTest.kt:125)
+	at app//io.libp2p.transport.ConnectionCloseRetryTestKt.withRetryConnection(ConnectionCloseRetryTest.kt:279)
+	at app//io.libp2p.transport.ConnectionCloseRetryTestKt.access$withRetryConnection(ConnectionCloseRetryTest.kt:1)
+	at app//io.libp2p.transport.ConnectionCloseRetryTest.concurrentRetriesShareHeldAttemptAndIsolateCallerFutureChanges(ConnectionCloseRetryTest.kt:125)
+	at java.base@21.0.12.1/java.lang.reflect.Method.invoke(Method.java:580)
+	at java.base@21.0.12.1/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at java.base@21.0.12.1/java.util.ArrayList.forEach(ArrayList.java:1596)
+</failure>
+  </testcase>
+  <testcase name="retryFirstStartsOnlyOneAttemptEvenWhenItFailsImmediately()" classname="io.libp2p.transport.ConnectionCloseRetryTest" time="0.016">
+    <failure message="org.opentest4j.AssertionFailedError: Only a later explicit call may request attempt two. ==&gt; expected: &lt;2&gt; but was: &lt;1&gt;" type="org.opentest4j.AssertionFailedError">org.opentest4j.AssertionFailedError: Only a later explicit call may request attempt two. ==&gt; expected: &lt;2&gt; but was: &lt;1&gt;
+	at app//org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+	at app//org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+	at app//org.junit.jupiter.api.AssertEquals.failNotEqual(AssertEquals.java:197)
+	at app//org.junit.jupiter.api.AssertEquals.assertEquals(AssertEquals.java:150)
+	at app//org.junit.jupiter.api.Assertions.assertEquals(Assertions.java:563)
+	at app//io.libp2p.transport.ConnectionCloseRetryTest$retryFirstStartsOnlyOneAttemptEvenWhenItFailsImmediately$1.invoke(ConnectionCloseRetryTest.kt:96)
+	at app//io.libp2p.transport.ConnectionCloseRetryTest$retryFirstStartsOnlyOneAttemptEvenWhenItFailsImmediately$1.invoke(ConnectionCloseRetryTest.kt:83)
+	at app//io.libp2p.transport.ConnectionCloseRetryTestKt.withRetryConnection(ConnectionCloseRetryTest.kt:279)
+	at app//io.libp2p.transport.ConnectionCloseRetryTestKt.access$withRetryConnection(ConnectionCloseRetryTest.kt:1)
+	at app//io.libp2p.transport.ConnectionCloseRetryTest.retryFirstStartsOnlyOneAttemptEvenWhenItFailsImmediately(ConnectionCloseRetryTest.kt:83)
+	at java.base@21.0.12.1/java.lang.reflect.Method.invoke(Method.java:580)
+	at java.base@21.0.12.1/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at java.base@21.0.12.1/java.util.ArrayList.forEach(ArrayList.java:1596)
+</failure>
+  </testcase>
+  <testcase name="failureCallbackAndPhysicalHandlerCanReenterWithoutDuplicatingRetry()" classname="io.libp2p.transport.ConnectionCloseRetryTest" time="0.015">
+    <failure message="java.util.concurrent.ExecutionException: java.io.IOException: Cannot close test connection: physical close attempt 1 failed." type="java.util.concurrent.ExecutionException">java.util.concurrent.ExecutionException: java.io.IOException: Cannot close test connection: physical close attempt 1 failed.
+	at java.base/java.util.concurrent.CompletableFuture.reportGet(CompletableFuture.java:396)
+	at java.base/java.util.concurrent.CompletableFuture.get(CompletableFuture.java:2096)
+	at io.libp2p.transport.ConnectionCloseRetryTest$failureCallbackAndPhysicalHandlerCanReenterWithoutDuplicatingRetry$1.invoke(ConnectionCloseRetryTest.kt:223)
+	at io.libp2p.transport.ConnectionCloseRetryTest$failureCallbackAndPhysicalHandlerCanReenterWithoutDuplicatingRetry$1.invoke(ConnectionCloseRetryTest.kt:206)
+	at io.libp2p.transport.ConnectionCloseRetryTestKt.withRetryConnection(ConnectionCloseRetryTest.kt:279)
+	at io.libp2p.transport.ConnectionCloseRetryTestKt.access$withRetryConnection(ConnectionCloseRetryTest.kt:1)
+	at io.libp2p.transport.ConnectionCloseRetryTest.failureCallbackAndPhysicalHandlerCanReenterWithoutDuplicatingRetry(ConnectionCloseRetryTest.kt:206)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+Caused by: java.io.IOException: Cannot close test connection: physical close attempt 1 failed.
+	at io.libp2p.transport.ConnectionCloseRetryTest$failureCallbackAndPhysicalHandlerCanReenterWithoutDuplicatingRetry$1.invoke(ConnectionCloseRetryTest.kt:208)
+	... 7 more
+</failure>
+  </testcase>
+  <testcase name="retrySharesPendingInitialCloseAndCanRecoverItsFailure()" classname="io.libp2p.transport.ConnectionCloseRetryTest" time="0.015">
+    <failure message="org.opentest4j.AssertionFailedError: Retry may submit a new close only after the original failure settled. ==&gt; expected: &lt;2&gt; but was: &lt;1&gt;" type="org.opentest4j.AssertionFailedError">org.opentest4j.AssertionFailedError: Retry may submit a new close only after the original failure settled. ==&gt; expected: &lt;2&gt; but was: &lt;1&gt;
+	at app//org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+	at app//org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+	at app//org.junit.jupiter.api.AssertEquals.failNotEqual(AssertEquals.java:197)
+	at app//org.junit.jupiter.api.AssertEquals.assertEquals(AssertEquals.java:150)
+	at app//org.junit.jupiter.api.Assertions.assertEquals(Assertions.java:563)
+	at app//io.libp2p.transport.ConnectionCloseRetryTest$retrySharesPendingInitialCloseAndCanRecoverItsFailure$1.invoke(ConnectionCloseRetryTest.kt:115)
+	at app//io.libp2p.transport.ConnectionCloseRetryTest$retrySharesPendingInitialCloseAndCanRecoverItsFailure$1.invoke(ConnectionCloseRetryTest.kt:102)
+	at app//io.libp2p.transport.ConnectionCloseRetryTestKt.withRetryConnection(ConnectionCloseRetryTest.kt:279)
+	at app//io.libp2p.transport.ConnectionCloseRetryTestKt.access$withRetryConnection(ConnectionCloseRetryTest.kt:1)
+	at app//io.libp2p.transport.ConnectionCloseRetryTest.retrySharesPendingInitialCloseAndCanRecoverItsFailure(ConnectionCloseRetryTest.kt:102)
+	at java.base@21.0.12.1/java.lang.reflect.Method.invoke(Method.java:580)
+	at java.base@21.0.12.1/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at java.base@21.0.12.1/java.util.ArrayList.forEach(ArrayList.java:1596)
+</failure>
+  </testcase>
+  <testcase name="repeatedFailuresReportEachAttemptAndPermitRecovery()" classname="io.libp2p.transport.ConnectionCloseRetryTest" time="0.014">
+    <failure message="org.opentest4j.AssertionFailedError: expected: &lt;Cannot close test connection: physical close attempt 2 failed.&gt; but was: &lt;Cannot close test connection: physical close attempt 1 failed.&gt;" type="org.opentest4j.AssertionFailedError">org.opentest4j.AssertionFailedError: expected: &lt;Cannot close test connection: physical close attempt 2 failed.&gt; but was: &lt;Cannot close test connection: physical close attempt 1 failed.&gt;
+	at app//org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+	at app//org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+	at app//org.junit.jupiter.api.AssertEquals.failNotEqual(AssertEquals.java:197)
+	at app//org.junit.jupiter.api.AssertEquals.assertEquals(AssertEquals.java:182)
+	at app//org.junit.jupiter.api.AssertEquals.assertEquals(AssertEquals.java:177)
+	at app//org.junit.jupiter.api.Assertions.assertEquals(Assertions.java:1145)
+	at app//io.libp2p.transport.ConnectionCloseRetryTest$repeatedFailuresReportEachAttemptAndPermitRecovery$1.invoke(ConnectionCloseRetryTest.kt:191)
+	at app//io.libp2p.transport.ConnectionCloseRetryTest$repeatedFailuresReportEachAttemptAndPermitRecovery$1.invoke(ConnectionCloseRetryTest.kt:174)
+	at app//io.libp2p.transport.ConnectionCloseRetryTestKt.withRetryConnection(ConnectionCloseRetryTest.kt:279)
+	at app//io.libp2p.transport.ConnectionCloseRetryTestKt.access$withRetryConnection(ConnectionCloseRetryTest.kt:1)
+	at app//io.libp2p.transport.ConnectionCloseRetryTest.repeatedFailuresReportEachAttemptAndPermitRecovery(ConnectionCloseRetryTest.kt:174)
+	at java.base@21.0.12.1/java.lang.reflect.Method.invoke(Method.java:580)
+	at java.base@21.0.12.1/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at java.base@21.0.12.1/java.util.ArrayList.forEach(ArrayList.java:1596)
+</failure>
+  </testcase>
+  <testcase name="retryAfterPeerClosedFollowingFailureDoesNotRequestAnotherPhysicalClose()" classname="io.libp2p.transport.ConnectionCloseRetryTest" time="0.015">
+    <failure message="java.util.concurrent.ExecutionException: java.io.IOException: Cannot close test connection: physical close attempt 1 failed." type="java.util.concurrent.ExecutionException">java.util.concurrent.ExecutionException: java.io.IOException: Cannot close test connection: physical close attempt 1 failed.
+	at java.base/java.util.concurrent.CompletableFuture.reportGet(CompletableFuture.java:396)
+	at java.base/java.util.concurrent.CompletableFuture.get(CompletableFuture.java:2096)
+	at io.libp2p.transport.ConnectionCloseRetryTest$retryAfterPeerClosedFollowingFailureDoesNotRequestAnotherPhysicalClose$1.invoke(ConnectionCloseRetryTest.kt:244)
+	at io.libp2p.transport.ConnectionCloseRetryTest$retryAfterPeerClosedFollowingFailureDoesNotRequestAnotherPhysicalClose$1.invoke(ConnectionCloseRetryTest.kt:233)
+	at io.libp2p.transport.ConnectionCloseRetryTestKt.withRetryConnection(ConnectionCloseRetryTest.kt:279)
+	at io.libp2p.transport.ConnectionCloseRetryTestKt.access$withRetryConnection(ConnectionCloseRetryTest.kt:1)
+	at io.libp2p.transport.ConnectionCloseRetryTest.retryAfterPeerClosedFollowingFailureDoesNotRequestAnotherPhysicalClose(ConnectionCloseRetryTest.kt:233)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+Caused by: java.io.IOException: Cannot close test connection: physical close attempt 1 failed.
+	at io.libp2p.transport.ConnectionCloseRetryTest$retryAfterPeerClosedFollowingFailureDoesNotRequestAnotherPhysicalClose$1.invoke(ConnectionCloseRetryTest.kt:235)
+	... 7 more
+</failure>
+  </testcase>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

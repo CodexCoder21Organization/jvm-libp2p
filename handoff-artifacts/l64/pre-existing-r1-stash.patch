@@ -1,0 +1,237 @@
+diff --git a/libp2p/src/main/kotlin/io/libp2p/etc/util/netty/mux/AbstractMuxHandler.kt b/libp2p/src/main/kotlin/io/libp2p/etc/util/netty/mux/AbstractMuxHandler.kt
+index 49d125d7..008a3c44 100644
+--- a/libp2p/src/main/kotlin/io/libp2p/etc/util/netty/mux/AbstractMuxHandler.kt
++++ b/libp2p/src/main/kotlin/io/libp2p/etc/util/netty/mux/AbstractMuxHandler.kt
+@@ -78,6 +78,17 @@ abstract class AbstractMuxHandler<TData>(
+     /** Mplex bounds empty frames; windowed muxers may rely on their receive window instead. */
+     protected open val maxPendingChildReadFrames: Int? = 64
+ 
++    /**
++     * Frames a paused child may retain before reads stop on the whole parent connection.
++     *
++     * The default of zero stops parent reads as soon as a child pauses, because a muxer without
++     * per-stream flow control (Mplex) has no other way to hold back that stream's sender. A muxer
++     * that withholds a paused stream's receive-window credit already bounds that stream's queued
++     * bytes, so it keeps the shared connection reading for every other stream (including new
++     * stream negotiations) and stops parent reads only once this many small frames are queued.
++     */
++    protected open val pausedChildFramesBeforeParentPause: Int = 0
++
+     /** Size of one retained child payload. Production muxers override this for ByteBuf. */
+     protected open fun pendingChildReadSize(data: TData): Int = 1
+ 
+@@ -155,7 +166,7 @@ abstract class AbstractMuxHandler<TData>(
+             }
+ 
+             else -> {
+-                if (!child.config().isAutoRead) pauseChild(child)
++                pauseParentIfPausedChildQueueIsFull(child)
+                 val queued = pendingInbound[id]
+                 if (!child.config().isAutoRead || queued != null) {
+                     val pending = queued ?: PendingInbound<TData>().also { pendingInbound[id] = it }
+@@ -197,13 +208,20 @@ abstract class AbstractMuxHandler<TData>(
+                         }
+                     }
+                 } else {
+-                    pauseChild(child)
++                    pauseParentIfPausedChildQueueIsFull(child)
+                 }
+             }
+         }
+         if (parentContext.executor().inEventLoop()) update.run() else parentContext.executor().execute(update)
+     }
+ 
++    /** Called on the parent event loop before a frame for [child] is queued or delivered. */
++    private fun pauseParentIfPausedChildQueueIsFull(child: MuxChannel<TData>) {
++        if (child.config().isAutoRead) return
++        val queuedFrames = pendingInbound[child.id]?.messages?.size ?: 0
++        if (queuedFrames >= pausedChildFramesBeforeParentPause) pauseChild(child)
++    }
++
+     private fun pauseChild(child: MuxChannel<TData>) {
+         synchronized(parentReadLock) {
+             if (!child.isOpen || child.config().isAutoRead || !pausedChildren.add(child.id)) return
+diff --git a/libp2p/src/main/kotlin/io/libp2p/mux/yamux/YamuxHandler.kt b/libp2p/src/main/kotlin/io/libp2p/mux/yamux/YamuxHandler.kt
+index fbe257f8..7b160ff3 100644
+--- a/libp2p/src/main/kotlin/io/libp2p/mux/yamux/YamuxHandler.kt
++++ b/libp2p/src/main/kotlin/io/libp2p/mux/yamux/YamuxHandler.kt
+@@ -31,6 +31,9 @@ const val DEFAULT_MAX_BUFFERED_CONNECTION_WRITES = 10 * 1024 * 1024 // 10 MiB
+ const val DEFAULT_ACK_BACKLOG_LIMIT = 256
+ 
+ const val INITIAL_WINDOW_SIZE = 256 * 1024
++
++/** Frames a paused Yamux stream may queue before reads stop on its whole connection. */
++const val PAUSED_STREAM_FRAMES_BEFORE_CONNECTION_PAUSE = 64
+ private const val YAMUX_HEADER_BYTES = 12L
+ 
+ open class YamuxHandler(
+@@ -482,6 +485,11 @@ open class YamuxHandler(
+ 
+     override val maxPendingChildReadFrames: Int? = null
+ 
++    // A paused stream's sender is held back by its receive window: credit is returned only in
++    // onBytesDelivered. The connection therefore keeps reading for the other streams; only a long
++    // run of small frames, which the byte window does not bound, stops connection reads.
++    override val pausedChildFramesBeforeParentPause: Int = PAUSED_STREAM_FRAMES_BEFORE_CONNECTION_PAUSE
++
+     override fun onChildReadDelivered(id: MuxId, dataSize: Int) {
+         streamHandlers[id]?.onBytesDelivered(dataSize)
+     }
+diff --git a/libp2p/src/test/kotlin/io/libp2p/mux/ChildReadPauseTcpTest.kt b/libp2p/src/test/kotlin/io/libp2p/mux/ChildReadPauseTcpTest.kt
+index 46351448..a75d1f30 100644
+--- a/libp2p/src/test/kotlin/io/libp2p/mux/ChildReadPauseTcpTest.kt
++++ b/libp2p/src/test/kotlin/io/libp2p/mux/ChildReadPauseTcpTest.kt
+@@ -201,17 +201,35 @@ class ChildReadPauseTcpTest {
+             // Wait for the in-flight callback and the queued off-loop pause to finish, rather than
+             // waiting for frames that may need another TCP read while parent reads are stopped.
+             receiverChannel.eventLoop().submit(Callable {}).get(5, TimeUnit.SECONDS)
+-            assertFalse(receiverParent.config().isAutoRead, "the paused child must stop parent reads")
++            if (muxer == "mplex") {
++                // Mplex has no per-stream flow control, so a paused child stops the connection.
++                assertFalse(receiverParent.config().isAutoRead, "the paused child must stop parent reads")
++            } else {
++                // Yamux withholds the paused stream's window credit instead and keeps the shared
++                // connection reading: the later frames reach the muxer and wait in the child's queue.
++                assertTrue(receiverParent.config().isAutoRead, "a paused Yamux stream must leave its connection reading")
++                assertTrue(
++                    payloadFramesForwarded.await(5, TimeUnit.SECONDS),
++                    "Yamux payload frames must keep reaching the muxer while the stream is paused"
++                )
++                assertTrue(
++                    remoteEndFrameForwarded.await(5, TimeUnit.SECONDS),
++                    "the Yamux remote end frame must keep reaching the muxer while the stream is paused"
++                )
++                receiverChannel.eventLoop().submit(Callable {}).get(5, TimeUnit.SECONDS)
++            }
+ 
+             val beforeResume = delivered.toList()
+             if (fragmentedReads) {
+                 assertEquals(listOf(expectedMessages.first()), beforeResume)
+-                assertEquals(
+-                    (expectedMessages.size - 1).toLong(),
+-                    payloadFramesForwarded.count,
+-                    "later payload frames must still need another transport read"
+-                )
+-                assertEquals(1L, remoteEndFrameForwarded.count, "the remote end must still need another transport read")
++                if (muxer == "mplex") {
++                    assertEquals(
++                        (expectedMessages.size - 1).toLong(),
++                        payloadFramesForwarded.count,
++                        "later payload frames must still need another transport read"
++                    )
++                    assertEquals(1L, remoteEndFrameForwarded.count, "the remote end must still need another transport read")
++                }
+             }
+             assertEquals(expectedMessages.first(), beforeResume.first())
+             assertTrue(remoteEndMarker !in beforeResume, "the deferred remote end must wait for resume")
+diff --git a/libp2p/src/test/kotlin/io/libp2p/mux/MuxHandlerAbstractTest.kt b/libp2p/src/test/kotlin/io/libp2p/mux/MuxHandlerAbstractTest.kt
+index 23656569..c80d1fe0 100644
+--- a/libp2p/src/test/kotlin/io/libp2p/mux/MuxHandlerAbstractTest.kt
++++ b/libp2p/src/test/kotlin/io/libp2p/mux/MuxHandlerAbstractTest.kt
+@@ -119,6 +119,21 @@ abstract class MuxHandlerAbstractTest {
+         return id
+     }
+     fun writeStream(id: Long, msg: String) = writeFrame(AbstractTestMuxFrame(id, Data, msg))
++
++    /**
++     * Frames a paused child may queue before the muxer stops parent reads. Zero means the pause
++     * itself stops parent reads (Mplex, which has no per-stream flow control).
++     */
++    open val pausedChildFramesBeforeParentPause: Int = 0
++
++    /** Hex payloads (test frames carry hex) that, queued on a paused child, stop parent reads. */
++    fun framesThatPauseParent(base: Int): List<String> =
++        if (pausedChildFramesBeforeParentPause == 0) emptyList()
++        else List(pausedChildFramesBeforeParentPause + 1) { "%04x".format(base + it) }
++
++    /** Queues [framesThatPauseParent] on the paused stream [id] and returns them. */
++    fun queueFramesUntilParentPauses(id: Long, base: Int = 0x1000): List<String> =
++        framesThatPauseParent(base).onEach { writeStream(id, it) }
+     fun closeStream(id: Long) = writeFrame(AbstractTestMuxFrame(id, Close))
+     fun resetStream(id: Long) = writeFrame(AbstractTestMuxFrame(id, Reset))
+ 
+@@ -161,14 +176,16 @@ abstract class MuxHandlerAbstractTest {
+ 
+     @Test
+     fun pausedChildStopsParentReadsUntilEveryPausedChildResumes() {
+-        openStreamRemote()
+-        openStreamRemote()
++        val firstId = openStreamRemote()
++        val secondId = openStreamRemote()
+         val first = childHandlers[0].ctx.channel()
+         val second = childHandlers[1].ctx.channel()
+ 
+         first.config().isAutoRead = false
++        queueFramesUntilParentPauses(firstId)
+         assertFalse(ech.config().isAutoRead)
+         second.config().isAutoRead = false
++        queueFramesUntilParentPauses(secondId)
+         first.config().isAutoRead = true
+         ech.runPendingTasks()
+         assertFalse(ech.config().isAutoRead)
+@@ -195,11 +212,13 @@ abstract class MuxHandlerAbstractTest {
+     @Test
+     fun closingOneOfTwoPausedChildrenKeepsParentPaused() {
+         val firstId = openStreamRemote()
+-        openStreamRemote()
++        val secondId = openStreamRemote()
+         val first = childHandlers[0].ctx.channel()
+         val second = childHandlers[1].ctx.channel()
+         first.config().isAutoRead = false
++        queueFramesUntilParentPauses(firstId)
+         second.config().isAutoRead = false
++        queueFramesUntilParentPauses(secondId)
+ 
+         resetStream(firstId)
+         assertFalse(ech.config().isAutoRead)
+@@ -229,6 +248,7 @@ abstract class MuxHandlerAbstractTest {
+             writes.forEach { it.get(5, TimeUnit.SECONDS) }
+             config.isAutoRead = false
+             ech.runPendingTasks()
++            val queued = queueFramesUntilParentPauses(streamId)
+             assertFalse(ech.config().isAutoRead)
+             writeStream(streamId, "22")
+             assertTrue(childHandlers.single().inboundMessages.isEmpty())
+@@ -236,7 +256,7 @@ abstract class MuxHandlerAbstractTest {
+             config.isAutoRead = true
+             ech.runPendingTasks()
+             assertTrue(ech.config().isAutoRead)
+-            assertEquals(listOf("22"), childHandlers.single().inboundMessages)
++            assertEquals(queued + "22", childHandlers.single().inboundMessages)
+         } finally {
+             workers.shutdownNow()
+         }
+@@ -340,9 +360,9 @@ abstract class MuxHandlerAbstractTest {
+         val child = handler.ctx.channel()
+         val config = child.config()
+         child.config().isAutoRead = false
+-        writeStream(streamId, "22")
+-        writeStream(streamId, "44")
+-        writeStream(streamId, "66")
++        // Enough frames stay queued after the first delivery for the second pause to stop the parent.
++        val payload = listOf("22", "44", "66") + framesThatPauseParent(0x2000)
++        payload.forEach { writeStream(streamId, it) }
+         handler.onRead = {
+             assertSame(config, child.config())
+             if (handler.inboundMessages.size == 1) child.config().isAutoRead = false
+@@ -355,7 +375,7 @@ abstract class MuxHandlerAbstractTest {
+ 
+         child.config().isAutoRead = true
+         ech.runPendingTasks()
+-        assertEquals(listOf("22", "44", "66"), handler.inboundMessages)
++        assertEquals(payload, handler.inboundMessages)
+     }
+ 
+     @Test
+diff --git a/libp2p/src/test/kotlin/io/libp2p/mux/yamux/YamuxHandlerTest.kt b/libp2p/src/test/kotlin/io/libp2p/mux/yamux/YamuxHandlerTest.kt
+index aae88f58..f7e55e2f 100644
+--- a/libp2p/src/test/kotlin/io/libp2p/mux/yamux/YamuxHandlerTest.kt
++++ b/libp2p/src/test/kotlin/io/libp2p/mux/yamux/YamuxHandlerTest.kt
+@@ -25,6 +25,7 @@ import org.junit.jupiter.params.provider.ValueSource
+ class YamuxHandlerTest : MuxHandlerAbstractTest() {
+ 
+     override val maxFrameDataLength = 256
++    override val pausedChildFramesBeforeParentPause = PAUSED_STREAM_FRAMES_BEFORE_CONNECTION_PAUSE
+     private val maxBufferedConnectionWrites = 512
+     private val ackBacklogLimit = 42
+     private val initialWindowSize = 300

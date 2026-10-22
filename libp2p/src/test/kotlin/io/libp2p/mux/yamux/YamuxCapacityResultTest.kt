@@ -186,6 +186,7 @@ class YamuxCapacityResultTest {
             assertThat(bytes.refCnt()).isZero()
         }
     }
+
     @Test
     fun testMuxCapacityUsesSameTypedResult() {
         CapacityPair(muxLimit = 1, applicationCapacity = false).use { pair ->
@@ -371,6 +372,75 @@ class YamuxCapacityResultTest {
             } finally {
                 frames.forEach { it.release() }
             }
+        }
+    }
+    @Test
+    fun testCancelledStreamFutureKeepsPendingControllerCause() {
+        CapacityPair().use { pair ->
+            val opening = pair.clientSession.createStream(listOf(pair.protocol))
+            assertThat(opening.stream.cancel(false)).isTrue()
+            pair.client.runPendingTasks()
+            val frames = generateSequence { pair.client.readOutbound<ByteBuf>() }.toList()
+            val id = try {
+                frames.first().getUnsignedInt(4)
+            } finally {
+                frames.forEach { it.release() }
+            }
+            val bytes = capacityBytes(id, byteArrayOf(1))
+            pair.client.writeInbound(bytes)
+            assertThat(opening.stream.isCancelled).isTrue()
+            assertThat(capacityResult(opening.controller)).isInstanceOf(StreamCapacityException::class.java)
+            assertThat(pair.client.isOpen).isTrue()
+            assertThat(bytes.refCnt()).isZero()
+        }
+    }
+
+    @Test
+    fun testCompletedSetupKeepsItsResultAfterMarkedReset() {
+        CapacityPair().use { pair ->
+            val opening = pair.open()
+            pair.exchange()
+            val stream = opening.controller.get(5, TimeUnit.SECONDS) as StreamOverNetty
+            val bytes = capacityBytes((stream.nettyChannel.id() as YamuxId).id, byteArrayOf(1))
+            pair.client.writeInbound(bytes)
+            assertThat(opening.controller.get(5, TimeUnit.SECONDS)).isSameAs(stream)
+            assertThat(stream.getProtocol().get(5, TimeUnit.SECONDS)).isEqualTo("/capacity-test/1.0.0")
+            assertThat(pair.client.isOpen).isTrue()
+            assertThat(bytes.refCnt()).isZero()
+        }
+    }
+
+    @Test
+    fun testBindingRequiresItsSelectedProtocol() {
+        val channel = TestChannel("capacity-selection-check", true)
+        try {
+            val binding = YamuxCapacityStreamMuxer(
+                StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) }, MultistreamProtocolDebugV1()
+            )
+            val cause = org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
+                binding.initChannel(channel.attr(CONNECTION).get(), "/yamux/1.0.0")
+            }
+            assertThat(cause).hasMessage(
+                "Capacity Yamux requires selected protocol /urlprotocol/yamux-capacity/1.0.0, but received /yamux/1.0.0"
+            )
+        } finally {
+            channel.finishAndReleaseAll()
+        }
+    }
+
+    @Test
+    fun testBindingReportsNegativeLimit() {
+        val channel = TestChannel("capacity-limit-check", true)
+        try {
+            val binding = YamuxCapacityStreamMuxer(
+                StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) }, MultistreamProtocolDebugV1(), maxInboundStreams = -1
+            )
+            val cause = org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
+                binding.initChannel(channel.attr(CONNECTION).get(), "/urlprotocol/yamux-capacity/1.0.0")
+            }
+            assertThat(cause).hasMessage("Maximum inbound streams must be nonnegative, but received -1")
+        } finally {
+            channel.finishAndReleaseAll()
         }
     }
 

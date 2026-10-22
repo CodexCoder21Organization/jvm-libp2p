@@ -15,8 +15,13 @@ internal class YamuxCapacityHandler(
     ackBacklogLimit: Int,
     private val inboundLimit: Int
 ) : YamuxHandler(
-    multistreamProtocol, maxFrameDataLength, ready, inboundStreamHandler,
-    connectionInitiator, maxBufferedConnectionWrites, ackBacklogLimit
+    multistreamProtocol,
+    maxFrameDataLength,
+    ready,
+    inboundStreamHandler,
+    connectionInitiator,
+    maxBufferedConnectionWrites,
+    ackBacklogLimit
 ) {
     override val capacityResetSupported: Boolean = true
 

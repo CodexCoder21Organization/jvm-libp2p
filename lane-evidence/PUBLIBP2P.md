@@ -9,7 +9,7 @@ Publish jvm-libp2p built from exactly e15e0f1947842be7ef6836c116c14ba47cc8eea1, 
 - [done] Locate fork publishing history, current consumer coordinate, and required documentation.
 - [done] Confirm an unused version and build the exact requested source commit locally.
 - [done] Publish with the Maven publishing CLI; download JAR and POM, compare SHA-256, and inspect merged bytecode.
-- [in progress] Push final evidence, report coordinate and consumer edit, and confirm all started background work has ended.
+- [done] Push final evidence, report coordinate and consumer edit, and confirm all started background work has ended.
 
 ## Observations
 - OBSERVED 09:43 UTC: Read github-repos and publish-maven-artifact skills. Explicit lane publishing authorization covers the skill confirmation step. Pre-built Gradle artifacts can be uploaded with --artifact-dir and HTTP API.
@@ -63,3 +63,13 @@ MavenPrebuilt2("community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-3
 
 - JAR: https://kotlin.directory/community/kotlin/libp2p/jvm-libp2p/1.3.0-codexcoder21-snapshot-38/jvm-libp2p-1.3.0-codexcoder21-snapshot-38.jar
 - POM: https://kotlin.directory/community/kotlin/libp2p/jvm-libp2p/1.3.0-codexcoder21-snapshot-38/jvm-libp2p-1.3.0-codexcoder21-snapshot-38.pom
+
+- OBSERVED 10:21 UTC: Publication and bytecode evidence pushed at https://github.com/CodexCoder21Organization/jvm-libp2p/commit/ab706050 . Captured ps -eo pid,args -ww and checked exact lane command arguments plus the owned daemon PID: no lane background processes remain. The build launcher, publisher, verifier, and both cancelled/expired lock waits all returned terminal statuses.
+
+## Brief completion audit
+
+1. DONE: Fork publication history, README/FORK.md, Gradle publication configuration, kotlin.directory version listing, and current UrlProtocol coordinate checked. Snapshot-38 was unused at both initial and immediate pre-upload checks.
+2. DONE: Fresh exact-commit build succeeded; only the generated ordinary JAR and POM were published through publisher 0.0.6. Downloaded files match local SHA-256; downloaded bytecode contains the merged Yamux behavior.
+3. DONE: Exact coordinate, both SHA-256 values, direct artifact URLs, and the one-line UrlProtocol change are recorded above. Consumer repositories were not modified. Evidence is confined to wip/publibp2p-20261022-e15e0f19 in jvm-libp2p. No remaining work or background process.
+
+Status: DONE. No test suite was run in this publishing-only lane; build and archive/POM/bytecode verification all passed.

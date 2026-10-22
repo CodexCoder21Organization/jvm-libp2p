@@ -31,3 +31,54 @@ open class MplexHandler(
 
     override fun channelRead(ctx: ChannelHandlerContext, msg: Any) {
         msg as MplexFrame
+        if (msg.flag.type == MplexFlag.Type.DATA) {
+            childRead(msg.id, msg.data)
+        } else {
+            try {
+                when (msg.flag.type) {
+                    MplexFlag.Type.OPEN -> onRemoteOpen(msg.id)
+                    MplexFlag.Type.CLOSE -> onRemoteDisconnect(msg.id)
+                    MplexFlag.Type.RESET -> onRemoteClose(msg.id)
+                    MplexFlag.Type.DATA -> error("DATA handled above")
+                }
+            } finally {
+                ReferenceCountUtil.release(msg.data)
+            }
+        }
+    }
+
+    override fun onChildWrite(child: MuxChannel<ByteBuf>, data: ByteBuf): ChannelFuture {
+        val ctx = getChannelHandlerContext()
+        val aggregate = ctx.newPromise()
+        val combiner = PromiseCombiner(ctx.executor())
+        data.sliceMaxSize(maxFrameDataLength)
+            .map { frameSliceBuf ->
+                MplexFrame.createDataFrame(child.id, frameSliceBuf)
+            }.forEach { muxFrame ->
+                combiner.add(ctx.write(muxFrame))
+            }
+        combiner.finish(aggregate)
+        ctx.flush()
+        return aggregate
+    }
+
+    override fun onLocalOpen(child: MuxChannel<ByteBuf>) {
+        getChannelHandlerContext().writeAndFlush(MplexFrame.createOpenFrame(child.id))
+    }
+
+    override fun onLocalDisconnect(child: MuxChannel<ByteBuf>) {
+        getChannelHandlerContext().writeAndFlush(MplexFrame.createCloseFrame(child.id))
+    }
+
+    override fun onLocalClose(child: MuxChannel<ByteBuf>) {
+        getChannelHandlerContext().writeAndFlush(MplexFrame.createResetFrame(child.id))
+    }
+
+    override fun onChildClosed(child: MuxChannel<ByteBuf>) {}
+
+    override fun resetRemoteSubstream(id: MuxId) {
+        // Tell the peer to abandon the inbound substream we refused (over the inbound cap) without
+        // ever building its MuxChannel/Negotiator scaffolding. Mirrors onLocalClose's reset frame.
+        getChannelHandlerContext().writeAndFlush(MplexFrame.createResetFrame(id))
+    }
+}

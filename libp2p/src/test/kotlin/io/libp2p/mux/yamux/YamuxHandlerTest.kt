@@ -341,7 +341,7 @@ class YamuxHandlerTest : MuxHandlerAbstractTest() {
 
     @Test
     fun pausedChildAcceptsManySmallFramesWithinItsWindow() {
-        // Exercise window accounting independently of the default frame admission limit.
+        // Exercise window accounting independently of merging at the default 64-payload bound.
         pendingReadFrameLimit = 128
         val streamId = openStreamRemote()
         readYamuxFrameOrThrow()

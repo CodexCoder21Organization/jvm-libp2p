@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Test
 class PausedYamuxBackingStorageTest {
     @Test
     fun pausedPayloadDoesNotRetainDeliveredSiblingStorage() {
-        // Isolate backing-storage ownership from the default 64-frame admission limit.
+        // Isolate backing-storage ownership from merging at the default 64-payload bound.
         val fixture = YamuxHandlerTest().apply { pendingReadFrameLimit = 128 }
         val backingBuffers = mutableListOf<ByteBuf>()
         var queuedStorageBytes = 0

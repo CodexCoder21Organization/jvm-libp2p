@@ -1,6 +1,7 @@
 package io.libp2p.mux.yamux
 
 import io.libp2p.core.ConnectionClosedException
+import io.libp2p.core.Libp2pException
 import io.libp2p.core.Stream
 import io.libp2p.core.StreamHandler
 import io.libp2p.core.multistream.MultistreamProtocolV1
@@ -46,8 +47,8 @@ class YamuxPausedQueueBoundsTest {
     }
 
     @Test
-    fun sixtyFifthPausedFrameResetsStreamAndReleasesEveryRetainedCopy() {
-        QueueBoundsFixture().use { fixture ->
+    fun sixtyFifthPausedFrameResetsStreamAndReleasesEveryRetainedCopyWhenMergeIsDeclined() {
+        QueueBoundsFixture(mergeAtFrameBound = false).use { fixture ->
             val child = fixture.openRemoteChild()
             child.channel.config().isAutoRead = false
             repeat(65) { fixture.sendData(child, byteArrayOf(it.toByte())) }
@@ -84,14 +85,72 @@ class YamuxPausedQueueBoundsTest {
     }
 
     @Test
-    fun coalescedOverflowStillDeliversSiblingFrameAndKeepsParentReading() {
+    fun sixtyFifthPausedFrameMergesIntoTheNewestCopyAndKeepsTheStreamOpen() {
+        QueueBoundsFixture().use { fixture ->
+            val child = fixture.openRemoteChild()
+            child.channel.config().isAutoRead = false
+            repeat(65) { fixture.sendData(child, byteArrayOf(it.toByte())) }
+
+            assertThat(child.channel.isOpen).isTrue()
+            assertThat(child.exceptions).isEmpty()
+            assertThat(child.received).isEmpty()
+            assertThat(fixture.retainedCopies).hasSize(pausedQueueTestFrameLimit)
+            val retained = fixture.activeRetainedCopies()
+            assertThat(retained).hasSize(pausedQueueTestFrameLimit)
+            assertThat(retained.sumOf { it.readableBytes() }).isEqualTo(65)
+            assertThat(retained.last().readableBytes()).isEqualTo(2)
+            assertThat(retained.sumOf { it.capacity().toLong() }).isLessThanOrEqualTo(pausedQueueTestWindowSize.toLong())
+            assertThat(fixture.outboundFrames.none { it.flags.contains(YamuxFlag.RST) }).isTrue()
+            assertThat(fixture.parent.config().isAutoRead).isTrue()
+
+            child.channel.config().isAutoRead = true
+            fixture.parent.runPendingTasks()
+
+            assertThat(child.received.flatMap { it.toList() }).containsExactlyElementsOf((0 until 65).map { it.toByte() })
+            assertThat(child.received).hasSize(pausedQueueTestFrameLimit)
+            assertThat(child.receivedCapacities.last()).isEqualTo(2)
+            assertThat(child.channel.isOpen).isTrue()
+            assertThat(fixture.retainedCopies).allMatch { it.refCnt() == 0 }
+            assertInputBuffersReleased(fixture)
+        }
+    }
+
+    @Test
+    fun byteBeyondTheReceiveWindowIsStillRejectedAfterMerging() {
+        QueueBoundsFixture().use { fixture ->
+            val child = fixture.openRemoteChild()
+            child.channel.config().isAutoRead = false
+            repeat(pausedQueueTestWindowSize) { fixture.sendData(child, byteArrayOf(it.toByte())) }
+
+            assertThat(child.channel.isOpen).isTrue()
+            val retained = fixture.activeRetainedCopies()
+            assertThat(retained).hasSize(pausedQueueTestFrameLimit)
+            assertThat(retained.sumOf { it.readableBytes() }).isEqualTo(pausedQueueTestWindowSize)
+            assertThat(retained.sumOf { it.capacity().toLong() }).isLessThanOrEqualTo(pausedQueueTestWindowSize.toLong())
+
+            fixture.sendData(child, byteArrayOf(0x7f))
+            assertThat(fixture.muxExceptions).hasSize(1)
+            assertThat(fixture.muxExceptions.single()).isInstanceOf(Libp2pException::class.java).hasMessage(
+                "Yamux stream ${child.channel.id()} received 1 bytes beyond its $pausedQueueTestWindowSize-byte receive window"
+            )
+            fixture.parent.runPendingTasks()
+            assertThat(fixture.parent.isOpen).isFalse()
+            assertThat(child.channel.isOpen).isFalse()
+            assertThat(child.received).isEmpty()
+            assertThat(fixture.retainedCopies).allMatch { it.refCnt() == 0 }
+            assertInputBuffersReleased(fixture)
+        }
+    }
+
+    @Test
+    fun coalescedSmallFramesBeyondTheFrameBoundStillDeliverSiblingFrameAndKeepParentReading() {
         QueueBoundsFixture().use { fixture ->
             val paused = fixture.openRemoteChild()
             val sibling = fixture.openRemoteChild()
             paused.channel.config().isAutoRead = false
             fixture.drainOutbound()
 
-            val coalescedFrames = 256 // Fits the byte window but far exceeds the frame limit.
+            val coalescedFrames = 256 // Fits the byte window but far exceeds the 64-payload bound.
             val wireBytes = (coalescedFrames + 1) * (12 + 1)
             val coalesced = Unpooled.buffer(wireBytes, wireBytes)
             repeat(coalescedFrames) { index ->
@@ -101,12 +160,22 @@ class YamuxPausedQueueBoundsTest {
             fixture.writeWire(coalesced)
             fixture.parent.runPendingTasks()
 
-            assertThat(paused.channel.isOpen).isFalse()
+            assertThat(paused.channel.isOpen).isTrue()
+            assertThat(paused.exceptions).isEmpty()
             assertThat(sibling.channel.isOpen).isTrue()
             assertThat(sibling.received.map { it.single() }).containsExactly(0x55.toByte())
             assertThat(paused.received).isEmpty()
             assertThat(fixture.parent.config().isAutoRead).isTrue()
             assertThat(fixture.retainedCopies).hasSize(pausedQueueTestFrameLimit)
+            assertThat(fixture.activeRetainedCopies().sumOf { it.capacity().toLong() })
+                .isLessThanOrEqualTo(pausedQueueTestWindowSize.toLong())
+
+            paused.channel.config().isAutoRead = true
+            fixture.parent.runPendingTasks()
+
+            assertThat(paused.received.flatMap { it.toList() })
+                .containsExactlyElementsOf((0 until coalescedFrames).map { it.toByte() })
+            assertThat(paused.channel.isOpen).isTrue()
             assertThat(fixture.retainedCopies).allMatch { it.refCnt() == 0 }
         }
     }
@@ -254,7 +323,7 @@ class YamuxPausedQueueBoundsTest {
 
     @Test
     fun overflowReleasesQueuedReadsBeforePendingReplyFailureCallbackResumesChild() {
-        QueueBoundsFixture().use { fixture ->
+        QueueBoundsFixture(mergeAtFrameBound = false).use { fixture ->
             val child = fixture.openRemoteChild()
             child.channel.config().isAutoRead = false
             repeat(pausedQueueTestFrameLimit) { fixture.sendData(child, byteArrayOf(it.toByte())) }
@@ -357,6 +426,7 @@ private class QueueBoundsChild(val stream: Stream) : ChannelInboundHandlerAdapte
     lateinit var channel: Channel
         private set
     val received = mutableListOf<ByteArray>()
+    val receivedCapacities = mutableListOf<Int>()
     val exceptions = mutableListOf<Throwable>()
     val events = mutableListOf<Any>()
     var onRead: (() -> Unit)? = null
@@ -373,6 +443,7 @@ private class QueueBoundsChild(val stream: Stream) : ChannelInboundHandlerAdapte
 
     override fun channelRead(ctx: ChannelHandlerContext, msg: Any) {
         val data = msg as ByteBuf
+        receivedCapacities += data.capacity()
         try {
             val bytes = ByteArray(data.readableBytes())
             data.readBytes(bytes)
@@ -392,10 +463,15 @@ private class QueueBoundsChild(val stream: Stream) : ChannelInboundHandlerAdapte
     }
 }
 
-private class QueueBoundsFixture : AutoCloseable {
+/**
+ * [mergeAtFrameBound] = false declines every merge at the 64-payload bound, which drives the
+ * queue-overflow reset path that Yamux keeps as a guard behind its receive window.
+ */
+private class QueueBoundsFixture(private val mergeAtFrameBound: Boolean = true) : AutoCloseable {
     val retainedCopies = mutableListOf<ByteBuf>()
     val releasedMessages = mutableListOf<ByteBuf>()
     val inputBuffers = mutableListOf<ByteBuf>()
+    val muxExceptions = mutableListOf<Throwable>()
     private val outboundCapture = OutboundFrameCapture()
     val children = mutableListOf<QueueBoundsChild>()
     private var nextRemoteStreamId = 2L
@@ -423,9 +499,19 @@ private class QueueBoundsFixture : AutoCloseable {
             return copy
         }
 
+        override fun coalescePendingChildRead(tail: ByteBuf, data: ByteBuf): Boolean =
+            mergeAtFrameBound && super.coalescePendingChildRead(tail, data)
+
         override fun releaseMessage(msg: ByteBuf) {
             releasedMessages += msg
             super.releaseMessage(msg)
+        }
+
+        @Deprecated("Deprecated in Java")
+        @Suppress("DEPRECATION")
+        override fun exceptionCaught(ctx: ChannelHandlerContext, cause: Throwable) {
+            muxExceptions += cause
+            super.exceptionCaught(ctx, cause)
         }
     }
 

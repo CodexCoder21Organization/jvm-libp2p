@@ -103,3 +103,9 @@ Invariant table (renders the ownership rules recorded before the transport edit)
 2026-10-22 03:42:12 UTC OBSERVED: startup-reversal first attempt: 1 cases, 0 passed / 1 failed / 0 skipped, exit 1. Full traces in out/startup-reversal-failure-traces.txt.
 
 2026-10-22 03:42:12 UTC OBSERVED: startup reversal failed on the intended plugin-discovery assertion; exact logging fix restored.
+
+2026-10-22 03:42:14 UTC OBSERVED: checkpoint 4023ab7f67c626ef093a053fa0a043ab060ff909
+
+2026-10-22 03:42:15 UTC OBSERVED: starting qualification-class-first
+
+2026-10-22 03:45:39 UTC OBSERVED: qualification-class-first first attempt: 16 cases, 15 passed / 1 failed / 0 skipped, exit 1. Full traces in out/qualification-class-first-failure-traces.txt.

@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.concurrent.*;
 import org.junit.jupiter.api.Test;
 
-public class GossipApiConcurrentProbe {
+public class GossipApiConcurrentTest {
   @Test
   public void concurrentFastMessageIdCallers() throws Exception {
     ExecutorService callers = Executors.newFixedThreadPool(64);

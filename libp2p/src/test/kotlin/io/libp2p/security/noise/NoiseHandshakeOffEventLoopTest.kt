@@ -1,5 +1,14 @@
 package io.libp2p.security.noise
 
+import io.libp2p.core.PeerId
+import io.libp2p.core.crypto.generateKeyPair
+import io.libp2p.etc.CONNECTION
+import io.libp2p.multistream.MultistreamProtocolDebugV1
+import io.libp2p.tools.TestChannel
+import io.netty.buffer.Unpooled
+import io.netty.channel.embedded.EmbeddedChannel
+import org.junit.jupiter.api.RepeatedTest
+import java.nio.channels.ClosedChannelException
 import io.libp2p.core.ConnectionClosedException
 import io.libp2p.core.Host
 import io.libp2p.core.P2PChannel

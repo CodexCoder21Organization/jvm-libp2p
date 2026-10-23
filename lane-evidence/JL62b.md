@@ -4,7 +4,7 @@ Plan:
 - [done] Fresh clone, read repository and linked guidance, verify open draft/head, rebase on develop.
 - [done] Run first actual full root Gradle suite once under shared lock; allow at least three execution hours, record memory and fresh results.
 - [done] Compare every failing test alone on develop and PR; diagnose/fix any new failures with fail-first evidence.
-- [pending] Update draft PR counts/classification via REST PATCH/readback; preserve evidence and stop owned processes.
+- [done] Update draft PR counts/classification via REST PATCH/readback; preserve evidence and stop owned processes.
 
 2026-10-23 05:19 UTC OBSERVED: PR https://github.com/CodexCoder21Organization/jvm-libp2p/pull/70 is OPEN/draft at 091b6d17280045ec2a1260ec890d1a06991bb6ac, base develop. Previous notes/handoff read: full command ./gradlew --no-daemon cleanTest test --continue; previous acquisitions ran zero full-suite tests. Current lane overrides obsolete 45m execution cap and Kotlin-only gate: never kill executing suite; local full suite is authoritative, Actions jobs are required. Shared cgroup memory 9,496,256,512 / 10,737,418,240 bytes. Seven-hour lane starts approximately 05:17 UTC; no code changes or delegates. github-repos search and status-report skills applied; no scheduler tool exposed, cadence maintained in tracked observations.
 
@@ -125,3 +125,18 @@ Evidence: https://github.com/CodexCoder21Organization/jvm-libp2p/tree/wip/JL62b-
 CI OBSERVED: both Kotlin checks succeeded with the explicit summary "no build.kts found in repository". Both Actions suites are completed/startup_failure with zero check runs; the latest Actions run has jobs.total_count=0. This is an infrastructure startup failure before any code/test verdict. No receiver change or CI rerun was performed. The PR must remain draft under the current brief.
 
 The earlier report upload failure recovered: subsequent 06:49 and 07:11 uploads succeeded. Its derived challenge record remains on the WIP branch; the report-challenge auto-merge CLI was not run because the lane forbids enqueue/merge.
+
+2026-10-23T07:27:07.736120+00:00 OBSERVED: draft PR description updated with required REST PATCH and exact GET readback. It opens with the owner request, contains all 17 classification rows, root counts and matching control details, reports Actions startup_failure/zero jobs and informational no-build.kts Kotlin checks, and preserves the required footer. PR remains OPEN/draft/unmerged at the tested head. No source commit was added.
+
+
+## Brief completion audit
+
+| Requested item | State | Evidence |
+|---|---|---|
+| Fresh clone at the supplied head; rebase on develop; focused rerun if base moved | DONE | Fresh repo/develop clones under workspace/JL62b. Rebase unchanged before the suite and before the PR update; base did not move, so the conditional focused rerun was unnecessary. All 81 focused cases also passed inside the full suite. |
+| One full suite under the shared lock, with a sufficient execution allowance and memory records | DONE | Acquired 06:49:15 UTC after 88m 58s waiting. Full Gradle root command completed 06:54:45 UTC, reported 5m 28s, exit 1 for 17 test failures. The four-hour execution allowance began after acquisition. No suite was killed or retried. Counts and memory summaries are pushed. |
+| Run each failure alone on develop and PR, classify, and fix any new failure | DONE | 34 standalone executions plus 16 real occupied-port controls, all exactly one test each. Twelve cases fail alone on both; five pass alone on both and reproduce the full-run BindException on both when the port is occupied. All eight full-run binding victims reproduce exactly under that condition. No PR-specific failure was found, so the conditional implementation fix was not needed. Classification is in JL62b-classification.md/JSON. |
+| Update the description with counts/table and leave the PR draft | DONE | Required REST PATCH followed by exact GET readback at 07:27:07 UTC. All 17 table rows and the required footer verified; PR OPEN/draft/unmerged at the tested head. JL62b-pr-verification.json records it. |
+| Preserve findings/evidence; clean owned processes | DONE | WIP checkpoints pushed at the first commit and every result milestone. Process audit used ps -eo pid,args -ww; no owned background process or Kotlin compiler daemon remained. Source clones are clean, all stashes empty, no local-only commits. Only reviewed summaries and helper source are committed under lane-evidence. |
+
+The requested verification is complete. The required Actions workflow still has startup_failure with zero jobs; this is reported, not presented as green. The draft was not made ready, merged or enqueued. No artifact publication, deployment, service restart, buildtest deletion or rerequest occurred.

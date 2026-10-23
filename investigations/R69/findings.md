@@ -2,15 +2,15 @@ Lane R69 review
 Started 2026-10-23T01:42:48.613378+00:00
 
 Plan
-- In progress: verify fresh checkout, exact head, scope, and required reading.
-- Pending: review assertions, fixture behavior, timer ordering, and resource cleanup.
-- Pending: run at least 30 independent class runs on base and head, then reversal.
-- Pending: compare at least five named other-suite cases on base.
-- Pending: checkpoint evidence and deliver verdict.
+- Completed: verify fresh checkout, exact head, scope, and required reading.
+- Completed: review assertions, fixture behavior, timer ordering, and resource cleanup.
+- Completed: run at least 30 independent class runs on base and head, then reversal.
+- Completed: compare at least five named other-suite cases on base.
+- Completed: checkpoint evidence and deliver verdict.
 
 Limits: review only; no PR branch updates, merge, publication, or deployment. Evidence will use a separate wip/R69-review-evidence branch.
 
-OBSERVED 2026-10-23T01:45:24.489601+00:00: fresh clone head is the requested 812a22c71175817223c80fe69f8c8ba446bbae44; recorded base is e15e0f1947842be7ef6836c116c14ba47cc8eea1 on develop. Only libp2p/src/test/kotlin/io/libp2p/security/noise/NoiseHandshakeOffEventLoopTest.kt changed: 98 additions and one removal. The only removed statement reports the omitted write successful. All nine original test methods, their assertions, bounds, and counts remain byte-for-byte in order. Two new methods each repeat ten times.
+OBSERVED 2026-10-23T01:45:24.489601+00:00: fresh clone head is the requested https://github.com/CodexCoder21Organization/jvm-libp2p/commit/812a22c71175817223c80fe69f8c8ba446bbae44; recorded base is https://github.com/CodexCoder21Organization/jvm-libp2p/commit/e15e0f1947842be7ef6836c116c14ba47cc8eea1 on develop. Only libp2p/src/test/kotlin/io/libp2p/security/noise/NoiseHandshakeOffEventLoopTest.kt changed: 98 additions and one removal. The only removed statement reports the omitted write successful. All nine original test methods, their assertions, bounds, and counts remain byte-for-byte in order. Two new methods each repeat ten times.
 Reading: repository README (275 lines); complete TESTING.md (1052 lines), including required TDD and machine-independent sections; PHILOSOPHY.md (93 lines); prior FNOISE findings and final, treated as claims to verify. No repository AGENTS.md. Repository-native Gradle applies; generic kompile commands do not. No origin/main exists; pinned review revisions are retained.
 The mechanism is successful completion of an omitted response write starting a responder read timer that can close the connection before the initiator read timer; the evidence that demonstrates it is the production write-completion path plus the ordered-clock regression to be independently checked on both fixture versions. This is the current hypothesis, not yet a reproduced result.
 
@@ -44,3 +44,37 @@ OBSERVED 2026-10-23T01:58:52.619557+00:00: another head red case is the unchange
 OBSERVED 2026-10-23T02:05:30.669692+00:00: checkpoint counts: head 27 complete class runs / 783 cases / 2 red; base 16 class runs / 144 cases / 0 red. All new cases and head silent-response cases remain green. No skips or retry entries; source scan finds no automatic retry configuration. Eight original red-group XML files downloaded for comparison match their recorded SHA-256 values.
 
 OBSERVED 2026-10-23T02:08:30.139016+00:00: head batch is complete at exactly 30 full-class runs. Totals: 870 first-attempt cases, 868 pass / 2 red, zero errors/skips/retry entries. All 600 new regression cases and all 30 original silent-response TCP cases pass. The two red results are the unchanged queue-count and sequential inline-path checks described above. Head run 1 command exit 0; runs 2-30 command exit 1, retaining both red results without a rerun. Base is still running; no further head experiment will be started.
+
+FINAL REVIEW — APPROVE
+No P1/P2/P3 issue introduced by this diff was found. This is a review verdict for https://github.com/CodexCoder21Organization/jvm-libp2p/pull/69 at the pinned head, not a statement that the whole class or the live site is consistently green.
+
+OBSERVED final first-attempt results
+| Selection | Class runs | Cases | Pass | Red | Skipped / retry entries |
+| --- | --- | --- | --- | --- | --- |
+| Recorded base | 30 | 270 | 269 | 1 | 0 / 0 |
+| Requested head | 30 | 870 | 868 | 2 | 0 / 0 |
+| New head regressions, included above | 30 | 600 | 600 | 0 | 0 / 0 |
+| Original silent-response TCP case on base | 30 | 30 | 30 | 0 | 0 / 0 |
+| Original silent-response TCP case on head | 30 | 30 | 30 | 0 | 0 / 0 |
+| Old-completion reversal | 1 | 20 | 0 | 20 | 0 / 0 |
+| Named other-suite sample on base | 1 | 5 | 0 | 5 | 0 / 0 |
+Every class run is a separate Gradle Test task with a fresh worker JVM; failed tasks remain in the aggregate via --continue. No result was retried or replaced. One head task command returned 0; the remaining-head, base, reversal, and five-case sample commands returned 1 for their recorded red cases. Complete XML and traces are retained. The natural silent-response TCP case was green on both revisions in this 30-run sample; this review does not independently confirm the earlier reported natural frequency. The ordered-clock and promise reversal controls independently demonstrate the fixture condition on every attempt.
+
+Fixture model and test-completeness conclusion
+The mechanism is successful completion of an omitted response write starting a responder read timer that can finish setup before the initiator's own read timer; the evidence that demonstrates it is ten responder-first clock checks and ten pending-promise checks that are red with the old completion and green in all 600 head repetitions. NoiseXXSecureChannel.kt:371-375 arms the responder wait after successful write completion. The corrected adapter at NoiseHandshakeOffEventLoopTest.kt:408-412 releases the omitted bytes, keeps the write pending, and settles it at channel close. This models a peer whose response operation never completes. It preserves the initiator's real no-response condition rather than reporting bytes sent and advancing the other peer into another read phase.
+The nine original test methods are byte-identical, including names, exception assertions, bounds, and counts; the sole existing-statement edit is in the private adapter. No runtime source changed. The new tests are not vacuous: they require negotiated setup to reach the omitted frame, require pending setup through responder-only clock advance, and then require the initiator's expected read-time result and both channels closed. The write check requires immediate buffer release, pending completion before close, the exact closed-channel cause, one completion, callback re-entry, and repeated close. Both embedded tests finish/release in finally. Their manual transfers never create TestChannel's lazy executor. Existing TCP hosts still stop in finally. No new channel or event-loop resource leak was identified in either dedicated review pass.
+
+P2 observations in unchanged checks — no requested change to this diff
+- The queued-handshake count assertion at head NoiseHandshakeOffEventLoopTest.kt:662 is red in head run 03 (121 queued tasks versus 120 results) and base run 30 (120 versus 119). This directly reproduces a separate pre-existing class issue on base.
+- The sequential execution-mode assertion at head NoiseHandshakeOffEventLoopTest.kt:572 is red in head run 13 (39 inline and one offloaded versus 40 inline and zero offloaded). It was green in all 30 base runs. This method and its runtime path are byte-identical on both revisions, execute in a separate child JVM, and never enter the changed adapter; no causal connection to this diff is supported by the evidence.
+These observations mean the complete class is not consistently green. They do not show an introduced defect in the fixture correction. No assertion or limit was changed to accommodate them.
+
+Other-suite attribution
+The original retained suite has 20 red cases in eight XML groups; all eight downloaded XML files match the evidence manifest checksums. The five named cases listed above are independently red on base with matching exception and cause-type sequences. This satisfies the requested sample; the other 15 were not independently run here. No full-suite pass is claimed.
+
+Brief closeout
+1. DONE: fresh own clone, exact requested head, only the one test file in the PR diff; 30 first-attempt class runs on each revision; reversal 20/20 red; five named other-suite base checks red.
+2. DONE: separate test-completeness and correctness passes cover assertion strength, meaningful completion, buffer ownership, close callbacks, channel cleanup, event-loop ownership, and clock assumptions. No test-source change was proposed or pushed to the PR.
+3. DONE: APPROVE with the unchanged-check P2 observations above, all evidence saved remotely, both requested deliverable files written.
+No merge, queue request, publication, deployment, production change, PR comment/review submission, or whole-suite rerun. The review changed no shared contract. All tracked commands ended; the final process view found no owned Java process remaining. No recurring status job was started.
+Evidence: https://github.com/CodexCoder21Organization/jvm-libp2p/tree/wip/R69-review-evidence/investigations/R69

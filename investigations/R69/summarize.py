@@ -1,7 +1,7 @@
 from pathlib import Path
 import xml.etree.ElementTree as E
-import json,re
-p=Path(__file__).resolve().parent
+import json,re,sys
+p=Path(sys.argv[1]).resolve() if len(sys.argv)>1 else Path(__file__).resolve().parent
 out={}
 for label,folder in [('head','jvm-libp2p'),('base','base')]:
     runs=[]

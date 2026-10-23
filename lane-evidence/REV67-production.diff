@@ -1,0 +1,119 @@
+diff --git a/libp2p/src/main/kotlin/io/libp2p/core/Connection.kt b/libp2p/src/main/kotlin/io/libp2p/core/Connection.kt
+index 64eb52b6..88707e52 100644
+--- a/libp2p/src/main/kotlin/io/libp2p/core/Connection.kt
++++ b/libp2p/src/main/kotlin/io/libp2p/core/Connection.kt
+@@ -4,8 +4,24 @@ import io.libp2p.core.multiformats.Multiaddr
+ import io.libp2p.core.mux.StreamMuxer
+ import io.libp2p.core.security.SecureChannel
+ import io.libp2p.core.transport.Transport
++import java.util.concurrent.CompletableFuture
+ 
+ interface Connection : P2PChannel {
++    /**
++     * Explicitly requests another close attempt after a failed close has settled.
++     *
++     * For [io.libp2p.transport.implementation.ConnectionOverNetty], if close has not
++     * started, starts it. If the latest attempt is pending, observes
++     * that attempt without submitting another. After success, completes successfully
++     * without another close request. Each settled failure permits a later explicit retry.
++     * Its ordinary [close] calls retain their original result, including after a retry.
++     * Completing or cancelling the returned future must not change the owned attempt.
++     *
++     * The default delegates to [close] for implementations without retained close failures.
++     * Implementations that retain a failed close result must override this operation.
++     */
++    fun retryClose(): CompletableFuture<Unit> = close()
++
+     /**
+      * Returns the [io.libp2p.core.mux.StreamMuxer.Session] which is capable of creating
+      * new [Stream]s
+diff --git a/libp2p/src/main/kotlin/io/libp2p/transport/implementation/ConnectionOverNetty.kt b/libp2p/src/main/kotlin/io/libp2p/transport/implementation/ConnectionOverNetty.kt
+index f8e4122d..5c8b37c1 100644
+--- a/libp2p/src/main/kotlin/io/libp2p/transport/implementation/ConnectionOverNetty.kt
++++ b/libp2p/src/main/kotlin/io/libp2p/transport/implementation/ConnectionOverNetty.kt
+@@ -33,6 +33,8 @@ open class ConnectionOverNetty(
+ 
+     override fun close() = closeNettyChannelOnce(nettyChannel)
+ 
++    override fun retryClose() = retryNettyChannelClose(nettyChannel)
++
+     override fun muxerSession() = muxerSession
+     override fun secureSession() = secureSession
+     override fun transport() = nettyTransport
+diff --git a/libp2p/src/main/kotlin/io/libp2p/transport/implementation/NettyChannelClose.kt b/libp2p/src/main/kotlin/io/libp2p/transport/implementation/NettyChannelClose.kt
+index 7aa611ca..db2d8b22 100644
+--- a/libp2p/src/main/kotlin/io/libp2p/transport/implementation/NettyChannelClose.kt
++++ b/libp2p/src/main/kotlin/io/libp2p/transport/implementation/NettyChannelClose.kt
+@@ -4,27 +4,54 @@ import io.libp2p.etc.types.toVoidCompletableFuture
+ import io.netty.channel.Channel
+ import io.netty.util.AttributeKey
+ import java.util.concurrent.CompletableFuture
++import java.util.concurrent.atomic.AtomicReference
+ 
+-private val closeOperationKey = AttributeKey.valueOf<CompletableFuture<Unit>>("libp2p.channel.closeOperation")
++private class ChannelCloseState {
++    val original = CompletableFuture<Unit>()
++    val latest = AtomicReference(original)
++}
++
++private val closeOperationKey = AttributeKey.valueOf<ChannelCloseState>("libp2p.channel.closeOperation")
++
++/** Ordinary owners always observe the original close, even after an explicit retry. */
++internal fun closeNettyChannelOnce(channel: Channel): CompletableFuture<Unit> =
++    closeOperation(channel, retry = false).thenApply { Unit }
++
++/** Only a settled failure permits a new physical attempt; pending callers share its owner. */
++internal fun retryNettyChannelClose(channel: Channel): CompletableFuture<Unit> =
++    closeOperation(channel, retry = true).thenApply { Unit }
++
++private fun closeOperation(channel: Channel, retry: Boolean): CompletableFuture<Unit> {
++    val candidateState = ChannelCloseState()
++    val state = channel.attr(closeOperationKey).setIfAbsent(candidateState) ?: candidateState
++    // Publish ownership before handlers or future callbacks can re-enter.
++    if (state === candidateState) {
++        requestPhysicalClose(channel, state.original)
++        return state.original
++    }
++    if (!retry) return state.original
++    while (true) {
++        val latest = state.latest.get()
++        if (!latest.isCompletedExceptionally) return latest
++        val candidate = CompletableFuture<Unit>()
++        if (state.latest.compareAndSet(latest, candidate)) {
++            requestPhysicalClose(channel, candidate)
++            return candidate
++        }
++    }
++}
+ 
+-/** Claims close before invoking handlers, which may re-enter through another owner. */
+-internal fun closeNettyChannelOnce(channel: Channel): CompletableFuture<Unit> {
+-    val candidate = CompletableFuture<Unit>()
+-    val operation = channel.attr(closeOperationKey).setIfAbsent(candidate) ?: candidate
+-    if (operation === candidate) {
+-        try {
+-            if (channel.closeFuture().isDone) {
+-                // An early close observer may run before other physical-close listeners finish.
+-                channel.closeFuture().addListener { operation.complete(Unit) }
+-            } else {
+-                channel.close().toVoidCompletableFuture().whenComplete { _, failure ->
+-                    if (failure == null) operation.complete(Unit) else operation.completeExceptionally(failure)
+-                }
++private fun requestPhysicalClose(channel: Channel, operation: CompletableFuture<Unit>) {
++    try {
++        if (channel.closeFuture().isDone) {
++            // An early close observer may run before other physical-close listeners finish.
++            channel.closeFuture().addListener { operation.complete(Unit) }
++        } else {
++            channel.close().toVoidCompletableFuture().whenComplete { _, failure ->
++                if (failure == null) operation.complete(Unit) else operation.completeExceptionally(failure)
+             }
+-        } catch (failure: Throwable) {
+-            operation.completeExceptionally(failure)
+         }
++    } catch (failure: Throwable) {
++        operation.completeExceptionally(failure)
+     }
+-    // Callers own only their observation; cancellation or completion cannot alter the owner.
+-    return operation.thenApply { Unit }
+ }

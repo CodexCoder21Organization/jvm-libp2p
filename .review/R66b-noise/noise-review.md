@@ -26,3 +26,6 @@ Observed: first-attempt counts were parsed from each XML case, including retry a
 Inference: these counts describe the selected test on the merge base only.
 
 Control selection at the base revision: one selected XML case, pass on its first recorded attempt, no skipped case, and no retry or rerun tags. The temporary test source was removed from the project tree after the run; its archived copy, command, status, and XML remain under `.review/R66b-noise/timer-order-control/`.
+
+
+Pinned-head comparison completed at d281e5251be93d12a8aa643cc87d7833b3bab205. The 20 selections produced 20 XML cases: 19 first-attempt passes, 1 first-attempt failure, 0 skipped, and 0 retry or rerun tags. Selection 18 XML records expected ReadTimeoutException, observed ConnectionClosedException, message 2 elapsed 5007 ms, and testcase duration 5.47 seconds. The four saved Noise source hashes match the base revision. Eight compiled class hashes and the saved javap output also match the base revision. The separate baseline control selection passed once and is recorded outside these totals.

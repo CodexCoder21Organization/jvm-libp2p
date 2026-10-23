@@ -6,7 +6,7 @@ def run(label,expected):
     subprocess.run(['git','fetch','origin'],cwd=repo,check=True)
     subprocess.run(['git','rebase','origin/develop'],cwd=repo,check=True)
     with (out/(label+'.log')).open('w') as log:
-        r=subprocess.run(['timeout','20m','./gradlew','--no-daemon',':libp2p:cleanTest',':libp2p:test',':libp2p:spotlessCheck',':libp2p:detekt',':libp2p:assemble'] + [arg for cls in classes for arg in ('--tests',cls)],cwd=repo,stdout=log,stderr=subprocess.STDOUT)
+        r=subprocess.run(['timeout','20m','./gradlew','--no-daemon',':libp2p:cleanTest',':libp2p:test'] + [arg for cls in classes for arg in ('--tests',cls)] + [':libp2p:spotlessCheck',':libp2p:detekt',':libp2p:assemble'],cwd=repo,stdout=log,stderr=subprocess.STDOUT)
     resultdir=out/(label+'-results')
     shutil.copytree(repo/'libp2p/build/test-results/test',resultdir,ignore=shutil.ignore_patterns('binary'),dirs_exist_ok=True)
     roots=[ET.parse(f).getroot() for f in resultdir.glob('TEST-*.xml')]

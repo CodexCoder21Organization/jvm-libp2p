@@ -37,3 +37,7 @@ Test review: both new scenarios use real Netty channels; the timer case also neg
 OBSERVED: corrected fixture first attempts: {"NoiseTimerRateTest": {"cases": 200, "red": 0, "skipped": 0, "retry_entries": 0}, "NoiseHandshakeOffEventLoopTest": {"cases": 20, "red": 0, "skipped": 0, "retry_entries": 0}}. All 220 passed. Against base 12/200 red, observing 200 consecutive passes has probability about 0.0000042 if that rate were unchanged.
 
 OBSERVED: reversal control restored only the old immediate write success; new regressions are 20/20 red again, no skips. The corrected source is restored for the neighbor run.
+
+Verification note: one neighbor command stopped at option parsing because the test selector followed a formatting task. It executed no tests and contributes no counts. The selector placement is corrected in the tracked neighbor invocation. Formatting made no source changes.
+
+OBSERVED: full Noise class 29/29 first-attempt passes, no skips; spotlessKotlinCheck passes. Both original silent-peer scenarios pass. No source formatting changes. Starting the one complete suite from the pushed correction head via the provided shared slot.

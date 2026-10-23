@@ -1,8 +1,19 @@
-# Noise timer comparison
+# Noise timer evidence
 
-Pinned PR: https://github.com/CodexCoder21Organization/jvm-libp2p/pull/66 at d281e5251be93d12a8aa643cc87d7833b3bab205.
-Base: e15e0f1947842be7ef6836c116c14ba47cc8eea1 (repository default branch develop).
-Noise source and original test are identical across these revisions.
-The matched experiment calls the existing message-2 wait test once per dynamic case, 200 cases, eight concurrent callers. Both revisions use the same init script and JVM environment.
-The original omitted-write fixture completes its promise successfully. Noise then arms the responder message-3 timer while the initiator awaits message 2. The responder-first ordering needs direct validation; no attribution conclusion yet.
-Required guidance: repository README, central TESTING.md TDD and machine-independent reproduction sections, central PHILOSOPHY.md, prior R66b findings.
+Issue: the silent-response test adapter reports omitted bytes sent, which starts a competing peer timer. Paused-clock controls demonstrate responder-first read expiry becoming an initiator connection-close result.
+
+Classification: pre-existing test fixture issue. The Noise source and original test are identical at base and pinned PR head; both reproduce the same result. New child-stream close causes are not present during the parent Noise handshake.
+
+- Base e15e0f1947842be7ef6836c116c14ba47cc8eea1: 188/200 first-attempt passes, 12 red.
+- PR head d281e5251be93d12a8aa643cc87d7833b3bab205: 192/200 first-attempt passes, 8 red.
+- Ordered responder-first control: 10/10 passes per revision.
+- Fixture regressions: 20/20 red on each original revision.
+- Corrected fixture: original TCP path 200/200 and new checks 20/20 pass.
+- Reversal: new checks 20/20 red again.
+- Full Noise class: 29/29 pass; formatting check passes.
+
+Correction branch: https://github.com/CodexCoder21Organization/jvm-libp2p/tree/wip/laneFNOISE-silent-response
+Suite head: https://github.com/CodexCoder21Organization/jvm-libp2p/commit/812a22c71175817223c80fe69f8c8ba446bbae44
+One complete suite is in progress through the shared slot.
+
+The source files on this evidence branch retain the original fixture for reproduction; green results refer to the separate correction branch above. Raw XML preserves case results, output, and full traces. Guidance read: project README, central TESTING.md TDD and machine-independent reproduction sections, central PHILOSOPHY.md, and the prior R66b findings.

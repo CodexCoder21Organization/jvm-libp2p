@@ -48,7 +48,6 @@ class PausedChildReadEofTest {
                     maximumDepth = maxOf(maximumDepth, depth)
                     try {
                         while (msg.isReadable) events.add("byte:${msg.readUnsignedByte()}")
-                        
                     } finally {
                         depth--
                     }
@@ -59,7 +58,6 @@ class PausedChildReadEofTest {
                     maximumDepth = maxOf(maximumDepth, depth)
                     try {
                         events.add("complete")
-                        
                     } finally {
                         depth--
                     }
@@ -83,21 +81,30 @@ class PausedChildReadEofTest {
             val data = Unpooled.wrappedBuffer(byteArrayOf(value.toByte()))
             inputs.add(data)
             parent.writeInbound(
-                if (muxer == "mplex") MplexFrame.createDataFrame(mplexId, data)
-                else YamuxFrame(yamuxId, YamuxType.DATA, YamuxFlag.NONE, 1, data)
+                if (muxer == "mplex") {
+                    MplexFrame.createDataFrame(mplexId, data)
+                } else {
+                    YamuxFrame(yamuxId, YamuxType.DATA, YamuxFlag.NONE, 1, data)
+                }
             )
         }
         try {
             parent.writeInbound(
-                if (muxer == "mplex") MplexFrame.createOpenFrame(mplexId)
-                else YamuxFrame(yamuxId, YamuxType.DATA, YamuxFlag.SYN.asSet, 0)
+                if (muxer == "mplex") {
+                    MplexFrame.createOpenFrame(mplexId)
+                } else {
+                    YamuxFrame(yamuxId, YamuxType.DATA, YamuxFlag.SYN.asSet, 0)
+                }
             )
             child.config().isAutoRead = false
             send(1)
             send(2)
             parent.writeInbound(
-                if (muxer == "mplex") MplexFrame.createCloseFrame(mplexId)
-                else YamuxFrame(yamuxId, YamuxType.DATA, YamuxFlag.FIN.asSet, 0)
+                if (muxer == "mplex") {
+                    MplexFrame.createCloseFrame(mplexId)
+                } else {
+                    YamuxFrame(yamuxId, YamuxType.DATA, YamuxFlag.FIN.asSet, 0)
+                }
             )
             assertTrue(events.isEmpty())
             child.read()

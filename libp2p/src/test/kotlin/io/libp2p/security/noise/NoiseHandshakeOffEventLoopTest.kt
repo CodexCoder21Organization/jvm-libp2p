@@ -8,6 +8,10 @@ import io.libp2p.core.crypto.KeyType
 import io.libp2p.core.crypto.generateKeyPair
 import io.libp2p.core.dsl.host
 import io.libp2p.core.multiformats.Protocol
+import io.libp2p.core.multistream.Multistream
+import io.libp2p.core.multistream.MultistreamProtocol
+import io.libp2p.core.multistream.MultistreamProtocolV1
+import io.libp2p.core.multistream.ProtocolBinding
 import io.libp2p.etc.CONNECTION
 import io.libp2p.multistream.MultistreamProtocolDebugV1
 import io.libp2p.protocol.Ping
@@ -260,32 +264,12 @@ class NoiseHandshakeOffEventLoopTest {
 
     @Test
     fun `concurrent handshakes preserve both peer identities and immediate mux negotiation`() {
-        val hosts = mutableListOf<Host>()
-        try {
-            val relay = newNoiseHost(listen = true).also { hosts += it }
-            val dialers = List(CONCURRENT_DIALERS) { newNoiseHost().also { host -> hosts += host } }
-            startNoiseHosts(hosts)
+        verifyConcurrentNoiseIdentities()
+    }
 
-            val relayAddress = relay.listenAddresses().single()
-            val outboundConnections = dialers.map {
-                it.network.connect(relay.peerId, relayAddress)
-            }
-            CompletableFuture.allOf(*outboundConnections.toTypedArray()).get(20, TimeUnit.SECONDS)
-
-            outboundConnections.forEachIndexed { index, connectionFuture ->
-                val session = connectionFuture.join().secureSession()
-                assertThat(session.localId).isEqualTo(dialers[index].peerId)
-                assertThat(session.remoteId).isEqualTo(relay.peerId)
-            }
-
-            assertThat(relay.network.connections).hasSize(CONCURRENT_DIALERS)
-            assertThat(relay.network.connections.map { it.secureSession().localId }.toSet())
-                .containsExactly(relay.peerId)
-            assertThat(relay.network.connections.map { it.secureSession().remoteId }.toSet())
-                .containsExactlyInAnyOrderElementsOf(dialers.map { it.peerId })
-        } finally {
-            stopNoiseHosts(hosts)
-        }
+    @Test
+    fun testConcurrentNoiseSetupWaitsForResponderPublication() {
+        verifyConcurrentNoiseIdentities(delayPublication = true)
     }
 
     @Test
@@ -805,6 +789,74 @@ private class NoiseHandshakeExecutionRecorder {
     }
 }
 
+private fun verifyConcurrentNoiseIdentities(delayPublication: Boolean = false) {
+    val hosts = mutableListOf<Host>()
+    val responderSetup = ResponderNoiseSetup(delayPublication)
+    try {
+        val relay = newNoiseHost(listen = true, responderSetup = responderSetup).also { hosts += it }
+        val dialers = List(CONCURRENT_DIALERS) { newNoiseHost().also { host -> hosts += host } }
+        startNoiseHosts(hosts)
+
+        val relayAddress = relay.listenAddresses().single()
+        val outboundConnections = dialers.map {
+            it.network.connect(relay.peerId, relayAddress)
+        }
+        CompletableFuture.allOf(*outboundConnections.toTypedArray()).get(20, TimeUnit.SECONDS)
+        responderSetup.awaitConnections()
+
+        outboundConnections.forEachIndexed { index, connectionFuture ->
+            val session = connectionFuture.join().secureSession()
+            assertThat(session.localId).isEqualTo(dialers[index].peerId)
+            assertThat(session.remoteId).isEqualTo(relay.peerId)
+        }
+
+        assertThat(relay.network.connections).hasSize(CONCURRENT_DIALERS)
+        assertThat(relay.network.connections.map { it.secureSession().localId }.toSet())
+            .containsExactly(relay.peerId)
+        assertThat(relay.network.connections.map { it.secureSession().remoteId }.toSet())
+            .containsExactlyInAnyOrderElementsOf(dialers.map { it.peerId })
+    } finally {
+        responderSetup.release()
+        stopNoiseHosts(hosts)
+    }
+}
+
+private class ResponderNoiseSetup(delayPublication: Boolean) {
+    private val registered = CountDownLatch(CONCURRENT_DIALERS)
+    private val publication = if (delayPublication) CompletableFuture<Unit>() else null
+
+    fun onConnection() {
+        registered.countDown()
+    }
+
+    fun protocol(): MultistreamProtocol = object : MultistreamProtocol {
+        override val version = MultistreamProtocolV1.version
+
+        override fun <T> createMultistream(bindings: List<ProtocolBinding<T>>): Multistream<T> {
+            val delegate = MultistreamProtocolV1.createMultistream(bindings)
+            return object : Multistream<T> {
+                override val bindings = delegate.bindings
+
+                override fun initChannel(ch: P2PChannel): CompletableFuture<T> =
+                    delegate.initChannel(ch).thenCompose { controller ->
+                        publication?.thenApplyAsync(
+                            { controller },
+                            (ch as ConnectionOverNetty).nettyChannel.eventLoop()
+                        ) ?: CompletableFuture.completedFuture(controller)
+                    }
+            }
+        }
+    }
+
+    fun awaitConnections() {
+        // The initial fixture check observes only initiator completion.
+    }
+
+    fun release() {
+        publication?.complete(Unit)
+    }
+}
+
 private class InlineNoiseSetup(private val queueCallbacks: Boolean = false) {
     private val activeContexts = ArrayBlockingQueue<ChannelHandlerContext>(2)
     private val loopDispatchers = ConcurrentHashMap<EventExecutor, EmptyQueueNoiseDispatcher>()
@@ -882,9 +934,20 @@ private class EmptyQueueNoiseDispatcher(private val executor: EventExecutor) {
     }
 }
 
+private const val CONCURRENT_DIALERS = 32
 private const val NOISE_TEST_HOST = "127.0.0.2"
 
-private fun newNoiseHost(listen: Boolean = false, inlineSetup: InlineNoiseSetup? = null): Host = host {
+private fun newNoiseHost(
+    listen: Boolean = false,
+    inlineSetup: InlineNoiseSetup? = null,
+    responderSetup: ResponderNoiseSetup? = null
+): Host = host {
+    if (responderSetup != null) {
+        muxerMultistreamProtocol = responderSetup.protocol()
+        connectionHandlers {
+            add { responderSetup.onConnection() }
+        }
+    }
     if (inlineSetup != null) {
         secureMultistreamProtocol = MultistreamProtocolDebugV1()
         debug {

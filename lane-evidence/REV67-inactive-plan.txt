@@ -1,0 +1,6 @@
+Additional review probe (no production fix):
+1. Add one temporary JUnit scenario using two real TCP/Noise/Yamux peers on port 0. Fail attempt 1; hold attempt 2 using a public Netty outbound handler.
+2. Close peer, then re-enter ordinary close/retry from channelInactive. All retry observers must still report the pending attempt 2; ordinary close must keep error 1.
+3. Fail held attempt 2 with error 2. Every retry observer must report exactly error 2 once. A later explicit retry must succeed on the physically closed channel with no attempt 3.
+4. Run on unchanged PR implementation. Then add an isolated mutation that shortcuts retry to success whenever channel.closeFuture is done. Existing 11 tests should still pass; the additional test must fail. This demonstrates a test gap, not an implementation defect in the PR.
+5. Preserve the scenario under lane-evidence only on wip/REV67-*; no push to PR branch or merge/publish.

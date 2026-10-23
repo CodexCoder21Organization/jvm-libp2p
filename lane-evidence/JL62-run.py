@@ -4,11 +4,12 @@ from datetime import datetime, timezone
 import xml.etree.ElementTree as ET
 root=Path('/tmp/claude-501/-code/2abf611d-5e04-4919-84a8-d7b72869d40c/scratchpad/workspace/JL62')
 out=root.parent.parent/'out'
+started_at=time.time()
 phase=sys.argv[1]
 name='JL62-'+phase
 cmd=['./gradlew','--no-daemon']
-if phase=='full':
-    cmd=['flock','-w','5400','/tmp/claude-501/complete-suite.lock','timeout','45m']+cmd+['cleanTest','test','--continue']
+if phase.startswith('full'):
+    cmd=['flock','-w',('600' if phase!='full' else '5400'),'/tmp/claude-501/complete-suite.lock','timeout','45m']+cmd+['cleanTest','test','--continue']
 else:
     cmd+=[':libp2p:cleanTest',':libp2p:test']
     selectors=['io.libp2p.mux.PausedChildResumeReadReentryTcpTest'] if phase=='reentry-red' else ['io.libp2p.mux.PausedChild*Test']
@@ -32,7 +33,9 @@ with (out/(name+'.log')).open('w') as log, (out/(name+'-memory.jsonl')).open('w'
     code=p.wait()
 results=out/(name+'-results');results.mkdir(exist_ok=True)
 summary={'phase':phase,'exit':code,'tests':0,'failures':0,'errors':0,'skipped':0,'failure_identities':[],'elapsed_seconds':round(time.monotonic()-start,2)}
-for xml in (root.glob('**/build/test-results/test/TEST-*.xml') if phase=='full' else (root/'libp2p/build/test-results/test').glob('TEST-*.xml')):
+for xml in (root.glob('**/build/test-results/test/TEST-*.xml') if phase.startswith('full') else (root/'libp2p/build/test-results/test').glob('TEST-*.xml')):
+    if xml.stat().st_mtime<started_at:
+        continue
     dest=results/str(xml.relative_to(root)).replace('/','__');shutil.copy2(xml,dest)
     suite=ET.parse(xml).getroot()
     for key in ['tests','failures','errors','skipped']:summary[key]+=int(suite.get(key,0))

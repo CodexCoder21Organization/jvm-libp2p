@@ -168,6 +168,25 @@ parent channel. Repeated calls wait for that operation and report its original f
 fails; they do not issue another close. Completing or cancelling one caller's returned future
 does not complete the operation or another caller's shutdown future.
 
+For `ConnectionOverNetty`, `retryClose()` explicitly requests a new physical close after
+the latest attempt has failed. A call before closing starts the initial attempt; a call while
+an attempt is pending shares that attempt. Every retry reports its own result. Once an attempt
+succeeds, later retries succeed without another physical request. Ordinary `close()` calls keep
+reporting the original result even after a successful retry. Completing or cancelling a returned
+retry future changes only that caller's observation.
+
+```kotlin
+import io.libp2p.core.Connection
+import java.util.concurrent.CompletableFuture
+
+// Invoke explicitly after handling a failed close and resolving its cause.
+fun retryConnectionClose(connection: Connection): CompletableFuture<Unit> =
+    connection.retryClose()
+```
+
+Other `Connection` implementations inherit a default that delegates to their `close()` operation.
+An implementation that retains failed close results must override `retryClose()` to support a new attempt.
+
 ## Gossip simulator
 
 Deterministic Gossip simulator which may simulate networks as large as 10000 of peers

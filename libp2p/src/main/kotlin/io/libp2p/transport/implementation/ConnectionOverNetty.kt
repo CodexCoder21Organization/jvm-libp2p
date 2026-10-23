@@ -33,6 +33,8 @@ open class ConnectionOverNetty(
 
     override fun close() = closeNettyChannelOnce(nettyChannel)
 
+    override fun retryClose() = retryNettyChannelClose(nettyChannel)
+
     override fun muxerSession() = muxerSession
     override fun secureSession() = secureSession
     override fun transport() = nettyTransport

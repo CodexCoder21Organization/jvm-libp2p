@@ -1,0 +1,105 @@
+{
+  "exit": 1,
+  "elapsed": 22.04062588501256,
+  "memory_samples": [
+    {
+      "utc": "2026-10-23T00:45:56.529468+00:00",
+      "memory_current": 9207418880,
+      "events": "low 0\nhigh 0\nmax 324667\noom 16\noom_kill 1\noom_group_kill 0\n"
+    }
+  ],
+  "head": "49327eeb407eb7498154414807a1150ceca4fba9",
+  "command": [
+    "timeout",
+    "--signal=TERM",
+    "--kill-after=15s",
+    "15m",
+    "./gradlew",
+    "--no-daemon",
+    ":libp2p:cleanTest",
+    ":libp2p:test",
+    "--tests",
+    "io.libp2p.transport.ConnectionCloseRetryTest",
+    "--tests",
+    "io.libp2p.core.RelayConnectionRetryTest"
+  ],
+  "cases": [
+    {
+      "class": "io.libp2p.transport.ConnectionCloseRetryTest",
+      "name": "explicitRetryClosesRealConnectionAfterFailureAndKeepsOrdinaryResult()",
+      "failed": true,
+      "error": false,
+      "skipped": false
+    },
+    {
+      "class": "io.libp2p.transport.ConnectionCloseRetryTest",
+      "name": "concurrentRetriesShareHeldAttemptAndIsolateCallerFutureChanges()",
+      "failed": true,
+      "error": false,
+      "skipped": false
+    },
+    {
+      "class": "io.libp2p.transport.ConnectionCloseRetryTest",
+      "name": "firstRetryPublishesOwnershipBeforeItsPhysicalHandlerReenters()",
+      "failed": true,
+      "error": false,
+      "skipped": false
+    },
+    {
+      "class": "io.libp2p.transport.ConnectionCloseRetryTest",
+      "name": "retryStartsInitialCloseAndSuccessRemainsTerminal()",
+      "failed": false,
+      "error": false,
+      "skipped": false
+    },
+    {
+      "class": "io.libp2p.transport.ConnectionCloseRetryTest",
+      "name": "retryFirstStartsOnlyOneAttemptEvenWhenItFailsImmediately()",
+      "failed": true,
+      "error": false,
+      "skipped": false
+    },
+    {
+      "class": "io.libp2p.transport.ConnectionCloseRetryTest",
+      "name": "failureCallbackAndPhysicalHandlerCanReenterWithoutDuplicatingRetry()",
+      "failed": true,
+      "error": false,
+      "skipped": false
+    },
+    {
+      "class": "io.libp2p.transport.ConnectionCloseRetryTest",
+      "name": "transportOwnedFailureCanBeRetriedWithoutChangingOrdinaryResult()",
+      "failed": true,
+      "error": false,
+      "skipped": false
+    },
+    {
+      "class": "io.libp2p.transport.ConnectionCloseRetryTest",
+      "name": "retrySharesPendingInitialCloseAndCanRecoverItsFailure()",
+      "failed": true,
+      "error": false,
+      "skipped": false
+    },
+    {
+      "class": "io.libp2p.transport.ConnectionCloseRetryTest",
+      "name": "repeatedFailuresReportEachAttemptAndPermitRecovery()",
+      "failed": true,
+      "error": false,
+      "skipped": false
+    },
+    {
+      "class": "io.libp2p.transport.ConnectionCloseRetryTest",
+      "name": "retryAfterPeerClosedFollowingFailureDoesNotRequestAnotherPhysicalClose()",
+      "failed": true,
+      "error": false,
+      "skipped": false
+    },
+    {
+      "class": "io.libp2p.core.RelayConnectionRetryTest",
+      "name": "inheritedRetryClosesRealRelayConnectionAfterFailedStreamClose()",
+      "failed": false,
+      "error": false,
+      "skipped": false
+    }
+  ]
+}

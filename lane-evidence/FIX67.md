@@ -41,6 +41,31 @@ OBSERVED: identified 7 existing targeted/neighbour classes from author XML (23 t
 
 2026-10-23T01:05:11.391433+00:00 OBSERVED: Full-suite command active; memory.current=8836386816 bytes. Waiting for machine-wide suite lock; no Gradle output yet.
 
-2026-10-23T01:05:11.801062+00:00 OBSERVED: final head 43eab3dc passed 24/24 targeted/neighbour tests on first attempt in each of 3 cleanTest sweeps (Gradle 16/12/12s); formatting, detekt and assemble passed each sweep. Three sweeps include all original 23 cases plus the missing peer-close scenario. Production files unchanged from reviewed head. Full suite now submitted once with machine-wide lock; comparison uses exact REV67 unchanged-develop identities at e15e0f19.
+2026-10-23T01:05:11.801062+00:00 OBSERVED: final head 43eab3dc passed 24/24 targeted/neighbour tests on first attempt in each of 3 cleanTest sweeps (Gradle 15/13/13s); formatting, detekt and assemble passed each sweep. Three sweeps include all original 23 cases plus the missing peer-close scenario. Production files unchanged from reviewed head. Full suite now submitted once with machine-wide lock; comparison uses exact REV67 unchanged-develop identities at e15e0f19.
 
 2026-10-23T01:06:39.933776+00:00 OBSERVED: dedicated independent test and adversarial implementation review passes recorded in FIX67-review.md, no remaining finding in requested retry behavior. Fresh develop check suites confirm two Actions startup_failure suites with zero runs; permissions remain local_only. Existing handoff read via healthy service; will update in place after final PR state, preserving baseline recovery scope. Canonical handoff guide still describes legacy PR merge exception, conflicting with current skill and lane no-merge restriction; service-only update applies. Challenge CLI auto-merges and cannot be invoked under lane prohibition; plain record in FIX67-actions-challenge.md.
+
+2026-10-23T01:10:11.377782+00:00 OBSERVED: Full-suite command active; memory.current=8975777792 bytes. Waiting for machine-wide suite lock; no Gradle output yet.
+
+2026-10-23T01:13:30.837811+00:00 OBSERVED: formatter changes only whitespace (normalized-whitespace equality against reviewer file confirmed). Corrected final targeted durations from raw logs to 15/13/13 seconds; counts and verdicts unchanged. Full suite remains queued at shared lock, no Gradle output yet.
+
+2026-10-23T01:15:11.430898+00:00 OBSERVED: Full-suite command active; memory.current=10609938432 bytes. Waiting for machine-wide suite lock; no Gradle output yet.
+
+2026-10-23T01:15:58.393904+00:00 — RUNNING
+
+Original request: finish https://github.com/CodexCoder21Organization/jvm-libp2p/pull/67 by adding the reviewer’s pending-retry/peer-close scenario, proving positive and mutation controls, running neighbours and one full suite, then rebasing/pushing, marking ready and watching CI without merging or publishing.
+
+The added test passes three first-attempt runs and fails three first-attempt closed-channel shortcut mutation controls. Final formatted head 43eab3dc passes 24/24 targeted/neighbour tests in each of three fresh runs; formatting, static analysis and assembly pass. Full suite is queued since 01:05 UTC on /tmp/claude-501/complete-suite.lock, with a 90-minute lock cap and 45-minute suite cap; memory sampling continues, oom_kill remains 1.
+
+The existing fix retains the original result for ordinary close callers. Explicit retries share pending work and may replace a settled failed attempt. The added test forces peer EOF while retry attempt 2 is pending and verifies re-entry cannot replace that attempt’s result.
+
+Fresh PR state: OPEN, draft, unmerged, remote head 13bea7dd, develop base. Final test additions are pushed on https://github.com/CodexCoder21Organization/jvm-libp2p/tree/wip/FIX67-test-20261023 ; proof and findings are on https://github.com/CodexCoder21Organization/jvm-libp2p/tree/wip/FIX67-evidence-20261023/lane-evidence ; mutation is on https://github.com/CodexCoder21Organization/jvm-libp2p/tree/wip/FIX67-shortcut-mutation-20261023 . No production source changed.
+
+Delegated work at a glance: no subagents or additional LLM invocations; dedicated test and code review passes were completed in this lane. No user decision blocks this lane. Existing broader verification gaps remain the Actions local-only policy/workflow mismatch and 20 unchanged-develop failures; both will be reported, not represented as green.
+
+Holds audit: only the full suite is held, by the named machine-wide lock; final PR update depends on its result. Landing parallelization sweep: all independent local review/static/targeted gates completed; no enqueue or merge authorized. Owner direction captured: none new; original lane constraints are in FIX67.md.
+
+Next steps: complete the locked suite and exact baseline comparison, rebase/push/ready/body-update the PR, watch the informational remote check, preserve evidence and update the existing verification handoff. The work is active and making verified progress; no result has been replaced by an unchanged CI rerun.
+
+Lessons: preserve owned-operation results across physical closure; use deterministic held dependency operations to force ordering; compare exact baseline failure identities rather than failure counts alone.
+

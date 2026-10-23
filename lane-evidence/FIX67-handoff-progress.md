@@ -1,0 +1,108 @@
+# Handoff: Restore required verification for jvm-libp2p explicit close retry
+
+Updated 2026-10-22T23:12:10.080886+00:00.
+
+**RE-VERIFY: this is a write-time snapshot. Check https://github.com/CodexCoder21Organization/jvm-libp2p/pull/67 with `gh api repos/CodexCoder21Organization/jvm-libp2p/pulls/67`, its head Actions runs/jobs, and `git ls-remote` for the branches below before acting.**
+
+## FIX67 progress — 2026-10-23T01:15:58.393904+00:00
+
+The new lane is finishing the reviewer’s one missing test and readying the PR; it does not authorize repairing repository policy, merging, publishing or deploying. Current PR remains OPEN/draft at 13bea7dd. Final candidate 43eab3dc7f2a03e8144b9fa99cf3811cb0fbda4d adds the peer-close/pending-retry scenario without changing production implementation or assertions. It passes 3/3 fixed controls; shortcut mutation c8fa2d60 fails 3/3 at the expected assertion. All 24 targeted/neighbour tests pass three first attempts. Full suite is currently waiting on the shared lock.
+
+Additional remote branches, each in CodexCoder21Organization/jvm-libp2p:
+
+| Branch | Remote head | PR | Contents/state |
+|---|---|---|---|
+| [wip/FIX67-test-20261023](https://github.com/CodexCoder21Organization/jvm-libp2p/tree/wip/FIX67-test-20261023) | 43eab3dc7f2a03e8144b9fa99cf3811cb0fbda4d | candidate for https://github.com/CodexCoder21Organization/jvm-libp2p/pull/67 | final test and formatting, targeted gates pass |
+| [wip/FIX67-shortcut-mutation-20261023](https://github.com/CodexCoder21Organization/jvm-libp2p/tree/wip/FIX67-shortcut-mutation-20261023) | c8fa2d60da17af3f167303771f43590ff923dd50 | no PR | deliberately incorrect negative control; do not land |
+| [wip/FIX67-evidence-20261023](https://github.com/CodexCoder21Organization/jvm-libp2p/tree/wip/FIX67-evidence-20261023) | fd2623196e229f87883eae0b9ee7f8f0f90c7f76 at last checkpoint; advances with evidence | no PR | lane-evidence contains findings, source driver, positive/negative/neighbour XML and logs |
+
+[Reviewer’s supplied test and review](https://github.com/CodexCoder21Organization/jvm-libp2p/tree/wip/REV67-review-20261023/lane-evidence). No artifact publication, production deployment or restart occurred in FIX67. The older narrative below describes the original JL61 lane and retains its diagnostic detail; this section is the newer test-addition snapshot.
+
+## Design decisions in force
+
+User direction, 2026-10-22, for this lane:
+
+> "Implement a documented, explicit retry operation; ordinary close() keeps its single shared result. Think about concurrent retry vs ordinary close, retry after success (no-op), and repeated failures."
+
+> "You may not merge, enqueue, publish artifacts, deploy, restart services, or delete/rerequest buildtest runs."
+
+> "Absolute rules: never increase a timeout, never reduce an iteration count, never disable/skip/delete a test, never weaken an assertion, no mocks (no mockito), no reflection, never make a private member public for a test. A failing test is a defect report: fix the cause. Error messages state what was wrong and the actual value."
+
+> "Build/test: scripts/build.bash --local and scripts/test.bash --local --test <name> --log <file.xml>. Never --remote (killed remote clients leave orphaned runs)."
+
+This repo uses Gradle, so use its local Gradle commands rather than nonexistent scripts. Full suites share `/tmp/claude-501/complete-suite.lock`; do not run a full suite outside that lock on this machine. No user direction has authorized changing the repository Actions policy. No merge/publish/deploy is authorized.
+
+## Mission and remaining work
+
+The original request was the upstream fix for https://github.com/CodexCoder21Organization/jvm-libp2p/issues/61. During the owner's 2026-10-22 test campaign, the [UrlProtocol snapshot-38 upgrade](https://github.com/CodexCoder21Organization/UrlProtocol/pull/846) left five downstream tests unable to retry a failed physical connection close. The requested retry implementation, documentation, real-connection regression tests, three first-attempt verification runs, independent reviews, full-suite attempt, PR, and watch-only CI observation have all been carried out.
+
+What remains is **clean required verification**: the expected Actions jobs never start under the existing repository policy, and the unchanged base has 20 existing local suite failures. The PR is draft and unmerged. Do not redo the retry diagnosis or change it based only on those existing failures; reproduce any new concern first.
+
+## What was found and done
+
+1. `closeNettyChannelOnce` retained the first failed owner forever. This preserves ordinary shutdown ownership but provided no explicit operation to submit a new physical close. Nine real TCP/Noise/Yamux recovery cases failed at runtime on the old helper; two boundary/default cases passed as expected. The first failing test was pushed before the fix.
+2. Added `Connection.retryClose()`, overridden by `ConnectionOverNetty`. A private per-channel state keeps the original result separately from the latest explicit attempt. Initial and retry ownership is published before handlers can re-enter. Pending retry callers share the latest owner, only a settled failure can be replaced, successful attempts remain terminal, and each caller gets an independent derived future. Ordinary Netty close keeps reporting the original failure even after successful retry.
+3. Other Connection implementations inherit a default that delegates to their existing close. A real three-host relay test exercises that default, injects one failed virtual-stream close, retries it, and confirms ordinary relay close can succeed afterward while the shared physical connection remains open. KDoc explicitly scopes original-result retention to ConnectionOverNetty, preserving the relay's existing policy.
+4. Eleven new scenarios cover 8,192 concurrent observations against a held physical retry, 1,000 sequential settled failures, mutation/cancellation of caller futures, first-dispatch and retry re-entry, failure callbacks, transport-first ownership, physical peer closure, and success boundaries. New test cleanup removes handlers on the owning event loop and closes hosts unconditionally. One initial test-fixture removal race was found and fixed before final verification.
+5. Three fresh new/neighbour runs each passed 23/23 with zero failures/errors/skips. The final relay ordinary-close assertion and event-loop-forced initial failure each passed three first-attempt runs. `:libp2p:assemble :libp2p:spotlessCheck :libp2p:detekt` passed. Independent test and static code reviews had no remaining concrete findings.
+6. The full repository suite ran **once**, under the machine lock, from exact final head `13bea7dd18571049b0f6f05702b5071f4477b064`. It waited about 44 minutes, then completed in 2m18s: **1,225 tests; 1,203 passed; 20 failed; 2 already-disabled tests**. All 11 new tests passed first attempt. No new test was skipped/disabled. Memory was sampled every 120 seconds; sampled maximum including wait was 10,737,217,536 bytes, and the cgroup oom_kill counter stayed at its pre-lane value of 1. No run was killed.
+7. Fresh unchanged develop `e15e0f1947842be7ef6836c116c14ba47cc8eea1` ran the eight affected existing classes as targeted controls: 29 tests, 20 failures, 1 already-disabled test. A programmatic comparison confirmed the exact same `(classname,testname)` failure set as the PR full suite. These failures are therefore not introduced by the retry implementation.
+8. Existing failure details: nine TLS/QUIC setup cases fail in `ReferenceCountedOpenSslContext:320-322 -> SSLContext.make(native)` with `failed to create an SSL_CTX`, native causes `No such file or directory` or `Success`. The exact native-provider cause remains unestablished. `HostTestJava.addPingAfterHostStart` binds fixed port 40002, then fails at line 262 before its stop calls, with no finally. Ten subsequent tests use the same fixed port and fail to bind; the leak chain is supported by source and the identical base sequence. One `QuicKuboTestJava` failure accesses `http://localhost:5001/api/v0/id` without starting Kubo and gets `Connection refused`.
+9. PR https://github.com/CodexCoder21Organization/jvm-libp2p/pull/67 is OPEN, draft, cleanly mergeable against develop, unmerged, at the full-tested head. Its [pull-request build](https://github.com/CodexCoder21Organization/jvm-libp2p/actions/runs/39868555272) and [push build](https://github.com/CodexCoder21Organization/jvm-libp2p/actions/runs/39868505289) both ended `startup_failure`; the PR build jobs API returned zero jobs. Two informational Kotlin checks are successful. No expected Actions job has passed.
+10. Repository Actions policy is enabled but `allowed_actions=local_only`. Build workflow uses external `actions/checkout@v3`, `actions/setup-java@v3`, `gradle/gradle-build-action@v2`, and `android-actions/setup-android@v3`. Organization policy is selected Actions with GitHub-owned/verified allowed. GitHub [documents](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/enabling-features-for-your-repository/managing-github-actions-settings-for-a-repository) that local-only policy blocks even actions/checkout. This is sufficient to prevent these workflows starting, although the workflow run exposes no annotation to exclude an additional startup reason. No setting was changed.
+11. Used build-watchman 0.0.21 with `--until-merged`, explicit expected job names and 240-second interval. Develop has no configured required checks; watchman fell back to available checks and reported the two informational results green. That is **not** proof of the user's expected Actions jobs. Direct workflow/jobs inspection established their failure. The local watcher was stopped after this terminal result; log ends `RESULT: INTERRUPTED exit=130`. It never enqueued, rerequested, deleted, merged, or published anything.
+
+## Relevant PRs and refs
+
+| Repo | Branch | Remote head at write time | PR | Contents/state |
+|---|---|---|---|---|
+| CodexCoder21Organization/jvm-libp2p | [fix/JL61-explicit-close-retry](https://github.com/CodexCoder21Organization/jvm-libp2p/tree/fix/JL61-explicit-close-retry) | 13bea7dd18571049b0f6f05702b5071f4477b064 | https://github.com/CodexCoder21Organization/jvm-libp2p/pull/67 | Complete implementation, README/KDoc, 11 new tests; all targeted gates pass; full suite has the same 20 failures as base; draft/unmerged |
+| CodexCoder21Organization/jvm-libp2p | [wip/JL61-evidence-20261022](https://github.com/CodexCoder21Organization/jvm-libp2p/tree/wip/JL61-evidence-20261022) | d9c8679b6d5ac8cc17923a3a9bf7a37793c55832 | no PR | `lane-evidence/`: findings, source patch, baseline helper control, baseline failures, all full-suite XML/stacks, base comparison, review reports, memory log, workflow and watcher evidence |
+
+The local baseline clone is clean unchanged develop, already on remote; it contains no partial code. No stash or implementation commit is left only locally. Evidence clones made with depth 1 have a narrow remote fetch refspec; use `git ls-remote` as authoritative or explicitly fetch the evidence tracking ref before interpreting `git log --not --remotes`.
+
+No artifact was published and no service was deployed/restarted by this effort. The version line is unchanged; command/diff audit contains no release/deployment operation. No running production code was changed. Build outputs, dependency caches, and machine-wide process command listings are deliberately excluded from evidence; the test XML/logs and source patches are included.
+
+## Exact verification and reproduction commands
+
+From a fresh checkout of the PR head, after fetching/rebasing against the current develop:
+
+```bash
+./gradlew --no-daemon --max-workers=1 --no-build-cache :libp2p:cleanTest :libp2p:test \
+  --tests io.libp2p.transport.ConnectionCloseRetryTest \
+  --tests io.libp2p.core.RelayConnectionRetryTest \
+  --tests io.libp2p.transport.ParentCloseOwnershipTest \
+  --tests io.libp2p.core.ParentCloseListenerReviewTest \
+  --tests io.libp2p.core.MuxCloseDuringPublicationTest \
+  --tests io.libp2p.transport.PlainNettyTransportConcurrentListenCloseTest \
+  --tests io.libp2p.transport.PlainNettyTransportShutdownTimingTest
+```
+
+The historical missing-retry control is `lane-evidence/JL61-baseline-helper.kt` on the evidence branch: in a disposable PR-head checkout, replace only `libp2p/src/main/kotlin/io/libp2p/transport/implementation/NettyChannelClose.kt` with it, then run the new tests. It retains old ownership behavior and adds a baseline-only alias for the new API. Expect nine runtime failures and two boundary/default passes. **Do not land the baseline adapter.** Restore the final helper before running green verification.
+
+Full suite used:
+
+```bash
+flock --timeout 2700 /tmp/claude-501/complete-suite.lock \
+  timeout 2700 ./gradlew --no-daemon --max-workers=1 --no-build-cache --continue cleanTest test
+```
+
+The evidence branch's `JL61-control-classes.txt` equivalent is the eight classes named in `JL61-base-control-results/`; their exact failure names and full stacks are in `JL61-base-comparison.txt`, `JL61-base-control.log`, and `JL61-full-failures.txt`.
+
+## Next steps
+
+1. Re-verify the PR head, draft/unmerged state, base branch, workflow/job outcomes, and current Actions policy. Keep this effort unmerged and unpublished unless the owner explicitly expands authorization.
+2. Ask the repository owner to choose the intended Actions policy/workflow alignment: preserve local-only and use allowed organization/local steps, or authorize the workflow's existing external Actions. Do not broaden policy silently. A fresh required check must represent actual jobs, not only informational Kotlin statuses.
+3. Diagnose the native TLS initialization failure at its source using the base control; do not mask it by timeouts, exclusions, or a downstream change. Fix test cleanup so a failed TLS setup cannot retain port 40002, use assigned ports where appropriate, and make the Kubo test own a real isolated dependency rather than rely on a pre-existing localhost service. Keep every assertion and iteration count.
+4. When the actual blockers change, run appropriate local verification under the shared memory/lock rules, and observe fresh required Actions jobs with a watch-only monitor. Do not blindly rerun failed CI unchanged. Keep the PR description and evidence accurate.
+5. Preserve further work remotely and update this handoff. No merge, queue action, artifact publication, deployment, or restart is part of this handoff's authorization.
+
+## Operational notes
+
+Read https://github.com/CodexCoder21Organization/DocumentationRepository/blob/main/architecture/TESTING.md and https://github.com/CodexCoder21Organization/DocumentationRepository/blob/main/PHILOSOPHY.md before adding tests. This work read both in full, README/FORK, issue contents, and the relevant source. The testing doc's mandatory remote-check wording differs from this lane's explicit informational-only remote rule; the lane wins. The canonical old handoff README still mentions merging handoff PRs, but current create-handoff uses the Handoff service directly and this lane forbids merging.
+
+PR descriptions open with the owner's requested reason and end `🤖 Generated with [Claude Code](https://claude.com/claude-code)`. Commit messages end `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`. Update the PR body with `gh api --method PATCH ... --input body.json` and read it back. Poll GitHub status no more often than every two minutes. Long commands need tracked PIDs and hard deadlines; stop all processes you start before finishing.
+
+The report-challenge CLI automatically enqueues/merges a central record, so it was not invoked under this lane's prohibition. The policy record and raw evidence are instead on the WIP evidence branch. No safeguards, quotas, or hardware changes are proposed as a workaround for test failures.
+
+Final artifact/process audit: the PR body was updated through REST PATCH and read back byte-for-byte, including its required footer. All3source/evidence/base checkouts are clean, no stash or source commit is unpushed, and the source/evidence remote hashes match the branch table. `ps -eo pid,args -ww` plus tracked PID and own-checkout worker checks found no remaining owned build/test/watcher processes at23:09:21UTC. The final evidence branch includes the sanitized process audit and the complete PR readback. Raw machine-wide command listings were not uploaded because they include unrelated lanes.

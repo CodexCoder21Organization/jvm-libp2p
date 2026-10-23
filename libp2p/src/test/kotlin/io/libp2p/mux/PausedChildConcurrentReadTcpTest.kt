@@ -10,6 +10,7 @@ import io.libp2p.mux.yamux.YamuxFrame
 import io.libp2p.mux.yamux.YamuxType
 import io.libp2p.protocol.ProtocolHandler
 import io.libp2p.security.noise.NoiseXXSecureChannel
+import io.libp2p.transport.implementation.ConnectionOverNetty
 import io.libp2p.transport.implementation.StreamOverNetty
 import io.libp2p.transport.tcp.TcpTransport
 import io.netty.buffer.ByteBuf
@@ -88,6 +89,13 @@ class PausedChildConcurrentReadTcpTest {
             secureChannels { add { key, muxers -> NoiseXXSecureChannel(key, muxers) } }
             muxers { add(mux) }
             network { listen("/ip4/127.0.0.1/tcp/0") }
+            debug {
+                beforeSecureHandler.addHandler {
+                    // Install before the first transport read: Netty caches its receive handle.
+                    val parent = (it as ConnectionOverNetty).nettyChannel
+                    parent.config().setRecvByteBufAllocator(io.netty.channel.FixedRecvByteBufAllocator(1).maxMessagesPerRead(1))
+                }
+            }
             protocols { add(binding) }
         }
         try {
@@ -101,7 +109,6 @@ class PausedChildConcurrentReadTcpTest {
             val child = accepted.get(5, TimeUnit.SECONDS).nettyChannel
             val parent = child.parent()
             child.config().isAutoRead = false
-            parent.config().setRecvByteBufAllocator(io.netty.channel.FixedRecvByteBufAllocator(1))
             val callers = java.util.concurrent.Executors.newFixedThreadPool(8)
             val start = java.util.concurrent.CountDownLatch(1)
             try {
@@ -124,7 +131,8 @@ class PausedChildConcurrentReadTcpTest {
                     .get(5, TimeUnit.SECONDS)
                 // Mplex pauses the parent too. Admit the next physical read without resuming it.
                 if (value == 2) parent.read()
-                assertEquals(1, forwarded.poll(5, TimeUnit.SECONDS), "The payload must reach the paused child queue")
+                val forwardedBytes = forwarded.poll(5, TimeUnit.SECONDS)
+                assertTrue(forwardedBytes == 1, "Expected one payload byte forwarded to the paused child, actual=$forwardedBytes")
                 parent.eventLoop().submit(
                     Callable {
                         assertEquals(

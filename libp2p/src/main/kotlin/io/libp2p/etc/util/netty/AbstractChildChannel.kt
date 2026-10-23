@@ -12,6 +12,7 @@ import io.netty.util.concurrent.Future
 import io.netty.util.concurrent.GenericFutureListener
 import java.net.SocketAddress
 import java.util.concurrent.RejectedExecutionException
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Class representing 'virtual' channel which has a parent and
@@ -40,13 +41,18 @@ abstract class AbstractChildChannel(parent: Channel, id: ChannelId?) : AbstractC
      */
     private val childConfig: ChannelConfig by lazy {
         object : DefaultChannelConfig(this) {
+            private val automaticRead = AtomicBoolean(true)
+
+            override fun isAutoRead(): Boolean = automaticRead.get()
+
             override fun setAutoRead(autoRead: Boolean): ChannelConfig {
-                val result = super.setAutoRead(autoRead)
-                // Reconcile against the current value even if another caller changed it while
-                // this setter ran. Reading the old value before Netty's atomic update can miss
-                // the final transition when two callers write concurrently.
+                // Virtual channels deliver through onAutoReadChanged, not a transport read.
+                // DefaultChannelConfig would also enqueue channel.read(); a later callback pause
+                // could then make that delayed automatic read look like explicit manual demand.
+                automaticRead.set(autoRead)
+                // Reconcile the latest value if another caller changed it during this setter.
                 onAutoReadChanged()
-                return result
+                return this
             }
         }
     }

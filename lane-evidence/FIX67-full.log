@@ -1,0 +1,308 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.14.3/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+Build configured without Android submodules.
+    To include Android submodules define a valid SDK location with an ANDROID_HOME environment variable 
+    or by setting the sdk.dir path in your project's local properties file local.properties.
+> Task :cleanTest UP-TO-DATE
+> Task :examples:cleanTest UP-TO-DATE
+> Task :interop-test-client:cleanTest UP-TO-DATE
+> Task :libp2p:cleanTest
+> Task :tools:cleanTest UP-TO-DATE
+> Task :examples:chatter:cleanTest UP-TO-DATE
+> Task :examples:cli-chatter:cleanTest UP-TO-DATE
+> Task :examples:pinger:cleanTest UP-TO-DATE
+> Task :tools:schedulers:cleanTest UP-TO-DATE
+> Task :tools:simulator:cleanTest UP-TO-DATE
+> Task :compileKotlin NO-SOURCE
+> Task :compileJava NO-SOURCE
+> Task :processResources NO-SOURCE
+> Task :classes UP-TO-DATE
+> Task :inspectClassesForKotlinIC
+> Task :jar
+> Task :compileTestFixturesKotlin NO-SOURCE
+> Task :compileTestFixturesJava NO-SOURCE
+> Task :processTestFixturesResources NO-SOURCE
+> Task :testFixturesClasses UP-TO-DATE
+> Task :testFixturesJar
+> Task :compileTestKotlin NO-SOURCE
+> Task :compileTestJava NO-SOURCE
+> Task :processTestResources NO-SOURCE
+> Task :testClasses UP-TO-DATE
+> Task :test NO-SOURCE
+> Task :examples:compileKotlin NO-SOURCE
+> Task :examples:compileJava NO-SOURCE
+> Task :examples:processResources NO-SOURCE
+> Task :examples:classes UP-TO-DATE
+> Task :examples:inspectClassesForKotlinIC
+> Task :examples:jar
+> Task :examples:compileTestFixturesKotlin NO-SOURCE
+> Task :examples:compileTestFixturesJava NO-SOURCE
+> Task :examples:processTestFixturesResources NO-SOURCE
+> Task :examples:testFixturesClasses UP-TO-DATE
+> Task :examples:testFixturesJar
+> Task :examples:compileTestKotlin NO-SOURCE
+> Task :examples:compileTestJava NO-SOURCE
+> Task :examples:processTestResources NO-SOURCE
+> Task :examples:testClasses UP-TO-DATE
+> Task :examples:test NO-SOURCE
+> Task :libp2p:extractIncludeProto UP-TO-DATE
+> Task :libp2p:extractProto UP-TO-DATE
+> Task :libp2p:generateProto UP-TO-DATE
+> Task :libp2p:compileKotlin UP-TO-DATE
+> Task :libp2p:compileJava UP-TO-DATE
+> Task :libp2p:processResources UP-TO-DATE
+> Task :libp2p:classes UP-TO-DATE
+> Task :libp2p:inspectClassesForKotlinIC UP-TO-DATE
+> Task :libp2p:jar UP-TO-DATE
+> Task :interop-test-client:processResources NO-SOURCE
+> Task :interop-test-client:processTestFixturesResources NO-SOURCE
+> Task :interop-test-client:processTestResources
+> Task :tools:schedulers:processResources NO-SOURCE
+> Task :libp2p:extractIncludeTestFixturesProto UP-TO-DATE
+> Task :libp2p:extractTestFixturesProto UP-TO-DATE
+> Task :libp2p:generateTestFixturesProto NO-SOURCE
+> Task :tools:schedulers:compileKotlin UP-TO-DATE
+> Task :tools:schedulers:compileJava UP-TO-DATE
+> Task :tools:schedulers:classes UP-TO-DATE
+> Task :tools:schedulers:inspectClassesForKotlinIC UP-TO-DATE
+> Task :tools:schedulers:jar UP-TO-DATE
+> Task :libp2p:compileTestFixturesKotlin UP-TO-DATE
+> Task :libp2p:compileTestFixturesJava UP-TO-DATE
+> Task :libp2p:processTestFixturesResources NO-SOURCE
+> Task :libp2p:testFixturesClasses UP-TO-DATE
+> Task :libp2p:testFixturesJar UP-TO-DATE
+> Task :libp2p:extractIncludeTestProto UP-TO-DATE
+> Task :libp2p:extractTestProto UP-TO-DATE
+> Task :libp2p:generateTestProto NO-SOURCE
+> Task :libp2p:compileTestKotlin UP-TO-DATE
+> Task :libp2p:compileTestJava UP-TO-DATE
+> Task :libp2p:processTestResources UP-TO-DATE
+> Task :libp2p:testClasses UP-TO-DATE
+
+> Task :libp2p:test
+
+HostTestJava > addPingAfterHostStart() FAILED
+    java.util.concurrent.ExecutionException: java.net.BindException: Address already in use
+        at java.base/java.util.concurrent.CompletableFuture.reportGet(CompletableFuture.java:396)
+        at java.base/java.util.concurrent.CompletableFuture.get(CompletableFuture.java:2096)
+        at io.libp2p.core.HostTestJava.addPingAfterHostStart(HostTestJava.java:246)
+
+        Caused by:
+        java.net.BindException: Address already in use
+            at java.base/sun.nio.ch.Net.bind0(Native Method)
+            at java.base/sun.nio.ch.Net.bind(Net.java:577)
+            at java.base/sun.nio.ch.ServerSocketChannelImpl.netBind(ServerSocketChannelImpl.java:344)
+            at java.base/sun.nio.ch.ServerSocketChannelImpl.bind(ServerSocketChannelImpl.java:301)
+            at io.netty.channel.socket.nio.NioServerSocketChannel.doBind(NioServerSocketChannel.java:148)
+            at io.netty.channel.AbstractChannel$AbstractUnsafe.bind(AbstractChannel.java:431)
+            at io.netty.channel.DefaultChannelPipeline$HeadContext.bind(DefaultChannelPipeline.java:1353)
+            at io.netty.channel.AbstractChannelHandlerContext.bind(AbstractChannelHandlerContext.java:500)
+            at io.netty.channel.DefaultChannelPipeline.bind(DefaultChannelPipeline.java:994)
+            at io.netty.channel.Channel.bind(Channel.java:302)
+            at io.netty.bootstrap.AbstractBootstrap$1.run(AbstractBootstrap.java:381)
+            at io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:148)
+            at io.netty.util.concurrent.AbstractEventExecutor.safeExecute(AbstractEventExecutor.java:141)
+            at io.netty.util.concurrent.SingleThreadEventExecutor.runAllTasks(SingleThreadEventExecutor.java:535)
+            at io.netty.channel.SingleThreadIoEventLoop.run(SingleThreadIoEventLoop.java:201)
+            at io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:1195)
+            at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+            at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+            at java.base/java.lang.Thread.run(Thread.java:1583)
+
+HostTestJava > ping() FAILED
+    java.util.concurrent.ExecutionException: java.net.BindException: Address already in use
+        at java.base/java.util.concurrent.CompletableFuture.reportGet(CompletableFuture.java:396)
+        at java.base/java.util.concurrent.CompletableFuture.get(CompletableFuture.java:2096)
+        at io.libp2p.core.HostTestJava.ping(HostTestJava.java:58)
+
+        Caused by:
+        java.net.BindException: Address already in use
+            at java.base/sun.nio.ch.Net.bind0(Native Method)
+            at java.base/sun.nio.ch.Net.bind(Net.java:577)
+            at java.base/sun.nio.ch.ServerSocketChannelImpl.netBind(ServerSocketChannelImpl.java:344)
+            at java.base/sun.nio.ch.ServerSocketChannelImpl.bind(ServerSocketChannelImpl.java:301)
+            at io.netty.channel.socket.nio.NioServerSocketChannel.doBind(NioServerSocketChannel.java:148)
+            at io.netty.channel.AbstractChannel$AbstractUnsafe.bind(AbstractChannel.java:431)
+            at io.netty.channel.DefaultChannelPipeline$HeadContext.bind(DefaultChannelPipeline.java:1353)
+            at io.netty.channel.AbstractChannelHandlerContext.bind(AbstractChannelHandlerContext.java:500)
+            at io.netty.channel.DefaultChannelPipeline.bind(DefaultChannelPipeline.java:994)
+            at io.netty.channel.Channel.bind(Channel.java:302)
+            at io.netty.bootstrap.AbstractBootstrap$1.run(AbstractBootstrap.java:381)
+            at io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:148)
+            at io.netty.util.concurrent.AbstractEventExecutor.safeExecute(AbstractEventExecutor.java:141)
+            at io.netty.util.concurrent.SingleThreadEventExecutor.runAllTasks(SingleThreadEventExecutor.java:535)
+            at io.netty.channel.SingleThreadIoEventLoop.run(SingleThreadIoEventLoop.java:201)
+            at io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:1195)
+            at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+            at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+            at java.base/java.lang.Thread.run(Thread.java:1583)
+
+HostTestJava > largeBlob() FAILED
+    java.util.concurrent.ExecutionException: java.net.BindException: Address already in use
+        at java.base/java.util.concurrent.CompletableFuture.reportGet(CompletableFuture.java:396)
+        at java.base/java.util.concurrent.CompletableFuture.get(CompletableFuture.java:2096)
+        at io.libp2p.core.HostTestJava.largeBlob(HostTestJava.java:186)
+
+        Caused by:
+        java.net.BindException: Address already in use
+            at java.base/sun.nio.ch.Net.bind0(Native Method)
+            at java.base/sun.nio.ch.Net.bind(Net.java:577)
+            at java.base/sun.nio.ch.ServerSocketChannelImpl.netBind(ServerSocketChannelImpl.java:344)
+            at java.base/sun.nio.ch.ServerSocketChannelImpl.bind(ServerSocketChannelImpl.java:301)
+            at io.netty.channel.socket.nio.NioServerSocketChannel.doBind(NioServerSocketChannel.java:148)
+            at io.netty.channel.AbstractChannel$AbstractUnsafe.bind(AbstractChannel.java:431)
+            at io.netty.channel.DefaultChannelPipeline$HeadContext.bind(DefaultChannelPipeline.java:1353)
+            at io.netty.channel.AbstractChannelHandlerContext.bind(AbstractChannelHandlerContext.java:500)
+            at io.netty.channel.DefaultChannelPipeline.bind(DefaultChannelPipeline.java:994)
+            at io.netty.channel.Channel.bind(Channel.java:302)
+            at io.netty.bootstrap.AbstractBootstrap$1.run(AbstractBootstrap.java:381)
+            at io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:148)
+            at io.netty.util.concurrent.AbstractEventExecutor.safeExecute(AbstractEventExecutor.java:141)
+            at io.netty.util.concurrent.SingleThreadEventExecutor.runAllTasks(SingleThreadEventExecutor.java:535)
+            at io.netty.channel.SingleThreadIoEventLoop.run(SingleThreadIoEventLoop.java:201)
+            at io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:1195)
+            at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+            at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+            at java.base/java.lang.Thread.run(Thread.java:1583)
+
+HostTestJava > largePing() FAILED
+    java.util.concurrent.ExecutionException: java.net.BindException: Address already in use
+        at java.base/java.util.concurrent.CompletableFuture.reportGet(CompletableFuture.java:396)
+        at java.base/java.util.concurrent.CompletableFuture.get(CompletableFuture.java:2096)
+        at io.libp2p.core.HostTestJava.largePing(HostTestJava.java:120)
+
+        Caused by:
+        java.net.BindException: Address already in use
+            at java.base/sun.nio.ch.Net.bind0(Native Method)
+            at java.base/sun.nio.ch.Net.bind(Net.java:577)
+            at java.base/sun.nio.ch.ServerSocketChannelImpl.netBind(ServerSocketChannelImpl.java:344)
+            at java.base/sun.nio.ch.ServerSocketChannelImpl.bind(ServerSocketChannelImpl.java:301)
+            at io.netty.channel.socket.nio.NioServerSocketChannel.doBind(NioServerSocketChannel.java:148)
+            at io.netty.channel.AbstractChannel$AbstractUnsafe.bind(AbstractChannel.java:431)
+            at io.netty.channel.DefaultChannelPipeline$HeadContext.bind(DefaultChannelPipeline.java:1353)
+            at io.netty.channel.AbstractChannelHandlerContext.bind(AbstractChannelHandlerContext.java:500)
+            at io.netty.channel.DefaultChannelPipeline.bind(DefaultChannelPipeline.java:994)
+            at io.netty.channel.Channel.bind(Channel.java:302)
+            at io.netty.bootstrap.AbstractBootstrap$1.run(AbstractBootstrap.java:381)
+            at io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:148)
+            at io.netty.util.concurrent.AbstractEventExecutor.safeExecute(AbstractEventExecutor.java:141)
+            at io.netty.util.concurrent.SingleThreadEventExecutor.runAllTasks(SingleThreadEventExecutor.java:535)
+            at io.netty.channel.SingleThreadIoEventLoop.run(SingleThreadIoEventLoop.java:201)
+            at io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:1195)
+            at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+            at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+            at java.base/java.lang.Thread.run(Thread.java:1583)
+
+> Task :interop-test-client:compileKotlin
+
+> Task :libp2p:test
+
+QuicKuboTestJava > pingKubo() FAILED
+    java.net.ConnectException: Connection refused
+        at java.base/sun.nio.ch.Net.pollConnect(Native Method)
+        at java.base/sun.nio.ch.Net.pollConnectNow(Net.java:694)
+        at java.base/sun.nio.ch.NioSocketImpl.timedFinishConnect(NioSocketImpl.java:542)
+        at java.base/sun.nio.ch.NioSocketImpl.connect(NioSocketImpl.java:592)
+        at java.base/java.net.Socket.connect(Socket.java:751)
+        at java.base/sun.net.NetworkClient.doConnect(NetworkClient.java:178)
+        at java.base/sun.net.www.http.HttpClient.openServer(HttpClient.java:539)
+        at java.base/sun.net.www.http.HttpClient.openServer(HttpClient.java:644)
+        at java.base/sun.net.www.http.HttpClient.<init>(HttpClient.java:290)
+        at java.base/sun.net.www.http.HttpClient.New(HttpClient.java:394)
+        at java.base/sun.net.www.http.HttpClient.New(HttpClient.java:416)
+        at java.base/sun.net.www.protocol.http.HttpURLConnection.getNewHttpClient(HttpURLConnection.java:1327)
+        at java.base/sun.net.www.protocol.http.HttpURLConnection.plainConnect0(HttpURLConnection.java:1260)
+        at java.base/sun.net.www.protocol.http.HttpURLConnection.plainConnect(HttpURLConnection.java:1146)
+        at java.base/sun.net.www.protocol.http.HttpURLConnection.connect(HttpURLConnection.java:1075)
+        at java.base/sun.net.www.protocol.http.HttpURLConnection.getOutputStream0(HttpURLConnection.java:1477)
+        at java.base/sun.net.www.protocol.http.HttpURLConnection.getOutputStream(HttpURLConnection.java:1440)
+        at io.libp2p.transport.quic.QuicKuboTestJava.getKuboPeerId(QuicKuboTestJava.java:65)
+        at io.libp2p.transport.quic.QuicKuboTestJava.pingKubo(QuicKuboTestJava.java:21)
+
+QuicServerTestJava > tlsAndQuicInSameHostPing() FAILED
+    java.util.concurrent.ExecutionException: io.libp2p.etc.types.NonCompleteException: java.util.concurrent.CompletionException: javax.net.ssl.SSLException: failed to create an SSL_CTX
+        at java.base/java.util.concurrent.CompletableFuture.reportGet(CompletableFuture.java:396)
+        at java.base/java.util.concurrent.CompletableFuture.get(CompletableFuture.java:2096)
+        at io.libp2p.transport.quic.QuicServerTestJava.tlsAndQuicInSameHostPing(QuicServerTestJava.java:320)
+
+        Caused by:
+        io.libp2p.etc.types.NonCompleteException: java.util.concurrent.CompletionException: javax.net.ssl.SSLException: failed to create an SSL_CTX
+            at app//io.libp2p.etc.types.AsyncExtKt$anyComplete$1.lambda-1$lambda-0(AsyncExt.kt:83)
+            at java.base@21.0.12.1/java.util.concurrent.CompletableFuture.uniWhenComplete(CompletableFuture.java:863)
+            at java.base@21.0.12.1/java.util.concurrent.CompletableFuture$UniWhenComplete.tryFire(CompletableFuture.java:841)
+            at java.base@21.0.12.1/java.util.concurrent.CompletableFuture.postComplete(CompletableFuture.java:510)
+            at java.base@21.0.12.1/java.util.concurrent.CompletableFuture.completeExceptionally(CompletableFuture.java:2194)
+            at app//io.libp2p.network.NetworkImpl.completePendingDial(NetworkImpl.kt:201)
+            at app//io.libp2p.network.NetworkImpl.pendingDial$lambda-15(NetworkImpl.kt:168)
+            at java.base@21.0.12.1/java.util.concurrent.CompletableFuture.uniWhenComplete(CompletableFuture.java:863)
+            at java.base@21.0.12.1/java.util.concurrent.CompletableFuture$UniWhenComplete.tryFire(CompletableFuture.java:841)
+            at java.base@21.0.12.1/java.util.concurrent.CompletableFuture.postComplete(CompletableFuture.java:510)
+            at java.base@21.0.12.1/java.util.concurrent.CompletableFuture.completeExceptionally(CompletableFuture.java:2194)
+            at app//io.libp2p.etc.types.AsyncExtKt.bind$lambda-0(AsyncExt.kt:13)
+            at java.base@21.0.12.1/java.util.concurrent.CompletableFuture.uniWhenComplete(CompletableFuture.java:863)
+            at java.base@21.0.12.1/java.util.concurrent.CompletableFuture$UniWhenComplete.tryFire(CompletableFuture.java:841)
+            at java.base@21.0.12.1/java.util.concurrent.CompletableFuture.postComplete(CompletableFuture.java:510)
+            at java.base@21.0.12.1/java.util.concurrent.CompletableFuture.completeExceptionally(CompletableFuture.java:2194)
+            at app//io.libp2p.etc.types.AsyncExtKt.bind$lambda-0(AsyncExt.kt:13)
+            at java.base@21.0.12.1/java.util.concurrent.CompletableFuture.uniWhenComplete(CompletableFuture.java:863)
+            at java.base@21.0.12.1/java.util.concurrent.CompletableFuture$UniWhenComplete.tryFire(CompletableFuture.java:841)
+            at java.base@21.0.12.1/java.util.concurrent.CompletableFuture.postComplete(CompletableFuture.java:510)
+            at java.base@21.0.12.1/java.util.concurrent.CompletableFuture.completeExceptionally(CompletableFuture.java:2194)
+            at app//io.libp2p.security.tls.ChannelSetup.exceptionCaught(TLSSecureChannel.kt:206)
+            at app//io.netty.channel.AbstractChannelHandlerContext.invokeExceptionCaught(AbstractChannelHandlerContext.java:290)
+            at app//io.netty.channel.AbstractChannelHandlerContext.fireChannelActive(AbstractChannelHandlerContext.java:226)
+            at app//io.libp2p.multistream.ProtocolSelect.activateSelectedProtocol(ProtocolSelect.kt:67)
+            at app//io.libp2p.multistream.ProtocolSelect.channelActive(ProtocolSelect.kt:51)
+            at app//io.netty.channel.AbstractChannelHandlerContext.fireChannelActive(AbstractChannelHandlerContext.java:221)
+            at app//io.libp2p.multistream.Negotiator$GenericHandler.channelRead0(Negotiator.kt:121)
+            at app//io.libp2p.multistream.Negotiator$GenericHandler.channelRead0(Negotiator.kt:75)
+            at app//io.netty.channel.SimpleChannelInboundHandler.channelRead(SimpleChannelInboundHandler.java:99)
+            at app//io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:357)
+            at app//io.netty.handler.codec.MessageToMessageDecoder.channelRead(MessageToMessageDecoder.java:107)
+            at app//io.netty.handler.codec.MessageToMessageCodec.channelRead(MessageToMessageCodec.java:120)
+            at app//io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:355)
+            at app//io.netty.handler.codec.MessageToMessageDecoder.channelRead(MessageToMessageDecoder.java:107)
+            at app//io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:357)
+            at app//io.netty.handler.codec.ByteToMessageDecoder.fireChannelRead(ByteToMessageDecoder.java:361)
+            at app//io.netty.handler.codec.ByteToMessageDecoder.channelRead(ByteToMessageDecoder.java:325)
+            at app//io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:357)
+            at app//io.netty.channel.DefaultChannelPipeline$HeadContext.channelRead(DefaultChannelPipeline.java:1429)
+            at app//io.netty.channel.DefaultChannelPipeline.fireChannelRead(DefaultChannelPipeline.java:918)
+            at app//io.netty.channel.nio.AbstractNioByteChannel$NioByteUnsafe.read(AbstractNioByteChannel.java:176)
+            at app//io.netty.channel.nio.AbstractNioChannel$AbstractNioUnsafe.handle(AbstractNioChannel.java:445)
+            at app//io.netty.channel.nio.NioIoHandler$DefaultNioRegistration.handle(NioIoHandler.java:388)
+            at app//io.netty.channel.nio.NioIoHandler.processSelectedKey(NioIoHandler.java:596)
+            at app//io.netty.channel.nio.NioIoHandler.processSelectedKeysOptimized(NioIoHandler.java:571)
+            at app//io.netty.channel.nio.NioIoHandler.processSelectedKeys(NioIoHandler.java:512)
+            at app//io.netty.channel.nio.NioIoHandler.run(NioIoHandler.java:484)
+            at app//io.netty.channel.SingleThreadIoEventLoop.runIo(SingleThreadIoEventLoop.java:225)
+            at app//io.netty.channel.SingleThreadIoEventLoop.run(SingleThreadIoEventLoop.java:196)
+            at app//io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:1195)
+            at app//io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+            at app//io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+            at java.base@21.0.12.1/java.lang.Thread.run(Thread.java:1583)
+
+            Caused by:
+            java.util.concurrent.CompletionException: javax.net.ssl.SSLException: failed to create an SSL_CTX
+                at java.base/java.util.concurrent.CompletableFuture.encodeThrowable(CompletableFuture.java:332)
+                at java.base/java.util.concurrent.CompletableFuture.completeThrowable(CompletableFuture.java:347)
+                at java.base/java.util.concurrent.CompletableFuture$UniCompose.tryFire(CompletableFuture.java:1141)
+                ... 40 more
+
+                Caused by:
+                javax.net.ssl.SSLException: failed to create an SSL_CTX
+                    at io.netty.handler.ssl.ReferenceCountedOpenSslContext.<init>(ReferenceCountedOpenSslContext.java:322)
+                    at io.netty.handler.ssl.OpenSslContext.<init>(OpenSslContext.java:39)
+                    at io.netty.handler.ssl.OpenSslClientContext.<init>(OpenSslClientContext.java:195)
+                    at io.netty.handler.ssl.SslContext.newClientContextInternal(SslContext.java:851)
+                    at io.netty.handler.ssl.SslContextBuilder.build(SslContextBuilder.java:679)
+                    at io.libp2p.security.tls.TLSSecureChannelKt.buildTlsHandler(TLSSecureChannel.kt:132)
+                    at io.libp2p.security.tls.ChannelSetup.channelActive(TLSSecureChannel.kt:183)
+                    at io.netty.channel.AbstractChannelHandlerContext.fireChannelActive(AbstractChannelHandlerContext.java:221)
+                    ... 30 more
+
+                    Caused by:
+                    java.lang.Exception: No such file or directory
+                        at io.netty.internal.tcnative.SSLContext.make(Native Method)
+                        at io.netty.handler.ssl.ReferenceCountedOpenSslContext.<init>(ReferenceCountedOpenSslContext.java:320)
+                        ... 37 more

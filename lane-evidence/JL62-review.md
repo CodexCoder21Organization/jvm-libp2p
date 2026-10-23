@@ -32,3 +32,7 @@ I read the repository `README.md`, `FORK.md`, and `CLAUDE.md` (no `AGENTS.md` ex
 - Review tests against the invariant table, including fragmentation and direct bound/release assertions: **done**.
 - Separately review manual demand, close, re-entry, EOF, parent pause, and bounds: **done**; found one Mplex empty-FIFO re-entry defect, now addressed in source.
 - Report concrete findings and public reproducer: **done**. The manager owns the pending targeted/neighbour runtime result; this reviewer did not run tests or builds.
+
+## Manager runtime confirmation
+
+OBSERVED (manager, after reviewer finished): final corrected source passed neighbours3/4/5 first attempt,81/81 in each run,0errors/skips. All13new cases are included, including both empty-FIFO callback cases. Source091b6d17 is pushed to wip/JL62-verified-20261023. This resolves the pending runtime confirmation identified above; the full root suite is still waiting for the required shared lock.

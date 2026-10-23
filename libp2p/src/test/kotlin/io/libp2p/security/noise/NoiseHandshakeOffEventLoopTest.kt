@@ -1,33 +1,33 @@
 package io.libp2p.security.noise
 
-import io.libp2p.core.PeerId
-import io.libp2p.core.crypto.generateKeyPair
-import io.libp2p.etc.CONNECTION
-import io.libp2p.multistream.MultistreamProtocolDebugV1
-import io.libp2p.tools.TestChannel
-import io.netty.buffer.Unpooled
-import io.netty.channel.embedded.EmbeddedChannel
-import org.junit.jupiter.api.RepeatedTest
-import java.nio.channels.ClosedChannelException
 import io.libp2p.core.ConnectionClosedException
 import io.libp2p.core.Host
 import io.libp2p.core.P2PChannel
+import io.libp2p.core.PeerId
 import io.libp2p.core.crypto.KeyType
+import io.libp2p.core.crypto.generateKeyPair
 import io.libp2p.core.dsl.host
 import io.libp2p.core.multiformats.Protocol
+import io.libp2p.etc.CONNECTION
+import io.libp2p.multistream.MultistreamProtocolDebugV1
 import io.libp2p.protocol.Ping
+import io.libp2p.tools.TestChannel
 import io.netty.buffer.ByteBuf
+import io.netty.buffer.Unpooled
 import io.netty.channel.ChannelHandlerContext
 import io.netty.channel.ChannelOutboundHandlerAdapter
 import io.netty.channel.ChannelPromise
+import io.netty.channel.embedded.EmbeddedChannel
 import io.netty.handler.timeout.ReadTimeoutException
 import io.netty.util.ReferenceCountUtil
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.catchThrowable
+import org.junit.jupiter.api.RepeatedTest
 import org.junit.jupiter.api.Test
 import java.io.InputStream
 import java.io.OutputStream
 import java.net.Socket
+import java.nio.channels.ClosedChannelException
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -406,7 +406,10 @@ class NoiseHandshakeOffEventLoopTest {
                 dropping.set(true)
                 firstDroppedAt.complete(System.nanoTime())
                 ReferenceCountUtil.release(msg)
-                promise.setSuccess()
+                // A silent response has not been sent, so the peer must not start its next read timer.
+                ctx.channel().closeFuture().addListener {
+                    promise.tryFailure(ClosedChannelException())
+                }
                 return
             }
             ctx.write(msg, promise)

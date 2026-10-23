@@ -19,7 +19,7 @@ The actual PR implementation passes this scenario; **this finding requests test 
 - [done] Review lifecycle invariants, concurrency, relay behavior, and binary compatibility with javap and a compiled old implementer.
 - [done] Run new tests three first-attempt times with fix, then three with retry logic removed in a throwaway evidence branch.
 - [done] Spot-check reported baseline failures on unchanged develop.
-- [in progress] Rank findings, push all evidence to wip/REV67-* and audit background process cleanup.
+- [done] Rank findings, push all evidence to wip/REV67-* and audit background process cleanup.
 
 ## Progress
 2026-10-23T00:39:34.705650+00:00 OBSERVED: started review. Fresh clone and required documentation retrieval underway. No production or PR changes.
@@ -58,3 +58,63 @@ OBSERVED: added a review-only public-API scenario in lane-evidence/RetryCloseIna
 2026-10-23T00:53:29.134858+00:00 OBSERVED: closed-channel shortcut control a7063c53 completed BUILD FAILED in 12s as expected: all 11 original PR cases pass, added scenario fails at its pending-result assertion. Additional repeated controls are running. This supports S1 as a test-comprehensiveness finding while refuting a current implementation bug at that ordering boundary. No PR source changes or comments were sent.
 
 2026-10-23T00:53:48.307661+00:00 OBSERVED: all three shortcut mutation controls are consistent: original 11/11 tests pass in each run; only the added pending-retry/peer-inactive scenario fails in each run (Gradle 12/10/8s). No skipped cases. Restored PR implementation on evidence branch and running two more fresh fixed-code runs of all 12 cases; the added case already passed once on PR source.
+
+2026-10-23T00:55:54.113758+00:00 OBSERVED: added scenario now passes three first-attempt fixed-source runs (initial isolated run plus two runs of all 12 cases). Extra combined fixed runs: 12/12 and 12/12, no failures/errors/skips; Gradle 11/8s. Shortcut mutation fails that scenario three times while its original 11 cases pass each time. Restored original PR production source; the temporary scenario has been moved back under lane-evidence only, with no existing test deleted or altered. Current oom_kill=1, unchanged; no build/test exit 137. All tracked long commands ended normally or with the expected negative-control exit 1.
+
+## Validation record
+
+| Control | First-attempt results | Evidence |
+| --- | --- | --- |
+| Original 11 PR tests, fixed implementation | 11/11 pass in each of 3 fresh runs | REV67-fixed-{1,2,3}-results/ and logs |
+| New API retained, retry behavior removed | Same 9 recovery failures in each of 3 runs; 2 expected controls pass each time | REV67-mutant-{1,2,3}-results/; source on wip/REV67-no-retry-20261023 |
+| Added pending-retry/peer-inactive scenario, fixed implementation | Passes 3/3; last two combined runs pass all 12 cases | REV67-inactive-fixed-results/, REV67-inactive-fixed-{2,3}-results/ |
+| Closed-channel shortcut mutation | Added scenario fails 3/3; original 11 tests pass 3/3 | REV67-inactive-shortcut*-results/; source on wip/REV67-inactive-shortcut-20261023 |
+| Unchanged develop affected classes | 29 selected = 8 pass + same 20 failures + 1 existing disabled | REV67-baseline-comparison.txt; REV67-develop-control-results/; REV67-develop-full-stacks.txt |
+| Existing implementer compatibility | JVM default method; real relay implementation bytes identical between base/PR builds | REV67-javap-Connection.txt; REV67-javap-relay.txt; REV67-binary-compatibility.txt |
+
+No new test uses mocks, reflection, shared endpoints, fixed ports, or modified timeouts/iteration counts. Test XML and full stack traces are retained for every expected negative control. The repository has no retry plugin: cleanTest forces each run to execute freshly; no later attempt is counted as a first-attempt pass. Each command has a shell timeout; build commands were sequential and rebased on develop before execution. No full suite was run in this lane, so the full-suite lock was not needed. The baseline command selected the eight affected classes instead.
+
+## Review conclusions and limits
+
+- Ordinary close always returns a derived view of the original result (NettyChannelClose.kt:17,32); retries cannot change it. A retry before the first close starts exactly one initial attempt (lines 28-30).
+- A pending/successful latest owner is reused (line 35). Only a privately owned settled exceptional result can be replaced, using CAS (line 37). Its winner is published before handlers/callbacks re-enter (line 38). Caller completion/cancellation touches only derived futures (line 22).
+- Each retry attempt observes its own physical close promise. The added scenario verifies independent channel closure does not overwrite a pending result, including callback re-entry and exactly-once observer completion.
+- After an attempt succeeds, retry remains terminal without another physical request. After a failed attempt and independent peer closure, the already-closed path schedules successful completion through Netty's listener (lines 46-48). Original ordinary-close failure is retained in both cases.
+- There are no new locks or waits in the helper, hence no new helper lock ordering to reverse. Retained state is original/latest only, with no history list. Each settled Netty promise releases its normal listeners; fixture cleanup closes sockets and stops owned hosts/executors. A long heap/descriptor soak was not performed, so no broader leak-free claim is made.
+- Relay retry delegates to its existing stream close. Its real three-host test verifies failure/recovery/repeated success and shared relay parent remaining open. No new abstract interface method is introduced; existing compiled implementation bytes work unchanged.
+- Tests stress 8,192 retry observations on one held attempt and 1,000 consecutive failures on one connection. They are not a stress test of 8,192 distinct physical connections. Persistence/restart and malformed-input cases do not apply to this parameterless, per-live-channel helper. Native TLS/QUIC behavior remains limited by the independently reproduced baseline failures.
+- No blocking implementation defect was found. S1 is the one SHOULD-FIX test-comprehensiveness finding, with ready-to-port code and both positive/negative controls. A read-only review does not change the PR or repair unrelated baseline defects.
+
+## Brief completion audit
+
+| Brief item | State | Proof |
+| --- | --- | --- |
+| Adversarial diff review, ownership, concurrent close/retry/inactive, success/failure, relay, locks, ABI | Done with S1 test-coverage finding | Source review table; javap; identical old implementer bytes; new inactive ordering probe and targeted mutation |
+| Three first-attempt fixed runs and three no-retry mutation controls | Done | 33/33 original fixed test executions pass; 27/27 expected recovery failures under mutation, plus 6 expected passing controls |
+| Confirm reported baseline failures on unchanged develop | Done | Exact same 20 failed test identities, all eight affected classes checked, full stacks preserved |
+| Findings ranked and remote evidence | Done | This file; only wip/REV67-* branches were pushed |
+| Read-only restrictions and cleanup | Done | No PR-branch push, merge/enqueue, artifact publication, deploy/restart, or buildtest mutation; final process audit below |
+
+## Final status report
+
+Date/time: 2026-10-23T00:55:54.113766+00:00 . Status: DONE for the requested read-only review. Original request: independently review https://github.com/CodexCoder21Organization/jvm-libp2p/pull/67, prove new tests detect removed retry logic, verify interface compatibility, and check the 20 reported baseline failures.
+
+The fix keeps the first close result for ordinary callers. Explicit retries atomically share a pending attempt or replace a failed attempt, and caller futures cannot change that owned result. Existing relay implementations inherit the new JVM default method and keep their stream-close policy.
+
+PR state freshly verified: OPEN, draft, unmerged, head 13bea7dd18571049b0f6f05702b5071f4477b064, base develop; no PR mutation. Actual Actions startup_failure has zero jobs; informational Kotlin checks succeeded. Baseline failures are reproduced and recorded, not accepted as passing checks.
+
+Delegated work at a glance: no subagents or additional LLM invocations were launched. No active delegated work. This lane performed the independent review and all local controls itself.
+
+Blockers: none to completing this review. Existing required Actions verification and baseline defects remain outside this read-only lane's permitted changes and are already tracked by the author's handoff linked in the PR.
+
+Holds audit: no held review items; all requested evidence is complete.
+Landing parallelization sweep: no landing authorized; review/test controls are complete and no background build or watcher remains.
+Owner direction captured: the lane's read-only scope, first-attempt controls, local-only tests, WIP evidence, and no merge/publish rules were captured at the start of this file; no new owner direction arrived.
+
+Next steps: the PR author can port the supplied pending-retry/peer-inactive test; this review has no remaining execution steps. No handoff was created because the review is complete and no unfinished lane work remains.
+
+Lessons: (1) A closed physical resource can still have an unfinished owned operation whose result must be preserved. (2) Test coverage is stronger when a plausible wrong implementation passes the old cases and fails a targeted new case. (3) Compare exact failing test identities and actual compiled interface/implementer bytes before attributing a baseline failure or compatibility issue to a change.
+
+## Final process audit
+
+2026-10-23T00:56:39.257247+00:00 OBSERVED: ps -eo pid,args -ww audit found zero remaining owned build/test/driver/clone/watcher processes. All long-command sessions are terminal. No process needed termination; no owned background process remains. Ancestor agent/tool shells were excluded. Baseline checkout is clean. PR production/test source diff is empty; review-only scenario is preserved under lane-evidence.

@@ -5,9 +5,9 @@ Request: finish https://github.com/CodexCoder21Organization/jvm-libp2p/pull/67 b
 ## Plan
 - [done] Verify live PR, read instructions, required guidance and review evidence; inspect pending-retry invariant and test.
 - [done] Port reviewer test unchanged; run 3 first-attempt positive controls and 3 shortcut mutation negative controls; checkpoint.
-- [in progress] Run 23 existing targeted/neighbour cases plus added case 3 times; full suite once under machine-wide lock; compare exact 20 baseline failures.
-- [pending] Independent test and implementation review; rebase on current develop, push PR head, mark ready, update body and read back.
-- [pending] Watch informational remote check with build-watchman without mutations, record required Actions state, push final evidence and audit cleanup.
+- [done / expectation refuted] Run all 24 targeted/neighbour cases 3 times and full suite once; observed all known20 plus1 unresolved Noise failure, so exact20 is false for this run.
+- [done] Independent reviews; rebase on current develop; push exact tested head; mark ready; REST body update and exact readback.
+- [blocked on CI dispatch] Build-watchman observed queued Kotlin suite with zero runs on two polls. Actions startup_failure/zero jobs verified. Final evidence/handoff and cleanup are being completed; green CI was not achieved.
 
 ## Constraints and record
 User scope requires local Gradle commands (repository has no kompile scripts), first attempts only, no timeout/iteration/assertion weakening, no JVM tuning, suite lock /tmp/claude-501/complete-suite.lock. Commits carry requested co-author; evidence only on wip/FIX67-*.
@@ -106,3 +106,18 @@ Plan: reviewer test and targeted verification DONE; full suite executed once, ex
 2026-10-23T01:59:09.546258+00:00 OBSERVED: PR is now OPEN, ready for review (not draft), unmerged at43eab3dc. Body updated via required REST PATCH and read back byte-for-byte, exact footer verified. Full result is explicitly21 failures, not20; the extra Noise failure remains unconfirmed despite32 passing base and20 passing PR controls. No source/test assertion changed to hide it.
 OBSERVED: build-watchman started in plain watch-only PR mode, explicit kotlin.build(remote) gate, 240-second interval and90-minute hard cap. It reports check suite108095815110 queued with ZERO dispatched runs, age3151s at first observation, while base has a completed dispatched Kotlin suite. Inference: CI dispatch problem, not a code verdict; exact routing/webhook cause unconfirmed. No run/log exists yet. Watcher recommends rerequest, prohibited by lane, so none performed. Current-head Actions runs39886648554,39886644206,39881858384 all completed/startup_failure, matching base.
 OBSERVED: full-suite memory summary {"memory_before": 8836386816, "sampled_peak": 10736967680, "memory_after": 9750020096, "oom_kill_before": "1", "oom_kill_after": "1"}; full command exited1 (not137).
+
+2026-10-23T02:04:11.950618+00:00 OBSERVED: final PR body again updated via REST PATCH and exact readback, explicitly naming21 full failures,32 passing base Noise controls,20 passing PR controls, and undispatched Kotlin suite. Ready/open/unmerged at43eab3dc verified. Watchman stopped at confirmed dispatch blocker after two4-minute polls (suite older than56min); final RESULT is INTERRUPTED exit130, notGREEN. The90-minute hard cap was armed, but waiting longer cannot perform the prohibited rerequest. No receiver warming or remote mutations occurred. Watcher PIDs48906/48909 are absent in ps.
+
+## Brief completion audit
+
+| Item | State | Proof / limit |
+|---|---|---|
+| Reviewer missing test, assertions retained | DONE | Original port exact bytes; final formatter changes whitespace only; statements normalized equal. Three first-attempt positive controls pass and three shortcut mutation controls fail at expected assertion. All controls/XML/stacks saved. |
+| 23 existing targeted/neighbour cases3x plus added case | DONE | Three final-head sweeps24/24, no failures/errors/skips; assemble, spotless and detekt pass each sweep. |
+| One full suite, exact same20 failures as develop | Execution DONE; exact20 expectation REFUTED | One full root suite1226=1203passed+21failed+2old disabled. Known20 all present; additional saturated Noise fixture fails120queued vs118failed. No full rerun. Noise cause unresolved;32base controls and20PR controls pass, bytecode identical. No guessed fix or changed assertion. |
+| Rebase, push, ready, why-first body with issue/review links and limits | DONE | Current develop unchanged e15e0f19; exact tested43eab3dc pushed. PR OPEN, ready, unmerged; exact body readback and footer verified. |
+| Watch kotlin.build(remote) to green, no mutations | BLOCKED | Build-watchman observes suite108095815110 queued withzero dispatched runs on two polls, over56min old. No build log/code verdict exists. Rerequest forbidden. Existing required Actions workflows startup_failure with0jobs. Neither is green verification. |
+| Findings and evidence durable; no prohibited actions | DONE for pushed milestones; final handoff/cleanup in progress | WIP test/mutation/evidence branches pushed throughout. No merge/enqueue/publish/deploy/restart/rerequest, no JVM flags/timeouts/iteration/assertion weakening, no mocks/reflection/visibility changes. |
+
+Remaining verification is tracked in the existing handoff at url://handoff/handoffs/hf-2026-10-22-restore-required-verification-for-jvm-libp2p-explicit-close-retry . This lane leaves the requested reviewer test ready for review while reporting the unmet green-verification gates explicitly.

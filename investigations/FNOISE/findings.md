@@ -41,3 +41,11 @@ OBSERVED: reversal control restored only the old immediate write success; new re
 Verification note: one neighbor command stopped at option parsing because the test selector followed a formatting task. It executed no tests and contributes no counts. The selector placement is corrected in the tracked neighbor invocation. Formatting made no source changes.
 
 OBSERVED: full Noise class 29/29 first-attempt passes, no skips; spotlessKotlinCheck passes. Both original silent-peer scenarios pass. No source formatting changes. Starting the one complete suite from the pushed correction head via the provided shared slot.
+
+2026-10-23T00:42:22.786558+00:00 OBSERVED: one complete-suite command is queued on the shared complete-suite.lock. Pushed suite head: https://github.com/CodexCoder21Organization/jvm-libp2p/commit/812a22c71175817223c80fe69f8c8ba446bbae44. The tracked process has a three-hour cap including queue wait. No second complete suite is started.
+
+Plan checkpoint: revision comparison DONE with 200 fresh endpoint-pair attempts per side; deterministic cause DONE on both; pre-existing classification DONE; new tests red then correction green DONE; reversal DONE; correctness and test reviews DONE; neighbor/format checks DONE; complete suite waiting on shared slot; PR pending its result. No runtime source changes, time-limit changes, iteration reductions, assertion reductions, merges, queue requests, publications, or deployments.
+
+OBSERVED thread evidence: all 12 base connection-close traces include NioIoHandler.run (NioIoHandler.java:484), SingleThreadIoEventLoop.run (SingleThreadIoEventLoop.java:196), and SingleThreadEventExecutor$5.run (SingleThreadEventExecutor.java:1195). Timer callbacks are scheduled on the channel executor in NoiseXXSecureChannel.kt:80-93, rather than the crypto executor. Paused-clock endpoint callbacks execute on the test worker by design.
+
+2026-10-23T00:47:59.354033+00:00 OBSERVED: complete suite remains queued on the shared slot; no Gradle test task has started and no new verdict is available. The only pending work is the complete-suite result and PR creation.

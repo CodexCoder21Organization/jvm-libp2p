@@ -3,9 +3,9 @@
 Request: finish https://github.com/CodexCoder21Organization/jvm-libp2p/pull/67 by porting REV67 peer-close/pending-retry test unchanged, positive/negative controls, targeted and full suite, rebase/push/ready/body update and watch-only CI. No merge, enqueue, publish, deploy, restart or buildtest mutation.
 
 ## Plan
-- [in progress] Verify live PR, read instructions, required guidance and review evidence; inspect pending-retry invariant and test.
-- [pending] Port reviewer test unchanged; run 3 first-attempt positive controls and 3 shortcut mutation negative controls; checkpoint.
-- [pending] Run 23 existing targeted/neighbour cases plus added case 3 times; full suite once under machine-wide lock; compare exact 20 baseline failures.
+- [done] Verify live PR, read instructions, required guidance and review evidence; inspect pending-retry invariant and test.
+- [done] Port reviewer test unchanged; run 3 first-attempt positive controls and 3 shortcut mutation negative controls; checkpoint.
+- [in progress] Run 23 existing targeted/neighbour cases plus added case 3 times; full suite once under machine-wide lock; compare exact 20 baseline failures.
 - [pending] Independent test and implementation review; rebase on current develop, push PR head, mark ready, update body and read back.
 - [pending] Watch informational remote check with build-watchman without mutations, record required Actions state, push final evidence and audit cleanup.
 
@@ -36,3 +36,9 @@ OBSERVED: identified 7 existing targeted/neighbour classes from author XML (23 t
 2026-10-23T01:02:40.118898+00:00 OBSERVED: first neighbour command did not execute any tests: Gradle reported "Problem configuring task :libp2p:assemble from command line. > Unknown command-line option --tests." Driver had placed task-specific test flags after assemble. Corrected ordering; invocation-error XML is stale mutation XML and is explicitly not a test result. Three actual neighbour sweeps start now.
 
 2026-10-23T01:04:06.356548+00:00 OBSERVED: actual first neighbour run passed all 24 tests first attempt, zero errors/skips; formatting gate requested wrapping pushHandler arguments. Applied repository spotless formatter; diff only wraps that call, with all assertions/timeouts/iterations unchanged. Formatting-only milestone committed/pushed to WIP. Repeating final-head neighbour sweeps three times before suite.
+
+2026-10-23T01:05:11.390788+00:00 OBSERVED: Full suite submitted once at head 43eab3dc7f2a03e8144b9fa99cf3811cb0fbda4d; lock wait capped at 90 minutes, suite command capped at 45 minutes, no JVM tuning. Command: flock -w 5400 /tmp/claude-501/complete-suite.lock timeout 45m ./gradlew --no-daemon cleanTest test --continue
+
+2026-10-23T01:05:11.391433+00:00 OBSERVED: Full-suite command active; memory.current=8836386816 bytes. Waiting for machine-wide suite lock; no Gradle output yet.
+
+2026-10-23T01:05:11.801062+00:00 OBSERVED: final head 43eab3dc passed 24/24 targeted/neighbour tests on first attempt in each of 3 cleanTest sweeps (Gradle 16/12/12s); formatting, detekt and assemble passed each sweep. Three sweeps include all original 23 cases plus the missing peer-close scenario. Production files unchanged from reviewed head. Full suite now submitted once with machine-wide lock; comparison uses exact REV67 unchanged-develop identities at e15e0f19.

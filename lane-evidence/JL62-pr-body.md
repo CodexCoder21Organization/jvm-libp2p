@@ -7,10 +7,12 @@ Validation:
 - Review added an empty-queue callback case: Mplex initially failed because the second physical payload never arrived; the correction re-arms after clearing the drain guard.
 - All 13 new cases plus 68 neighbour cases passed on the first attempt in three fresh runs: 81/81 each. Coverage includes 8,000 concurrent pre-arrival reads, one-byte transport reads, EOF, callback close, receive bounds, backing storage, sibling progress and connection teardown.
 - Formatting, static analysis and library assembly pass. The formatter also updates the newly merged capacity callback test's wrapping and branch braces; its conditions and assertions are preserved.
-- Full root-suite acquisition attempt waited 90 minutes on `/tmp/claude-501/complete-suite.lock` and exited before Gradle started. The fresh-XML audit confirms zero new test reports; the old 81-case XML is not a full-suite result. The full suite and comparison with the known 20 baseline failures remain unverified; this PR is draft for that reason.
+- Two bounded full-suite acquisitions (90 minutes, then 10 minutes after the lock changed hands) both exited before Gradle started. Fresh-result capture confirms zero full-suite tests; the old 81-case XML is not a full-suite result. The full suite and comparison with the known 20 baseline failures remain unverified, so this PR stays draft.
 - Watch-only build-watchman reports Kotlin suite `108121241955` queued with zero dispatched runs, over 90 minutes old, while a sampled develop suite did dispatch. No build log or code verdict exists. Actions has startup failure and zero jobs under the existing local-only policy. Receiver warming and rerequesting are prohibited by this lane; neither was performed. CI is not green.
 
 Independent test and implementation review: https://github.com/CodexCoder21Organization/jvm-libp2p/blob/wip/JL62-evidence-20261023/lane-evidence/JL62-review.md . Baseline failures, full stacks, run summaries and findings: https://github.com/CodexCoder21Organization/jvm-libp2p/tree/wip/JL62-evidence-20261023/lane-evidence . No timeout or iteration changes, mocks, reflection, merge, publication or deployment.
+
+Remaining verification is tracked in https://www.handoff.wasmserver.com/handoffs/hf-2026-10-23-finish-full-suite-and-ci-verification-for-paused-child-manual-reads and its CI-dispatch dependency.
 
 Closes https://github.com/CodexCoder21Organization/jvm-libp2p/issues/62
 

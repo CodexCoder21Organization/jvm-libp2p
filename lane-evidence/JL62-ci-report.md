@@ -1,0 +1,9 @@
+2026-10-23T04:34:08.624459+00:00 — BLOCKED on CI dispatch.
+
+The requested paused-child manual-read change is in https://github.com/CodexCoder21Organization/jvm-libp2p/pull/70, open/draft/unmerged at 091b6d17. The source fix retains one manual read request, separates automatic resume, and re-arms Mplex after callback re-entry. All 81 targeted/neighbour cases passed first attempt three times and independent review finished.
+
+Fresh CI snapshot: zero check runs; Kotlin suite 108121241955 queued with zero runs; both Actions suites startup_failure with zero jobs. Three watchman observations confirmed the dispatch gap while sampled develop had a completed dispatched suite. Watcher stopped with INTERRUPTED exit 130, not green. No build log exists. No receiver warming or rerequest was performed because the lane prohibits them.
+
+No delegates are active. Holds audit: actual CI execution is needed; the code result cannot be inferred from a queued suite. No independent CI action remains authorized. Owner direction is unchanged. The next step is for the owning CI workstream to restore actual dispatch under its authority, then watch the real code verdict. No merge, enqueue, publication, deployment or restart is authorized.
+
+Lessons: distinguish execution from suite registration; retain exact source identities; use bounded observers and record their terminal result.

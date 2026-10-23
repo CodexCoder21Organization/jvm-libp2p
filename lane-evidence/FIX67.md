@@ -7,7 +7,7 @@ Request: finish https://github.com/CodexCoder21Organization/jvm-libp2p/pull/67 b
 - [done] Port reviewer test unchanged; run 3 first-attempt positive controls and 3 shortcut mutation negative controls; checkpoint.
 - [done / expectation refuted] Run all 24 targeted/neighbour cases 3 times and full suite once; observed all known20 plus1 unresolved Noise failure, so exact20 is false for this run.
 - [done] Independent reviews; rebase on current develop; push exact tested head; mark ready; REST body update and exact readback.
-- [blocked on CI dispatch] Build-watchman observed queued Kotlin suite with zero runs on two polls. Actions startup_failure/zero jobs verified. Final evidence/handoff and cleanup are being completed; green CI was not achieved.
+- [blocked on CI dispatch] Build-watchman observed queued Kotlin suite with zero runs on two polls. Actions startup_failure/zero jobs verified. Final evidence/handoff and process cleanup completed; green CI was not achieved.
 
 ## Constraints and record
 User scope requires local Gradle commands (repository has no kompile scripts), first attempts only, no timeout/iteration/assertion weakening, no JVM tuning, suite lock /tmp/claude-501/complete-suite.lock. Commits carry requested co-author; evidence only on wip/FIX67-*.
@@ -118,6 +118,26 @@ OBSERVED: full-suite memory summary {"memory_before": 8836386816, "sampled_peak"
 | One full suite, exact same20 failures as develop | Execution DONE; exact20 expectation REFUTED | One full root suite1226=1203passed+21failed+2old disabled. Known20 all present; additional saturated Noise fixture fails120queued vs118failed. No full rerun. Noise cause unresolved;32base controls and20PR controls pass, bytecode identical. No guessed fix or changed assertion. |
 | Rebase, push, ready, why-first body with issue/review links and limits | DONE | Current develop unchanged e15e0f19; exact tested43eab3dc pushed. PR OPEN, ready, unmerged; exact body readback and footer verified. |
 | Watch kotlin.build(remote) to green, no mutations | BLOCKED | Build-watchman observes suite108095815110 queued withzero dispatched runs on two polls, over56min old. No build log/code verdict exists. Rerequest forbidden. Existing required Actions workflows startup_failure with0jobs. Neither is green verification. |
-| Findings and evidence durable; no prohibited actions | DONE for pushed milestones; final handoff/cleanup in progress | WIP test/mutation/evidence branches pushed throughout. No merge/enqueue/publish/deploy/restart/rerequest, no JVM flags/timeouts/iteration/assertion weakening, no mocks/reflection/visibility changes. |
+| Findings and evidence durable; no prohibited actions | DONE; final handoff and process cleanup verified | WIP test/mutation/evidence branches pushed throughout. No merge/enqueue/publish/deploy/restart/rerequest, no JVM flags/timeouts/iteration/assertion weakening, no mocks/reflection/visibility changes. |
 
 Remaining verification is tracked in the existing handoff at url://handoff/handoffs/hf-2026-10-22-restore-required-verification-for-jvm-libp2p-explicit-close-retry . This lane leaves the requested reviewer test ready for review while reporting the unmet green-verification gates explicitly.
+
+2026-10-23T02:09:27.677980+00:00 OBSERVED: existing handoff updated with full current source/branch/CI/Noise state and read back byte-for-byte. Actual Kotlin suite still queued with0dispatch on fresh terminal snapshot; all3Actions suites startup_failure/0runs. Source/evidence/base clone audits: clean, no stashes, no local-only commits, no extra worktrees. Final status report follows.
+
+Final status: green verification BLOCKED — 2026-10-23 02:09 UTC. The requested [PR](https://github.com/CodexCoder21Organization/jvm-libp2p/pull/67) is open, ready for review, and unmerged. The reviewer’s test is added with its assertions preserved, and the PR body is updated.
+
+Ordinary close retains its original result. Explicit retry shares pending work and replaces a settled failure. The new test verifies peer closure and callback re-entry preserve the pending retry’s result.
+
+- New test: 3/3 passes; mutation: 3/3 expected failures. All 24 targeted/neighbour cases passed three first-attempt runs.
+- Full suite: 1,226 tests, 1,203 passed, 21 failed, 2 pre-existing disabled. The known 20 failures plus one unresolved Noise failure refute the expected exact-20 result. Thirty-two base controls and 20 PR controls did not reproduce the extra failure.
+- CI: Kotlin suite has zero dispatched runs; Actions has startup_failure and zero jobs. Rerequesting is prohibited by this lane. No green verification is claimed.
+
+No delegates remain. Holds audit: CI execution and the unresolved Noise result; all independent test/review steps are complete. No new owner direction arrived. No merge, enqueue, publish, deployment or restart occurred.
+
+[Evidence](https://github.com/CodexCoder21Organization/jvm-libp2p/blob/wip/FIX67-evidence-20261023/lane-evidence/FIX67.md). The updated [handoff](url://handoff/handoffs/hf-2026-10-22-restore-required-verification-for-jvm-libp2p-explicit-close-retry) ([web](https://www.handoff.wasmserver.com/handoffs/hf-2026-10-22-restore-required-verification-for-jvm-libp2p-explicit-close-retry)) records the remaining CI and Noise investigation. Monitoring stops at this blocker.
+
+The [flake-fixing instructions](/home/leslie/.codex/skills/fix-flakey-test/SKILL.md) require: “STOP and ask the user before guessing at a fix.” No Noise change was guessed without reliable reproduction.
+
+Lessons: preserve owned results; force exact ordering in tests; compare exact baseline failure identities.
+
+2026-10-23T02:11:46.961291+00:00 OBSERVED: final full ps -eo pid,args -ww audit found zero owned background processes. All tracked build/test/harness/watcher commands ended; no loops remain. Handoff BLOCKED report uploaded and claim released; body exact readback previously verified. All three source/evidence/base checkouts were clean with no stash/local-only commit, and this lane adds exactly one source test file to the PR. No build or test outputs are in the PR. Final evidence checkpoint follows.

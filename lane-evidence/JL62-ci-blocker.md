@@ -34,3 +34,10 @@ No deployment, publication or server restart occurred. Verified from the lane's 
 ## Operational knowledge
 
 Watcher command: `timeout 90m coursier launch buildwatchman:build-watchman:0.0.21 -r https://kotlin.directory -- --repo CodexCoder21Organization/jvm-libp2p --pr 70 --check 'kotlin.build (remote)' --interval-seconds 240 --idle-timeout-minutes 90` . Never use mutating modes in this lane. GitHub status polling is limited to once per2minutes. All root-cause claims above distinguish observations from the unconfirmed delivery mechanism.
+
+
+## Resolution observed 2026-10-23 04:56 UTC
+
+The original zero-dispatch condition has cleared without any rerequest or receiver change by this lane. Required check https://github.com/CodexCoder21Organization/jvm-libp2p/runs/120247035520 completed successfully at 04:51:02 UTC on the exact PR head 091b6d17280045ec2a1260ec890d1a06991bb6ac. Its entire summary is: `kotlin.build CI check passed (no build.kts found in repository).` The informational route https://github.com/CodexCoder21Organization/jvm-libp2p/runs/120247123781 reports the same.
+
+The dispatch mission is satisfied and the lane-specified check is green. The earlier expectation that this check would provide a Gradle code verdict was incorrect: this Gradle repository has no build.kts, and this check did not compile or run tests. No actual test pass is inferred from it. Requiring a code verdict from this specific adapter is refuted by its recorded output; the remaining independent full-suite verification belongs to the main handoff. Actions startup failures remain the known repository condition. The delayed dispatch mechanism is still unknown; no repair is claimed.

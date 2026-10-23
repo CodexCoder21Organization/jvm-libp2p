@@ -9,7 +9,7 @@ phase=sys.argv[1]
 name='JL62-'+phase
 cmd=['./gradlew','--no-daemon']
 if phase.startswith('full'):
-    cmd=['flock','-w',('600' if phase!='full' else '5400'),'/tmp/claude-501/complete-suite.lock','timeout','45m']+cmd+['cleanTest','test','--continue']
+    cmd=['flock','-w',('540' if phase=='full3' else ('600' if phase!='full' else '5400')),'/tmp/claude-501/complete-suite.lock','timeout','45m']+cmd+['cleanTest','test','--continue']
 else:
     cmd+=[':libp2p:cleanTest',':libp2p:test']
     selectors=['io.libp2p.mux.PausedChildResumeReadReentryTcpTest'] if phase=='reentry-red' else ['io.libp2p.mux.PausedChild*Test']

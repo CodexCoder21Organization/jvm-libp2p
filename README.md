@@ -165,6 +165,15 @@ fun replyAndCloseWrite(stream: Stream, reply: ByteArray): CompletableFuture<Unit
 
 Each child stream channel keeps one Netty `ChannelConfig` for its lifetime. For a `StreamOverNetty`, setting `nettyChannel.config().isAutoRead = false` holds inbound payloads for that stream in arrival order. A pause made from another thread can allow at most one payload whose delivery was already in progress when the setter returned. Setting auto-read back to `true` delivers held payloads in order, followed by any received end-of-stream event; closing the stream releases held payloads.
 
+While a child has auto-read disabled, `nettyChannel.read()` requests one payload and its
+`channelReadComplete` event without enabling auto-read. It delivers an already queued payload,
+or remains pending until one arrives. Repeated requests before delivery coalesce into one pending
+read. A read callback or read-complete callback may request the next payload; callbacks are not
+nested by that request. Since Yamux may merge held frames, one payload can contain several frames.
+An explicit Mplex read also requests physical reads while waiting for its payload, keeping the
+parent's auto-read setting paused. Queued end-of-stream follows the preceding payloads, and closing
+the child releases any remaining held data.
+
 | Muxer | Paused child | Parent reads and other streams |
 | --- | --- | --- |
 | Yamux | Holds its own delivery and receive-window credit. Held bytes are bounded by its receive window, and credit is returned only after delivery. A paused stream holds at most 64 payload copies: once it holds 64, later payloads are appended to the newest copy, so a peer that stays inside the window is never reset for its frame sizes. | Parent reads continue, so sibling streams and window updates for replies on the paused stream keep flowing. |

@@ -125,22 +125,24 @@ class PausedChildConcurrentReadTcpTest {
                 // Mplex pauses the parent too. Admit the next physical read without resuming it.
                 if (value == 2) parent.read()
                 assertEquals(1, forwarded.poll(5, TimeUnit.SECONDS), "The payload must reach the paused child queue")
-                parent.eventLoop().submit(Callable {
-                    assertEquals(
-                        listOf("byte:1", "complete"),
-                        events.toList(),
-                        "Concurrent pending reads authorize one payload, and must not authorize later arrivals"
-                    )
-                    if (value == 2) child.read()
-                    assertEquals(
-                        (1..value).flatMap { listOf("byte:$it", "complete") },
-                        events.toList(),
-                        "An explicit read must deliver queued bytes followed by read-complete"
-                    )
-                    assertFalse(child.config().isAutoRead, "Manual reading must leave automatic reads paused")
-                    assertEquals(muxer == "yamux", parent.config().isAutoRead, "The parent's pause policy must be preserved")
-                    assertTrue(child.isOpen)
-                }).get(5, TimeUnit.SECONDS)
+                parent.eventLoop().submit(
+                    Callable {
+                        assertEquals(
+                            listOf("byte:1", "complete"),
+                            events.toList(),
+                            "Concurrent pending reads authorize one payload, and must not authorize later arrivals"
+                        )
+                        if (value == 2) child.read()
+                        assertEquals(
+                            (1..value).flatMap { listOf("byte:$it", "complete") },
+                            events.toList(),
+                            "An explicit read must deliver queued bytes followed by read-complete"
+                        )
+                        assertFalse(child.config().isAutoRead, "Manual reading must leave automatic reads paused")
+                        assertEquals(muxer == "yamux", parent.config().isAutoRead, "The parent's pause policy must be preserved")
+                        assertTrue(child.isOpen)
+                    }
+                ).get(5, TimeUnit.SECONDS)
             }
         } finally {
             try {

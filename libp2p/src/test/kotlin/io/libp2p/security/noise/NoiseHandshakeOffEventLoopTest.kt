@@ -144,7 +144,7 @@ class NoiseHandshakeOffEventLoopTest {
                 "Noise test relay did not expose a TCP listen address: ${relay.listenAddresses()}"
             }.toInt()
 
-            Socket("127.0.0.1", port).use { socket ->
+            Socket(NOISE_TEST_HOST, port).use { socket ->
                 socket.soTimeout = TimeUnit.SECONDS.toMillis(HandshakeTimeoutSec + 3L).toInt()
                 writeMultistreamMessage(socket.getOutputStream(), "/multistream/1.0.0")
                 writeMultistreamMessage(socket.getOutputStream(), NoiseXXSecureChannel.announce)
@@ -178,7 +178,7 @@ class NoiseHandshakeOffEventLoopTest {
                     random(KeyType.ED25519)
                 }
                 network {
-                    listen("/ip4/127.0.0.1/tcp/0")
+                    listen("/ip4/$NOISE_TEST_HOST/tcp/0")
                 }
                 protocols {
                     +Ping()
@@ -567,13 +567,15 @@ object NoiseHandshakePathHarness {
     private fun verifySingleInlineHandshake() {
         val executionRecorder = NoiseHandshakeExecutionRecorder().also { it.install() }
         val hosts = mutableListOf<Host>()
+        val setup = InlineNoiseSetup()
         try {
-            val relay = newNoiseHost(listen = true).also { hosts += it }
-            val dialer = newNoiseHost().also { hosts += it }
+            val relay = newNoiseHost(listen = true, inlineSetup = setup).also { hosts += it }
+            val dialer = newNoiseHost(inlineSetup = setup).also { hosts += it }
             startNoiseHosts(hosts)
 
-            dialer.network.connect(relay.peerId, relay.listenAddresses().single())
-                .get(5, TimeUnit.SECONDS)
+            val connection = dialer.network.connect(relay.peerId, relay.listenAddresses().single())
+            setup.releaseCurrentConnection()
+            connection.get(5, TimeUnit.SECONDS)
 
             val execution = executionRecorder.snapshot()
             check(execution.inlineHandshakes == 2 && execution.offloadedHandshakes == 0) {
@@ -805,6 +807,7 @@ private class NoiseHandshakeExecutionRecorder {
 
 private class InlineNoiseSetup(private val queueCallbacks: Boolean = false) {
     private val activeContexts = ArrayBlockingQueue<ChannelHandlerContext>(2)
+    private val loopDispatchers = ConcurrentHashMap<EventExecutor, EmptyQueueNoiseDispatcher>()
 
     fun prepare(connection: ConnectionOverNetty) {
         connection.nettyChannel.config().isAutoRead = false
@@ -851,9 +854,35 @@ private class InlineNoiseSetup(private val queueCallbacks: Boolean = false) {
 
     private fun dispatch(ctx: ChannelHandlerContext, action: () -> Unit) {
         check(ctx.executor().inEventLoop())
-        action()
+        loopDispatchers.computeIfAbsent(ctx.executor()) { EmptyQueueNoiseDispatcher(it) }.submit(action)
     }
 }
+
+// One dispatcher per loop avoids two channels waiting for each other's queued dispatch.
+private class EmptyQueueNoiseDispatcher(private val executor: EventExecutor) {
+    private val events = java.util.ArrayDeque<() -> Unit>()
+    private var scheduled = false
+
+    fun submit(action: () -> Unit) {
+        events.addLast(action)
+        schedule()
+    }
+
+    private fun schedule() {
+        if (scheduled) return
+        scheduled = true
+        executor.execute {
+            scheduled = false
+            val loop = executor as SingleThreadEventExecutor
+            while (events.isNotEmpty() && loop.pendingTasks() == 0) {
+                events.removeFirst().invoke()
+            }
+            if (events.isNotEmpty()) schedule()
+        }
+    }
+}
+
+private const val NOISE_TEST_HOST = "127.0.0.2"
 
 private fun newNoiseHost(listen: Boolean = false, inlineSetup: InlineNoiseSetup? = null): Host = host {
     if (inlineSetup != null) {
@@ -867,7 +896,7 @@ private fun newNoiseHost(listen: Boolean = false, inlineSetup: InlineNoiseSetup?
     }
     if (listen) {
         network {
-            listen("/ip4/127.0.0.1/tcp/0")
+            listen("/ip4/$NOISE_TEST_HOST/tcp/0")
         }
     }
     protocols {

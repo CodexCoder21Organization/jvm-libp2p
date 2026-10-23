@@ -3,12 +3,12 @@ package io.libp2p.security.noise
 import io.libp2p.core.Host
 import io.libp2p.core.crypto.KeyType
 import io.libp2p.core.dsl.host
-import io.libp2p.core.mux.StreamMuxerProtocol
 import io.libp2p.core.multiformats.Multiaddr
+import io.libp2p.core.mux.StreamMuxerProtocol
 import io.libp2p.core.security.SecureChannel
-import io.libp2p.transport.ws.WsTransport
 import io.libp2p.protocol.Ping
 import io.libp2p.protocol.PingController
+import io.libp2p.transport.ws.WsTransport
 import jdk.jfr.Recording
 import jdk.jfr.consumer.RecordingFile
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.io.File
 import java.nio.file.Files
+import java.security.Security
 import java.time.Duration
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
@@ -27,7 +28,8 @@ class NoiseAlgorithmReadinessTest {
         val process = ProcessBuilder(
             File(System.getProperty("java.home"), "bin/java").absolutePath,
             "-Xmx128m",
-            "-cp", System.getProperty("java.class.path"),
+            "-cp",
+            System.getProperty("java.class.path"),
             "io.libp2p.security.noise.NoiseAlgorithmReadinessProbe"
         ).redirectErrorStream(true).redirectOutput(output.toFile()).start()
         try {
@@ -36,6 +38,7 @@ class NoiseAlgorithmReadinessTest {
             print(text)
             assertEquals(0, process.exitValue(), text)
         } finally {
+            process.descendants().forEach { it.destroyForcibly() }
             process.destroyForcibly().waitFor(5, TimeUnit.SECONDS)
             Files.deleteIfExists(output)
         }
@@ -48,11 +51,15 @@ object NoiseAlgorithmReadinessProbe {
         val mode = args.firstOrNull() ?: "direct"
         val peer = ProcessBuilder(
             File(System.getProperty("java.home"), "bin/java").absolutePath,
-            "-Xmx128m", "-Dio.netty.eventLoopThreads=1",
-            "-cp", System.getProperty("java.class.path"),
-            "io.libp2p.security.noise.NoiseReadinessPeer", mode
+            "-Xmx128m",
+            "-Dio.netty.eventLoopThreads=1",
+            "-cp",
+            System.getProperty("java.class.path"),
+            "io.libp2p.security.noise.NoiseReadinessPeer",
+            mode
         ).redirectError(ProcessBuilder.Redirect.INHERIT).start()
         var client: Host? = null
+        val provider = NoisePreparationProvider()
         val recordingFile = Files.createTempFile("first-dial-", ".jfr")
         try {
             val endpoint = CompletableFuture.supplyAsync {
@@ -60,8 +67,16 @@ object NoiseAlgorithmReadinessProbe {
                     .first { it.startsWith("PEER=") }.removePrefix("PEER=")
             }.get(10, TimeUnit.SECONDS)
             val address = Multiaddr(endpoint)
+            check(Security.insertProviderAt(provider, 1) == 1) { "Counting SHA-256 provider was not installed first" }
             val local = readinessHost(mode)
             client = local
+            check(provider.initializations.get() == 1) { "Host returned before the real SHA-256 provider's first use" }
+            check(provider.allocations.get() == 2) { "Host did not prepare both Noise roles" }
+            check(provider.destroyed.get() == 2 && provider.duplicateDestructions.get() == 0) {
+                "Temporary role digests were not destroyed exactly once before readiness"
+            }
+            check(!provider.onNettyExecutor.get()) { "Noise preparation used a Netty executor before readiness" }
+            val initializedBeforeStream = provider.initializations.get()
             local.start().get(10, TimeUnit.SECONDS)
             check(local.network.connections.isEmpty()) {
                 "Host start must prepare the transport without opening a connection"
@@ -70,7 +85,9 @@ object NoiseAlgorithmReadinessProbe {
                 recording.enable("jdk.ClassLoad").withThreshold(Duration.ZERO).withStackTrace()
                 recording.start()
                 val opened = local.newStream<PingController>(
-                    listOf("/ipfs/ping/1.0.0"), requireNotNull(address.getPeerId()), address
+                    listOf("/ipfs/ping/1.0.0"),
+                    requireNotNull(address.getPeerId()),
+                    address
                 )
                 try {
                     val controller = opened.controller.get(10, TimeUnit.SECONDS)
@@ -91,6 +108,10 @@ object NoiseAlgorithmReadinessProbe {
                         name == "com.southernstorm.noise.protocol.ChaChaPolyCipherState" ||
                         name == "com.southernstorm.noise.protocol.DHStateHybrid"
                 }
+            check(provider.initializations.get() == initializedBeforeStream) {
+                "First real stream initialized the SHA-256 provider after host readiness"
+            }
+            println("PROVIDER_INITIALIZATIONS_BEFORE_READY=$initializedBeforeStream TEMPORARY_DIGESTS_DESTROYED=2")
             val names = loads.map { it.getClass("loadedClass").name }.distinct().sorted()
             println("FIRST_DIAL_NOISE_ALGORITHM_LOADS=${loads.size}\n${names.joinToString("\n")}")
             check(loads.isEmpty()) {
@@ -100,6 +121,7 @@ object NoiseAlgorithmReadinessProbe {
             try {
                 client?.stop()?.get(10, TimeUnit.SECONDS)
             } finally {
+                Security.removeProvider(provider.name)
                 peer.outputStream.close()
                 try {
                     check(peer.waitFor(5, TimeUnit.SECONDS)) { "Separate Noise peer did not stop" }
@@ -112,7 +134,6 @@ object NoiseAlgorithmReadinessProbe {
         }
     }
 }
-
 
 private fun readinessHost(mode: String): Host = host {
     identity { random(KeyType.ED25519) }

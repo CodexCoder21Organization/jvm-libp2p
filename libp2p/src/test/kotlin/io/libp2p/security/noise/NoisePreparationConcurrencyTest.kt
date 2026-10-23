@@ -22,8 +22,10 @@ class NoisePreparationConcurrencyTest {
         val output = Files.createTempFile("noise-concurrent-preparation-", ".log")
         val process = ProcessBuilder(
             File(System.getProperty("java.home"), "bin/java").absolutePath,
-            "-Xmx128m", "-Dio.netty.eventLoopThreads=1",
-            "-cp", System.getProperty("java.class.path"),
+            "-Xmx128m",
+            "-Dio.netty.eventLoopThreads=1",
+            "-cp",
+            System.getProperty("java.class.path"),
             "io.libp2p.security.noise.NoisePreparationConcurrencyProbe"
         ).redirectErrorStream(true).redirectOutput(output.toFile()).start()
         try {

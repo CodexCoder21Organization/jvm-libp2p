@@ -14,13 +14,19 @@ class NoisePreparationFailureTest {
     @Test
     fun `failing cold preparation reaches event loop start caller and leaves worker responsive`() = probe("inline")
 
+    @Test
+    fun `completed role digest is destroyed before the next role preparation fails`() = probe("external-second")
+
     private fun probe(mode: String) {
         val output = Files.createTempFile("noise-failure-", ".log")
         val process = ProcessBuilder(
             File(System.getProperty("java.home"), "bin/java").absolutePath,
-            "-Xmx128m", "-Dio.netty.eventLoopThreads=1",
-            "-cp", System.getProperty("java.class.path"),
-            "io.libp2p.security.noise.NoisePreparationFailureProbe", mode
+            "-Xmx128m",
+            "-Dio.netty.eventLoopThreads=1",
+            "-cp",
+            System.getProperty("java.class.path"),
+            "io.libp2p.security.noise.NoisePreparationFailureProbe",
+            mode
         ).redirectErrorStream(true).redirectOutput(output.toFile()).start()
         try {
             assertTrue(process.waitFor(30, TimeUnit.SECONDS), "Cold preparation failure probe did not finish")

@@ -14,13 +14,19 @@ class NoisePreparationTrafficTest {
     @Test
     fun `cold preparation requested on live event loop awaits readiness asynchronously`() = probe("inline")
 
+    @Test
+    fun `close during cold preparation prevents late listener publication`() = probe("close")
+
     private fun probe(mode: String) {
         val output = Files.createTempFile("noise-live-traffic-", ".log")
         val process = ProcessBuilder(
             File(System.getProperty("java.home"), "bin/java").absolutePath,
-            "-Xmx128m", "-Dio.netty.eventLoopThreads=1",
-            "-cp", System.getProperty("java.class.path"),
-            "io.libp2p.security.noise.NoisePreparationTrafficProbe", mode
+            "-Xmx128m",
+            "-Dio.netty.eventLoopThreads=1",
+            "-cp",
+            System.getProperty("java.class.path"),
+            "io.libp2p.security.noise.NoisePreparationTrafficProbe",
+            mode
         ).redirectErrorStream(true).redirectOutput(output.toFile()).start()
         try {
             assertTrue(process.waitFor(30, TimeUnit.SECONDS), "Cold traffic probe did not finish")

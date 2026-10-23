@@ -9,6 +9,7 @@ import io.libp2p.core.PeerId
 import io.libp2p.core.multiformats.Multiaddr
 import io.libp2p.core.multiformats.MultiaddrDns
 import io.libp2p.core.multiformats.Protocol
+import io.libp2p.etc.types.completedExceptionally
 import io.libp2p.etc.types.lazyVar
 import io.libp2p.etc.types.toCompletableFuture
 import io.libp2p.etc.types.toVoidCompletableFuture
@@ -99,22 +100,24 @@ abstract class PlainNettyTransport(
         }
     }
 
+    // Closing this transport settles its callers without interrupting shared algorithm setup.
+    private val readiness = CompletableFuture<Unit>()
+
     private val preparation by lazy {
         val preparations = upgrader.startupPreparationsSnapshot()
         if (preparations.isEmpty()) {
-            CompletableFuture.completedFuture(Unit)
+            readiness.complete(Unit)
         } else {
-            val result = CompletableFuture<Unit>()
             Thread({
                 try {
                     preparations.forEach { it() }
-                    result.complete(Unit)
+                    readiness.complete(Unit)
                 } catch (failure: Throwable) {
-                    result.completeExceptionally(failure)
+                    readiness.completeExceptionally(failure)
                 }
             }, "libp2p-transport-preparation").apply { isDaemon = true }.start()
-            result
         }
+        readiness
     }
 
     override fun initialize() {
@@ -130,7 +133,8 @@ abstract class PlainNettyTransport(
         }
     }
 
-    override fun ready(): CompletableFuture<Unit> = preparation.thenApply { }
+    override fun ready(): CompletableFuture<Unit> =
+        if (closed) completedExceptionally(Libp2pException("Transport is closed")) else preparation.thenApply { }
 
     override fun close(): CompletableFuture<Unit> {
         // Take a consistent snapshot of the listener and child-channel collections
@@ -165,6 +169,9 @@ abstract class PlainNettyTransport(
             listenersToClose = listeners.values.toList()
             channelsToClose = channels.toList()
         }
+
+        // Complete outside the monitor: readiness callbacks can re-enter transport operations.
+        readiness.completeExceptionally(Libp2pException("Transport is closed"))
 
         val unbindsCompleted = listenersToClose
             .map { closeNettyChannelOnce(it) }
@@ -219,6 +226,7 @@ abstract class PlainNettyTransport(
         connHandler: ConnectionHandler,
         preHandler: ChannelVisitor<P2PChannel>?
     ): CompletableFuture<Unit> {
+        if (closed) throw Libp2pException("Transport is closed")
         if (!preparation.isDone || preparation.isCompletedExceptionally) {
             return ready().thenCompose { listen(addr, connHandler, preHandler) }
         }
@@ -278,6 +286,7 @@ abstract class PlainNettyTransport(
         connHandler: ConnectionHandler,
         preHandler: ChannelVisitor<P2PChannel>?
     ): CompletableFuture<Connection> {
+        if (closed) throw Libp2pException("Transport is closed")
         if (!preparation.isDone || preparation.isCompletedExceptionally) {
             return ready().thenCompose { dial(addr, connHandler, preHandler) }
         }

@@ -6,6 +6,7 @@ import io.libp2p.core.Connection
 import io.libp2p.core.ConnectionClosedException
 import io.libp2p.core.ConnectionHandler
 import io.libp2p.core.Host
+import io.libp2p.core.Libp2pException
 import io.libp2p.core.Network
 import io.libp2p.core.NoSuchLocalProtocolException
 import io.libp2p.core.PeerId
@@ -14,6 +15,7 @@ import io.libp2p.core.StreamPromise
 import io.libp2p.core.crypto.PrivKey
 import io.libp2p.core.multiformats.Multiaddr
 import io.libp2p.core.multistream.ProtocolBinding
+import io.libp2p.etc.types.completedExceptionally
 import io.libp2p.etc.types.hasCauseOfType
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CopyOnWriteArrayList
@@ -27,6 +29,9 @@ class HostImpl(
     private val connectionHandlers: ConnectionHandler.Broadcast,
     private val streamVisitors: ChannelVisitor.Broadcast<Stream>
 ) : Host {
+
+    @Volatile
+    private var stopped = false
 
     override val peerId = PeerId.fromPubKey(privKey.publicKey())
     override val streams = CopyOnWriteArrayList<Stream>()
@@ -53,13 +58,19 @@ class HostImpl(
     }
 
     override fun start(): CompletableFuture<Void> {
+        if (stopped) return completedExceptionally(Libp2pException("Transport is closed"))
         return CompletableFuture.allOf(*network.transports.map { it.ready() }.toTypedArray())
             .thenCompose {
+                if (stopped) throw Libp2pException("Transport is closed")
                 CompletableFuture.allOf(*listenAddrs.map { network.listen(it) }.toTypedArray())
+            }.thenApply {
+                if (stopped) throw Libp2pException("Transport is closed")
+                it
             }
     }
 
     override fun stop(): CompletableFuture<Void> {
+        stopped = true
         return CompletableFuture.allOf(
             network.close()
         )

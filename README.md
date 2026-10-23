@@ -68,6 +68,8 @@ Registration follows the announced `/noise` protocol, including bindings that de
 Construction outside a Netty executor waits for preparation and reports its original failure.
 Construction in a Netty callback returns without blocking that executor; `Host.start()`, listening
 and dialing await preparation asynchronously before publishing readiness or opening sockets.
+Stopping a host fails its pending readiness, startup, listen and dial operations with `Transport is closed`;
+shared preparation continues for other hosts. A stopped host cannot become ready or start again.
 This setup is shared by bindings in the same process. It opens no connection and
 runs no peer key exchange or application callback. Each connection still creates fresh handshake
 state, ephemeral keys and cipher state. Noise pipeline callbacks, mux sessions and application

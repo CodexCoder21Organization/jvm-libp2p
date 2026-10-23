@@ -55,19 +55,22 @@ class RetryCloseInactiveReviewTest {
                     }
                 }
             )
-            connection.pushHandler("review-inactive", object : ChannelInboundHandlerAdapter() {
-                override fun channelInactive(ctx: ChannelHandlerContext) {
-                    try {
-                        reenteredOrdinary.set(connection.close())
-                        reenteredRetry.set(connection.retryClose())
-                        inactive.complete(Unit)
-                    } catch (failure: Throwable) {
-                        inactive.completeExceptionally(failure)
-                    } finally {
-                        ctx.fireChannelInactive()
+            connection.pushHandler(
+                "review-inactive",
+                object : ChannelInboundHandlerAdapter() {
+                    override fun channelInactive(ctx: ChannelHandlerContext) {
+                        try {
+                            reenteredOrdinary.set(connection.close())
+                            reenteredRetry.set(connection.retryClose())
+                            inactive.complete(Unit)
+                        } catch (failure: Throwable) {
+                            inactive.completeExceptionally(failure)
+                        } finally {
+                            ctx.fireChannelInactive()
+                        }
                     }
                 }
-            })
+            )
             connection.nettyChannel.eventLoop().submit {}.get(5, TimeUnit.SECONDS)
             assertSame(initialFailure, inactiveReviewFailure(connection.close()))
             val retry = connection.retryClose()

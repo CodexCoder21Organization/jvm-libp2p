@@ -32,6 +32,10 @@ class MuxChannel<TData>(
         parent.childAutoReadChanged(this)
     }
 
+    override fun doBeginRead() {
+        parent.childReadRequested(this)
+    }
+
     override fun metadata(): ChannelMetadata = ChannelMetadata(true)
     override fun localAddress0() =
         MultiplexSocketAddress(parent.getChannelHandlerContext().channel().localAddress(), id)

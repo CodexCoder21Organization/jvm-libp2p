@@ -65,6 +65,7 @@ abstract class AbstractMuxHandler<TData>(
         val messages = java.util.ArrayDeque<TData>()
         var bytes = 0L
         var draining = false
+        var readPending = false
         var remoteEndPending = false
     }
     private val pendingInbound = mutableMapOf<MuxId, PendingInbound<TData>>()
@@ -197,7 +198,9 @@ abstract class AbstractMuxHandler<TData>(
                     val queued = pendingInbound[id]
                     // An off-loop resume changes the flag before its drain task reaches this loop.
                     // Drain the FIFO before deciding whether this frame needs paused capacity.
-                    if (autoRead && queued != null && !queued.draining) {
+                    if (queued != null && queued.messages.isNotEmpty() &&
+                        (autoRead || queued.readPending) && !queued.draining
+                    ) {
                         drainPendingInbound(child)
                         // A read callback may close the child or pause it again.
                         if (!child.isOpen) {
@@ -237,7 +240,7 @@ abstract class AbstractMuxHandler<TData>(
                             pending.messages.add(preparePendingChildRead(msg, pending.bytes))
                         }
                         pending.bytes += size
-                        if (child.config().isAutoRead) drainPendingInbound(child)
+                        if (child.config().isAutoRead || pending.readPending) drainPendingInbound(child)
                     } else {
                         deliverToChild(child, msg, false)
                     }
@@ -293,36 +296,59 @@ abstract class AbstractMuxHandler<TData>(
         if (wasAutoRead && parentChannel.isOpen) parentChannel.config().isAutoRead = true
     }
 
+    /** Netty coalesces outstanding reads: demand is a flag, not an accumulating allowance. */
+    internal fun childReadRequested(child: MuxChannel<TData>) {
+        if (!child.isOpen || child.remoteDisconnected || child.config().isAutoRead) return
+        val queued = pendingInbound.getOrPut(child.id) { PendingInbound() }
+        queued.readPending = true
+        drainPendingInbound(child)
+    }
+
+    private fun requestParentReadIfNeeded() {
+        val parentChannel = getChannelHandlerContext().channel()
+        if (parentChannel.isOpen && !parentChannel.config().isAutoRead &&
+            pendingInbound.values.any { it.readPending && !it.draining }
+        ) {
+            parentChannel.read()
+        }
+    }
+
     private fun drainPendingInbound(child: MuxChannel<TData>) {
         val queued = pendingInbound[child.id] ?: return
         if (queued.draining) return
-        var delivered = false
+        // Keep the guard through read-complete too: callbacks may request another read.
         queued.draining = true
         try {
-            while (child.isOpen && child.config().isAutoRead && queued.messages.isNotEmpty()) {
-                val msg = queued.messages.removeFirst()
-                queued.bytes -= pendingChildReadSize(msg)
-                sealPendingChildRead(msg)
-                delivered = true
-                deliverToChild(child, msg, true)
+            while (child.isOpen && queued.messages.isNotEmpty() &&
+                (child.config().isAutoRead || queued.readPending)
+            ) {
+                val manualRead = !child.config().isAutoRead
+                // Consume before calling application code so re-entry can arm the next read.
+                queued.readPending = false
+                do {
+                    val msg = queued.messages.removeFirst()
+                    queued.bytes -= pendingChildReadSize(msg)
+                    sealPendingChildRead(msg)
+                    deliverToChild(child, msg, true)
+                } while (!manualRead && child.isOpen && child.config().isAutoRead && queued.messages.isNotEmpty())
+                if (child.isOpen) child.pipeline().fireChannelReadComplete()
             }
         } finally {
             queued.draining = false
             val remoteEndReady = queued.messages.isEmpty() && queued.remoteEndPending
-            if (queued.messages.isEmpty() && !remoteEndReady && pendingInbound[child.id] === queued) {
+            if (queued.messages.isEmpty() && !queued.readPending && !remoteEndReady && pendingInbound[child.id] === queued) {
                 pendingInbound.remove(child.id)
             }
-            try {
-                if (delivered && child.isOpen) child.pipeline().fireChannelReadComplete()
-            } finally {
-                if (remoteEndReady) {
-                    try {
-                        if (child.isOpen) child.onRemoteDisconnected()
-                    } finally {
-                        if (pendingInbound[child.id] === queued) pendingInbound.remove(child.id)
-                    }
+            if (remoteEndReady) {
+                try {
+                    if (child.isOpen) child.onRemoteDisconnected()
+                } finally {
+                    if (pendingInbound[child.id] === queued) pendingInbound.remove(child.id)
                 }
             }
+            // A resume callback can pause and request another read after emptying this FIFO.
+            // Re-arm only after clearing the drain guard, even without a parent read-complete.
+            requestParentReadIfNeeded()
         }
     }
 
@@ -336,6 +362,9 @@ abstract class AbstractMuxHandler<TData>(
     override fun channelReadComplete(ctx: ChannelHandlerContext) {
         pendingReadComplete.forEach { streamMap[it]?.pipeline()?.fireChannelReadComplete() }
         pendingReadComplete.clear()
+        // A physical read can end partway through an encoded frame, or contain only siblings.
+        // Keep a paused transport reading until the requested child receives its payload.
+        requestParentReadIfNeeded()
     }
 
     /**
@@ -411,7 +440,7 @@ abstract class AbstractMuxHandler<TData>(
         if (child.remoteDisconnected || queued?.remoteEndPending == true) return
         if (queued != null) {
             queued.remoteEndPending = true
-            if (child.config().isAutoRead) drainPendingInbound(child)
+            if (child.config().isAutoRead || queued.readPending) drainPendingInbound(child)
         } else {
             child.onRemoteDisconnected()
         }

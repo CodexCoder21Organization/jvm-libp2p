@@ -26,6 +26,8 @@ import org.junit.jupiter.api.RepeatedTest
 import org.junit.jupiter.api.Test
 import java.io.InputStream
 import java.io.OutputStream
+import java.net.InetAddress
+import java.net.ServerSocket
 import java.net.Socket
 import java.nio.channels.ClosedChannelException
 import java.util.concurrent.ArrayBlockingQueue
@@ -40,6 +42,28 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
 class NoiseHandshakeOffEventLoopTest {
+    @Test
+    fun testNoiseRelayKeepsOrdinaryLoopbackPortSeparate() {
+        val relay = newNoiseHost(listen = true)
+        val dialer = newNoiseHost()
+        try {
+            startNoiseHosts(listOf(relay, dialer))
+            val address = relay.listenAddresses().single()
+            val port = requireNotNull(address.getFirstComponent(Protocol.TCP)?.stringValue).toInt()
+            ServerSocket(port, 1, InetAddress.getByName("127.0.0.1")).use { ordinaryListener ->
+                Socket("127.0.0.1", port).use {
+                    ordinaryListener.accept().use { accepted ->
+                        assertThat(accepted.localAddress.hostAddress).isEqualTo("127.0.0.1")
+                    }
+                }
+                dialer.network.connect(relay.peerId, address).get(5, TimeUnit.SECONDS)
+                assertThat(relay.network.connections).hasSize(1)
+            }
+        } finally {
+            stopNoiseHosts(listOf(dialer, relay))
+        }
+    }
+
     @Test
     fun `single Noise handshake runs crypto inline on event loops`() {
         val processOutput = runNoiseHandshakeHarness("inline", 10)

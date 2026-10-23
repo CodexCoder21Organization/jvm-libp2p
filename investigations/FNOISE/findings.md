@@ -84,3 +84,14 @@ All resources are in-memory and newly created per case; no persisted restart sta
 2026-10-23T01:36:18.232265+00:00 OBSERVED: the ONE complete suite has ended with exit 1: {"suites": 134, "tests": 1207, "red": 20, "errors": 0, "skipped": 2, "retry_entries": 0, "exit": 1}. NoiseHandshakeOffEventLoopTest is 29/29 first-attempt passes, no skips. The 20 red cases are in other test groups. No attribution of those other outcomes is made here. All suite XML, full traces, raw Gradle output, command metadata, and source head are retained. No second complete suite is run.
 
 OBSERVED: after final fetch and rebase, the pre-PR selection passed all 21 first attempts (the original TCP case and both ten-case regressions), zero skips or retries. Head remains the exact pushed complete-suite head. Full suite status remains 20 red in other groups; no second full suite or CI watch is performed.
+
+Final brief audit
+- Task 1 DONE: 200 fresh endpoint-pair attempts on each original revision; base 188 pass / 12 red, pinned head 192 pass / 8 red; no skips or retry entries.
+- Task 2 DONE: exact responder message-3 timer ordering demonstrated with paused public channel clocks on both revisions, ten controls each. Baseline and head regressions each 20/20 red. Classification: pre-existing fixture issue; not introduced by https://github.com/CodexCoder21Organization/jvm-libp2p/pull/66 .
+- Task 3 DONE: separate correction PR https://github.com/CodexCoder21Organization/jvm-libp2p/pull/69 against the actual default branch develop. Omitted writes stay pending until close; all original assertions, time limits, and iterations are retained. Corrected first attempts 220/220; reversal 20/20 red; neighbor class 29/29; final pre-PR selection 21/21. Why-first provenance and requested attribution are present.
+- Task 4 DONE: exactly one complete Gradle suite from https://github.com/CodexCoder21Organization/jvm-libp2p/commit/812a22c71175817223c80fe69f8c8ba446bbae44 through the shared slot: 1,207 cases, 20 red, 2 skipped, no retry entries; Noise class 29/29 passes. This is not a full-suite pass. The other groups have complete XML and full traces retained without a cause attribution here.
+
+No CI watch after PR creation. No PR merge or merge-queue request, Maven publication, deployment, production restart, timeout increase, iteration reduction, disabled test, or assertion reduction. The correction checkout is clean. The tracked suite process has ended, and the process snapshot found no remaining task processes.
+
+Evidence: https://github.com/CodexCoder21Organization/jvm-libp2p/tree/wip/laneFNOISE-evidence/investigations/FNOISE
+Correction: https://github.com/CodexCoder21Organization/jvm-libp2p/pull/69

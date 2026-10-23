@@ -17,3 +17,6 @@ Suite head: https://github.com/CodexCoder21Organization/jvm-libp2p/commit/812a22
 The ONE complete suite finished: 1,207 cases, 20 red, 2 skipped, no retry entries. NoiseHandshakeOffEventLoopTest passed all 29 cases. The other red cases are retained without a cause attribution in this lane.
 
 The source files on this evidence branch retain the original fixture for reproduction; green results refer to the separate correction branch above. Raw XML preserves case results, output, and full traces. Guidance read: project README, central TESTING.md TDD and machine-independent reproduction sections, central PHILOSOPHY.md, and the prior R66b findings.
+
+Correction PR: https://github.com/CodexCoder21Organization/jvm-libp2p/pull/69
+Final pre-PR selection: 21/21, same head as the complete suite. No CI watch or landing action.

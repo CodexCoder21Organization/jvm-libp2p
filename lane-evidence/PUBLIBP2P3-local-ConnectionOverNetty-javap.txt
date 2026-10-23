@@ -1,0 +1,121 @@
+Compiled from "ConnectionOverNetty.kt"
+public class io.libp2p.transport.implementation.ConnectionOverNetty extends io.libp2p.transport.implementation.P2PChannelOverNetty implements io.libp2p.core.Connection {
+  private final io.libp2p.transport.implementation.NettyTransport nettyTransport;
+
+  private io.libp2p.core.mux.StreamMuxer$Session muxerSession;
+
+  private io.libp2p.core.security.SecureChannel$Session secureSession;
+
+  public io.libp2p.transport.implementation.ConnectionOverNetty(io.netty.channel.Channel, io.libp2p.transport.implementation.NettyTransport, boolean);
+    Code:
+       0: aload_1
+       1: ldc           #11                 // String ch
+       3: invokestatic  #17                 // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+       6: aload_2
+       7: ldc           #19                 // String nettyTransport
+       9: invokestatic  #17                 // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+      12: aload_0
+      13: aload_1
+      14: iload_3
+      15: invokespecial #22                 // Method io/libp2p/transport/implementation/P2PChannelOverNetty."<init>":(Lio/netty/channel/Channel;Z)V
+      18: aload_0
+      19: aload_2
+      20: putfield      #25                 // Field nettyTransport:Lio/libp2p/transport/implementation/NettyTransport;
+      23: nop
+      24: aload_1
+      25: invokestatic  #31                 // Method io/libp2p/etc/AttributesKt.getCONNECTION:()Lio/netty/util/AttributeKey;
+      28: invokeinterface #37,  2           // InterfaceMethod io/netty/channel/Channel.attr:(Lio/netty/util/AttributeKey;)Lio/netty/util/Attribute;
+      33: aload_0
+      34: invokeinterface #43,  2           // InterfaceMethod io/netty/util/Attribute.set:(Ljava/lang/Object;)V
+      39: nop
+      40: return
+
+  public final void setMuxerSession(io.libp2p.core.mux.StreamMuxer$Session);
+    Code:
+       0: aload_1
+       1: ldc           #52                 // String ms
+       3: invokestatic  #17                 // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+       6: aload_0
+       7: aload_1
+       8: putfield      #56                 // Field muxerSession:Lio/libp2p/core/mux/StreamMuxer$Session;
+      11: return
+
+  public final void setSecureSession(io.libp2p.core.security.SecureChannel$Session);
+    Code:
+       0: aload_1
+       1: ldc           #60                 // String ss
+       3: invokestatic  #17                 // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+       6: aload_0
+       7: aload_1
+       8: putfield      #64                 // Field secureSession:Lio/libp2p/core/security/SecureChannel$Session;
+      11: return
+
+  public java.util.concurrent.CompletableFuture<kotlin.Unit> close();
+    Code:
+       0: aload_0
+       1: invokevirtual #71                 // Method getNettyChannel:()Lio/netty/channel/Channel;
+       4: invokestatic  #77                 // Method io/libp2p/transport/implementation/NettyChannelCloseKt.closeNettyChannelOnce:(Lio/netty/channel/Channel;)Ljava/util/concurrent/CompletableFuture;
+       7: areturn
+
+  public java.util.concurrent.CompletableFuture<kotlin.Unit> retryClose();
+    Code:
+       0: aload_0
+       1: invokevirtual #71                 // Method getNettyChannel:()Lio/netty/channel/Channel;
+       4: invokestatic  #81                 // Method io/libp2p/transport/implementation/NettyChannelCloseKt.retryNettyChannelClose:(Lio/netty/channel/Channel;)Ljava/util/concurrent/CompletableFuture;
+       7: areturn
+
+  public io.libp2p.core.mux.StreamMuxer$Session muxerSession();
+    Code:
+       0: aload_0
+       1: getfield      #56                 // Field muxerSession:Lio/libp2p/core/mux/StreamMuxer$Session;
+       4: dup
+       5: ifnonnull     15
+       8: pop
+       9: ldc           #83                 // String muxerSession
+      11: invokestatic  #87                 // Method kotlin/jvm/internal/Intrinsics.throwUninitializedPropertyAccessException:(Ljava/lang/String;)V
+      14: aconst_null
+      15: areturn
+
+  public io.libp2p.core.security.SecureChannel$Session secureSession();
+    Code:
+       0: aload_0
+       1: getfield      #64                 // Field secureSession:Lio/libp2p/core/security/SecureChannel$Session;
+       4: dup
+       5: ifnonnull     15
+       8: pop
+       9: ldc           #91                 // String secureSession
+      11: invokestatic  #87                 // Method kotlin/jvm/internal/Intrinsics.throwUninitializedPropertyAccessException:(Ljava/lang/String;)V
+      14: aconst_null
+      15: areturn
+
+  public io.libp2p.transport.implementation.NettyTransport transport();
+    Code:
+       0: aload_0
+       1: getfield      #25                 // Field nettyTransport:Lio/libp2p/transport/implementation/NettyTransport;
+       4: areturn
+
+  public io.libp2p.core.multiformats.Multiaddr localAddress();
+    Code:
+       0: aload_0
+       1: getfield      #25                 // Field nettyTransport:Lio/libp2p/transport/implementation/NettyTransport;
+       4: aload_0
+       5: invokevirtual #71                 // Method getNettyChannel:()Lio/netty/channel/Channel;
+       8: invokeinterface #102,  2          // InterfaceMethod io/libp2p/transport/implementation/NettyTransport.localAddress:(Lio/netty/channel/Channel;)Lio/libp2p/core/multiformats/Multiaddr;
+      13: areturn
+
+  public io.libp2p.core.multiformats.Multiaddr remoteAddress();
+    Code:
+       0: aload_0
+       1: getfield      #25                 // Field nettyTransport:Lio/libp2p/transport/implementation/NettyTransport;
+       4: aload_0
+       5: invokevirtual #71                 // Method getNettyChannel:()Lio/netty/channel/Channel;
+       8: invokeinterface #105,  2          // InterfaceMethod io/libp2p/transport/implementation/NettyTransport.remoteAddress:(Lio/netty/channel/Channel;)Lio/libp2p/core/multiformats/Multiaddr;
+      13: areturn
+
+  public io.libp2p.core.transport.Transport transport();
+    Code:
+       0: aload_0
+       1: invokevirtual #108                // Method transport:()Lio/libp2p/transport/implementation/NettyTransport;
+       4: checkcast     #110                // class io/libp2p/core/transport/Transport
+       7: areturn
+}

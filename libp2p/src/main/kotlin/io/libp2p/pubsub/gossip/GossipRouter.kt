@@ -1,0 +1,848 @@
+package io.libp2p.pubsub.gossip
+
+import io.libp2p.core.InternalErrorException
+import io.libp2p.core.PeerId
+import io.libp2p.core.multiformats.Multiaddr
+import io.libp2p.core.pubsub.ValidationResult
+import io.libp2p.etc.types.*
+import io.libp2p.etc.util.P2PService
+import io.libp2p.pubsub.*
+import org.slf4j.LoggerFactory
+import pubsub.pb.Rpc
+import java.time.Duration
+import java.util.*
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.ScheduledExecutorService
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
+import kotlin.collections.Collection
+import kotlin.collections.List
+import kotlin.collections.MutableMap
+import kotlin.collections.MutableSet
+import kotlin.collections.any
+import kotlin.collections.component1
+import kotlin.collections.component2
+import kotlin.collections.count
+import kotlin.collections.drop
+import kotlin.collections.filter
+import kotlin.collections.filterNot
+import kotlin.collections.flatMap
+import kotlin.collections.flatten
+import kotlin.collections.forEach
+import kotlin.collections.getOrPut
+import kotlin.collections.isNotEmpty
+import kotlin.collections.linkedMapOf
+import kotlin.collections.map
+import kotlin.collections.mapNotNull
+import kotlin.collections.minus
+import kotlin.collections.minusAssign
+import kotlin.collections.mutableMapOf
+import kotlin.collections.mutableSetOf
+import kotlin.collections.none
+import kotlin.collections.plus
+import kotlin.collections.plusAssign
+import kotlin.collections.set
+import kotlin.collections.shuffled
+import kotlin.collections.sortedBy
+import kotlin.collections.take
+import kotlin.collections.toMutableSet
+import kotlin.math.max
+import kotlin.math.min
+
+const val MaxBackoffEntries = 10 * 1024
+const val MaxIAskedEntries = 256
+const val MaxPeerIHaveEntries = 256
+const val MaxIWantRequestsEntries = 10 * 1024
+const val MaxPeerIDontWantEntries = 256
+
+typealias CurrentTimeSupplier = () -> Long
+
+fun P2PService.PeerHandler.getRemoteAddress(): Multiaddr = streamHandler.stream.connection.remoteAddress()
+fun P2PService.PeerHandler.isOutbound() = streamHandler.stream.connection.isInitiator
+
+fun P2PService.PeerHandler.getPeerProtocol(): PubsubProtocol {
+    fun P2PService.StreamHandler.getProtocol(): String? = stream.getProtocol().getNow(null)
+    val proto =
+        getOutboundHandler()?.getProtocol()
+            ?: getInboundHandler()?.getProtocol()
+            ?: throw InternalErrorException("Couldn't get peer gossip protocol")
+    return PubsubProtocol.fromProtocol(proto)
+}
+
+private val logger = LoggerFactory.getLogger(GossipRouter::class.java)
+
+/**
+ * Router implementing this protocol: https://github.com/libp2p/specs/tree/master/pubsub/gossipsub
+ */
+open class GossipRouter(
+    val params: GossipParams,
+    val scoreParams: GossipScoreParams,
+    val currentTimeSupplier: CurrentTimeSupplier,
+    val random: Random,
+    val name: String,
+    val mCache: MCache,
+    val score: GossipScore,
+    val gossipExtensionsConfig: GossipExtensionsConfig = GossipExtensionsConfig(),
+
+    subscriptionTopicSubscriptionFilter: TopicSubscriptionFilter,
+    protocol: PubsubProtocol,
+    executor: ScheduledExecutorService,
+    messageFactory: PubsubMessageFactory,
+    seenMessages: SeenCache<Optional<ValidationResult>>,
+    messageValidator: PubsubRouterMessageValidator,
+) : AbstractRouter(
+    executor,
+    protocol,
+    subscriptionTopicSubscriptionFilter,
+    params.maxGossipMessageSize,
+    messageFactory,
+    seenMessages,
+    messageValidator
+) {
+
+    // The idea behind choosing these specific default values for acceptRequestsWhitelist was
+    // - from one side are pretty small and safe: peer unlikely be able to drop its score to `graylist`
+    //   with 128 messages. But even if so then it's not critical to accept some extra messages before
+    //   blocking - not too much space for DoS here
+    // - from the other side param values are pretty high to yield good performance gain
+    val acceptRequestsWhitelistThresholdScore = 0
+    val acceptRequestsWhitelistMaxMessages = 128
+    val acceptRequestsWhitelistDuration = 1.seconds
+
+    val fanout: MutableMap<Topic, MutableSet<PeerHandler>> = linkedMapOf()
+    val mesh: MutableMap<Topic, MutableSet<PeerHandler>> = linkedMapOf()
+    val eventBroadcaster = GossipRouterEventBroadcaster()
+
+    open val heartbeatInitialDelay: Duration = params.heartbeatInterval
+
+    private val lastPublished = linkedMapOf<Topic, Long>()
+    private var heartbeatsCount = 0
+    private val backoffExpireTimes = createLRUMap<Pair<PeerId, Topic>, Long>(MaxBackoffEntries)
+    private val iAsked = createLRUMap<PeerHandler, AtomicInteger>(MaxIAskedEntries)
+    private val peerIHave = createLRUMap<PeerHandler, AtomicInteger>(MaxPeerIHaveEntries)
+    private val iWantRequests = createLRUMap<Pair<PeerHandler, MessageId>, Long>(MaxIWantRequestsEntries)
+    private val peerIDontWant = createLRUMap<PeerHandler, IDontWantCacheEntry>(MaxPeerIDontWantEntries)
+    private val heartbeatTask by lazy {
+        executor.scheduleWithFixedDelay(
+            ::catchingHeartbeat,
+            heartbeatInitialDelay.toMillis(),
+            params.heartbeatInterval.toMillis(),
+            TimeUnit.MILLISECONDS
+        )
+    }
+    private val acceptRequestsWhitelist = mutableMapOf<PeerHandler, AcceptRequestsWhitelistEntry>()
+    override val pendingRpcParts = PendingRpcPartsMap<GossipRpcPartsQueue> { DefaultGossipRpcPartsQueue(params) }
+
+    val gossipExtensionsState = GossipExtensionsState(gossipExtensionsConfig)
+
+    private fun setBackOff(peer: PeerHandler, topic: Topic) = setBackOff(peer, topic, params.pruneBackoff.toMillis())
+    private fun setBackOff(peer: PeerHandler, topic: Topic, delay: Long) {
+        backoffExpireTimes[peer.peerId to topic] = currentTimeSupplier() + delay
+    }
+
+    private fun isBackOff(peer: PeerHandler, topic: Topic) =
+        currentTimeSupplier() < (backoffExpireTimes[peer.peerId to topic] ?: 0)
+
+    private fun isBackOffFlood(peer: PeerHandler, topic: Topic): Boolean {
+        val expire = backoffExpireTimes[peer.peerId to topic] ?: return false
+        return currentTimeSupplier() < expire - (params.pruneBackoff + params.graftFloodThreshold).toMillis()
+    }
+
+    private fun getDirectPeers(topic: Topic): List<PeerHandler> {
+        return getTopicPeers(topic).filter(::isDirect)
+    }
+    private fun isDirect(peer: PeerHandler) = scoreParams.peerScoreParams.isDirect(peer.peerId)
+    private fun isConnected(peerId: PeerId) = peers.any { it.peerId == peerId }
+
+    override fun onPeerDisconnected(peer: PeerHandler) {
+        eventBroadcaster.notifyDisconnected(peer.peerId)
+        mesh.values.forEach { it.remove(peer) }
+        fanout.values.forEach { it.remove(peer) }
+        acceptRequestsWhitelist -= peer
+        pendingRpcParts.popQueue(peer) // discard them
+        gossipExtensionsState.onPeerDisconnected(peer.peerId)
+        super.onPeerDisconnected(peer)
+    }
+
+    override fun onPeerActive(peer: PeerHandler) {
+        super.onPeerActive(peer)
+        eventBroadcaster.notifyConnected(peer.peerId, peer.getRemoteAddress())
+        heartbeatTask.hashCode() // force lazy initialization
+        sendControlExtensions(peer)
+    }
+
+    override fun notifyUnseenMessage(peer: PeerHandler, msg: PubsubMessage) {
+        iDontWant(msg, peer)
+        eventBroadcaster.notifyUnseenMessage(peer.peerId, msg)
+        notifyAnyMessage(peer, msg)
+    }
+
+    override fun notifySeenMessage(
+        peer: PeerHandler,
+        msg: PubsubMessage,
+        validationResult: Optional<ValidationResult>
+    ) {
+        eventBroadcaster.notifySeenMessage(peer.peerId, msg, validationResult)
+        notifyAnyMessage(peer, msg)
+        if (validationResult.isPresent && validationResult.get() != ValidationResult.Invalid) {
+            notifyAnyValidMessage(peer, msg)
+        }
+    }
+
+    override fun notifyUnseenInvalidMessage(peer: PeerHandler, msg: PubsubMessage) {
+        eventBroadcaster.notifyUnseenInvalidMessage(peer.peerId, msg)
+    }
+
+    override fun notifyUnseenValidMessage(peer: PeerHandler, msg: PubsubMessage) {
+        eventBroadcaster.notifyUnseenValidMessage(peer.peerId, msg)
+        notifyAnyValidMessage(peer, msg)
+    }
+
+    override fun notifyMalformedMessage(peer: PeerHandler) {
+        notifyRouterMisbehavior(peer, 1)
+    }
+
+    protected open fun notifyAnyMessage(peer: PeerHandler, msg: PubsubMessage) {
+        if (iWantRequests.remove(peer to msg.messageId) != null) {
+            notifyIWantComplete(peer, msg)
+        }
+    }
+
+    protected open fun notifyAnyValidMessage(peer: PeerHandler, msg: PubsubMessage) {
+    }
+
+    protected open fun notifyIWantComplete(peer: PeerHandler, msg: PubsubMessage) {
+    }
+
+    protected open fun notifyIWantTimeout(peer: PeerHandler, msgId: MessageId) {
+        notifyRouterMisbehavior(peer, 1)
+    }
+
+    protected open fun notifyMeshed(peer: PeerHandler, topic: Topic) {
+        eventBroadcaster.notifyMeshed(peer.peerId, topic)
+    }
+
+    fun notifyPruned(peer: PeerHandler, topic: Topic) {
+        eventBroadcaster.notifyPruned(peer.peerId, topic)
+    }
+
+    fun notifyRouterMisbehavior(peer: PeerHandler, penalty: Int) {
+        eventBroadcaster.notifyRouterMisbehavior(peer.peerId, penalty)
+    }
+
+    override fun acceptRequestsFrom(peer: PeerHandler): Boolean {
+        if (isDirect(peer)) {
+            return true
+        }
+
+        val curTime = currentTimeSupplier()
+        val whitelistEntry = acceptRequestsWhitelist[peer]
+        if (whitelistEntry != null &&
+            curTime <= whitelistEntry.whitelistedTill &&
+            whitelistEntry.messagesAccepted < acceptRequestsWhitelistMaxMessages
+        ) {
+            acceptRequestsWhitelist[peer] = whitelistEntry.incrementMessageCount()
+            return true
+        }
+
+        val peerScore = score.score(peer.peerId)
+        if (peerScore >= acceptRequestsWhitelistThresholdScore) {
+            acceptRequestsWhitelist[peer] =
+                AcceptRequestsWhitelistEntry(curTime + acceptRequestsWhitelistDuration.toMillis())
+        } else {
+            acceptRequestsWhitelist -= peer
+        }
+
+        return peerScore >= scoreParams.graylistThreshold
+    }
+
+    override fun validateMessageListLimits(msg: Rpc.RPCOrBuilder): Boolean {
+        val iWantMessageIdCount = msg.control?.iwantList?.sumOf { w -> w.messageIDsCount } ?: 0
+        val iHaveMessageIdCount = msg.control?.ihaveList?.sumOf { w -> w.messageIDsCount } ?: 0
+
+        return params.maxPublishedMessages?.let { msg.publishCount <= it } ?: true &&
+            params.maxTopicsPerPublishedMessage?.let { msg.publishList.none { m -> m.topicIDsCount > it } } ?: true &&
+            params.maxSubscriptions?.let { msg.subscriptionsCount <= it } ?: true &&
+            params.maxIHaveLength.let { iHaveMessageIdCount <= it } &&
+            params.maxIWantMessageIds?.let { iWantMessageIdCount <= it } ?: true &&
+            params.maxGraftMessages?.let { (msg.control?.graftCount ?: 0) <= it } ?: true &&
+            params.maxPruneMessages?.let { (msg.control?.pruneCount ?: 0) <= it } ?: true &&
+            params.maxPeersAcceptedInPruneMsg.let { msg.control?.pruneList?.none { p -> p.peersCount > it } } ?: true
+    }
+
+    private fun processControlMessage(controlMsg: Any, receivedFrom: PeerHandler) {
+        when (controlMsg) {
+            is Rpc.ControlGraft -> handleGraft(controlMsg, receivedFrom)
+            is Rpc.ControlPrune -> handlePrune(controlMsg, receivedFrom)
+            is Rpc.ControlIHave -> handleIHave(controlMsg, receivedFrom)
+            is Rpc.ControlIWant -> handleIWant(controlMsg, receivedFrom)
+            is Rpc.ControlIDontWant -> handleIDontWant(controlMsg, receivedFrom)
+        }
+    }
+
+    private fun handleGraft(msg: Rpc.ControlGraft, peer: PeerHandler) {
+        val topic = msg.topicID
+        // ignore GRAFT for unknown topics
+        val meshPeers = mesh[topic] ?: return
+        when {
+            isDirect(peer) ->
+                prune(peer, topic)
+
+            isBackOff(peer, topic) -> {
+                notifyRouterMisbehavior(peer, 1)
+                if (isBackOffFlood(peer, topic)) {
+                    notifyRouterMisbehavior(peer, 1)
+                }
+                prune(peer, topic)
+            }
+
+            score.score(peer.peerId) < 0 ->
+                prune(peer, topic)
+
+            meshPeers.size >= params.DHigh && !peer.isOutbound() ->
+                prune(peer, topic)
+
+            peer !in meshPeers ->
+                graft(peer, topic)
+        }
+    }
+
+    private fun handlePrune(msg: Rpc.ControlPrune, peer: PeerHandler) {
+        val topic = msg.topicID
+        mesh[topic]?.remove(peer)?.also {
+            notifyPruned(peer, topic)
+        }
+        if (this.protocol.supportsBackoffAndPX()) {
+            if (msg.hasBackoff()) {
+                setBackOff(peer, topic, msg.backoff.seconds.toMillis())
+            } else {
+                setBackOff(peer, topic)
+            }
+            if (score.score(peer.peerId) >= scoreParams.acceptPXThreshold) {
+                processPrunePeers(msg.peersList)
+            }
+        } else {
+            if (msg.hasBackoff() || msg.peersCount > 0) {
+                notifyRouterMisbehavior(peer, 1)
+            }
+        }
+    }
+
+    private fun handleIHave(msg: Rpc.ControlIHave, peer: PeerHandler) {
+        // we ignore IHAVE gossip for unknown topics
+        if (msg.hasTopicID() && !mesh.containsKey(msg.topicID)) {
+            return
+        }
+        val peerScore = score.score(peer.peerId)
+        // we ignore IHAVE gossip from any peer whose score is below the gossip threshold
+        if (peerScore < scoreParams.gossipThreshold) return
+        if (peerIHave.computeIfAbsent(peer) { AtomicInteger() }.incrementAndGet() > params.maxIHaveMessages) {
+            // peer has advertised too many times within this heartbeat interval, ignoring
+            return
+        }
+        val asked = iAsked.computeIfAbsent(peer) { AtomicInteger() }
+        if (asked.get() >= params.maxIHaveLength) {
+            // peer has already advertised too many messages, ignoring
+            return
+        }
+
+        val iWant = msg.messageIDsList
+            .map { it.toWBytes() }
+            .filterNot { seenMessages.isSeen(it) }
+        val maxToAsk = min(iWant.size, params.maxIHaveLength - asked.get())
+        asked.addAndGet(maxToAsk)
+        iWant(peer, iWant.shuffled(random).subList(0, maxToAsk))
+    }
+
+    private fun handleIWant(msg: Rpc.ControlIWant, peer: PeerHandler) {
+        val peerScore = score.score(peer.peerId)
+        if (peerScore < scoreParams.gossipThreshold) return
+        msg.messageIDsList
+            .mapNotNull { mCache.getMessageForPeer(peer.peerId, it.toWBytes()) }
+            .filter { it.sentCount < params.gossipRetransmission }
+            .forEach { submitPublishMessage(peer, it.msg) }
+    }
+
+    private fun handleIDontWant(msg: Rpc.ControlIDontWant, peer: PeerHandler) {
+        if (!this.protocol.supportsIDontWant()) return
+        val peerScore = score.score(peer.peerId)
+        if (peerScore < scoreParams.gossipThreshold) return
+        val iDontWantCacheEntry = peerIDontWant.computeIfAbsent(peer) { IDontWantCacheEntry() }
+        iDontWantCacheEntry.heartbeatMessageIdsCount += msg.messageIDsCount
+        if (iDontWantCacheEntry.heartbeatMessageIdsCount > params.maxIDontWantMessageIds) {
+            return
+        }
+        val timeReceived = currentTimeSupplier()
+        msg.messageIDsList
+            .map { it.toWBytes() }
+            .associateWithTo(iDontWantCacheEntry.messageIdsAndTimeReceived) { timeReceived }
+    }
+
+    private fun processPrunePeers(peersList: List<Rpc.PeerInfo>) {
+        peersList.shuffled(random).take(params.maxPeersAcceptedInPruneMsg)
+            .map { PeerId(it.peerID.toByteArray()) to it.signedPeerRecord.toByteArray() }
+            .filter { (id, _) -> !isConnected(id) }
+            .forEach { (id, record) -> params.connectCallback(id, record) }
+    }
+
+    override fun processControl(ctrl: Rpc.ControlMessage, receivedFrom: PeerHandler) {
+        ctrl.run {
+            (graftList + pruneList + ihaveList + iwantList + idontwantList)
+        }.forEach { processControlMessage(it, receivedFrom) }
+
+        if (protocol.supportsExtensions() && ctrl.hasExtensions()) {
+            processControlExtensions(ctrl.extensions, receivedFrom)
+        }
+    }
+
+    private fun processControlExtensions(
+        ctrlExtensions: Rpc.ControlExtensions,
+        receivedFrom: PeerHandler
+    ) {
+        logger.trace("Received control extension {}", ctrlExtensions.toString())
+
+        if (gossipExtensionsState.hasReceivedControlExtensionsFrom(receivedFrom.peerId)) {
+            logger.trace(
+                "Received another control extension message from peer {}",
+                receivedFrom.peerId
+            )
+            notifyRouterMisbehavior(receivedFrom, 10)
+            return
+        } else {
+            gossipExtensionsState.onControlExtensionsMessage(ctrlExtensions, receivedFrom.peerId)
+        }
+    }
+
+    override fun processExtensions(msg: Rpc.RPC, receivedFrom: PeerHandler) {
+        when {
+            msg.hasTestExtension() -> {
+                if (!gossipExtensionsState.testExtensionsEnabled()) {
+                    logger.trace(
+                        "Ignoring test extension message from peer {} - test extension disabled",
+                        msg
+                    )
+                    return
+                }
+
+                if (!gossipExtensionsState.peerSupportsTestExtensions(receivedFrom.peerId)) {
+                    logger.trace(
+                        "Ignoring test extension message from peer {} - did peer send ControlExtensions prior?",
+                        msg
+                    )
+                    return
+                }
+
+                processTestExtensionMessage(msg.testExtension, receivedFrom)
+            }
+
+            msg.hasPartial() -> {
+                if (!gossipExtensionsState.partialMessagesEnabled()) {
+                    logger.trace(
+                        "Ignoring partial messages message from peer {} - partial messages extension disabled",
+                        msg
+                    )
+                    return
+                }
+
+                if (!gossipExtensionsState.peerSupportsPartialMessages(receivedFrom.peerId)) {
+                    logger.trace(
+                        "Ignoring partial messages message from peer {} - did peer send ControlExtensions prior?",
+                        msg
+                    )
+                    return
+                }
+
+                processPartialMessageExtension(msg.partial, receivedFrom)
+            }
+        }
+    }
+
+    private fun processTestExtensionMessage(
+        testExtensionMessage: Rpc.TestExtension,
+        receivedFrom: PeerHandler
+    ) {
+        logger.trace(
+            "Processing test extension message {} from {}",
+            testExtensionMessage.toByteArray(),
+            receivedFrom.peerId
+        )
+
+        val response =
+            Rpc.RPC.newBuilder().setTestExtension(Rpc.TestExtension.newBuilder().build()).build()
+
+        send(receivedFrom, response)
+    }
+
+    private fun processPartialMessageExtension(
+        partialMessagesExtension: Rpc.PartialMessagesExtension,
+        receivedFrom: PeerHandler
+    ) {
+        logger.trace(
+            "Processing partial message extension message {} from {}",
+            partialMessagesExtension.toString(),
+            receivedFrom.peerId
+        )
+        // TODO: implement partial message handling (https://github.com/libp2p/jvm-libp2p/issues/435)
+    }
+
+    override fun broadcastInbound(msgs: List<PubsubMessage>, receivedFrom: PeerHandler) {
+        msgs.forEach { pubMsg ->
+            val topics = pubMsg.topics
+                .asSequence()
+
+            val peersFromMesh = topics
+                .mapNotNull { mesh[it] }
+                .flatten()
+
+            val peersFromDirectPeers = topics.flatMap { getDirectPeers(it) }
+
+            peersFromDirectPeers
+                .plus(peersFromMesh)
+                .distinct()
+                .minus(receivedFrom)
+                .filterNot { peerDoesNotWantMessage(it, pubMsg.messageId) }
+                .forEach { submitPublishMessage(it, pubMsg) }
+            mCache += pubMsg
+        }
+        flushAllPending()
+    }
+
+    override fun broadcastOutbound(msg: PubsubMessage): CompletableFuture<Unit> {
+        msg.topics.forEach { lastPublished[it] = currentTimeSupplier() }
+
+        val floodPublish = msg.size <= params.floodPublishMaxMessageSizeThreshold
+
+        val peers =
+            if (floodPublish) {
+                selectPeersForOutboundBroadcastingInFloodPublish(msg)
+            } else {
+                selectPeersForOutboundBroadcasting(msg)
+            }
+
+        mCache += msg
+
+        return if (peers.isNotEmpty()) {
+            iDontWant(msg)
+            val publishedMessages = peers
+                .filterNot { peerDoesNotWantMessage(it, msg.messageId) }
+                .map { submitPublishMessage(it, msg) }
+            if (publishedMessages.isEmpty()) {
+                // all peers have sent IDONTWANT for this message id
+                CompletableFuture.completedFuture(Unit)
+            } else {
+                flushAllPending()
+                anyComplete(publishedMessages)
+            }
+        } else {
+            completedExceptionally(
+                NoPeersForOutboundMessageException("No peers for message topics ${msg.topics} found")
+            )
+        }
+    }
+
+    private fun selectPeersForOutboundBroadcastingInFloodPublish(msg: PubsubMessage): List<PeerHandler> {
+        return msg.topics
+            .flatMap { getTopicPeers(it) }
+            .filter { isDirect(it) || score.score(it.peerId) >= scoreParams.publishThreshold }
+    }
+
+    private fun selectPeersForOutboundBroadcasting(msg: PubsubMessage): List<PeerHandler> {
+        val fromMesh = msg.topics
+            .map { topic ->
+                val topicMeshPeers = mesh[topic]
+                if (topicMeshPeers != null) {
+                    // we are subscribed to the topic
+                    if (topicMeshPeers.size < params.D) {
+                        // we need extra non-mesh peers for more reliable publishing
+                        val nonMeshTopicPeers = getTopicPeers(topic) - topicMeshPeers
+                        val (nonMeshTopicPeersAbovePublishThreshold, nonMeshTopicPeersBelowPublishThreshold) =
+                            nonMeshTopicPeers.partition { score.score(it.peerId) >= scoreParams.publishThreshold }
+                        // this deviates from the original spec but we want at least D peers for publishing
+                        // prioritizing mesh peers, then non-mesh peers with acceptable score,
+                        // and then underscored non-mesh peers as a last resort
+                        listOf(
+                            topicMeshPeers,
+                            nonMeshTopicPeersAbovePublishThreshold.shuffled(random),
+                            nonMeshTopicPeersBelowPublishThreshold.shuffled(random)
+                        )
+                            .flatten()
+                            .take(params.D)
+                    } else {
+                        topicMeshPeers
+                    }
+                } else {
+                    // we are not subscribed to the topic
+                    fanout[topic] ?: getTopicPeers(topic).shuffled(random).take(params.D)
+                        .also {
+                            if (it.isNotEmpty()) fanout[topic] = it.toMutableSet()
+                        }
+                }
+            }
+            .flatten()
+
+        val fromDirectPeers = msg.topics.flatMap { getDirectPeers(it) }
+
+        return fromMesh
+            .plus(fromDirectPeers)
+            .distinct()
+    }
+
+    override fun subscribe(topic: Topic) {
+        super.subscribe(topic)
+        // Peers that are still within their PRUNE backoff window must be excluded when
+        // seeding the mesh on (re-)subscribe; grafting them during backoff is a P7
+        // behaviour-penalty violation in go-libp2p-pubsub scorers and matches the JOIN
+        // path of the reference implementation. Heartbeat-driven mesh maintenance has
+        // always filtered by isBackOff; this path historically did not.
+        val fanoutPeers = (fanout[topic] ?: mutableSetOf())
+            .filter { score.score(it.peerId) >= 0 && !isDirect(it) && !isBackOff(it, topic) }
+        val meshPeers = mesh.getOrPut(topic) { mutableSetOf() }
+        val otherPeers = (getTopicPeers(topic) - meshPeers - fanoutPeers)
+            .filter { score.score(it.peerId) >= 0 && !isDirect(it) && !isBackOff(it, topic) }
+
+        if (meshPeers.size < params.D) {
+            val addFromFanout = fanoutPeers.shuffled(random)
+                .take(params.D - meshPeers.size)
+            val addFromOthers = otherPeers.shuffled(random)
+                .take(params.D - meshPeers.size - addFromFanout.size)
+
+            (addFromFanout + addFromOthers).forEach {
+                graft(it, topic)
+            }
+            fanout -= topic
+            lastPublished -= topic
+        }
+
+        activePeers.forEach { sendControlExtensions(it) }
+    }
+
+    override fun unsubscribe(topic: Topic) {
+        super.unsubscribe(topic)
+        mesh[topic]?.copy()?.forEach { prune(it, topic) }
+        mesh -= topic
+    }
+
+    private fun catchingHeartbeat() {
+        try {
+            heartbeat()
+        } catch (e: Exception) {
+            onServiceException(null, null, e)
+        }
+    }
+
+    private fun heartbeat() {
+        heartbeatsCount++
+        iAsked.clear()
+        peerIHave.clear()
+
+        val staleIWantTime = this.currentTimeSupplier() - params.iWantFollowupTime.toMillis()
+        iWantRequests.entries.removeIf { (key, time) ->
+            (time < staleIWantTime)
+                .whenTrue { notifyIWantTimeout(key.first, key.second) }
+        }
+
+        val staleIDontWantTime = this.currentTimeSupplier() - params.iDontWantTTL.toMillis()
+        peerIDontWant.entries.removeIf { (_, cacheEntry) ->
+            // reset on heartbeat
+            cacheEntry.heartbeatMessageIdsCount = 0
+            cacheEntry.messageIdsAndTimeReceived.values.removeIf { timeReceived -> timeReceived < staleIDontWantTime }
+            // remove entry for peer if no IDONTWANT message ids are left in the cache
+            cacheEntry.messageIdsAndTimeReceived.isEmpty()
+        }
+
+        try {
+            mesh.entries.forEach { (topic, peers) ->
+
+                // drop underscored peers from mesh
+                peers.filter { score.score(it.peerId) < 0 }
+                    .forEach { prune(it, topic) }
+
+                if (peers.size < params.DLow) {
+                    // need more mesh peers
+                    (getTopicPeers(topic) - peers)
+                        .filter { score.score(it.peerId) >= 0 && !isDirect(it) && !isBackOff(it, topic) }
+                        .shuffled(random)
+                        .take(params.D - peers.size)
+                        .forEach { graft(it, topic) }
+                } else if (peers.size > params.DHigh) {
+                    // too many mesh peers
+                    val sortedPeers = peers
+                        .shuffled(random)
+                        .sortedBy { score.score(it.peerId) }
+                        .asReversed()
+
+                    val bestDPeers = sortedPeers.take(params.DScore)
+                    val restPeers = sortedPeers.drop(params.DScore).shuffled(random)
+                    val outboundCount = (bestDPeers + restPeers).take(params.D).count { it.isOutbound() }
+                    val outPeers = restPeers
+                        .filter { it.isOutbound() }
+                        .take(max(0, params.DOut - outboundCount))
+
+                    val toDropPeers = (outPeers + bestDPeers + restPeers).drop(params.D)
+                    toDropPeers.forEach { prune(it, topic) }
+                }
+
+                // keep outbound peers > DOut
+                val outboundCount = peers.count { it.isOutbound() }
+                (getTopicPeers(topic) - peers)
+                    .filter { it.isOutbound() && score.score(it.peerId) >= 0 && !isDirect(it) && !isBackOff(it, topic) }
+                    .shuffled(random)
+                    .take(max(0, params.DOut - outboundCount))
+                    .forEach { graft(it, topic) }
+
+                // opportunistic grafting
+                if (heartbeatsCount % params.opportunisticGraftTicks == 0 && peers.size > 1) {
+                    val scoreMedian = peers.map { score.score(it.peerId) }.median()
+                    if (scoreMedian < scoreParams.opportunisticGraftThreshold) {
+                        (getTopicPeers(topic) - peers)
+                            .filter { score.score(it.peerId) > scoreMedian && !isDirect(it) && !isBackOff(it, topic) }
+                            .take(params.opportunisticGraftPeers)
+                            .forEach { graft(it, topic) }
+                    }
+                }
+
+                emitGossip(topic, peers)
+            }
+            fanout.entries.forEach { (topic, peers) ->
+                peers.removeIf {
+                    it !in getTopicPeers(topic) || score.score(it.peerId) < scoreParams.publishThreshold
+                }
+                val needMore = params.D - peers.size
+                if (needMore > 0) {
+                    peers += (getTopicPeers(topic) - peers)
+                        .filter { score.score(it.peerId) >= scoreParams.publishThreshold && !isDirect(it) }
+                        .shuffled(random)
+                        .take(needMore)
+                }
+                emitGossip(topic, peers)
+            }
+            lastPublished.entries.removeIf { (topic, lastPub) ->
+                (currentTimeSupplier() - lastPub > params.fanoutTTL.toMillis())
+                    .whenTrue { fanout.remove(topic) }
+            }
+
+            mCache.shift()
+
+            flushAllPending()
+        } catch (t: Exception) {
+            logger.warn("Exception in gossipsub heartbeat", t)
+        }
+    }
+
+    private fun emitGossip(topic: Topic, excludePeers: Collection<PeerHandler>) {
+        val ids = mCache.getMessageIds(topic)
+        if (ids.isEmpty()) return
+
+        val shuffledMessageIds = ids.shuffled(random).take(params.maxIHaveLength)
+        val peers = (getTopicPeers(topic) - excludePeers)
+            .filter { score.score(it.peerId) >= scoreParams.gossipThreshold && !isDirect(it) }
+
+        peers.shuffled(random)
+            .take(max((params.gossipFactor * peers.size).toInt(), params.DLazy))
+            .forEach { enqueueIhave(it, shuffledMessageIds, topic) }
+    }
+
+    private fun graft(peer: PeerHandler, topic: Topic) {
+        mesh.getOrPut(topic) { mutableSetOf() }.add(peer)
+        enqueueGraft(peer, topic)
+        notifyMeshed(peer, topic)
+    }
+
+    private fun prune(peer: PeerHandler, topic: Topic) {
+        setBackOff(peer, topic)
+        enqueuePrune(peer, topic)
+        if (mesh[topic]?.remove(peer) == true) {
+            notifyPruned(peer, topic)
+        }
+    }
+
+    private fun peerDoesNotWantMessage(peer: PeerHandler, messageId: MessageId): Boolean {
+        return peerIDontWant[peer]?.messageIdsAndTimeReceived?.contains(messageId) == true
+    }
+
+    private fun iWant(peer: PeerHandler, messageIds: List<MessageId>) {
+        if (messageIds.isEmpty()) return
+        messageIds[random.nextInt(messageIds.size)]
+            .also { iWantRequests[peer to it] = currentTimeSupplier() }
+        enqueueIwant(peer, messageIds)
+    }
+
+    private fun iDontWant(msg: PubsubMessage, receivedFrom: PeerHandler? = null) {
+        if (!this.protocol.supportsIDontWant()) return
+        if (msg.size < params.iDontWantMinMessageSizeThreshold) return
+        // we need to send IDONTWANT messages to mesh peers immediately in order for them to have an effect
+        msg.topics
+            .mapNotNull { mesh[it] }
+            .flatten()
+            .distinct()
+            .minus(setOfNotNull(receivedFrom))
+            .forEach { sendIdontwant(it, msg.messageId) }
+    }
+
+    private fun enqueuePrune(peer: PeerHandler, topic: Topic) {
+        val peerQueue = pendingRpcParts.getQueue(peer)
+        if (peer.getPeerProtocol().supportsBackoffAndPX() && this.protocol.supportsBackoffAndPX()) {
+            val backoffPeers = (getTopicPeers(topic) - peer)
+                .take(params.maxPeersSentInPruneMsg)
+                .filter { score.score(it.peerId) >= 0 }
+                .map { it.peerId }
+            peerQueue.addPrune(topic, params.pruneBackoff.seconds, backoffPeers)
+        } else {
+            peerQueue.addPrune(topic)
+        }
+    }
+
+    private fun enqueueGraft(peer: PeerHandler, topic: Topic) =
+        pendingRpcParts.getQueue(peer).addGraft(topic)
+
+    private fun enqueueIwant(peer: PeerHandler, messageIds: List<MessageId>) =
+        pendingRpcParts.getQueue(peer).addIWants(messageIds)
+
+    private fun enqueueIhave(peer: PeerHandler, messageIds: List<MessageId>, topic: Topic) =
+        pendingRpcParts.getQueue(peer).addIHaves(messageIds, topic)
+
+    private fun sendIdontwant(peer: PeerHandler, messageId: MessageId) {
+        if (!peer.getPeerProtocol().supportsIDontWant()) {
+            return
+        }
+        val iDontWant = Rpc.RPC.newBuilder().setControl(
+            Rpc.ControlMessage.newBuilder().addIdontwant(
+                Rpc.ControlIDontWant.newBuilder()
+                    .addMessageIDs(messageId.toProtobuf())
+            )
+        ).build()
+        send(peer, iDontWant)
+    }
+
+    private fun sendControlExtensions(peer: PeerHandler) {
+        if (!this.protocol.supportsExtensions()) {
+            logger.trace(
+                "Protocol does not support extensions. Won't send control extensions message."
+            )
+            return
+        }
+
+        if (gossipExtensionsState.hasSentControlExtensionsTo(peer.peerId)) {
+            logger.trace(
+                "Already sent control extensions msg to peer {}. Won't send another one.",
+                peer.peerId
+            )
+            return
+        }
+
+        logger.trace("Sending control extensions message to peer {}", peer.peerId)
+
+        pendingRpcParts.getQueue(peer)
+            .addControlExtensions(gossipExtensionsState.localExtensionSupport)
+        gossipExtensionsState.registerControlExtensionMessageSentToPeers(peer.peerId)
+    }
+
+    data class AcceptRequestsWhitelistEntry(val whitelistedTill: Long, val messagesAccepted: Int = 0) {
+        fun incrementMessageCount() = AcceptRequestsWhitelistEntry(whitelistedTill, messagesAccepted + 1)
+    }
+
+    data class IDontWantCacheEntry(
+        var heartbeatMessageIdsCount: Int = 0,
+        val messageIdsAndTimeReceived: MutableMap<MessageId, Long> = mutableMapOf()
+    )
+}

@@ -1,0 +1,902 @@
+package io.libp2p.mux.yamux
+
+import io.libp2p.core.Libp2pException
+import io.libp2p.core.StreamHandler
+import io.libp2p.core.multistream.MultistreamProtocolV1
+import io.libp2p.etc.types.fromHex
+import io.libp2p.etc.types.toHex
+import io.libp2p.etc.util.netty.mux.RemoteWriteClosed
+import io.libp2p.mux.AckBacklogLimitExceededMuxerException
+import io.libp2p.mux.MuxHandler
+import io.libp2p.mux.MuxHandlerAbstractTest
+import io.libp2p.mux.MuxHandlerAbstractTest.AbstractTestMuxFrame.Flag.*
+import io.libp2p.tools.readAllBytesAndRelease
+import io.netty.buffer.ByteBuf
+import io.netty.buffer.Unpooled
+import io.netty.channel.ChannelHandlerContext
+import io.netty.channel.ChannelInboundHandlerAdapter
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.Assertions
+import org.junit.jupiter.api.RepeatedTest
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
+
+private fun drainYamuxFrames(readFrame: () -> YamuxFrame?): List<YamuxFrame> = generateSequence { readFrame() }.toList()
+
+private fun windowCredit(frames: List<YamuxFrame>, streamId: Long): Long =
+    frames.filter { it.type == YamuxType.WINDOW_UPDATE && it.id.id == streamId }.sumOf { it.length }
+
+class YamuxHandlerTest : MuxHandlerAbstractTest() {
+    // null keeps the production frame bound; tests that isolate other behaviour may raise it.
+    var pendingReadFrameLimit: Int? = null
+
+    override val maxFrameDataLength = 256
+    private val maxBufferedConnectionWrites = 512
+    private val ackBacklogLimit = 42
+    private val initialWindowSize = 300
+    override val childPauseStopsParentReads = false
+    override val localMuxIdGenerator = YamuxStreamIdGenerator(isLocalConnectionInitiator).toIterator()
+    override val remoteMuxIdGenerator = YamuxStreamIdGenerator(!isLocalConnectionInitiator).toIterator()
+
+    private val readFrameQueue = ArrayDeque<AbstractTestMuxFrame>()
+    private val releasedChildReads = mutableListOf<ByteBuf>()
+    fun Long.toMuxId() = YamuxId(parentChannelId, this)
+
+    override fun createMuxHandler(streamHandler: StreamHandler<*>): MuxHandler =
+        object : YamuxHandler(
+            MultistreamProtocolV1,
+            maxFrameDataLength,
+            null,
+            streamHandler,
+            true,
+            maxBufferedConnectionWrites,
+            ackBacklogLimit,
+            initialWindowSize
+        ) {
+            override val maxPendingChildReadFrames: Int?
+                get() = pendingReadFrameLimit ?: super.maxPendingChildReadFrames
+
+            override fun releaseMessage(msg: ByteBuf) {
+                releasedChildReads += msg
+                super.releaseMessage(msg)
+            }
+
+            // MuxHandler consumes the exception. Override this behaviour for testing
+            @Deprecated("Deprecated in Java")
+            override fun exceptionCaught(ctx: ChannelHandlerContext, cause: Throwable) {
+                ctx.fireExceptionCaught(cause)
+            }
+        }
+
+    override fun writeFrame(frame: AbstractTestMuxFrame) {
+        val muxId = frame.streamId.toMuxId()
+        val yamuxFrame = when (frame.flag) {
+            Open -> YamuxFrame(muxId, YamuxType.DATA, YamuxFlag.SYN.asSet, 0)
+            Data -> {
+                val data = frame.data.fromHex()
+                YamuxFrame(
+                    muxId,
+                    YamuxType.DATA,
+                    YamuxFlag.NONE,
+                    data.size.toLong(),
+                    data.toByteBuf(allocateBuf())
+                )
+            }
+
+            Close -> YamuxFrame(muxId, YamuxType.DATA, YamuxFlag.FIN.asSet, 0)
+            Reset -> YamuxFrame(muxId, YamuxType.DATA, YamuxFlag.RST.asSet, 0)
+        }
+        ech.writeInbound(yamuxFrame)
+    }
+
+    override fun readFrame(): AbstractTestMuxFrame? {
+        val yamuxFrame = readYamuxFrame()
+        if (yamuxFrame != null) {
+            when {
+                YamuxFlag.SYN in yamuxFrame.flags -> readFrameQueue += AbstractTestMuxFrame(yamuxFrame.id.id, Open)
+            }
+
+            val data = yamuxFrame.data?.readAllBytesAndRelease()?.toHex() ?: ""
+            when {
+                yamuxFrame.type == YamuxType.DATA && data.isNotEmpty() ->
+                    readFrameQueue += AbstractTestMuxFrame(yamuxFrame.id.id, Data, data)
+            }
+
+            when {
+                YamuxFlag.FIN in yamuxFrame.flags -> readFrameQueue += AbstractTestMuxFrame(yamuxFrame.id.id, Close)
+                YamuxFlag.RST in yamuxFrame.flags -> readFrameQueue += AbstractTestMuxFrame(yamuxFrame.id.id, Reset)
+            }
+        }
+
+        return readFrameQueue.removeFirstOrNull()
+    }
+
+    private fun readYamuxFrame(): YamuxFrame? {
+        return ech.readOutbound()
+    }
+
+    private fun readYamuxFrameOrThrow() = readYamuxFrame() ?: throw AssertionError("No outbound frames")
+
+    @Test
+    fun pausedChildDoesNotReturnReceiveWindowCreditUntilDelivery() {
+        val streamId = openStreamRemote()
+        val child = childHandlers.single().ctx.channel()
+        val acknowledgement = readYamuxFrameOrThrow()
+        assertThat(acknowledgement.flags).containsExactly(YamuxFlag.ACK)
+        child.config().isAutoRead = false
+
+        writeStream(streamId, "42".repeat(initialWindowSize / 2 + 1))
+        assertThat(readYamuxFrame()).isNull()
+        assertThat(childHandlers.single().inboundMessages).isEmpty()
+
+        child.config().isAutoRead = true
+        ech.runPendingTasks()
+        assertThat(childHandlers.single().inboundMessages).containsExactly("42".repeat(initialWindowSize / 2 + 1))
+        val update = readYamuxFrameOrThrow()
+        assertThat(update.type).isEqualTo(YamuxType.WINDOW_UPDATE)
+        assertThat(update.length).isEqualTo((initialWindowSize / 2 + 1).toLong())
+    }
+
+    @Test
+    fun resettingPausedChildDoesNotReturnReceiveWindowCredit() {
+        val streamId = openStreamRemote()
+        readYamuxFrameOrThrow()
+        childHandlers.single().ctx.channel().config().isAutoRead = false
+        writeStream(streamId, "42".repeat(initialWindowSize / 2 + 1))
+        resetStream(streamId)
+
+        assertThat(readYamuxFrame()).isNull()
+        assertThat(childHandlers.single().inboundMessages).isEmpty()
+        assertThat(allocatedBufs).allMatch { it.refCnt() == 1 }
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = ["reset", "child close", "parent close"])
+    fun closingPausedStreamsReleasesEveryQueuedCopy(closeMode: String) {
+        val streamIds = List(2) { openStreamRemote() }
+        drainYamuxFrames(::readYamuxFrame)
+        childHandlers.forEach { it.ctx.channel().config().isAutoRead = false }
+        streamIds.forEach { streamId ->
+            repeat(3) { writeStream(streamId, "42".repeat(initialWindowSize / 3)) }
+        }
+        val inputs = allocatedBufs.toList()
+        assertThat(inputs).hasSize(6).allMatch { it.refCnt() == 1 }
+        assertThat(childHandlers.flatMap { it.inboundMessages }).isEmpty()
+        assertThat(releasedChildReads).isEmpty()
+
+        when (closeMode) {
+            "reset" -> streamIds.forEach { resetStream(it) }
+            "child close" -> childHandlers.forEach { it.ctx.channel().close().sync() }
+            "parent close" -> ech.close().sync()
+            else -> error("Unknown close mode '$closeMode'; expected reset, child close, or parent close")
+        }
+        ech.runPendingTasks()
+
+        assertThat(childHandlers).allMatch { !it.ctx.channel().isOpen }
+        assertThat(childHandlers.flatMap { it.inboundMessages }).isEmpty()
+        assertThat(inputs).allMatch { it.refCnt() == 1 }
+        // Observe the actual queue releases: the input references were released before close.
+        assertThat(releasedChildReads).describedAs("Queued copies released on %s", closeMode).hasSize(inputs.size)
+        releasedChildReads.forEach { copy ->
+            assertThat(inputs).noneMatch { it === copy }
+            assertThat(copy.refCnt()).describedAs("Queued copy after %s", closeMode).isZero()
+        }
+    }
+
+    @Test
+    fun pausedChildrenNeverStopParentReads() {
+        val firstId = openStreamRemote()
+        openStreamRemote()
+        val first = childHandlers[0].ctx.channel()
+        val second = childHandlers[1].ctx.channel()
+
+        first.config().isAutoRead = false
+        assertThat(ech.config().isAutoRead).isTrue()
+        second.config().isAutoRead = false
+        assertThat(ech.config().isAutoRead).isTrue()
+        first.config().isAutoRead = true
+        ech.runPendingTasks()
+        assertThat(ech.config().isAutoRead).isTrue()
+        first.config().isAutoRead = false
+        resetStream(firstId)
+        assertThat(ech.config().isAutoRead).isTrue()
+        second.config().isAutoRead = true
+        ech.runPendingTasks()
+        assertThat(ech.config().isAutoRead).isTrue()
+    }
+
+    @Test
+    fun pausedChildAtItsFullWindowDoesNotHoldSiblingDeliveryOrCredit() {
+        val pausedId = openStreamRemote()
+        val siblingId = openStreamRemote()
+        drainYamuxFrames(::readYamuxFrame)
+        val paused = childHandlers[0]
+        val sibling = childHandlers[1]
+        paused.ctx.channel().config().isAutoRead = false
+
+        val pausedChunks = listOf("01".repeat(100), "02".repeat(100), "03".repeat(initialWindowSize - 200))
+        pausedChunks.forEach { writeStream(pausedId, it) }
+        assertThat(paused.ctx.channel().isOpen).isTrue()
+
+        // Four receive windows and more on the sibling; each frame is above the credit threshold.
+        val siblingChunks = (1..9).map { "%02x".format(it).repeat(initialWindowSize / 2 + 1) }
+        siblingChunks.forEach { writeStream(siblingId, it) }
+        assertThat(sibling.inboundMessages).containsExactlyElementsOf(siblingChunks)
+        val whilePaused = drainYamuxFrames(::readYamuxFrame)
+        assertThat(windowCredit(whilePaused, siblingId)).isEqualTo(siblingChunks.sumOf { it.length / 2 }.toLong())
+        assertThat(windowCredit(whilePaused, pausedId)).isZero()
+        assertThat(paused.inboundMessages).isEmpty()
+        assertThat(ech.config().isAutoRead).isTrue()
+
+        paused.ctx.channel().config().isAutoRead = true
+        ech.runPendingTasks()
+        assertThat(paused.inboundMessages).containsExactlyElementsOf(pausedChunks)
+        // Credit is returned once more than half the window has been delivered: after 200 bytes here.
+        assertThat(windowCredit(drainYamuxFrames(::readYamuxFrame), pausedId)).isEqualTo(200L)
+    }
+
+    @Test
+    fun concurrentPauseResumeOfOneChildNeverTouchesParentOrSibling() {
+        val pausedId = openStreamRemote()
+        val siblingId = openStreamRemote()
+        drainYamuxFrames(::readYamuxFrame)
+        val paused = childHandlers[0]
+        val sibling = childHandlers[1]
+        val config = paused.ctx.channel().config()
+        val start = CountDownLatch(1)
+        val parentObservedPaused = AtomicBoolean(false)
+        val workers = Executors.newFixedThreadPool(4)
+        try {
+            val togglers = List(4) {
+                workers.submit {
+                    check(start.await(5, TimeUnit.SECONDS)) { "pause callers did not receive the start signal" }
+                    repeat(1000) { index ->
+                        config.isAutoRead = index % 2 == 0
+                        if (!ech.config().isAutoRead) parentObservedPaused.set(true)
+                    }
+                }
+            }
+            start.countDown()
+            togglers.forEach { it.get(5, TimeUnit.SECONDS) }
+            assertThat(parentObservedPaused.get()).isFalse()
+
+            config.isAutoRead = false
+            ech.runPendingTasks()
+            writeStream(pausedId, "22")
+            writeStream(siblingId, "44")
+            assertThat(paused.inboundMessages).isEmpty()
+            assertThat(sibling.inboundMessages).containsExactly("44")
+            assertThat(ech.config().isAutoRead).isTrue()
+
+            config.isAutoRead = true
+            ech.runPendingTasks()
+            assertThat(paused.inboundMessages).containsExactly("22")
+        } finally {
+            workers.shutdownNow()
+            check(workers.awaitTermination(5, TimeUnit.SECONDS)) { "pause callers did not stop" }
+        }
+    }
+
+    @Test
+    fun closingPausedChildWithQueuedWindowReleasesItAndLeavesSiblingFlowing() {
+        val pausedId = openStreamRemote()
+        val siblingId = openStreamRemote()
+        drainYamuxFrames(::readYamuxFrame)
+        val paused = childHandlers[0]
+        val sibling = childHandlers[1]
+        val child = paused.ctx.channel()
+        child.config().isAutoRead = false
+        writeStream(pausedId, "42".repeat(initialWindowSize))
+        closeStream(pausedId)
+        val retained = allocatedBufs.last()
+        var pauseFromCloseListener: Throwable? = null
+        child.closeFuture().addListener {
+            pauseFromCloseListener = runCatching {
+                child.config().isAutoRead = false
+                child.config().isAutoRead = true
+                child.config().isAutoRead = false
+            }.exceptionOrNull()
+        }
+
+        child.close().sync()
+        ech.runPendingTasks()
+
+        assertThat(pauseFromCloseListener).isNull()
+        assertThat(paused.inboundMessages).isEmpty()
+        assertThat(retained.refCnt()).isEqualTo(1)
+        assertThat(windowCredit(drainYamuxFrames(::readYamuxFrame), pausedId)).isZero()
+        assertThat(ech.config().isAutoRead).isTrue()
+        writeStream(siblingId, "44".repeat(initialWindowSize / 2 + 1))
+        assertThat(sibling.inboundMessages).containsExactly("44".repeat(initialWindowSize / 2 + 1))
+        assertThat(windowCredit(drainYamuxFrames(::readYamuxFrame), siblingId)).isEqualTo((initialWindowSize / 2 + 1).toLong())
+    }
+
+    @Test
+    fun pausedChildCannotRetainMoreThanItsReceiveWindow() {
+        val streamId = openStreamRemote()
+        readYamuxFrameOrThrow()
+        val child = childHandlers.single().ctx.channel()
+        child.config().isAutoRead = false
+
+        writeStream(streamId, "42".repeat(initialWindowSize - 100))
+        writeStream(streamId, "42".repeat(100))
+        assertThat(child.isOpen).isTrue()
+        assertThat(childHandlers.single().inboundMessages).isEmpty()
+        assertThat(readYamuxFrame()).isNull()
+        val failure = assertThrows<Libp2pException> {
+            writeStream(streamId, "42")
+        }
+        assertThat(failure.message).isEqualTo(
+            "Yamux stream ${streamId.toMuxId()} received 1 bytes beyond its $initialWindowSize-byte receive window"
+        )
+
+        assertThat(ech.isOpen).isFalse()
+        assertThat(childHandlers.single().inboundMessages).isEmpty()
+        assertThat(allocatedBufs).allMatch { it.refCnt() == 1 }
+    }
+
+    @Test
+    fun pausedChildAcceptsManySmallFramesWithinItsWindow() {
+        // Exercise window accounting independently of merging at the default 64-payload bound.
+        pendingReadFrameLimit = 128
+        val streamId = openStreamRemote()
+        readYamuxFrameOrThrow()
+        val handler = childHandlers.single()
+        val child = handler.ctx.channel()
+        child.config().isAutoRead = false
+
+        repeat(65) { writeStream(streamId, "42") }
+        assertThat(child.isOpen).isTrue()
+        assertThat(handler.inboundMessages).isEmpty()
+
+        child.config().isAutoRead = true
+        ech.runPendingTasks()
+        assertThat(handler.inboundMessages).hasSize(65).allMatch { it == "42" }
+    }
+
+    @Test
+    fun pausedChildMergesSmallFramesAtTheProductionFrameBound() {
+        val streamId = openStreamRemote()
+        readYamuxFrameOrThrow()
+        val handler = childHandlers.single()
+        val child = handler.ctx.channel()
+        val deliveredCapacities = mutableListOf<Int>()
+        child.pipeline().addFirst(object : ChannelInboundHandlerAdapter() {
+            override fun channelRead(ctx: ChannelHandlerContext, msg: Any) {
+                var backing = msg as ByteBuf
+                while (backing.unwrap() != null) backing = backing.unwrap()
+                deliveredCapacities += backing.capacity()
+                ctx.fireChannelRead(msg)
+            }
+        })
+        child.config().isAutoRead = false
+
+        val payloads = List(65) { "%02x".format(it) }
+        payloads.forEach { writeStream(streamId, it) }
+        assertThat(child.isOpen).isTrue()
+        assertThat(handler.inboundMessages).isEmpty()
+
+        child.config().isAutoRead = true
+        ech.runPendingTasks()
+        // 64 held copies: the 65th payload is appended to the 64th, so it arrives in the same read.
+        assertThat(handler.inboundMessages)
+            .containsExactlyElementsOf(payloads.take(63) + (payloads[63] + payloads[64]))
+        assertThat(deliveredCapacities)
+            .describedAs("Each delivered copy must own exactly its readable bytes")
+            .containsExactlyElementsOf(List(63) { 1 } + 2)
+        assertThat(deliveredCapacities.sum()).isEqualTo(65)
+        assertThat(child.isOpen).isTrue()
+    }
+
+    @Test
+    fun finOnDataFrameFollowsPausedPayload() {
+        val streamId = openStreamRemote()
+        readYamuxFrameOrThrow()
+        val handler = childHandlers.single()
+        val child = handler.ctx.channel()
+        child.config().isAutoRead = false
+        val payload = "22".fromHex().toByteBuf(allocateBuf())
+        ech.writeInbound(YamuxFrame(streamId.toMuxId(), YamuxType.DATA, YamuxFlag.FIN.asSet, 1, payload))
+
+        assertThat(handler.inboundMessages).isEmpty()
+        assertThat(handler.userEvents).isEmpty()
+        child.config().isAutoRead = true
+        ech.runPendingTasks()
+        assertThat(handler.inboundMessages).containsExactly("22")
+        assertThat(handler.userEvents).containsExactly(RemoteWriteClosed)
+    }
+
+    @Test
+    fun wireDecodedEmptyDataReleasesItsPayload() {
+        val streamId = openStreamRemote()
+        readYamuxFrameOrThrow()
+        val child = childHandlers.single().ctx.channel()
+        child.config().isAutoRead = false
+        ech.pipeline().addBefore(ech.pipeline().context(multistreamHandler).name(), "wire", YamuxFrameCodec())
+        val newId = remoteMuxIdGenerator.next()
+        val controls = listOf(
+            streamId to 0,
+            newId to YamuxFlag.SYN.intFlag,
+            streamId to YamuxFlag.FIN.intFlag,
+            newId to YamuxFlag.RST.intFlag
+        )
+        controls.forEach { (id, flags) ->
+            val wire = Unpooled.buffer(12)
+                .writeByte(0).writeByte(YamuxType.DATA.intValue).writeShort(flags)
+                .writeInt(id.toInt()).writeInt(0)
+            wire.retain()
+            try {
+                ech.writeInbound(wire)
+                assertThat(wire.refCnt()).describedAs("Yamux flags $flags wire payload").isEqualTo(1)
+            } finally {
+                while (wire.refCnt() > 0) wire.release()
+            }
+        }
+        assertThat(childHandlers.flatMap { it.inboundMessages }).isEmpty()
+    }
+
+    @Test
+    fun invalidWireSynReleasesItsDecodedPayload() {
+        ech.pipeline().addBefore(ech.pipeline().context(multistreamHandler).name(), "wire", YamuxFrameCodec())
+        val wire = Unpooled.buffer(12)
+            .writeByte(0).writeByte(YamuxType.DATA.intValue).writeShort(YamuxFlag.SYN.intFlag)
+            .writeInt(1).writeInt(0)
+        wire.retain()
+        try {
+            val rejection = assertThrows<Libp2pException> { ech.writeInbound(wire) }
+            assertThat(rejection.message).isEqualTo("Invalid remote SYN StreamID: test/1, isRemoteInitiator: false")
+            assertThat(wire.refCnt()).isEqualTo(1)
+        } finally {
+            while (wire.refCnt() > 0) wire.release()
+        }
+    }
+
+    @Test
+    fun `test ack new stream`() {
+        // signal opening of new stream
+        openStreamRemote(12)
+
+        writeStream(12, "23")
+
+        val ackFrame = readYamuxFrameOrThrow()
+
+        // receives ack stream
+        assertThat(ackFrame.flags).containsExactly(YamuxFlag.ACK)
+        assertThat(ackFrame.type).isEqualTo(YamuxType.WINDOW_UPDATE)
+
+        closeStream(12)
+    }
+
+    @Test
+    fun `test window update is sent after more than half of the window is depleted`() {
+        openStreamLocal()
+        val streamId = readFrameOrThrow().streamId
+
+        // > 1/2 window size
+        val length = (initialWindowSize / 2) + 42
+        ech.writeInbound(
+            YamuxFrame(
+                streamId.toMuxId(),
+                YamuxType.DATA,
+                YamuxFlag.NONE,
+                length.toLong(),
+                "42".repeat(length).fromHex().toByteBuf(allocateBuf())
+            )
+        )
+
+        val windowUpdateFrame = readYamuxFrameOrThrow()
+
+        // window frame is sent based on the new window
+        assertThat(windowUpdateFrame.flags).isEmpty()
+        assertThat(windowUpdateFrame.type).isEqualTo(YamuxType.WINDOW_UPDATE)
+        assertThat(windowUpdateFrame.length).isEqualTo(length.toLong())
+    }
+
+    @Test
+    fun `data should be buffered and sent after window increased from zero`() {
+        val handler = openStreamLocal()
+        val streamId = readFrameOrThrow().streamId
+
+        ech.writeInbound(
+            YamuxFrame(
+                streamId.toMuxId(),
+                YamuxType.WINDOW_UPDATE,
+                YamuxFlag.ACK.asSet,
+                -initialWindowSize.toLong()
+            )
+        )
+
+        handler.ctx.writeAndFlush("1984".fromHex().toByteBuf(allocateBuf()))
+
+        assertThat(readFrame()).isNull()
+
+        ech.writeInbound(YamuxFrame(streamId.toMuxId(), YamuxType.WINDOW_UPDATE, YamuxFlag.ACK.asSet, 5000))
+        val frame = readFrameOrThrow()
+        assertThat(frame.data).isEqualTo("1984")
+    }
+
+    @Test
+    fun `buffered data should not be sent if it does not fit within window`() {
+        val handler = openStreamLocal()
+        val streamId = readFrameOrThrow().streamId
+
+        ech.writeInbound(
+            YamuxFrame(
+                streamId.toMuxId(),
+                YamuxType.WINDOW_UPDATE,
+                YamuxFlag.ACK.asSet,
+                -initialWindowSize.toLong()
+            )
+        )
+
+        val message = "1984".fromHex().toByteBuf(allocateBuf())
+        // 2 bytes per message
+        handler.ctx.writeAndFlush(message)
+        handler.ctx.writeAndFlush(message.copy())
+
+        assertThat(readFrame()).isNull()
+
+        ech.writeInbound(
+            YamuxFrame(
+                streamId.toMuxId(),
+                YamuxType.WINDOW_UPDATE,
+                YamuxFlag.ACK.asSet,
+                2
+            )
+        )
+
+        var frame = readFrameOrThrow()
+        // one message is received
+        assertThat(frame.data).isEqualTo("1984")
+        // need to wait for another window update to send more data
+        assertThat(readFrame()).isNull()
+        // sending window update
+        ech.writeInbound(
+            YamuxFrame(
+                streamId.toMuxId(),
+                YamuxType.WINDOW_UPDATE,
+                YamuxFlag.ACK.asSet,
+                1
+            )
+        )
+        frame = readFrameOrThrow()
+        assertThat(frame.data).isEqualTo("19")
+
+        ech.writeInbound(
+            YamuxFrame(
+                streamId.toMuxId(),
+                YamuxType.WINDOW_UPDATE,
+                YamuxFlag.ACK.asSet,
+                10000
+            )
+        )
+        frame = readFrameOrThrow()
+        assertThat(frame.data).isEqualTo("84")
+    }
+
+    @Test
+    fun `overflowing buffer sends RST flag and throws an exception`() {
+        val handler = openStreamLocal()
+        val muxId = readFrameOrThrow().streamId.toMuxId()
+
+        ech.writeInbound(
+            YamuxFrame(
+                muxId,
+                YamuxType.WINDOW_UPDATE,
+                YamuxFlag.ACK.asSet,
+                -initialWindowSize.toLong()
+            )
+        )
+
+        val messageBytes = maxBufferedConnectionWrites / 5
+        val pendingWrites = (1..5).map {
+            handler.ctx.writeAndFlush(
+                "42".repeat(messageBytes).fromHex().toByteBuf(allocateBuf())
+            )
+        }
+        assertThat(pendingWrites).allMatch { !it.isDone }
+
+        // The first write is stalled in Yamux's send buffer, while these later writes are queued
+        // in the child channel. The connection-wide budget must include both retention points.
+        val writeResult = handler.ctx.writeAndFlush(
+            "42".repeat(messageBytes).fromHex().toByteBuf(allocateBuf())
+        )
+        ech.runPendingTasks()
+
+        assertThat(writeResult.isDone).isTrue()
+        assertThat(writeResult.isSuccess).isFalse()
+        assertThat(writeResult.cause())
+            .isInstanceOf(Libp2pException::class.java)
+            .hasMessage("Overflowed send buffer (${messageBytes * 6}/512). Last stream attempting to write: $muxId")
+        assertThat(pendingWrites).allMatch { it.isDone && !it.isSuccess }
+
+        val frame = readYamuxFrameOrThrow()
+        assertThat(frame.flags).containsExactly(YamuxFlag.RST)
+    }
+
+    @RepeatedTest(8)
+    fun `completed void promise writes do not consume the connection write budget`() {
+        val handler = openStreamLocal()
+        val muxId = readFrameOrThrow().streamId.toMuxId()
+
+        val voidWriteBytes = 100
+        // These are deliberately sequential: each completed write must return its reservation
+        // before the next write exercises the same connection-wide budget.
+        repeat(4) {
+            handler.ctx.writeAndFlush(
+                "42".repeat(voidWriteBytes).fromHex().toByteBuf(allocateBuf()),
+                handler.ctx.voidPromise()
+            )
+            ech.writeInbound(
+                YamuxFrame(
+                    muxId,
+                    YamuxType.WINDOW_UPDATE,
+                    YamuxFlag.ACK.asSet,
+                    voidWriteBytes.toLong()
+                )
+            )
+        }
+
+        val normalWriteBytes = 113
+        val normalWrite = handler.ctx.writeAndFlush(
+            "43".repeat(normalWriteBytes).fromHex().toByteBuf(allocateBuf())
+        )
+        ech.runPendingTasks()
+
+        assertThat(normalWrite.isSuccess).isTrue()
+        repeat(4) {
+            assertThat(readFrameOrThrow().data).isEqualTo("42".repeat(voidWriteBytes))
+        }
+        assertThat(readFrameOrThrow().data).isEqualTo("43".repeat(normalWriteBytes))
+        assertThat(readFrame()).isNull()
+    }
+
+    @Test
+    fun `frames are sent in order when send buffer is used`() {
+        val handler = openStreamLocal()
+        val streamId = readFrameOrThrow().streamId
+
+        val createMessage: (String) -> ByteBuf =
+            { it.toByteArray().toByteBuf(allocateBuf()) }
+
+        val sendWindowUpdate: (Int) -> Unit = {
+            ech.writeInbound(
+                YamuxFrame(
+                    streamId.toMuxId(),
+                    YamuxType.WINDOW_UPDATE,
+                    YamuxFlag.ACK.asSet,
+                    it.toLong()
+                )
+            )
+        }
+
+        // approximately every 5 messages window size will be depleted
+        val messagesToSend = 500
+        val customWindowSize = 14
+        sendWindowUpdate(-initialWindowSize + customWindowSize)
+
+        val range = 1..messagesToSend
+
+        // 100 window updates should be sent to ensure buffer is flushed and all messages are sent
+        // so will send them at random times ensuring maxBufferedConnectionWrites can never be reached
+        val windowUpdatesIndices = (range).chunked(100).flatMap {
+            it.shuffled().take(20)
+        }
+
+        for (i in range) {
+            if (i in windowUpdatesIndices) {
+                sendWindowUpdate(customWindowSize)
+            }
+            handler.ctx.writeAndFlush(createMessage(i.toString()))
+        }
+
+        val receivedData = generateSequence {
+            readYamuxFrame()
+        }
+            .map {
+                assertThat(it.data).isNotNull()
+                String(it.data!!.readAllBytesAndRelease())
+            }
+            .joinToString(separator = "")
+
+        val expectedData = range.joinToString(separator = "")
+
+        assertThat(receivedData).isEqualTo(expectedData)
+    }
+
+    @Test
+    fun `test ping`() {
+        val id: Long = YamuxId.SESSION_STREAM_ID
+        ech.writeInbound(
+            YamuxFrame(
+                id.toMuxId(),
+                YamuxType.PING,
+                YamuxFlag.SYN.asSet,
+                // opaque value, echoed back
+                3
+            )
+        )
+
+        val pingFrame = readYamuxFrameOrThrow()
+
+        assertThat(pingFrame.flags).containsExactly(YamuxFlag.ACK)
+        assertThat(pingFrame.type).isEqualTo(YamuxType.PING)
+        assertThat(pingFrame.length).isEqualTo(3)
+    }
+
+    @Test
+    fun `test go away`() {
+        val id: Long = YamuxId.SESSION_STREAM_ID
+        ech.writeInbound(
+            YamuxFrame(
+                id.toMuxId(),
+                YamuxType.GO_AWAY,
+                YamuxFlag.NONE,
+                // normal termination
+                0x2
+            )
+        )
+
+        val yamuxHandler = multistreamHandler as YamuxHandler
+        assertThat(yamuxHandler.goAwayPromise).isCompletedWithValue(0x2)
+    }
+
+    @Test
+    fun `test no go away on close`() {
+        val yamuxHandler = multistreamHandler as YamuxHandler
+
+        assertThat(yamuxHandler.goAwayPromise).isNotDone
+        ech.close()
+        assertThat(yamuxHandler.goAwayPromise).isCompletedExceptionally
+    }
+
+    @Test
+    fun `opening a stream with wrong streamId parity should throw and close connection`() {
+        val isRemoteConnectionInitiator = !isLocalConnectionInitiator
+        val correctRemoteId = 10L + if (isRemoteConnectionInitiator) 1 else 0
+        val incorrectId = correctRemoteId + 1
+        Assertions.assertThrows(Libp2pException::class.java) {
+            openStreamRemote(incorrectId)
+        }
+        assertThat(ech.isOpen).isFalse()
+    }
+
+    @Test
+    fun `negative sendWindowSize should be correctly handled`() {
+        val handler = openStreamLocal()
+        val muxId = readFrameOrThrow().streamId.toMuxId()
+
+        val msg = "42".repeat(initialWindowSize + 1).fromHex().toByteBuf(allocateBuf())
+        // writing a message which is larger than sendWindowSize
+        handler.ctx.writeAndFlush(msg)
+
+        // sendWindowSize is 0 now
+
+        // remote party wants to reduce the window by 10
+        ech.writeInbound(
+            YamuxFrame(
+                muxId,
+                YamuxType.WINDOW_UPDATE,
+                YamuxFlag.ACK.asSet,
+                -10
+            )
+        )
+
+        // sendWindowSize is -10 now
+
+        val msgPart1 = readYamuxFrameOrThrow()
+        assertThat(msgPart1.length).isEqualTo(256L)
+        assertThat(msgPart1.data!!.readableBytes()).isEqualTo(256)
+        msgPart1.data!!.release()
+
+        val msgPart2 = readYamuxFrameOrThrow()
+        assertThat(msgPart2.length.toInt()).isEqualTo(initialWindowSize - 256)
+        assertThat(msgPart2.data!!.readableBytes()).isEqualTo(initialWindowSize - 256)
+        msgPart2.data!!.release()
+
+        // ACKing message receive
+        ech.writeInbound(
+            YamuxFrame(
+                muxId,
+                YamuxType.WINDOW_UPDATE,
+                YamuxFlag.ACK.asSet,
+                initialWindowSize.toLong()
+            )
+        )
+
+        val msgPart3 = readYamuxFrameOrThrow()
+        assertThat(msgPart3.length).isEqualTo(1L)
+        assertThat(msgPart3.data!!.readableBytes()).isEqualTo(1)
+        msgPart3.data!!.release()
+    }
+
+    @Test
+    fun `local close for writing should flush buffered data and send close frame on writeWindow update`() {
+        val handler = openStreamLocal()
+        val muxId = readFrameOrThrow().streamId.toMuxId()
+
+        val msg = "42".repeat(initialWindowSize + 1).fromHex().toByteBuf(allocateBuf())
+        // writing a message which is larger than sendWindowSize
+        handler.ctx.writeAndFlush(msg)
+
+        val msgPart1 = readYamuxFrameOrThrow()
+        assertThat(msgPart1.length).isEqualTo(256L)
+        assertThat(msgPart1.data!!.readableBytes()).isEqualTo(256)
+        msgPart1.data!!.release()
+
+        val msgPart2 = readYamuxFrameOrThrow()
+        assertThat(msgPart2.length.toInt()).isEqualTo(initialWindowSize - 256)
+        assertThat(msgPart2.data!!.readableBytes()).isEqualTo(initialWindowSize - 256)
+        msgPart2.data!!.release()
+
+        // locally close for writing while some outbound data is still buffered
+        handler.ctx.disconnect()
+
+        // ACKing message receive
+        ech.writeInbound(
+            YamuxFrame(
+                muxId,
+                YamuxType.WINDOW_UPDATE,
+                YamuxFlag.ACK.asSet,
+                initialWindowSize.toLong()
+            )
+        )
+
+        val msgPart3 = readYamuxFrameOrThrow()
+        assertThat(msgPart3.length).isEqualTo(1L)
+        assertThat(msgPart3.data!!.readableBytes()).isEqualTo(1)
+        msgPart3.data!!.release()
+
+        val closeFrame = readYamuxFrameOrThrow()
+        assertThat(closeFrame.flags).containsExactly(YamuxFlag.FIN)
+        assertThat(closeFrame.length).isEqualTo(0L)
+        assertThat(closeFrame.data).isNull()
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = [true, false])
+    fun `does not create new stream if ACK backlog limit is reached`(outbound: Boolean) {
+        val openStream: () -> Unit = {
+            if (outbound) {
+                openStreamLocal()
+            } else {
+                openStreamRemote()
+            }
+        }
+        for (i in 1..ackBacklogLimit) {
+            openStream()
+        }
+        // opening new stream should fail
+        val exception = assertThrows<Exception> { openStream() }
+
+        if (outbound) {
+            assertThat(exception).hasCauseInstanceOf(AckBacklogLimitExceededMuxerException::class.java)
+            // expected number of SYN frames have been sent
+            var synFlagFrames = 0
+            do {
+                val frame = readYamuxFrame()
+                frame?.let {
+                    assertThat(it.flags).isEqualTo(YamuxFlag.SYN.asSet)
+                    synFlagFrames += 1
+                }
+            } while (frame != null)
+            assertThat(synFlagFrames).isEqualTo(ackBacklogLimit)
+        } else {
+            assertThat(exception).isInstanceOf(AckBacklogLimitExceededMuxerException::class.java)
+        }
+    }
+
+    companion object {
+        private fun YamuxStreamIdGenerator.toIterator() = iterator {
+            while (true) {
+                yield(this@toIterator.next())
+            }
+        }
+    }
+}

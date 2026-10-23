@@ -1,0 +1,250 @@
+import com.diffplug.gradle.spotless.SpotlessExtension
+import org.gradle.api.tasks.testing.logging.TestExceptionFormat
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import java.net.URI
+// To publish the release artifact to CloudSmith repo run the following :
+// ./gradlew publish -PcloudsmithUser=<user> -PcloudsmithApiKey=<api-key>
+
+description = "a libp2p implementation for the JVM, written in Kotlin"
+
+plugins {
+    val kotlinVersion = "1.6.21"
+
+    id("org.jetbrains.kotlin.jvm") version kotlinVersion apply false
+
+    id("com.github.ben-manes.versions").version("0.51.0")
+    id("idea")
+    id("io.gitlab.arturbosch.detekt").version("1.22.0")
+    id("java")
+    id("maven-publish")
+    id("org.jetbrains.dokka").version("1.9.20")
+    id("com.diffplug.spotless").version("7.2.1")
+    id("java-test-fixtures")
+    id("io.spring.dependency-management").version("1.1.7")
+
+    id("org.jetbrains.kotlin.android") version kotlinVersion apply false
+    id("com.android.application") version "7.4.2" apply false
+}
+
+fun Project.getBooleanPropertyOrFalse(propName: String) =
+    (this.properties[propName] as? String)?.toBoolean() ?: false
+
+configure(
+    allprojects
+        .filterNot {
+            it.getBooleanPropertyOrFalse("libp2p.gradle.custom")
+        }
+) {
+    // CodexCoder21 fork: published under an unambiguously non-upstream Maven coordinate.
+    // The group id (community.kotlin.libp2p) is owned by CodexCoder21 — we deliberately do NOT
+    // publish under io.libp2p because that namespace belongs to upstream libp2p. When the next
+    // upstream release containing PR #412 (https://github.com/libp2p/jvm-libp2p/pull/412) is cut,
+    // downstream projects should migrate back to io.libp2p and this fork will be retired.
+    group = "community.kotlin.libp2p"
+    // NOTE on versioning: snapshot-6 and snapshot-7 were already published to kotlin.directory by
+    // other in-flight branches with DIFFERENT content (the publish API refuses to overwrite an
+    // existing version), so the OOM-fix release that landed on develop in #15 is published as
+    // snapshot-8. Always confirm the next version is unpublished before reusing a number — see FORK.md.
+    // snapshot-8: two complementary inbound-substream OOM guards (UrlProtocol #294, the
+    // ContainerNursery / kotlin.directory outages). (1) CREATE path — bound concurrent inbound
+    // substreams per connection at the mux layer (AbstractMuxHandler.maxInboundStreams) and reset
+    // the excess before scaffolding is built, so a sustained inbound flood can't accumulate
+    // unbounded MuxChannel/Negotiator pipelines. (2) CLOSE path — AbstractChildChannel.doClose()
+    // now destroys the pipeline synchronously, so closed substreams are reclaimed immediately
+    // instead of piling up behind a deferred event-loop deregister backlog. Together with
+    // snapshot-5's close-future timeout cancel, the inbound-substream heap is bounded on both paths.
+    // snapshot-9: restore the DAEMON event-loop ThreadFactory + shared NIO worker group that an
+    // earlier published snapshot-7 carried but which never landed on develop (develop jumped
+    // snapshot-6 -> snapshot-8 for the #294 OOM release, dropping them). PlainNettyTransport built its
+    // MultiThreadIoEventLoopGroups with no ThreadFactory, so Netty's default NON-daemon threads were
+    // used again: a worker slow to exit under CI starvation held the forked test JVM open past the
+    // 30s runner kill (the "test body done, Process timed out, JVM pid gone" flake caught downstream
+    // by UrlResolver.testLibp2pEventLoopThreadsAreDaemon), and a per-instance worker group spawned
+    // O(hosts x cores) threads that starved the run queue on the 2-core CI droplet. Now: TCP/WS
+    // (PlainNettyTransport) uses a single process-wide SHARED daemon worker group (bounds threads to
+    // O(cores)) plus a per-instance daemon boss group; QuicTransport's per-instance worker group is
+    // also daemon. Regression guard: PlainNettyTransportDaemonThreadTest.
+    // snapshot-10: enforce Yamux maxBufferedConnectionWrites against the parent Netty channel's
+    // outbound buffer. A stalled peer now receives a descriptive YamuxOutboundBufferExceededException
+    // and the connection is deliberately closed before ChannelOutboundBuffer entries can grow without
+    // bound; mplex is intentionally not gated by this release.
+    // snapshot-14: keep Noise handshake crypto inline at low concurrency, and offload it to the shared
+    // crypto pool only above the process-wide contention threshold.
+    // snapshot-15: make multistream negotiation cleanup idempotent when selected-protocol setup
+    // synchronously closes and destroys the child channel pipeline.
+    // snapshot-17: measure the Noise read timeout only while an outbound handshake frame is awaiting
+    // its remote response, excluding local crypto-pool queueing from the remote-read budget.
+    // snapshot-20: use NativePRNGNonBlocking for owned startup and key-generation entropy, including
+    // a fresh Noise ephemeral private key injected before every handshake starts.
+    // snapshot-21: exclude connections with completed close futures from both established-connection
+    // lookups, so a stream request made during close bookkeeping starts a fresh transport dial.
+    // snapshot-31: activate mux sessions before publication and share parent close completion for queued opens.
+    // snapshot-32: activate selected protocols once across coalesced records and preserve close callbacks (PR 50)
+    // snapshot-35: make child write-close idempotent after full close, reset, and callback re-entry.
+    // snapshot-36: drain accepted child writes before half-close with Yamux and Mplex.
+    // snapshot-37: pause Yamux delivery and credit per stream while parent reads continue.
+    version = "1.3.0-codexcoder21-snapshot-37"
+
+    apply(plugin = "kotlin")
+    apply(plugin = "idea")
+    apply(plugin = "java")
+
+    apply(plugin = "io.gitlab.arturbosch.detekt")
+    apply(plugin = "maven-publish")
+    apply(plugin = "org.jetbrains.dokka")
+    apply(plugin = "com.diffplug.spotless")
+    apply(plugin = "java-test-fixtures")
+    apply(plugin = "io.spring.dependency-management")
+    apply(from = "$rootDir/versions.gradle")
+
+    dependencies {
+
+        implementation(kotlin("stdlib-jdk8"))
+        implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core")
+
+        implementation("com.google.guava:guava")
+        implementation("org.slf4j:slf4j-api")
+
+        testFixturesImplementation("com.google.guava:guava")
+        testFixturesImplementation("org.slf4j:slf4j-api")
+
+        testImplementation("org.junit.jupiter:junit-jupiter")
+        testImplementation("org.junit.jupiter:junit-jupiter-params")
+        testImplementation("org.junit.platform:junit-platform-launcher")
+        testRuntimeOnly("org.junit.platform:junit-platform-engine")
+        testImplementation("io.mockk:mockk")
+        testImplementation("org.assertj:assertj-core")
+        testRuntimeOnly("org.apache.logging.log4j:log4j-slf4j2-impl")
+    }
+
+    java {
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
+    }
+
+    tasks.withType<KotlinCompile> {
+        kotlinOptions.jvmTarget = "11"
+        kotlinOptions {
+            languageVersion = "1.6"
+            allWarningsAsErrors = true
+            freeCompilerArgs = listOf("-Xjvm-default=all")
+        }
+    }
+    tasks.withType<Copy> {
+        duplicatesStrategy = DuplicatesStrategy.INCLUDE
+    }
+    tasks.withType<io.gitlab.arturbosch.detekt.Detekt>().configureEach {
+        jvmTarget = "11"
+    }
+
+// Parallel build execution
+    tasks.test {
+        description = "Runs the unit tests."
+
+        useJUnitPlatform {
+            excludeTags("interop")
+        }
+
+        testLogging {
+            events("FAILED")
+            exceptionFormat = TestExceptionFormat.FULL
+            showCauses = true
+            showExceptions = true
+            showStackTraces = true
+        }
+
+        // disabling the parallel test runs for the time being due to port collisions
+        // If GRADLE_MAX_TEST_FORKS is not set, use half the available processors
+//    maxParallelForks = (System.getenv("GRADLE_MAX_TEST_FORKS")?.toInt() ?:
+//    Runtime.getRuntime().availableProcessors().div(2))
+    }
+
+    configure<SpotlessExtension> {
+        // https://github.com/pinterest/ktlint/releases
+        val ktlintVersion = "1.1.1"
+        kotlin {
+            ktlint(ktlintVersion).editorConfigOverride(
+                mapOf(
+                    "ktlint_standard_no-wildcard-imports" to "disabled",
+                    "ktlint_standard_enum-entry-name-case" to "disabled",
+                    "ktlint_standard_trailing-comma-on-call-site" to "disabled",
+                    "ktlint_standard_trailing-comma-on-declaration-site" to "disabled",
+                    "ktlint_standard_value-parameter-comment" to "disabled",
+                    "ktlint_standard_value-argument-comment" to "disabled",
+                    "ktlint_standard_property-naming" to "disabled",
+                    "ktlint_standard_function-naming" to "disabled"
+                )
+            )
+        }
+        java {
+            targetExclude("**/generated/**/proto/**")
+            googleJavaFormat()
+        }
+    }
+
+    val sourcesJar by tasks.registering(Jar::class) {
+        archiveClassifier.set("sources")
+        from(sourceSets.main.get().allSource)
+    }
+
+    tasks.dokkaHtml.configure {
+        outputDirectory.set(getLayout().buildDirectory.dir("dokka"))
+        dokkaSourceSets {
+            configureEach {
+                jdkVersion.set(11)
+                reportUndocumented.set(false)
+                externalDocumentationLink {
+                    url.set(URI.create("https://netty.io/4.2/api/").toURL())
+                }
+            }
+        }
+    }
+
+    val dokkaJar: TaskProvider<Jar> by tasks.registering(Jar::class) {
+        group = JavaBasePlugin.DOCUMENTATION_GROUP
+        val dokkaJavadocTask = tasks.getByName("dokkaJavadoc")
+        dependsOn(dokkaJavadocTask)
+        archiveClassifier.set("javadoc")
+        from(dokkaJavadocTask.outputs)
+    }
+
+    publishing {
+        repositories {
+            maven {
+                name = "cloudsmith"
+                url = uri("https://api-g.cloudsmith.io/maven/libp2p/jvm-libp2p")
+                credentials {
+                    username = findProperty("cloudsmithUser") as String?
+                    password = findProperty("cloudsmithApiKey") as String?
+                }
+            }
+        }
+        if (hasProperty("mavenArtifactId")) {
+            publications {
+                register("mavenJava", MavenPublication::class) {
+                    from(components["java"])
+                    versionMapping {
+                        usage("java-api") {
+                            fromResolutionOf("runtimeClasspath")
+                        }
+                        usage("java-runtime") {
+                            fromResolutionResult()
+                        }
+                    }
+                    artifact(sourcesJar.get())
+                    artifact(dokkaJar.get())
+                    // CodexCoder21 fork: group id is set above (community.kotlin.libp2p).
+                    // We deliberately do NOT override with "io.libp2p" here because that
+                    // namespace belongs to upstream libp2p.
+                    groupId = project.group.toString()
+                    artifactId = project.property("mavenArtifactId") as String
+                }
+            }
+        }
+    }
+
+    detekt {
+        config.from("$rootDir/detekt/config.yml")
+        buildUponDefaultConfig = true
+    }
+}

@@ -1,0 +1,214 @@
+package io.libp2p.etc.util.netty
+
+import io.netty.channel.AbstractChannel
+import io.netty.channel.Channel
+import io.netty.channel.ChannelConfig
+import io.netty.channel.ChannelId
+import io.netty.channel.ChannelMetadata
+import io.netty.channel.ChannelPromise
+import io.netty.channel.DefaultChannelConfig
+import io.netty.channel.EventLoop
+import io.netty.util.concurrent.Future
+import io.netty.util.concurrent.GenericFutureListener
+import java.net.SocketAddress
+import java.util.concurrent.RejectedExecutionException
+
+/**
+ * Class representing 'virtual' channel which has a parent and
+ * is closed automatically on parent close
+ * Since this type of channels has no underlying transport connect() and bind() methods
+ * are not supported
+ */
+abstract class AbstractChildChannel(parent: Channel, id: ChannelId?) : AbstractChannel(parent, id) {
+    private enum class State {
+        OPEN,
+        ACTIVE,
+        INACTIVE,
+        CLOSED
+    }
+
+    private val parentCloseFuture = parent.closeFuture()
+    private var state = State.OPEN
+    private var closeImplicitly = false
+    private val parentCloseListener = GenericFutureListener { _: Future<Void> -> closeImpl() }
+
+    /**
+     * One config for the channel lifetime. An off-loop auto-read pause may leave one inbound
+     * payload already in delivery after the setter returns. Mplex stops parent transport reads
+     * for the whole connection while any child remains paused. Yamux keeps parent reads running:
+     * a paused child withholds only its own receive credit and delivery.
+     */
+    private val childConfig: ChannelConfig by lazy {
+        object : DefaultChannelConfig(this) {
+            override fun setAutoRead(autoRead: Boolean): ChannelConfig {
+                val result = super.setAutoRead(autoRead)
+                // Reconcile against the current value even if another caller changed it while
+                // this setter ran. Reading the old value before Netty's atomic update can miss
+                // the final transition when two callers write concurrently.
+                onAutoReadChanged()
+                return result
+            }
+        }
+    }
+
+    fun closeImpl() {
+        closeImplicitly = true
+        try {
+            close()
+        } finally {
+            closeImplicitly = false
+        }
+    }
+
+    override fun metadata(): ChannelMetadata = ChannelMetadata(false)
+    override fun config(): ChannelConfig = childConfig
+
+    protected open fun onAutoReadChanged() {}
+    override fun isCompatible(loop: EventLoop?) = true
+
+    override fun isOpen(): Boolean {
+        return state != State.CLOSED
+    }
+
+    override fun isActive(): Boolean {
+        return state == State.ACTIVE
+    }
+
+    // Rejected scheduling is handled by performing the same close inline below.
+    @Suppress("SwallowedException")
+    final override fun doRegister() {
+        state = State.ACTIVE
+
+        // Build the subclass's pipeline BEFORE arming the parent-close listener.
+        //
+        // Netty notifies a listener added to an already-completed future immediately. A child whose parent
+        // died before it registered therefore used to run its ENTIRE close inside this call, against an
+        // empty pipeline — and registration then carried on and installed the subclass's handlers onto a
+        // channel that was already closed. Nothing removes those handlers or fires `channelUnregistered` at
+        // them afterwards, so whatever learns of the channel's death that way is never told: a
+        // `Host.newStream` caller blocked on the controller `ProtocolSelect` completes from exactly that
+        // callback waits out its whole timeout, and the handlers (and everything they retain) leak.
+        //
+        // Measured in UrlResolver buildtest run 55b03afc: a substream opened at 16 ms and closed at 19 ms
+        // with `sawInactive=false sawUnregistered=false sawHandlerRemoved=false` against a provably
+        // installed observer, `closeFutureDone=true`, and the full multistream pipeline still attached.
+        initChildPipeline()
+
+        // Initialization may close this child synchronously. Its teardown has already removed the
+        // parent listener, so registering it now would retain a closed child on the live parent.
+        // Registration and teardown run on the child's event loop, which keeps this check ordered.
+        if (!isOpen) return
+
+        if (parentCloseFuture.isDone) {
+            // The parent is already gone. Defer the close to the event loop rather than running it inline:
+            // Netty has not finished registration yet, so the handlers just installed have not had
+            // `handlerAdded` invoked, and tearing the pipeline down underneath that is not sound. The
+            // deferred task runs once registration has completed, and closes a channel with a finished
+            // pipeline.
+            // A rejected execution during shutdown must not turn a close into a registration failure, and
+            // must not leave the child open either - fall back to closing inline.
+            try {
+                eventLoop().execute { closeImpl() }
+            } catch (rejected: RejectedExecutionException) {
+                closeImpl()
+            }
+        } else {
+            parentCloseFuture.addListener(parentCloseListener)
+        }
+    }
+
+    /**
+     * Hook for subclasses to build their pipeline during registration. Runs before the parent-close
+     * listener is armed, so a close driven by an already-dead parent always sees the finished pipeline.
+     */
+    protected open fun initChildPipeline() {}
+
+    override fun doDeregister() {
+        // NOOP
+    }
+
+    override fun doDisconnect() {
+        if (!metadata().hasDisconnect()) {
+            doClose()
+        }
+    }
+
+    override fun doClose() {
+        // The teardown below is in a `finally` because it must run even when the work above it fails.
+        // `onClientClosed()` reaches the muxer — a yamux substream asks it to emit an RST frame, and that
+        // write throws once the connection has latched a terminal write failure. Netty's
+        // `AbstractUnsafe.doClose0` completes the channel's close future even when `doClose()` throws, and
+        // latches `closeInitiated` so every later `close()` is a no-op. Without this `finally`, such a
+        // channel reports itself closed forever while keeping its whole pipeline attached, and nothing
+        // ever fires `channelUnregistered` or `handlerRemoved` on it again.
+        //
+        // Observed twice over (UrlResolver buildtest run 21bb281d): a substream opened at 21 ms, closed at
+        // 28 ms, and the controller future its `Host.newStream` caller was blocked on was still not
+        // completed at 5016 ms — `ProtocolSelect` fails that future only from `channelUnregistered`. The
+        // same gap retains the closed channel's entire pipeline, which is the heap signature described
+        // below; making the teardown synchronous was not enough on its own, it also has to be
+        // unconditional.
+        try {
+            if (!closeImplicitly) onClientClosed()
+        } finally {
+            // `deactivate()` belongs with the teardown, not with the work that can fail before it: a
+            // channel that skipped `channelInactive` but fired `channelUnregistered` presents an
+            // inconsistent lifecycle to every handler on it.
+            deactivate()
+            completeTeardown()
+        }
+    }
+
+    /**
+     * Marks this channel closed and tears its pipeline down. Runs exactly once per close, whether or not
+     * the rest of [doClose] succeeded.
+     */
+    private fun completeTeardown() {
+        state = State.CLOSED
+        parentCloseFuture.removeListener(parentCloseListener)
+
+        // Synchronously fire channelUnregistered through the pipeline. Because
+        // `state == CLOSED` now makes `isOpen()` false, the pipeline's
+        // `fireChannelUnregistered` runs `destroy()` synchronously — removing every
+        // handler and firing `handlerRemoved` on each — before close() returns.
+        //
+        // Why this is needed (ContainerNursery / kotlin.directory OOM, UrlProtocol #294):
+        // `doDeregister()` is a no-op for child channels, so the standard close flow tears
+        // the pipeline down only via the DEFERRED `fireChannelInactiveAndDeregister` that
+        // `AbstractUnsafe.close()` posts with `invokeLater`. Under sustained inbound-stream
+        // churn the event loop drains those deferred close tasks slower than new frames
+        // arrive, so thousands of CLOSED MuxChannels keep their full multistream-negotiation
+        // pipelines (handlers + decoders + direct buffers) queued in the loop's
+        // MpscUnboundedArrayQueue until the heap is exhausted. The 2026-06-29 production
+        // dump showed ~30K such closed channels retaining ~68 MB / 53% of a 128 MB heap.
+        //
+        // The standard deferred path still runs afterwards, but its second
+        // `fireChannelUnregistered` is a no-op because the pipeline is already empty.
+        pipeline().fireChannelUnregistered()
+    }
+
+    protected open fun onClientClosed() {}
+
+    protected fun deactivate() {
+        if (state == State.ACTIVE) {
+            pipeline().fireChannelInactive()
+            state = State.INACTIVE
+        }
+    }
+
+    override fun doBeginRead() {
+        // NOOP
+    }
+
+    override fun doBind(localAddress: SocketAddress?) {
+        throw UnsupportedOperationException("ChildChannel doesn't support bind()")
+    }
+
+    override fun newUnsafe(): AbstractUnsafe = MUnsafe()
+
+    private inner class MUnsafe : AbstractUnsafe() {
+        override fun connect(remoteAddress: SocketAddress?, localAddress: SocketAddress?, promise: ChannelPromise?) {
+            throw UnsupportedOperationException("ChildChannel doesn't support connect()")
+        }
+    }
+}

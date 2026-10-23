@@ -1,0 +1,108 @@
+# CodexCoder21 Temporary Fork Notice
+
+**This is a temporary fork of [libp2p/jvm-libp2p](https://github.com/libp2p/jvm-libp2p) maintained by [CodexCoder21](https://github.com/CodexCoder21Organization).**
+
+## Why this fork exists
+
+CodexCoder21 production depends on a set of jvm-libp2p fixes that are **not yet available in any upstream release**. Rather than carry per-project workarounds (e.g. reflection-based hacks to force Netty thread shutdown), we publish a single patched build under our own Maven coordinate and have every downstream project depend on that. The divergence from the latest upstream release has two layers:
+
+1. **The Netty 4.2 migration — the original reason.** The latest upstream *release*, `io.libp2p:jvm-libp2p:1.2.2-RELEASE` (December 2024), predates the Netty 4.2 migration and has a bug in `NettyTransport.close()`: the `EventLoopGroup.shutdownGracefully()` futures are discarded rather than awaited, so `Host.stop()` resolves before Netty's non-daemon worker threads exit, keeping the JVM alive past shutdown and causing flaky test timeouts downstream. This is **already fixed on upstream `develop`** via the Netty 4.2 migration — [libp2p/jvm-libp2p#412](https://github.com/libp2p/jvm-libp2p/pull/412) (merged 2025-08-28, commit [`33ffc1ac03`](https://github.com/libp2p/jvm-libp2p/commit/33ffc1ac03b7c69df995a7316b1bf0d116f4c8eb)), where `PlainNettyTransport.close()` / `QuicTransport.close()` chain and await the shutdown futures — but **no upstream release containing it has been cut** (`1.2.2-RELEASE` is still the latest tagged release as of April 2026). This fork is built from a **snapshot of upstream `develop`**, so it includes #412.
+
+2. **Additional narrowly-scoped fixes we need ahead of upstream.** Layered on top of the `develop` snapshot is a small, growing set of connection-lifecycle and resource-exhaustion fixes that CodexCoder21 production has hit in the field — see [What this fork carries](#what-this-fork-carries). They are not feature work and each is intended to be proposed upstream.
+
+## What this fork carries
+
+On top of the upstream `develop` snapshot (which already provides the #412 thread-shutdown fix), this fork adds the following fixes. Each is meant to go upstream; nothing here is a long-term divergence.
+
+- **Per-stream Yamux read pausing** (snapshot-37) — pausing a Yamux child holds only its own delivery and receive credit. Parent reads continue for sibling streams and window updates needed by large replies on the paused stream. Mplex retains its connection-wide pause because it has no per-stream flow control. This ports the earlier [snapshot-29 change](https://github.com/CodexCoder21Organization/jvm-libp2p/pull/42) onto current develop; TCP/Noise tests cover sibling transfers, full-window retention, ordered resume and the paused-request/large-reply case. A paused Yamux stream retains at most its receive-window bytes in at most 64 payload copies; once it holds 64, later payloads are appended to the newest copy instead of resetting the stream. Parent reads stay enabled for control traffic and sibling streams. The protected `AbstractMuxHandler.preparePendingChildRead` hook now takes `(data, retainedBytes)` instead of `(data)`, and new protected hooks `coalescePendingChildRead` and `sealPendingChildRead` were added; a subclass outside this repository that overrode the old signature must be updated.
+- **Buffered stream half-close ordering** (snapshot-36) — Yamux and Mplex queue the close frame after all accepted child writes complete, including replies larger than the Yamux window when the peer has already half-closed. Later writes fail immediately; explicit reset, write-completion accounting, and buffer limits retain their existing behavior. Real TCP/Noise and held-transport tests cover both close orders, queued writes, complete payload delivery, and end-of-stream.
+- **Idempotent stream write close** (snapshot-35) — Yamux and Mplex child streams stop revisiting mux state once fully closed or already closed for writing. A `Stream.closeWrite()` after a remote reset, local close, or parent close succeeds without looking up a removed Yamux entry or emitting another Mplex close frame. Live streams still half-close and allow replies in the other direction.
+- **Fast graceful shutdown** — `PlainNettyTransport.close()` and `QuicTransport.close()` pass `quietPeriod = 0` to `shutdownGracefully()`, so `Host.stop()` returns promptly instead of waiting out Netty's default (~2s) quiet period.
+- **Listener-port leak fix** — repairs a close/listen race in `PlainNettyTransport` where a closing listener could still hold its port as a new bind raced in, leaking listener ports.
+- **Daemon event-loop threads + shared worker group** (snapshot-9) — the transports build their `MultiThreadIoEventLoopGroup`s with a DAEMON `DefaultThreadFactory`, so a worker slow to exit its run loop under CI starvation can no longer keep the forked JVM alive past shutdown (the "test body done, Process timed out after 30s, JVM pid gone" flake; guarded by `PlainNettyTransportDaemonThreadTest`). `PlainNettyTransport` additionally shares a single process-wide worker group across all instances, bounding total NIO worker threads to `O(cores)` instead of `O(hosts × cores)` — a per-instance group starved the run queue and stalled peer discovery on the 2-core CI droplet under many-host stress. (These fixes existed in the never-merged snapshot-7 lineage and were dropped when develop jumped snapshot-6 → snapshot-8 for the #294 OOM release; snapshot-9 restores them on top of #294.)
+- **Loop-local Noise computation scheduling** — before each computation, an autonomous event loop checks its own pending handshakes and queued tasks. Computation stays inline when that loop has no competing work; otherwise it uses the existing shared daemon computation workers and per-channel FIFO. Ready-publication callbacks retain the loop entry until they return. Embedded channels remain synchronous because their callers drive their loops. This replaces snapshot-14's process-wide first-four threshold, which allowed one connection's computation to delay another connection already waiting on the same loop. `NoiseLoopPendingHandshakeTest`, `NoiseQueuedReadyCallbackTest`, and `NoiseReadyReentryTest` guard the ordering without measuring host speed; existing sequential-inline tests remain unchanged.
+- **Noise identity preparation before connections** — each `NoiseXXSecureChannel` derives its static public key and signs/serializes its identity payload once when the binding is constructed. Connections copy the prepared static key into their own state and retain fresh ephemeral keys. Signing failures surface during construction, before the binding is published. This removes repeated static-key and identity-signature work from connection setup without opening a preparation connection.
+- **Re-entrant multistream teardown safety** (snapshot-15) — multistream negotiation cleanup now treats handler removal as idempotent when selected-protocol setup synchronously closes a child stream. The fork's synchronous `AbstractChildChannel` pipeline destruction can legitimately remove the negotiator and its framing handlers before the protocol-selection callback returns; unconditionally removing those already-removed handlers raised `NoSuchElementException` and aborted the selected stream under saturation.
+- **Pending peer-connect deduplication** (snapshot-18) — `NetworkImpl.connect` previously reused only *established* connections, so concurrent callers (e.g. `Host.newStream` paths racing a direct `connect`) each started an independent transport dial + Noise handshake to the same peer. Pending dials are now keyed by (peer, transport-only address, pre-handler equality) and shared: per-caller derived futures isolate cancellation, entries are removed before failures become visible so immediate retries dial fresh, every caller still races its own address list, and equivalent `/ipfs/`//`/p2p/` spellings collapse to one handshake. Under 52-way registration saturation downstream, duplicate dials had wedged UrlResolver's confirmed-exchange recovery rounds at 17-30s each.
+- **One settled connection per peer across a multi-address connect** — `NetworkImpl.connect` dials every address of a peer in parallel and hands the caller whichever dial finishes first. The dials that finished afterwards also produced a fully upgraded connection, and those belonged to nobody: the caller never saw them and nothing ever closed them, so each kept a live socket, Netty pipeline, outbound buffer and muxer session for the life of the process. A long-lived host dialling a large, churning peer population therefore retained one connection per surplus address per peer it had ever contacted — the shape behind ContainerNursery holding 78,830 open sockets, 81,197 `NioSocketChannel` and 49,535 Yamux handlers on 2026-08-10 while serving a peer population three orders of magnitude smaller. `connect` now settles on one connection per peer through a single atomic map operation and closes the redundant ones; choosing the survivor atomically rather than by completion order keeps concurrent callers — which share pending dials but race their own address lists — from each closing the connection the other is using. Guarded by `NetworkMultiAddressConnectTest`.
+- **Noise remote-wait phase timeout** (snapshot-17) — the five-second Noise read timeout is armed only after an outbound handshake frame has been written and the state machine expects a remote response, then disarmed immediately when that response arrives. The former always-on `ReadTimeoutHandler` charged crypto-pool queueing and local signature/DH processing against the remote-read budget, so a healthy peer dial could self-time-out under CPU-saturated handshake storms before its next outbound frame was sent.
+- **Inbound-substream OOM guards** ([UrlProtocol #294](https://github.com/CodexCoder21Organization/UrlProtocol/issues/294)) — three complementary fixes that bound the inbound-substream heap which repeatedly OOM-crash-looped ContainerNursery / kotlin.directory on a 128 MB heap:
+  - cancel the multistream negotiation timeout (`TotalTimeoutHandler`) on **channel close**, not only on handler removal, so a substream that closes mid-negotiation does not pin its pipeline until the timeout elapses;
+  - cap concurrently-open **inbound** substreams per connection in `AbstractMuxHandler` and reset the excess **before** any `MuxChannel` / negotiation scaffolding is built (in the shared handler, so it guards both Mplex and Yamux);
+  - destroy a closed `AbstractChildChannel`'s pipeline **synchronously** in `doClose()` instead of via a deferred event-loop task, so closed substreams are reclaimed immediately rather than accumulating behind a starved event loop.
+- **Truthful Yamux write completion + bounded child-write accounting** (snapshot-19) — a child stream write's promise now spans every Yamux frame the write produces across flow-control window updates: it succeeds only after the entire buffered write drains with all parent frame futures successful, and reset, send-buffer overflow, or connection close fails it — previously the promise succeeded once the window-admitted prefix flushed, so a concurrent close silently released the buffered remainder after success had been reported (downstream: relay unregister frames "admitted" but never decoded). `ByteBufQueue.dispose()` removes entries before release, eliminating reentrant double-release (`IllegalReferenceCountException`). Child-channel writes reserve against the connection-wide `maxBufferedConnectionWrites` budget before entering the outbound queue (void promises are unvoided so completion always returns the reservation), crossing the bound promptly resets the stream and fails queued writes, and an irreversibly failed prefix frame fails the application promise immediately with exactly-once disposal.
+- **Yamux connection-wide outbound-buffer backpressure** (snapshot-10) — Yamux now enforces `maxBufferedConnectionWrites` across child-stream outbound queues, Yamux's flow-control buffer, and the parent Netty connection's outbound buffer. A stalled stream that fills child queues is reset with all retained writes failed; when a stalled peer would push the parent `ChannelOutboundBuffer` past the configured budget, jvm-libp2p fails affected writes with a descriptive `YamuxOutboundBufferExceededException` and deliberately closes the connection. This prevents unbounded retained `ByteBuf`s and `DefaultChannelPromise`s before or after framing; the hard budget remains Yamux-only, so mplex is outside this release's gate.
+- **Non-blocking random sources** (snapshot-20) — default identity-key generation, Curve25519, Noise static and per-handshake ephemeral keys, secio, and the random source supplied to TLS use `NativePRNGNonBlocking` when the provider is available. Platforms without that named source retain a portable fallback to their default `SecureRandom`. Noise receives newly generated private bytes through its fixed-ephemeral hook before each handshake starts because noise-java does not expose a random-source setter; the bytes are fresh for each `NoiseIoHandshake`, copied into noise-java, and cleared from the temporary array.
+- **Unconditional child-channel teardown** (snapshot-25) — `AbstractChildChannel.doRegister` builds the subclass's pipeline via a new `initChildPipeline()` hook BEFORE arming the parent-close listener, and `doClose` tears the pipeline down in a `finally`. Netty notifies a listener added to an already-completed future immediately, so a substream registering under a dead parent used to run its whole close against an empty pipeline and then have the negotiation handlers installed onto an already-closed channel — `ProtocolSelect` never fired `channelUnregistered`, so a `Host.newStream` caller's controller was never completed and it waited out its entire timeout. `MuxChannel.doClose` also releases the muxer's `streamMap` entry and inbound-admission slot in a `finally`.
+- **`newStream` does not fail a caller for its own pool entry** (snapshot-25) — `Host.newStream(protocols, peer, addr)` selects the connection and creates the stream, so when the connection it selected turns out to be dead it evicts it, awaits the close, and dials once. The redial is refused when only the SUBSTREAM died (`ConnectionClosedException` is raised at substream granularity too) or when a stream has already been published to the caller, so a healthy shared connection is never torn down and a caller is never handed one attempt's stream with another attempt's controller.
+- **Terminal connection pool exclusion** (snapshot-21) — both established-connection lookups in `NetworkImpl.connect` remove and skip entries whose close future is already complete. Connection-table removal is itself a close-future continuation, so a caller could previously observe the completed future before that continuation ran and receive the closed connection instead of starting a fresh dial.
+
+Fork releases are published to [kotlin.directory](https://kotlin.directory) under an **unambiguously non-upstream** Maven coordinate (the `community.kotlin.libp2p` group is owned by CodexCoder21 — we deliberately do **not** publish under `io.libp2p`, which belongs to upstream):
+
+The version assigned to the current source is below; publication is a separate release step.
+
+```
+community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-37
+```
+
+## When this fork goes away
+
+This is a short-term bridge, not a long-term divergent branch — **no feature work lands here, only the `develop` snapshot plus narrowly-scoped, upstream-bound fixes.** Each fix in [What this fork carries](#what-this-fork-carries) should be proposed to upstream libp2p. The fork is retired — downstream projects move back to `io.libp2p:jvm-libp2p` — once an upstream **release** carries the Netty 4.2 work (#412) *and* equivalents of the fixes listed above.
+
+## Building and releasing this fork
+
+This is a standard Gradle project (JDK 11+). It is **built with Gradle** and the resulting Maven artifact is **published to [kotlin.directory](https://kotlin.directory)** with the [`publish-maven-artifact`](https://github.com/CodexCoder21Organization) CLI — *not* to Cloudsmith. (The Cloudsmith references elsewhere in [README.md](README.md) and in `build.gradle.kts`'s `publishing {}` block are inherited from upstream and apply to the upstream `io.libp2p` artifact, not to this fork's `community.kotlin.libp2p` releases.)
+
+### Build & test
+
+```bash
+./gradlew :libp2p:build          # full build
+./gradlew :libp2p:test           # run the test suite (excludes the `interop` tag)
+./gradlew :libp2p:spotlessCheck :libp2p:detekt   # formatting + static analysis gates
+```
+
+> **Note:** the fork's GitHub Actions workflows (`build.yml` / `publish.yml`) are currently failing at startup (an org-side Actions configuration issue), so there is **no green CI check and no CI auto-publish**. Until that is fixed, builds are verified locally with the commands above and releases are published manually as described below. A couple of suites that need native libraries absent from the CI/dev image (`io.libp2p.transport.quic.*`, `io.libp2p.security.tls.*`) fail with `SSLException: failed to create an SSL_CTX`, and some host tests intermittently fail with `BindException` under parallel execution — these are environmental, not regressions.
+
+### Cut a release
+
+1. **Pick the next version.** Releases are `1.3.0-codexcoder21-snapshot-N`. **Increment `N` to the next unpublished value and confirm it is not already published** — the publish API refuses to overwrite an existing version (`HTTP 409`), and version numbers have in the past been claimed by parallel branches. Check with:
+
+   ```bash
+   # 200 = already published (pick a higher N); 401 = not published (free to use)
+   curl -s -o /dev/null -w "%{http_code}\n" \
+     "https://kotlin.directory/community/kotlin/libp2p/jvm-libp2p/1.3.0-codexcoder21-snapshot-N/jvm-libp2p-1.3.0-codexcoder21-snapshot-N.pom"
+   ```
+
+2. **Bump the version** in `build.gradle.kts` (`version = "1.3.0-codexcoder21-snapshot-N"`) and land it on `develop` via a PR.
+
+3. **Build the publishable artifact into the local Maven repo.** The `mavenJava` publication is gated on the `mavenArtifactId` property, so pass it:
+
+   ```bash
+   ./gradlew :libp2p:publishToMavenLocal -PmavenArtifactId=jvm-libp2p
+   # -> ~/.m2/repository/community/kotlin/libp2p/jvm-libp2p/1.3.0-codexcoder21-snapshot-N/
+   #    (jar + pom with full transitive dependencies + sources + javadoc)
+   ```
+
+4. **Publish the jar + pom to kotlin.directory** via the publishing CLI. Stage a directory with just the main `.jar` and `.pom` (Maven naming `jvm-libp2p-<version>.{jar,pom}`) so the Gradle `.module` metadata is not shipped, then upload over the HTTP API:
+
+   ```bash
+   V=1.3.0-codexcoder21-snapshot-N
+   M2=~/.m2/repository/community/kotlin/libp2p/jvm-libp2p/$V
+   PUB=$(mktemp -d)
+   cp "$M2/jvm-libp2p-$V.jar" "$M2/jvm-libp2p-$V.pom" "$PUB/"
+   coursier launch community.kotlin.maven.artifact.publishing:community-kotlin-maven-artifact-publishing:0.0.5 \
+     -r https://kotlin.directory -- \
+     --artifact-dir "$PUB" \
+     --api-url https://api.kotlin.directory/upload \
+     --force
+   ```
+
+5. **Verify** the artifact resolves and contains the expected changes:
+
+   ```bash
+   curl -s -o /tmp/v.jar "https://kotlin.directory/community/kotlin/libp2p/jvm-libp2p/$V/jvm-libp2p-$V.jar"
+   ( cd "$(mktemp -d)" && jar xf /tmp/v.jar && \
+     javap -p -classpath . io.libp2p.etc.util.netty.mux.AbstractMuxHandler | grep -i inboundStream )
+   ```
+
+6. **Bump consumers** (e.g. [UrlProtocol](https://github.com/CodexCoder21Organization/UrlProtocol), [UrlResolver](https://github.com/CodexCoder21Organization/UrlResolver)) to the new `community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-N` coordinate, which they resolve from kotlin.directory.

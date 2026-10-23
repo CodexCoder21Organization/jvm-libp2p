@@ -1,0 +1,143 @@
+file=libp2p/build/classes/kotlin/main/io/libp2p/core/Stream.class exit_status=0
+Compiled from "Stream.kt"
+public interface io.libp2p.core.Stream extends io.libp2p.core.P2PChannel {
+  public abstract io.libp2p.core.Connection getConnection();
+    descriptor: ()Lio/libp2p/core/Connection;
+
+  public abstract io.libp2p.core.PeerId remotePeerId();
+    descriptor: ()Lio/libp2p/core/PeerId;
+
+  public abstract java.util.concurrent.CompletableFuture<java.lang.String> getProtocol();
+    descriptor: ()Ljava/util/concurrent/CompletableFuture;
+
+  public default <TMessage> void pushHandler(io.libp2p.protocol.ProtocolMessageHandler<TMessage>);
+    descriptor: (Lio/libp2p/protocol/ProtocolMessageHandler;)V
+
+  public abstract void writeAndFlush(java.lang.Object);
+    descriptor: (Ljava/lang/Object;)V
+
+  public default java.util.concurrent.CompletableFuture<kotlin.Unit> writeAndFlushWithFuture(java.lang.Object);
+    descriptor: (Ljava/lang/Object;)Ljava/util/concurrent/CompletableFuture;
+
+  public default java.util.concurrent.CompletableFuture<kotlin.Unit> reset();
+    descriptor: ()Ljava/util/concurrent/CompletableFuture;
+
+  public abstract java.util.concurrent.CompletableFuture<kotlin.Unit> close();
+    descriptor: ()Ljava/util/concurrent/CompletableFuture;
+
+  public abstract java.util.concurrent.CompletableFuture<kotlin.Unit> closeWrite();
+    descriptor: ()Ljava/util/concurrent/CompletableFuture;
+}
+
+file=libp2p/build/classes/kotlin/main/io/libp2p/core/mux/StreamMuxer$Session.class exit_status=0
+Compiled from "StreamMuxer.kt"
+public interface io.libp2p.core.mux.StreamMuxer$Session {
+  public abstract <T> io.libp2p.core.StreamPromise<T> createStream(java.util.List<? extends io.libp2p.core.multistream.ProtocolBinding<? extends T>>);
+    descriptor: (Ljava/util/List;)Lio/libp2p/core/StreamPromise;
+
+  public default <T> io.libp2p.core.StreamPromise<T> createStream(io.libp2p.core.multistream.ProtocolBinding<? extends T>);
+    descriptor: (Lio/libp2p/core/multistream/ProtocolBinding;)Lio/libp2p/core/StreamPromise;
+}
+
+file=libp2p/build/classes/kotlin/main/io/libp2p/core/mux/StreamMuxer.class exit_status=0
+Compiled from "StreamMuxer.kt"
+public interface io.libp2p.core.mux.StreamMuxer extends io.libp2p.core.multistream.ProtocolBinding<io.libp2p.core.mux.StreamMuxer$Session> {
+}
+
+file=libp2p/build/classes/kotlin/main/io/libp2p/core/mux/StreamMuxerDebug.class exit_status=0
+Compiled from "StreamMuxer.kt"
+public interface io.libp2p.core.mux.StreamMuxerDebug {
+  public abstract io.libp2p.core.ChannelVisitor<io.libp2p.core.Connection> getMuxFramesDebugHandler();
+    descriptor: ()Lio/libp2p/core/ChannelVisitor;
+
+  public abstract void setMuxFramesDebugHandler(io.libp2p.core.ChannelVisitor<io.libp2p.core.Connection>);
+    descriptor: (Lio/libp2p/core/ChannelVisitor;)V
+}
+
+file=libp2p/build/classes/kotlin/main/io/libp2p/core/mux/StreamMuxerProtocol$Companion.class exit_status=0
+Compiled from "StreamMuxerProtocol.kt"
+public final class io.libp2p.core.mux.StreamMuxerProtocol$Companion {
+  public final io.libp2p.core.mux.StreamMuxerProtocol getMplex();
+    descriptor: ()Lio/libp2p/core/mux/StreamMuxerProtocol;
+
+  public static void getMplex$annotations();
+    descriptor: ()V
+
+  public final io.libp2p.core.mux.StreamMuxerProtocol getYamux(int, int);
+    descriptor: (II)Lio/libp2p/core/mux/StreamMuxerProtocol;
+
+  public static io.libp2p.core.mux.StreamMuxerProtocol getYamux$default(io.libp2p.core.mux.StreamMuxerProtocol$Companion, int, int, int, java.lang.Object);
+    descriptor: (Lio/libp2p/core/mux/StreamMuxerProtocol$Companion;IIILjava/lang/Object;)Lio/libp2p/core/mux/StreamMuxerProtocol;
+
+  public final io.libp2p.core.mux.StreamMuxerProtocol getYamux(int);
+    descriptor: (I)Lio/libp2p/core/mux/StreamMuxerProtocol;
+
+  public final io.libp2p.core.mux.StreamMuxerProtocol getYamux();
+    descriptor: ()Lio/libp2p/core/mux/StreamMuxerProtocol;
+}
+
+file=libp2p/build/classes/kotlin/main/io/libp2p/core/mux/StreamMuxerProtocol.class exit_status=0
+Compiled from "StreamMuxerProtocol.kt"
+public interface io.libp2p.core.mux.StreamMuxerProtocol {
+  public static final io.libp2p.core.mux.StreamMuxerProtocol$Companion Companion;
+    descriptor: Lio/libp2p/core/mux/StreamMuxerProtocol$Companion;
+  public abstract io.libp2p.core.mux.StreamMuxer createMuxer(io.libp2p.core.multistream.MultistreamProtocol, java.util.List<? extends io.libp2p.core.multistream.ProtocolBinding<?>>);
+    descriptor: (Lio/libp2p/core/multistream/MultistreamProtocol;Ljava/util/List;)Lio/libp2p/core/mux/StreamMuxer;
+
+  public static io.libp2p.core.mux.StreamMuxerProtocol getMplex();
+    descriptor: ()Lio/libp2p/core/mux/StreamMuxerProtocol;
+
+  public static io.libp2p.core.mux.StreamMuxerProtocol getYamux(int, int);
+    descriptor: (II)Lio/libp2p/core/mux/StreamMuxerProtocol;
+
+  public static io.libp2p.core.mux.StreamMuxerProtocol getYamux(int);
+    descriptor: (I)Lio/libp2p/core/mux/StreamMuxerProtocol;
+
+  public static io.libp2p.core.mux.StreamMuxerProtocol getYamux();
+    descriptor: ()Lio/libp2p/core/mux/StreamMuxerProtocol;
+}
+
+file=libp2p/build/classes/kotlin/main/io/libp2p/mux/mplex/MplexStreamMuxer.class exit_status=0
+Compiled from "MplexStreamMuxer.kt"
+public final class io.libp2p.mux.mplex.MplexStreamMuxer implements io.libp2p.core.mux.StreamMuxer,io.libp2p.core.mux.StreamMuxerDebug {
+  public io.libp2p.mux.mplex.MplexStreamMuxer(io.libp2p.core.StreamHandler<?>, io.libp2p.core.multistream.MultistreamProtocol);
+    descriptor: (Lio/libp2p/core/StreamHandler;Lio/libp2p/core/multistream/MultistreamProtocol;)V
+
+  public final io.libp2p.core.StreamHandler<?> getInboundStreamHandler();
+    descriptor: ()Lio/libp2p/core/StreamHandler;
+
+  public io.libp2p.core.multistream.ProtocolDescriptor getProtocolDescriptor();
+    descriptor: ()Lio/libp2p/core/multistream/ProtocolDescriptor;
+
+  public io.libp2p.core.ChannelVisitor<io.libp2p.core.Connection> getMuxFramesDebugHandler();
+    descriptor: ()Lio/libp2p/core/ChannelVisitor;
+
+  public void setMuxFramesDebugHandler(io.libp2p.core.ChannelVisitor<io.libp2p.core.Connection>);
+    descriptor: (Lio/libp2p/core/ChannelVisitor;)V
+
+  public java.util.concurrent.CompletableFuture<? extends io.libp2p.core.mux.StreamMuxer$Session> initChannel(io.libp2p.core.P2PChannel, java.lang.String);
+    descriptor: (Lio/libp2p/core/P2PChannel;Ljava/lang/String;)Ljava/util/concurrent/CompletableFuture;
+}
+
+file=libp2p/build/classes/kotlin/main/io/libp2p/mux/yamux/YamuxStreamMuxer.class exit_status=0
+Compiled from "YamuxStreamMuxer.kt"
+public final class io.libp2p.mux.yamux.YamuxStreamMuxer implements io.libp2p.core.mux.StreamMuxer,io.libp2p.core.mux.StreamMuxerDebug {
+  public io.libp2p.mux.yamux.YamuxStreamMuxer(io.libp2p.core.StreamHandler<?>, io.libp2p.core.multistream.MultistreamProtocol, int, int);
+    descriptor: (Lio/libp2p/core/StreamHandler;Lio/libp2p/core/multistream/MultistreamProtocol;II)V
+
+  public final io.libp2p.core.StreamHandler<?> getInboundStreamHandler();
+    descriptor: ()Lio/libp2p/core/StreamHandler;
+
+  public io.libp2p.core.multistream.ProtocolDescriptor getProtocolDescriptor();
+    descriptor: ()Lio/libp2p/core/multistream/ProtocolDescriptor;
+
+  public io.libp2p.core.ChannelVisitor<io.libp2p.core.Connection> getMuxFramesDebugHandler();
+    descriptor: ()Lio/libp2p/core/ChannelVisitor;
+
+  public void setMuxFramesDebugHandler(io.libp2p.core.ChannelVisitor<io.libp2p.core.Connection>);
+    descriptor: (Lio/libp2p/core/ChannelVisitor;)V
+
+  public java.util.concurrent.CompletableFuture<? extends io.libp2p.core.mux.StreamMuxer$Session> initChannel(io.libp2p.core.P2PChannel, java.lang.String);
+    descriptor: (Lio/libp2p/core/P2PChannel;Ljava/lang/String;)Ljava/util/concurrent/CompletableFuture;
+}
+

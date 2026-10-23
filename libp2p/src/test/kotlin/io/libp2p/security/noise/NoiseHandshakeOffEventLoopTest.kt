@@ -1,5 +1,14 @@
 package io.libp2p.security.noise
 
+import io.libp2p.core.PeerId
+import io.libp2p.core.crypto.generateKeyPair
+import io.libp2p.etc.CONNECTION
+import io.libp2p.multistream.MultistreamProtocolDebugV1
+import io.libp2p.tools.TestChannel
+import io.netty.buffer.Unpooled
+import io.netty.channel.embedded.EmbeddedChannel
+import org.junit.jupiter.api.RepeatedTest
+import java.nio.channels.ClosedChannelException
 import io.libp2p.core.ConnectionClosedException
 import io.libp2p.core.Host
 import io.libp2p.core.P2PChannel
@@ -274,6 +283,91 @@ class NoiseHandshakeOffEventLoopTest {
             rawChannel.get(5, TimeUnit.SECONDS).closeFuture().get(5, TimeUnit.SECONDS)
         } finally {
             stopNoiseHosts(hosts)
+        }
+    }
+
+    @RepeatedTest(10)
+    fun testSilentResponderKeepsOnlyInitiatorReadTimer() {
+        val (clientKey, clientPublic) = generateKeyPair(KeyType.ED25519)
+        val (serverKey, serverPublic) = generateKeyPair(KeyType.ED25519)
+        val client = TestChannel("silent-timer-client", true, remotePeerId = PeerId.fromPubKey(serverPublic))
+        val server = TestChannel("silent-timer-server", false, remotePeerId = PeerId.fromPubKey(clientPublic))
+        client.freezeTime()
+        server.freezeTime()
+        val silence = DropOutboundNoiseFromFrame(firstNoiseFrameToDrop = 1)
+        server.pipeline().addLast(silence)
+        try {
+            val multistream = MultistreamProtocolDebugV1()
+            val clientReady = multistream.createMultistream(listOf(NoiseXXSecureChannel(clientKey)))
+                .initChannel(client.attr(CONNECTION).get())
+            val serverReady = multistream.createMultistream(listOf(NoiseXXSecureChannel(serverKey)))
+                .initChannel(server.attr(CONNECTION).get())
+            client.closeFuture().addListener { server.close() }
+            server.closeFuture().addListener { client.close() }
+            client.pipeline().fireChannelActive()
+            server.pipeline().fireChannelActive()
+            fun transfer(from: TestChannel, to: TestChannel) {
+                from.runPendingTasks()
+                generateSequence { from.readOutbound<ByteBuf>() }.forEach { bytes ->
+                    to.writeInbound(bytes)
+                    to.runPendingTasks()
+                }
+            }
+            repeat(4) {
+                transfer(client, server)
+                transfer(server, client)
+            }
+            assertThat(silence.firstDroppedAt.isDone).isTrue()
+            assertThat(clientReady.isDone).isFalse()
+            assertThat(serverReady.isDone).isFalse()
+
+            // A silent peer has not completed its response write and is not waiting for message 3.
+            server.advanceTimeBy(HandshakeTimeoutSec.toLong(), TimeUnit.SECONDS)
+            server.runScheduledPendingTasks()
+            server.runPendingTasks()
+            client.runPendingTasks()
+            assertThat(serverReady.isDone).isFalse()
+            assertThat(clientReady.isDone).isFalse()
+
+            client.advanceTimeBy(HandshakeTimeoutSec.toLong(), TimeUnit.SECONDS)
+            client.runScheduledPendingTasks()
+            client.runPendingTasks()
+            server.runPendingTasks()
+            val result = catchThrowable { clientReady.get(5, TimeUnit.SECONDS) }
+            assertThat(result).isInstanceOf(ExecutionException::class.java)
+            assertThat(result).hasRootCauseInstanceOf(ReadTimeoutException::class.java)
+            assertThat(client.isOpen).isFalse()
+            assertThat(server.isOpen).isFalse()
+            assertThat(serverReady.isCompletedExceptionally).isTrue()
+        } finally {
+            client.finishAndReleaseAll()
+            server.finishAndReleaseAll()
+        }
+    }
+
+    @RepeatedTest(10)
+    fun testSilentResponderWriteCompletesWhenChannelCloses() {
+        val silence = DropOutboundNoiseFromFrame(firstNoiseFrameToDrop = 1)
+        val channel = EmbeddedChannel(silence)
+        try {
+            val bytes = Unpooled.buffer(32).writeZero(32)
+            val write = channel.writeAndFlush(bytes)
+            assertThat(silence.firstDroppedAt.isDone).isTrue()
+            assertThat(bytes.refCnt()).isZero()
+            val completions = AtomicInteger()
+            write.addListener {
+                completions.incrementAndGet()
+                channel.close()
+            }
+            assertThat(write.isDone).isFalse()
+            channel.close().syncUninterruptibly()
+            assertThat(write.isDone).isTrue()
+            assertThat(write.cause()).isInstanceOf(ClosedChannelException::class.java)
+            assertThat(completions.get()).isEqualTo(1)
+            channel.close().syncUninterruptibly()
+            assertThat(completions.get()).isEqualTo(1)
+        } finally {
+            channel.finishAndReleaseAll()
         }
     }
 

@@ -42,32 +42,60 @@ class NoisePreparationLifecycleTest {
 }
 
 private fun lifecycleProbe(mode: String) {
-    val output = Files.createTempFile("noise-lifecycle-", ".log")
-    val process = ProcessBuilder(
-        File(System.getProperty("java.home"), "bin/java").absolutePath,
-        "-Xmx128m",
-        "-Dio.netty.eventLoopThreads=1",
-        "-cp",
-        System.getProperty("java.class.path"),
-        "io.libp2p.security.noise.NoisePreparationLifecycleProbe",
-        mode
-    ).redirectErrorStream(true).redirectOutput(output.toFile()).start()
+    // The peer belongs to the parent. Its startup cannot consume the cold subject's
+    // preparation/lifecycle budget or initialize Noise in that subject JVM.
+    val peer = if (mode == "direct" || mode == "failure") {
+        host {
+            identity { random(KeyType.ED25519) }
+            muxers { +StreamMuxerProtocol.getYamux() }
+            protocols { +Ping() }
+            network { listen("/ip4/127.0.0.1/tcp/0") }
+        }
+    } else {
+        null
+    }
     try {
-        assertTrue(process.waitFor(30, TimeUnit.SECONDS), "Cold lifecycle probe did not finish")
-        val text = Files.readString(output)
-        print(text)
-        assertEquals(0, process.exitValue(), text)
+        peer?.start()?.get(10, TimeUnit.SECONDS)
+        check(peer == null || peer.network.connections.isEmpty()) {
+            "Host start must prepare the transport without opening a connection"
+        }
+        val output = Files.createTempFile("noise-lifecycle-", ".log")
+        try {
+            val command = listOf(
+                File(System.getProperty("java.home"), "bin/java").absolutePath,
+                "-Xmx128m",
+                "-Dio.netty.eventLoopThreads=1",
+                "-cp",
+                System.getProperty("java.class.path"),
+                "io.libp2p.security.noise.NoisePreparationLifecycleProbe",
+                mode
+            ) + listOfNotNull(peer?.listenAddresses()?.single()?.toString())
+            val process = ProcessBuilder(command).redirectErrorStream(true).redirectOutput(output.toFile()).start()
+            try {
+                assertTrue(process.waitFor(30, TimeUnit.SECONDS), "Cold lifecycle probe did not finish")
+                val text = Files.readString(output)
+                print(text)
+                assertEquals(0, process.exitValue(), text)
+            } finally {
+                process.descendants().forEach { it.destroyForcibly() }
+                process.destroyForcibly().waitFor(5, TimeUnit.SECONDS)
+            }
+        } finally {
+            Files.deleteIfExists(output)
+        }
     } finally {
-        process.descendants().forEach { it.destroyForcibly() }
-        process.destroyForcibly().waitFor(5, TimeUnit.SECONDS)
-        Files.deleteIfExists(output)
+        peer?.stop()?.get(5, TimeUnit.SECONDS)
     }
 }
 
 object NoisePreparationLifecycleProbe {
     @JvmStatic
     fun main(args: Array<String>) {
-        val mode = args.single()
+        val mode = args.first()
+        val endpoint = args.getOrNull(1)
+        check(args.size == if (mode == "direct" || mode == "failure") 2 else 1) {
+            "Lifecycle mode $mode requires exactly one prepared peer endpoint for direct network calls"
+        }
         val entered = CountDownLatch(1)
         val release = CountDownLatch(1)
         val failure = ProviderException("Noise preparation failure requested by lifecycle test")
@@ -78,26 +106,7 @@ object NoisePreparationLifecycleProbe {
         }
         val loop = DefaultEventLoop()
         val hosts = mutableListOf<Host>()
-        val peer = if (mode == "direct" || mode == "failure") {
-            ProcessBuilder(
-                File(System.getProperty("java.home"), "bin/java").absolutePath,
-                "-Xmx128m",
-                "-Dio.netty.eventLoopThreads=1",
-                "-cp",
-                System.getProperty("java.class.path"),
-                "io.libp2p.security.noise.NoiseReadinessPeer",
-                "direct"
-            ).redirectError(ProcessBuilder.Redirect.INHERIT).start()
-        } else {
-            null
-        }
         try {
-            val endpoint = peer?.let {
-                CompletableFuture.supplyAsync {
-                    it.inputStream.bufferedReader().lineSequence()
-                        .first { line -> line.startsWith("PEER=") }.removePrefix("PEER=")
-                }.get(10, TimeUnit.SECONDS)
-            }
             check(Security.insertProviderAt(provider, 1) == 1)
             val owner = AtomicReference<Host>()
             val pending = loop.submit(
@@ -186,19 +195,7 @@ object NoisePreparationLifecycleProbe {
                 hosts.forEach { it.stop().get(10, TimeUnit.SECONDS) }
             } finally {
                 Security.removeProvider(provider.name)
-                try {
-                    loop.shutdownGracefully(0, 5, TimeUnit.SECONDS).sync()
-                } finally {
-                    if (peer != null) {
-                        peer.outputStream.close()
-                        try {
-                            check(peer.waitFor(5, TimeUnit.SECONDS)) { "Separate Noise peer did not stop" }
-                            check(peer.exitValue() == 0) { "Separate Noise peer failed" }
-                        } finally {
-                            peer.destroyForcibly().waitFor(5, TimeUnit.SECONDS)
-                        }
-                    }
-                }
+                loop.shutdownGracefully(0, 5, TimeUnit.SECONDS).sync()
             }
         }
     }

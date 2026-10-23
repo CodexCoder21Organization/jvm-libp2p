@@ -24,23 +24,37 @@ import java.util.concurrent.TimeUnit
 class NoiseAlgorithmReadinessTest {
     @Test
     fun `first dial after start does not initialize Noise algorithm classes`() {
-        val output = Files.createTempFile("host-transport-readiness-", ".log")
-        val process = ProcessBuilder(
-            File(System.getProperty("java.home"), "bin/java").absolutePath,
-            "-Xmx128m",
-            "-cp",
-            System.getProperty("java.class.path"),
-            "io.libp2p.security.noise.NoiseAlgorithmReadinessProbe"
-        ).redirectErrorStream(true).redirectOutput(output.toFile()).start()
+        val peer = readinessHost("direct")
         try {
-            assertTrue(process.waitFor(30, TimeUnit.SECONDS), "Cold readiness probe did not finish")
-            val text = Files.readString(output)
-            print(text)
-            assertEquals(0, process.exitValue(), text)
+            peer.start().get(10, TimeUnit.SECONDS)
+            check(peer.network.connections.isEmpty()) {
+                "Host start must prepare the transport without opening a connection"
+            }
+            val output = Files.createTempFile("host-transport-readiness-", ".log")
+            try {
+                val process = ProcessBuilder(
+                    File(System.getProperty("java.home"), "bin/java").absolutePath,
+                    "-Xmx128m",
+                    "-cp",
+                    System.getProperty("java.class.path"),
+                    "io.libp2p.security.noise.NoiseAlgorithmReadinessProbe",
+                    "direct",
+                    peer.listenAddresses().single().toString()
+                ).redirectErrorStream(true).redirectOutput(output.toFile()).start()
+                try {
+                    assertTrue(process.waitFor(30, TimeUnit.SECONDS), "Cold readiness probe did not finish")
+                    val text = Files.readString(output)
+                    print(text)
+                    assertEquals(0, process.exitValue(), text)
+                } finally {
+                    process.descendants().forEach { it.destroyForcibly() }
+                    process.destroyForcibly().waitFor(5, TimeUnit.SECONDS)
+                }
+            } finally {
+                Files.deleteIfExists(output)
+            }
         } finally {
-            process.descendants().forEach { it.destroyForcibly() }
-            process.destroyForcibly().waitFor(5, TimeUnit.SECONDS)
-            Files.deleteIfExists(output)
+            peer.stop().get(5, TimeUnit.SECONDS)
         }
     }
 }
@@ -48,25 +62,13 @@ class NoiseAlgorithmReadinessTest {
 object NoiseAlgorithmReadinessProbe {
     @JvmStatic
     fun main(args: Array<String>) {
-        val mode = args.firstOrNull() ?: "direct"
-        val peer = ProcessBuilder(
-            File(System.getProperty("java.home"), "bin/java").absolutePath,
-            "-Xmx128m",
-            "-Dio.netty.eventLoopThreads=1",
-            "-cp",
-            System.getProperty("java.class.path"),
-            "io.libp2p.security.noise.NoiseReadinessPeer",
-            mode
-        ).redirectError(ProcessBuilder.Redirect.INHERIT).start()
+        check(args.size == 2) { "Readiness probe requires a mode and an already listening peer endpoint; received ${args.toList()}" }
+        val mode = args[0]
+        val address = Multiaddr(args[1])
         var client: Host? = null
         val provider = NoisePreparationProvider()
         val recordingFile = Files.createTempFile("first-dial-", ".jfr")
         try {
-            val endpoint = CompletableFuture.supplyAsync {
-                peer.inputStream.bufferedReader().lineSequence()
-                    .first { it.startsWith("PEER=") }.removePrefix("PEER=")
-            }.get(10, TimeUnit.SECONDS)
-            val address = Multiaddr(endpoint)
             check(Security.insertProviderAt(provider, 1) == 1) { "Counting SHA-256 provider was not installed first" }
             val local = readinessHost(mode)
             client = local
@@ -122,14 +124,7 @@ object NoiseAlgorithmReadinessProbe {
                 client?.stop()?.get(10, TimeUnit.SECONDS)
             } finally {
                 Security.removeProvider(provider.name)
-                peer.outputStream.close()
-                try {
-                    check(peer.waitFor(5, TimeUnit.SECONDS)) { "Separate Noise peer did not stop" }
-                    check(peer.exitValue() == 0) { "Separate Noise peer failed with exit ${peer.exitValue()}" }
-                } finally {
-                    peer.destroyForcibly().waitFor(5, TimeUnit.SECONDS)
-                    Files.deleteIfExists(recordingFile)
-                }
+                Files.deleteIfExists(recordingFile)
             }
         }
     }

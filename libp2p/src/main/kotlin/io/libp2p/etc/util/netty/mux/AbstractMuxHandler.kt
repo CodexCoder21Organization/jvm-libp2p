@@ -302,7 +302,6 @@ abstract class AbstractMuxHandler<TData>(
         val queued = pendingInbound.getOrPut(child.id) { PendingInbound() }
         queued.readPending = true
         drainPendingInbound(child)
-        requestParentReadIfNeeded()
     }
 
     private fun requestParentReadIfNeeded() {
@@ -347,6 +346,9 @@ abstract class AbstractMuxHandler<TData>(
                     if (pendingInbound[child.id] === queued) pendingInbound.remove(child.id)
                 }
             }
+            // A resume callback can pause and request another read after emptying this FIFO.
+            // Re-arm only after clearing the drain guard, even without a parent read-complete.
+            requestParentReadIfNeeded()
         }
     }
 

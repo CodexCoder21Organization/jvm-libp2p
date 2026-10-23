@@ -110,20 +110,24 @@ class PausedChildResumeReadReentryTcpTest {
             // Finish the physical read before the independent automatic-resume drain starts.
             parent.eventLoop().submit(Callable { assertTrue(events.isEmpty()) }).get(5, TimeUnit.SECONDS)
             child.config().isAutoRead = true
-            parent.eventLoop().submit(Callable {
-                assertEquals(listOf("byte:1", "complete"), events)
-                assertFalse(child.config().isAutoRead, "The payload callback must pause automatic delivery again")
-            }).get(5, TimeUnit.SECONDS)
+            parent.eventLoop().submit(
+                Callable {
+                    assertEquals(listOf("byte:1", "complete"), events)
+                    assertFalse(child.config().isAutoRead, "The payload callback must pause automatic delivery again")
+                }
+            ).get(5, TimeUnit.SECONDS)
             sender.writeAndFlushWithFuture(Unpooled.wrappedBuffer(byteArrayOf(2)))
                 .get(5, TimeUnit.SECONDS)
             val forwardedBytes = forwarded.poll(5, TimeUnit.SECONDS)
             assertTrue(forwardedBytes == 1, "Callback read demand must read the next physical payload, actual forwarded bytes=$forwardedBytes")
-            parent.eventLoop().submit(Callable {
-                assertEquals(listOf("byte:1", "complete", "byte:2", "complete"), events)
-                assertFalse(child.config().isAutoRead)
-                assertEquals(muxer == "yamux", parent.config().isAutoRead)
-                assertTrue(child.isOpen)
-            }).get(5, TimeUnit.SECONDS)
+            parent.eventLoop().submit(
+                Callable {
+                    assertEquals(listOf("byte:1", "complete", "byte:2", "complete"), events)
+                    assertFalse(child.config().isAutoRead)
+                    assertEquals(muxer == "yamux", parent.config().isAutoRead)
+                    assertTrue(child.isOpen)
+                }
+            ).get(5, TimeUnit.SECONDS)
         } finally {
             try {
                 client.stop().get(10, TimeUnit.SECONDS)

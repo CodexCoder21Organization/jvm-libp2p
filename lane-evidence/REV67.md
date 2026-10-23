@@ -2,12 +2,24 @@
 
 Request: read-only review of https://github.com/CodexCoder21Organization/jvm-libp2p/pull/67, expected head 13bea7dd. No PR-branch pushes, merge, enqueue, publication, deploy, restart, or buildtest mutations.
 
+## Ranked findings
+
+**BLOCKING: none found in the PR implementation.** Review scope is the verified source at https://github.com/CodexCoder21Organization/jvm-libp2p/commit/13bea7dd18571049b0f6f05702b5071f4477b064 . The existing Actions startup failure and 20 baseline suite failures remain verification limits, not regressions established by this review.
+
+**SHOULD-FIX S1 — Preserve coverage for peer closure while a retry result is still pending.** [ConnectionCloseRetryTest.kt:294](https://github.com/CodexCoder21Organization/jvm-libp2p/blob/13bea7dd18571049b0f6f05702b5071f4477b064/libp2p/src/test/kotlin/io/libp2p/transport/ConnectionCloseRetryTest.kt#L294) calls retry only after peer close and the physical close future have completed. The concurrency test at line 183 finishes collecting callers before releasing its held physical close. Neither covers peer EOF arriving while a retry owns an unfinished close promise, followed by re-entry from channelInactive.
+
+This gap has a mutation control: https://github.com/CodexCoder21Organization/jvm-libp2p/commit/a7063c53f9a8984ca7e516da8e6fe81c6a7b1460 replaces the retry helper with an immediate-success shortcut when the physical channel is already closed. All 11 PR tests still pass, but the additional real TCP/Noise/Yamux scenario fails because the pending retry reports success instead of its own eventual failure. The failure is `Peer closure must not replace a pending attempt's own result with success. ==> expected: <true> but was: <false>`.
+
+The actual PR implementation passes this scenario; **this finding requests test coverage, not a production-code correction**. The ready-to-port scenario is [RetryCloseInactiveReviewTest.kt](https://github.com/CodexCoder21Organization/jvm-libp2p/blob/wip/REV67-review-20261023/lane-evidence/RetryCloseInactiveReviewTest.kt). It holds retry attempt 2, closes the peer, re-enters both close APIs from channelInactive, reports failure 2, verifies all three retry observers complete once with that failure, verifies ordinary close still reports failure 1, and then verifies retry succeeds without physical attempt 3. It uses real peers and public Netty handler controls, no mocks or reflection.
+
+**NIT: none.**
+
 ## Plan
-- [in progress] Verify head, read repository instructions, linked guidance and author evidence; inspect diff.
-- [pending] Review lifecycle invariants, concurrency, relay behavior, and binary compatibility with javap and a compiled old implementer.
-- [pending] Run new tests three first-attempt times with fix, then three with retry logic removed in a throwaway evidence branch.
-- [pending] Spot-check reported baseline failures on unchanged develop.
-- [pending] Rank findings, push all evidence to wip/REV67-* and audit background process cleanup.
+- [done] Verify head, read repository instructions, linked guidance and author evidence; inspect diff.
+- [done] Review lifecycle invariants, concurrency, relay behavior, and binary compatibility with javap and a compiled old implementer.
+- [done] Run new tests three first-attempt times with fix, then three with retry logic removed in a throwaway evidence branch.
+- [done] Spot-check reported baseline failures on unchanged develop.
+- [in progress] Rank findings, push all evidence to wip/REV67-* and audit background process cleanup.
 
 ## Progress
 2026-10-23T00:39:34.705650+00:00 OBSERVED: started review. Fresh clone and required documentation retrieval underway. No production or PR changes.
@@ -42,3 +54,7 @@ OBSERVED: fresh baseline clone REV67-develop is clean at e15e0f19. Running the s
 OBSERVED: compiled relay implementation class bytes are identical between develop (old Connection interface) and PR: SHA256 700256c6f29a16125c0f7534cc751dddb8215705b279e0c41a404e18e672a53b. The real relay tests therefore exercised the exact old implementer bytes with the new default retryClose method, strengthening javap proof without a fake implementer.
 OBSERVED: independent PR check-suite query confirms informational Kotlin suite success and two Actions startup_failure suites with zero check runs; Actions build jobs total_count=0. This repo defines gradle(ubuntu-latest/windows-latest), not bld-* jobs. No waiting, rerequesting, or altering checks.
 OBSERVED: added a review-only public-API scenario in lane-evidence/RetryCloseInactiveReviewTest.kt, temporarily copied to JUnit sources. It holds retry attempt 2, lets peer EOF physically close the socket, re-enters both APIs from channelInactive, then reports failure 2 and checks every observer completes exactly once before retrying the closed socket. Passes against unchanged PR implementation (16s Gradle, one test). The existing test at ConnectionCloseRetryTest.kt:294 only calls retry after peer closure has finished. Testing a plausible already-closed shortcut mutation next to measure that coverage gap.
+
+2026-10-23T00:53:29.134858+00:00 OBSERVED: closed-channel shortcut control a7063c53 completed BUILD FAILED in 12s as expected: all 11 original PR cases pass, added scenario fails at its pending-result assertion. Additional repeated controls are running. This supports S1 as a test-comprehensiveness finding while refuting a current implementation bug at that ordering boundary. No PR source changes or comments were sent.
+
+2026-10-23T00:53:48.307661+00:00 OBSERVED: all three shortcut mutation controls are consistent: original 11/11 tests pass in each run; only the added pending-retry/peer-inactive scenario fails in each run (Gradle 12/10/8s). No skipped cases. Restored PR implementation on evidence branch and running two more fresh fixed-code runs of all 12 cases; the added case already passed once on PR source.

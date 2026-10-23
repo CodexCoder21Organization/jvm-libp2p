@@ -1,0 +1,201 @@
+Compiled from "YamuxCapacityStreamMuxer.kt"
+public final class io.libp2p.mux.yamux.YamuxCapacityStreamMuxer implements io.libp2p.core.mux.StreamMuxer,io.libp2p.core.mux.StreamMuxerDebug {
+  private final io.libp2p.core.StreamHandler<?> inboundStreamHandler;
+
+  private final io.libp2p.core.multistream.MultistreamProtocol multistreamProtocol;
+
+  private final int maxBufferedConnectionWrites;
+
+  private final int ackBacklogLimit;
+
+  private final int maxInboundStreams;
+
+  private final io.libp2p.core.multistream.ProtocolDescriptor protocolDescriptor;
+
+  private io.libp2p.core.ChannelVisitor<io.libp2p.core.Connection> muxFramesDebugHandler;
+
+  public io.libp2p.mux.yamux.YamuxCapacityStreamMuxer(io.libp2p.core.StreamHandler<?>, io.libp2p.core.multistream.MultistreamProtocol, int, int, int);
+    Code:
+       0: aload_1
+       1: ldc           #14                 // String inboundStreamHandler
+       3: invokestatic  #20                 // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+       6: aload_2
+       7: ldc           #22                 // String multistreamProtocol
+       9: invokestatic  #20                 // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+      12: aload_0
+      13: invokespecial #25                 // Method java/lang/Object."<init>":()V
+      16: aload_0
+      17: aload_1
+      18: putfield      #28                 // Field inboundStreamHandler:Lio/libp2p/core/StreamHandler;
+      21: aload_0
+      22: aload_2
+      23: putfield      #31                 // Field multistreamProtocol:Lio/libp2p/core/multistream/MultistreamProtocol;
+      26: aload_0
+      27: iload_3
+      28: putfield      #35                 // Field maxBufferedConnectionWrites:I
+      31: aload_0
+      32: iload         4
+      34: putfield      #38                 // Field ackBacklogLimit:I
+      37: aload_0
+      38: iload         5
+      40: putfield      #41                 // Field maxInboundStreams:I
+      43: aload_0
+      44: new           #43                 // class io/libp2p/core/multistream/ProtocolDescriptor
+      47: dup
+      48: ldc           #45                 // String /urlprotocol/yamux-capacity/1.0.0
+      50: invokespecial #48                 // Method io/libp2p/core/multistream/ProtocolDescriptor."<init>":(Ljava/lang/String;)V
+      53: putfield      #52                 // Field protocolDescriptor:Lio/libp2p/core/multistream/ProtocolDescriptor;
+      56: return
+
+  public io.libp2p.mux.yamux.YamuxCapacityStreamMuxer(io.libp2p.core.StreamHandler, io.libp2p.core.multistream.MultistreamProtocol, int, int, int, int, kotlin.jvm.internal.DefaultConstructorMarker);
+    Code:
+       0: iload         6
+       2: iconst_4
+       3: iand
+       4: ifeq          10
+       7: ldc           #56                 // int 10485760
+       9: istore_3
+      10: iload         6
+      12: bipush        8
+      14: iand
+      15: ifeq          23
+      18: sipush        256
+      21: istore        4
+      23: iload         6
+      25: bipush        16
+      27: iand
+      28: ifeq          36
+      31: sipush        512
+      34: istore        5
+      36: aload_0
+      37: aload_1
+      38: aload_2
+      39: iload_3
+      40: iload         4
+      42: iload         5
+      44: invokespecial #58                 // Method "<init>":(Lio/libp2p/core/StreamHandler;Lio/libp2p/core/multistream/MultistreamProtocol;III)V
+      47: return
+
+  public final io.libp2p.core.StreamHandler<?> getInboundStreamHandler();
+    Code:
+       0: aload_0
+       1: getfield      #28                 // Field inboundStreamHandler:Lio/libp2p/core/StreamHandler;
+       4: areturn
+
+  public io.libp2p.core.multistream.ProtocolDescriptor getProtocolDescriptor();
+    Code:
+       0: aload_0
+       1: getfield      #52                 // Field protocolDescriptor:Lio/libp2p/core/multistream/ProtocolDescriptor;
+       4: areturn
+
+  public io.libp2p.core.ChannelVisitor<io.libp2p.core.Connection> getMuxFramesDebugHandler();
+    Code:
+       0: aload_0
+       1: getfield      #71                 // Field muxFramesDebugHandler:Lio/libp2p/core/ChannelVisitor;
+       4: areturn
+
+  public void setMuxFramesDebugHandler(io.libp2p.core.ChannelVisitor<io.libp2p.core.Connection>);
+    Code:
+       0: aload_0
+       1: aload_1
+       2: putfield      #71                 // Field muxFramesDebugHandler:Lio/libp2p/core/ChannelVisitor;
+       5: return
+
+  public java.util.concurrent.CompletableFuture<? extends io.libp2p.core.mux.StreamMuxer$Session> initChannel(io.libp2p.core.P2PChannel, java.lang.String);
+    Code:
+       0: aload_1
+       1: ldc           #80                 // String ch
+       3: invokestatic  #20                 // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+       6: aload_2
+       7: ldc           #82                 // String selectedProtocol
+       9: invokestatic  #20                 // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+      12: aload_2
+      13: ldc           #45                 // String /urlprotocol/yamux-capacity/1.0.0
+      15: invokestatic  #86                 // Method kotlin/jvm/internal/Intrinsics.areEqual:(Ljava/lang/Object;Ljava/lang/Object;)Z
+      18: ifne          45
+      21: iconst_0
+      22: istore        4
+      24: aload_2
+      25: invokedynamic #98,  0             // InvokeDynamic #0:makeConcatWithConstants:(Ljava/lang/String;)Ljava/lang/String;
+      30: astore        4
+      32: new           #100                // class java/lang/IllegalArgumentException
+      35: dup
+      36: aload         4
+      38: invokevirtual #104                // Method java/lang/Object.toString:()Ljava/lang/String;
+      41: invokespecial #105                // Method java/lang/IllegalArgumentException."<init>":(Ljava/lang/String;)V
+      44: athrow
+      45: aload_0
+      46: getfield      #41                 // Field maxInboundStreams:I
+      49: iflt          56
+      52: iconst_1
+      53: goto          57
+      56: iconst_0
+      57: ifne          87
+      60: iconst_0
+      61: istore        4
+      63: aload_0
+      64: getfield      #41                 // Field maxInboundStreams:I
+      67: invokedynamic #110,  0            // InvokeDynamic #1:makeConcatWithConstants:(I)Ljava/lang/String;
+      72: astore        4
+      74: new           #100                // class java/lang/IllegalArgumentException
+      77: dup
+      78: aload         4
+      80: invokevirtual #104                // Method java/lang/Object.toString:()Ljava/lang/String;
+      83: invokespecial #105                // Method java/lang/IllegalArgumentException."<init>":(Ljava/lang/String;)V
+      86: athrow
+      87: new           #112                // class java/util/concurrent/CompletableFuture
+      90: dup
+      91: invokespecial #113                // Method java/util/concurrent/CompletableFuture."<init>":()V
+      94: astore_3
+      95: new           #115                // class io/libp2p/mux/yamux/YamuxFrameCodec
+      98: dup
+      99: iconst_0
+     100: iconst_1
+     101: aconst_null
+     102: invokespecial #118                // Method io/libp2p/mux/yamux/YamuxFrameCodec."<init>":(IILkotlin/jvm/internal/DefaultConstructorMarker;)V
+     105: astore        4
+     107: aload_1
+     108: aload         4
+     110: checkcast     #120                // class io/netty/channel/ChannelHandler
+     113: invokeinterface #126,  2          // InterfaceMethod io/libp2p/core/P2PChannel.pushHandler:(Lio/netty/channel/ChannelHandler;)V
+     118: aload_0
+     119: invokevirtual #128                // Method getMuxFramesDebugHandler:()Lio/libp2p/core/ChannelVisitor;
+     122: dup
+     123: ifnull        152
+     126: astore        5
+     128: aload         5
+     130: astore        6
+     132: iconst_0
+     133: istore        7
+     135: aload         6
+     137: aload_1
+     138: checkcast     #130                // class io/libp2p/core/Connection
+     141: checkcast     #122                // class io/libp2p/core/P2PChannel
+     144: invokeinterface #136,  2          // InterfaceMethod io/libp2p/core/ChannelVisitor.visit:(Lio/libp2p/core/P2PChannel;)V
+     149: goto          154
+     152: pop
+     153: nop
+     154: aload_1
+     155: new           #138                // class io/libp2p/mux/yamux/YamuxCapacityHandler
+     158: dup
+     159: aload_0
+     160: getfield      #31                 // Field multistreamProtocol:Lio/libp2p/core/multistream/MultistreamProtocol;
+     163: aload         4
+     165: invokevirtual #142                // Method io/libp2p/mux/yamux/YamuxFrameCodec.getMaxFrameDataLength:()I
+     168: aload_3
+     169: aload_0
+     170: getfield      #28                 // Field inboundStreamHandler:Lio/libp2p/core/StreamHandler;
+     173: aload_1
+     174: invokeinterface #146,  1          // InterfaceMethod io/libp2p/core/P2PChannel.isInitiator:()Z
+     179: aload_0
+     180: getfield      #35                 // Field maxBufferedConnectionWrites:I
+     183: aload_0
+     184: getfield      #38                 // Field ackBacklogLimit:I
+     187: aload_0
+     188: getfield      #41                 // Field maxInboundStreams:I
+     191: invokespecial #149                // Method io/libp2p/mux/yamux/YamuxCapacityHandler."<init>":(Lio/libp2p/core/multistream/MultistreamProtocol;ILjava/util/concurrent/CompletableFuture;Lio/libp2p/core/StreamHandler;ZIII)V
+     194: checkcast     #120                // class io/netty/channel/ChannelHandler
+     197: invokeinterface #126,  2          // InterfaceMethod io/libp2p/core/P2PChannel.pushHandler:(Lio/netty/channel/ChannelHandler;)V
+     202: aload_3
+     203: areturn
+}

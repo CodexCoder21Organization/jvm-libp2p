@@ -1,9 +1,9 @@
 # PUBLIBP2P2 findings
 
 ## Plan
-- [in progress] Locate repositories; read release instructions and consumer coordinates; inspect requested commit and prior releases.
-- [pending] Select an unused kotlin.directory version and build the exact requested commit locally.
-- [pending] Publish with existing group/artifact, download jar and POM, compare SHA-256 and inspect merged bytecode.
+- [done] Locate repositories; read release instructions and consumer coordinates; inspect requested commit and prior releases.
+- [done] Select an unused kotlin.directory version and build the exact requested commit locally.
+- [in progress] Publish with existing group/artifact, download jar and POM, compare SHA-256 and inspect merged bytecode.
 - [pending] Push final evidence on wip/publibp2p-* and report coordinate and consumer edit.
 
 ## Scope
@@ -30,3 +30,10 @@ OBSERVED: rg is unavailable; used grep/git file listings. Initial evidence commi
 ## 03:49 UTC memory admission adjustment
 OBSERVED: At 03:48:41, memory.current was 10492702720, anon 5573214208, inactive_file 2256052224, and slab_reclaimable 1957442824 bytes. Raw cgroup usage includes substantial reclaimable file cache. memory.events already reports oom=16 and oom_kill=1 before this lane has started Gradle; these cannot be attributed to this lane.
 OBSERVED: Stopped the first memory-wait launcher with SIGTERM (exit 143); it never started Gradle, and no compilation or test failed. Updated admission to subtract only clean inactive file cache, retaining all active file and slab usage in the accounted working set. The required margin is still 2 GiB. Raw and adjusted memory are both recorded every 30 seconds. No cache clearing, source changes, timeout changes, or JVM tuning were introduced.
+
+## 03:52 UTC build milestone
+OBSERVED: Local Gradle build PASSED on its first compilation, exit 0, 1m48s, all nine tasks executed. No test suite was invoked in this publication-only lane. memory.events oom and oom_kill stayed 16 and 1 throughout; peak sampled raw usage was 10644295680 bytes, and peak sampled accounted working set was 8983969792 bytes.
+OBSERVED: Jar staging initially used the Maven artifact name as the Gradle output filename; cp reported it could not stat that path. The Gradle output is libp2p-1.3.0-codexcoder21-snapshot-39.jar; copied its bytes unchanged to Maven staging name jvm-libp2p-1.3.0-codexcoder21-snapshot-39.jar. No rebuild or content edit.
+OBSERVED: Verification PASSED. All 909 JAR class entries match fresh local compiler output; no Netty dependency classes are bundled. Generated POM coordinate is community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-39 and all 27 dependency declarations match snapshot-38. Source HEAD/tree unchanged, working tree clean. javap confirms YamuxHandler.coalescePendingChildRead, Connection.retryClose(), ConnectionOverNetty.retryClose() delegating to retryNettyChannelClose, and the YamuxCapacityStreamMuxer class.
+OBSERVED: Local JAR: 1849066 bytes, SHA-256 dc613b7d6149c77687073d31b4f6e39b100ff3e5adac809cf845e088fa322ecf. Local POM: 6358 bytes, SHA-256 3741e705fed7a64c161653c846fd9be27fa7bf4104174aa3005538f3b87a14ea.
+OBSERVED: Publisher 0.0.6 --help exited 0 and confirms --artifact-dir, --api-url, and --force (skip confirmation) support. Publishing remains explicitly authorized. Only the main jar and generated POM are staged; Gradle module metadata is excluded as FORK.md instructs.

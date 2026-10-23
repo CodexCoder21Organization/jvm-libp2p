@@ -19,7 +19,7 @@ internal fun closeNettyChannelOnce(channel: Channel): CompletableFuture<Unit> =
 
 /** Only a settled failure permits a new physical attempt; pending callers share its owner. */
 internal fun retryNettyChannelClose(channel: Channel): CompletableFuture<Unit> =
-    closeOperation(channel, retry = true).thenApply { Unit }
+    if (channel.closeFuture().isDone) CompletableFuture.completedFuture(Unit) else closeOperation(channel, retry = true).thenApply { Unit }
 
 private fun closeOperation(channel: Channel, retry: Boolean): CompletableFuture<Unit> {
     val candidateState = ChannelCloseState()

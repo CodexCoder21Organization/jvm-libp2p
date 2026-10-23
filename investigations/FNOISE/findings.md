@@ -53,3 +53,30 @@ OBSERVED thread evidence: all 12 base connection-close traces include NioIoHandl
 Existing-file edit audit: added nine imports for the real in-process Noise/Netty setup and JUnit repetition; added testSilentResponderKeepsOnlyInitiatorReadTimer and testSilentResponderWriteCompletesWhenChannelCloses, each with ten repetitions. In the private omitted-write adapter, replaced promise.setSuccess() with a channel-close listener that completes the promise with ClosedChannelException. Reason: successful completion arms a competing responder read timer, while a pending omitted write models the intended silent peer. Existing test names, exception assertions, elapsed bounds, and iteration counts are unchanged. No tests were removed or disabled.
 
 2026-10-23T00:57:38.571684+00:00 OBSERVED: shared-slot queue continues; no test result is counted for this waiting command. Source manifest confirms one changed test file and unchanged Noise runtime source across base, pinned head, and correction.
+
+2026-10-23T01:04:32.035044+00:00 OBSERVED: shared-slot queue remains active; no complete-suite test result yet. Completed evidence remains pushed.
+
+2026-10-23T01:08:58.080481+00:00 OBSERVED: complete suite remains queued on the shared slot. No additional test run or source change has been made.
+
+2026-10-23T01:12:45.736032+00:00 OBSERVED: shared slot advanced to another waiting run; this lane remains queued. All completed comparison, control, correction, reversal, and neighbor artifacts are pushed.
+
+Ownership audit, expanded from the pre-correction invariants:
+
+| Resource | Creator and owner | Completion and terminal state | Callback and close behavior | Public-path evidence |
+| --- | --- | --- | --- | --- |
+| Omitted bytes | Noise creates the buffer; adapter takes ownership on write | Release immediately, exactly once; reference count zero | No retained buffer during pending write or close | testSilentResponderWriteCompletesWhenChannelCloses |
+| Omitted write promise | Netty creates it; adapter keeps it pending while silent | Channel close completes it; an existing terminal result is retained by tryFailure | Completion callback may close again; completion count stays one | testSilentResponderWriteCompletesWhenChannelCloses, ten repetitions |
+| Endpoint read timer | Noise owns the timer on its channel executor | Remote message disarms the current timer; completed write may arm the next wait; close removes it | Silent responder has no message-3 wait while its write is pending | testSilentResponderKeepsOnlyInitiatorReadTimer, ten repetitions |
+| Negotiated setup result | Multistream and Noise create and complete the future | First terminal result is retained | Responder-first close gives initiator connection-close result; initiator-first read expiry gives read-timeout result | Ordered controls on both revisions and new timer check |
+
+All resources are in-memory and newly created per case; no persisted restart state exists.
+
+2026-10-23T01:18:16.171024+00:00 OBSERVED: complete-suite request remains queued. No source edits or additional tests since the saved 29-case neighbor result.
+
+2026-10-23T01:22:41.784419+00:00 OBSERVED: complete-suite request is still queued on the shared slot. No test result is counted until the tracked command ends and fresh XML is read.
+
+2026-10-23T01:26:11.851301+00:00 OBSERVED: suite still queued behind the current owner. Build-output audit finds zero temporary sampling/control classes, so the queued full task uses only the pushed correction tests.
+
+2026-10-23T01:31:02.597216+00:00 OBSERVED: one complete-suite request remains queued on the shared slot; no new result. The correction and all completed evidence are unchanged.
+
+2026-10-23T01:31:21.222965+00:00 OBSERVED: shared slot acquired by the tracked suite process; Gradle has started from pushed correction head 812a22c71175817223c80fe69f8c8ba446bbae44. This is complete-suite invocation 1.

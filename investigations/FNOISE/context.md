@@ -14,6 +14,6 @@ Classification: pre-existing test fixture issue. The Noise source and original t
 
 Correction branch: https://github.com/CodexCoder21Organization/jvm-libp2p/tree/wip/laneFNOISE-silent-response
 Suite head: https://github.com/CodexCoder21Organization/jvm-libp2p/commit/812a22c71175817223c80fe69f8c8ba446bbae44
-One complete suite is in progress through the shared slot.
+One complete suite has acquired the shared slot and is in progress from the recorded pushed head.
 
 The source files on this evidence branch retain the original fixture for reproduction; green results refer to the separate correction branch above. Raw XML preserves case results, output, and full traces. Guidance read: project README, central TESTING.md TDD and machine-independent reproduction sections, central PHILOSOPHY.md, and the prior R66b findings.

@@ -9,3 +9,10 @@ Impact: the report mirror is not confirmed; the local locked suite queue and mem
 Suggested durable investigation: capture the client and provider bytecode exchange for this service and determine where response completion fails; do not infer a root cause from the timeout alone.
 
 Recording limitation: the report-challenge skill was read. Its CLI automatically opens/enqueues/merges a PlanRepository PR and provides no no-merge option. The lane explicitly forbids merging/enqueueing, so that CLI was not invoked. This reviewed derived summary is retained on wip/JL62b-evidence-20261023 instead. No environment/property dump or JVM recording is included.
+
+
+## Closeout observations
+
+At 07:37:32 UTC, a final read of the PR returned HTTP 403: "API rate limit exceeded for user ID 216437543" (request ID C8AE:24CD5:AD817:BC7E4:6ADB0EBC). The required PATCH and exact GET readback had already succeeded at 07:27:07 UTC. The lane stopped further API polling and used that timestamped verification; Git transport still accepted pushes and ls-remote. A shared read cache/poll budget across lanes would avoid spending the same authenticated quota on repeated snapshots. No alternate credential or rerun was used.
+
+The final Handoff DONE report succeeded. A following explicit complete call returned that the record was already completed and archived. Fresh get confirmed statusColor GREEN and a non-null completedAtMs. No reopen or duplicate completion was attempted after that confirmation. The complete-after-DONE sequence in the skill should tolerate this already-completed state; this observation does not assert which actor performed the first completion.

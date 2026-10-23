@@ -1,0 +1,33 @@
+from pathlib import Path
+import json
+out=Path(__file__).parent
+s=json.loads((out/'FIX67-full-summary.json').read_text())
+c=json.loads((out/'FIX67-baseline-comparison.json').read_text())
+assert c['equal'] and s['failures']==20 and s['errors']==0
+body=f'''The owner asked on 2026-10-21: "Then, do another round, Your goal is to add end-to-end integration tests which identify bugs (the tests should initially fail), and then fix the bug in the implementation." Moving UrlProtocol to [jvm-libp2p snapshot-38](https://github.com/CodexCoder21Organization/UrlProtocol/pull/846) left five UrlProtocol tests failing because callers could not retry a physical connection close after a failed first attempt, as described in https://github.com/CodexCoder21Organization/jvm-libp2p/issues/61.
+
+`Connection.retryClose()` explicitly requests another attempt after a settled failure. `ConnectionOverNetty.close()` keeps its original shared result. Explicit callers share the latest pending attempt; a successful attempt stays terminal, and each caller receives a derived future that cannot change the privately owned operation. Existing stream-backed relay connections inherit delegation to their stream close operation. README and API KDoc describe these contracts.
+
+Twelve real-connection scenarios now cover TCP/Noise/Yamux and three-host relay operation, 8,192 concurrent retry observations, 1,000 consecutive injected close failures, callback and handler re-entry, transport-owned failures, peer closure, success boundaries, and caller future changes. The additional [REV67 scenario](https://github.com/CodexCoder21Organization/jvm-libp2p/tree/wip/REV67-review-20261023/lane-evidence) holds retry attempt 2 while the peer closes the physical socket and `channelInactive` re-enters both close APIs. It verifies that all three retry observers receive attempt 2's own failure exactly once, ordinary close retains failure 1, and a later retry succeeds without physical request 3. The reviewer's assertions are unchanged; the only port adjustment is repository formatting.
+
+Validation:
+
+- Before the implementation fix, nine recovery tests failed at runtime on their first attempt against the old helper; initial-success and relay default controls passed as expected. [Original failure proof and implementation review](https://github.com/CodexCoder21Organization/jvm-libp2p/tree/wip/JL61-evidence-20261022/lane-evidence).
+- Added peer-close/pending-retry scenario: 3/3 first-attempt passes on the PR implementation, and 3/3 first-attempt assertion failures against the [reviewer's closed-channel shortcut mutation](https://github.com/CodexCoder21Organization/jvm-libp2p/tree/wip/FIX67-shortcut-mutation-20261023). The mutation incorrectly reports success for a still-pending retry. Full failure stacks are preserved.
+- Final head `{s['head']}`: three fresh targeted/neighbour runs each passed 24/24 on the first attempt, with zero failures, errors, or skips. This includes the original 23 cases and the added scenario. Gradle durations were 15/13/13 seconds. `:libp2p:assemble`, `:libp2p:spotlessCheck`, and `:libp2p:detekt` passed each sweep.
+- One full repository suite under `/tmp/claude-501/complete-suite.lock`: **{s['tests']:,} tests; {s['passed']:,} passed; 20 failed; {s['skipped']} pre-existing disabled tests**. All 12 retry scenarios passed first attempt. The exact failed `(classname, testname)` set equals unchanged `develop` at `e15e0f1947842be7ef6836c116c14ba47cc8eea1`, using the reviewer's unchanged-develop XML. The existing failures are native TLS/QUIC initialization, subsequent fixed-port bind failures after failed host setup, and the Kubo test expecting an external localhost service. No tests were disabled, weakened, or given larger timeouts.
+- Separate test-comprehensiveness and implementation review passes found no remaining issue in this retry change. [REV67 review](https://github.com/CodexCoder21Organization/jvm-libp2p/tree/wip/REV67-review-20261023/lane-evidence) also confirmed JVM default-method compatibility with the existing compiled relay implementation. The new pending-retry case addresses its one SHOULD-FIX finding.
+
+The GitHub Actions build workflow fails to start for every inspected commit, including unchanged `develop`: its suites report `startup_failure` with zero jobs/check runs. Repository Actions permissions remain `allowed_actions=local_only`, while the inherited workflow uses external Actions including `actions/checkout`; this mismatch is sufficient to block startup, though no run annotation excludes additional causes. The expected `gradle (ubuntu-latest)` and `gradle (windows-latest)` jobs have not run or been verified green. Informational Kotlin checks are reported separately; they do not establish an Actions pass. No workflow policy, CI rerun, enqueue, merge, artifact publication, deployment or service restart was performed.
+
+[FIX67 findings, three-run controls, full XML/stacks, exact baseline comparison, memory samples and review](https://github.com/CodexCoder21Organization/jvm-libp2p/tree/wip/FIX67-evidence-20261023/lane-evidence).
+
+[Remaining repository verification work](https://www.handoff.wasmserver.com/handoffs/hf-2026-10-22-restore-required-verification-for-jvm-libp2p-explicit-close-retry).
+
+Fixes https://github.com/CodexCoder21Organization/jvm-libp2p/issues/61
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+'''
+(out/'FIX67-pr-body.md').write_text(body)
+(out/'FIX67-pr-body.json').write_text(json.dumps({'body':body},ensure_ascii=False))
+print(body)

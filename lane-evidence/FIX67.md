@@ -69,3 +69,7 @@ Next steps: complete the locked suite and exact baseline comparison, rebase/push
 
 Lessons: preserve owned-operation results across physical closure; use deterministic held dependency operations to force ordering; compare exact baseline failure identities rather than failure counts alone.
 
+
+2026-10-23T01:20:11.447805+00:00 OBSERVED: Full-suite command active; memory.current=9347739648 bytes. Waiting for machine-wide suite lock; no Gradle output yet.
+
+2026-10-23T01:25:11.524825+00:00 OBSERVED: Full-suite command active; memory.current=9732222976 bytes. Waiting for machine-wide suite lock; no Gradle output yet.

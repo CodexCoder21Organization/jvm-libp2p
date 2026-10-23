@@ -1,0 +1,34 @@
+# JL62 independent review
+
+## Scope and sources
+
+This was a read-only review of the JL62 test additions and current source correction. I did not run builds/tests or edit source, as directed. The manager supplied baseline and runtime results; I identify those as reported evidence rather than runs I performed.
+
+I read the repository `README.md`, `FORK.md`, and `CLAUDE.md` (no `AGENTS.md` exists); the full [Testing Architecture](https://github.com/CodexCoder21Organization/DocumentationRepository/blob/main/architecture/TESTING.md) and [Engineering Philosophy](https://github.com/CodexCoder21Organization/DocumentationRepository/blob/main/PHILOSOPHY.md); the issue [JL62](https://github.com/CodexCoder21Organization/jvm-libp2p/issues/62); and the complete invariant and run notes in `/tmp/claude-501/-code/2abf611d-5e04-4919-84a8-d7b72869d40c/scratchpad/out/JL62.md`.
+
+## Test coverage review
+
+**OBSERVED:** The first TCP reproducer uses loopback hosts, real Noise, and real Yamux/Mplex streams. `PausedChildManualReadTcpTest` holds two one-byte payloads behind a paused child, verifies arrival alone does not deliver, then verifies one explicit read delivers one payload and read-complete while autoRead remains false. `PausedChildConcurrentReadTcpTest` coalesces 8,000 concurrent public `child.read()` calls before data and verifies one delivery, then separately requires another explicit read for the next payload. `PausedChildReadBeforeDataTest` covers coalescing 1,000 pre-arrival reads. Callback close, EOF ordering, and iterative callback re-entry have dedicated tests. Tests use public channel operations, real TCP/Noise for the transport scenarios, and EmbeddedChannel for deterministic mux state cases; no mocks or reflection are used.
+
+**OBSERVED:** The concurrent TCP case now installs `FixedRecvByteBufAllocator(1).maxMessagesPerRead(1)` from the server's `debug.beforeSecureHandler` hook at `PausedChildConcurrentReadTcpTest.kt:92–97`. `Builders.kt:147–152` wires that hook into `ConnectionBuilder` before secure-channel and mux setup. This is early enough to affect the receive handle before the first socket read. The manager reports the subsequent neighbour run passed 79/79 first attempt, including both fragmented TCP cases. I independently withdraw my initial concern that one `parent.read()` could not finish the second encoded frame: that prediction was refuted by the runtime result, and no test weakening is warranted.
+
+**OBSERVED:** The new manual-read tests assert their visible delivery and paused-state behavior. They do not duplicate the receive-bound checks. Existing `YamuxPausedQueueBoundsTest` directly checks the 64-frame and byte limits, FIFO, coalesced backing storage, overflow handling, and release on remote reset, local close, and parent close. The new callback-close test checks original input buffers; Yamux's copied queued buffers are directly checked by the existing close-mode fixture. I found no missing bounds/release assertion that undermines this fix.
+
+## Adversarial production review
+
+**OBSERVED:** `MuxChannel.doBeginRead()` forwards public read demand at `MuxChannel.kt:32–34`. `AbstractMuxHandler.PendingInbound.readPending` is a single coalescing flag (`AbstractMuxHandler.kt:61–68`); `childReadRequested` sets it, and the drain clears it before invoking application callbacks (`:297–303`, `:314–347`). The drain guard remains held through `channelReadComplete`, so re-entry is iterative. Close removes the pending queue and releases queued messages (`:455–466`); parent close releases all pending queues (`:149–159`). Remote EOF remains behind queued payloads (`:429–440`, `:314–347`). Mplex can request a parent read while parent autoRead is false; Yamux leaves parent autoRead enabled and relies on its stream window (`:305–312`, `:357–363`). Queue byte/frame ceilings are unchanged.
+
+**OBSERVED:** The first production fix exposed a separate read-order issue in two existing `YamuxResumeAtFrameBoundRePauseTcpTest` cases: manager-reported result was expected one delivered payload, actual two. Netty's default child config could schedule an automatic read on an off-loop autoRead resume. If an incoming frame drained the queue and the callback paused the child before that read reached `doBeginRead`, it looked like explicit manual demand. The current `AbstractChildChannel.kt:42–57` child config stores autoRead in an `AtomicBoolean` and routes changes through `onAutoReadChanged` without scheduling a transport read. I inspected the locally available Netty `DefaultChannelConfig` bytecode: `setAutoRead` issues that read; `getOption(AUTO_READ)` calls the virtual `isAutoRead`, so the override reports the custom state through both getters.
+
+**OBSERVED:** A new public TCP regression, `PausedChildResumeReadReentryTcpTest`, queues one payload, lets an automatic-resume drain deliver it, then pauses and requests another read from the callback after the original parent read has completed. The next remote payload is sent only after that callback. The manager reports it failed only for Mplex before the latest correction: actual forwarded bytes were null, while Yamux passed. This established the re-entry gap.
+
+**OBSERVED:** In the current source, `requestParentReadIfNeeded()` runs at the end of `drainPendingInbound` after `queued.draining` is cleared (`AbstractMuxHandler.kt:334–352`); the old call from `childReadRequested` was removed. The helper therefore sees a re-entrant demand that arrived during a drain, and can arm the paused Mplex parent. It runs after remote-end cleanup, so it does not re-arm a demand that EOF has just terminated. This closes the source path exposed by the new test. The manager reported the targeted test/neighbour rerun was still in progress when I finished; I did not run it.
+
+**INFER:** I found no remaining concrete defect in manual demand, callback close, EOF, parent pause, or queue-bound behavior in the current source. The Mplex re-entry issue is addressed by the current finally-path change, with runtime confirmation pending from the manager's in-progress run. A deterministic public reproducer for the prior failure is the sequence in `PausedChildResumeReadReentryTcpTest`: pause a Mplex child, queue one payload, resume autoRead, pause and call `read()` from its callback, then send and expect the next payload to arrive.
+
+## Plan status
+
+- Read the complete repository guidance and linked documents: **done**.
+- Review tests against the invariant table, including fragmentation and direct bound/release assertions: **done**.
+- Separately review manual demand, close, re-entry, EOF, parent pause, and bounds: **done**; found one Mplex empty-FIFO re-entry defect, now addressed in source.
+- Report concrete findings and public reproducer: **done**. The manager owns the pending targeted/neighbour runtime result; this reviewer did not run tests or builds.

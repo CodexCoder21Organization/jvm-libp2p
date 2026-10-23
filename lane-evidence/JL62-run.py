@@ -11,7 +11,7 @@ if phase=='full':
     cmd=['flock','-w','5400','/tmp/claude-501/complete-suite.lock','timeout','45m']+cmd+['cleanTest','test','--continue']
 else:
     cmd+=[':libp2p:cleanTest',':libp2p:test']
-    selectors=['io.libp2p.mux.PausedChild*Test']
+    selectors=['io.libp2p.mux.PausedChildResumeReadReentryTcpTest'] if phase=='reentry-red' else ['io.libp2p.mux.PausedChild*Test']
     if phase.startswith('neighbours'):
         selectors += ['io.libp2p.mux.ChildReadPauseTcpTest','io.libp2p.mux.ChildPauseSiblingStreamTcpTest','io.libp2p.mux.yamux.YamuxPausedQueueBoundsTest','io.libp2p.mux.yamux.YamuxResumeAtFrameBound*TcpTest','io.libp2p.mux.yamux.PausedYamux*BackingStorageTest','io.libp2p.mux.yamux.YamuxPaused*TcpTest','io.libp2p.mux.StreamCloseWrite*Test','io.libp2p.etc.util.netty.AbstractChildChannel*Test','io.libp2p.etc.util.netty.ChildChannelTeardownIsUnconditionalTest','io.libp2p.core.ParentCloseListenerReviewTest','io.libp2p.core.HostStreamVisitorCloseTest','io.libp2p.core.MuxCloseDuringPublicationTest']
     for selector in selectors:cmd += ['--tests',selector]
@@ -32,7 +32,7 @@ with (out/(name+'.log')).open('w') as log, (out/(name+'-memory.jsonl')).open('w'
     code=p.wait()
 results=out/(name+'-results');results.mkdir(exist_ok=True)
 summary={'phase':phase,'exit':code,'tests':0,'failures':0,'errors':0,'skipped':0,'failure_identities':[],'elapsed_seconds':round(time.monotonic()-start,2)}
-for xml in root.glob('**/build/test-results/test/TEST-*.xml'):
+for xml in (root.glob('**/build/test-results/test/TEST-*.xml') if phase=='full' else (root/'libp2p/build/test-results/test').glob('TEST-*.xml')):
     dest=results/str(xml.relative_to(root)).replace('/','__');shutil.copy2(xml,dest)
     suite=ET.parse(xml).getroot()
     for key in ['tests','failures','errors','skipped']:summary[key]+=int(suite.get(key,0))

@@ -1,0 +1,11 @@
+The Handoff CLI report --status DONE call succeeded and already completed/archived the narrow dispatch handoff. The following explicit complete command returned exit 1:
+Sandboxed code threw an exception: java.lang.InternalError: Exception encountered in implementation of foundation/url/sjvm/intrinsics/ServiceBridge:rpc(Ljava/lang/String;Ljava/util/Map;)Ljava/util/Map; :
+foundation.url.resolver.UrlResolutionException: RPC request 'completeHandoff' failed: INTERNAL_ERROR - RPC error: INTERNAL_ERROR - Handoff 'url://handoff/handoffs/hf-2026-10-23-restore-kotlin-check-dispatch-for-the-paused-child-read-pr' is already completed and archived; reopen it before attempting to complete it again. cause: null
+
+No reopen or repeated completion was attempted. The status-report skill's documented sequence says report DONE then complete; the observed service already archives on the report. Verify get before treating the second command as a failed resolution. This compatibility record is retained in WIP evidence rather than running report-challenge's automatic merge, which the lane prohibits.
+
+Handoff report/update commands also emitted this shutdown warning while returning exit 0 and writing successful JSON responses:
+[libp2p-nio-worker-3-4] WARN io.netty.channel.DefaultChannelPipeline - An exceptionCaught() event was fired, and it reached at the tail of the pipeline. It usually means the last handler in the pipeline did not handle the exception.
+io.netty.channel.StacklessClosedChannelException
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.write(Object, ChannelPromise)(Unknown Source)
+The same complete stack appeared for worker-3-11 and worker-3-2 on the status upload. The operation result is checked separately by response/readback; the warning alone does not show a failed write. No service restart or dependency publication was attempted.

@@ -1,0 +1,11 @@
+The owner reported that https://droplets.wasmserver.com/ "is super unreliable, frequently rendering various errors/notices due to bugs in UrlResolver or UrlProtocol or something else" and asked for the underlying root cause to be fixed; the ContainerNursery route stops the WUI after 5 idle minutes, so most human visits are cold starts. Review of https://github.com/CodexCoder21Organization/jvm-libp2p/pull/66 found an intermittent result in `noise.NoiseHandshakeOffEventLoopTest`, in `initiator times out silent responder while waiting for message 2`: expected `ReadTimeoutException`, observed `ConnectionClosedException`.
+
+The silent-response adapter omitted message 2 but completed its write promise successfully. Noise then started the responder's message-3 timer while the initiator awaited message 2; when the responder timer ran first, peer closure became the initiator's setup result. The same outcome occurs on the PR merge base: 12 of 200 first attempts were red, compared with 8 of 200 on the pinned PR head. Paused-clock controls reproduce the exact responder-first result on both revisions, ten times each.
+
+Keep the omitted write pending until channel close, release its bytes immediately, and complete its promise once at close. Two new repeated checks cover the timer ordering, byte release, pending write, completion at close, and a completion callback that closes the channel again. All existing exception assertions, timing bounds, and iteration counts remain unchanged. Runtime sources are unchanged.
+
+Validation: the new checks were red on all 20 first attempts before correction, green on all 20 after correction, and red on all 20 when the original promise completion was restored. The original TCP scenario passed 200/200 first attempts with the correction, with no skips or retries. The full Noise class passed 29/29 first attempts and formatting checks passed. The one complete Gradle suite ended with 1207 cases, 20 red, 2 skipped, and no retry entries; the Noise class passed all 29 cases. Full traces for the other red cases are retained in the evidence branch.
+
+Evidence and full traces: https://github.com/CodexCoder21Organization/jvm-libp2p/tree/wip/laneFNOISE-evidence/investigations/FNOISE
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)

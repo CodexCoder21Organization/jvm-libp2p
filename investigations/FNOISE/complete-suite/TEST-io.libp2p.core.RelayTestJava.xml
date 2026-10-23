@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.libp2p.core.RelayTestJava" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-10-23T01:31:38.696Z" hostname="a3d00ba47652" time="10.805">
+  <properties/>
+  <testcase name="pingOverLocalRelay()" classname="io.libp2p.core.RelayTestJava" time="0.498"/>
+  <testcase name="relayStreamsAreLimited()" classname="io.libp2p.core.RelayTestJava" time="10.307"/>
+  <system-out><![CDATA[Client started
+Server started
+Dialling /ip4/127.0.0.1/tcp/41963/p2p/QmYRgc3a8J7pAyd8M8cQLNjdGcdkLHKb1JZD6ZKaWQLP4M/p2p-circuit/p2p/QmUXmTZo2hVqie6t8Yrbk2dHUPApjvA4mF7LYe3VG2iAfh from QmNUzhpyCF7vedbnBnqV2V3mCm4RFFfCazpXBDw7kgaAsg
+Ping stream created
+Ping controller created
+Ping is 15
+Ping is 8
+Ping is 9
+Ping is 15
+Ping is 8
+Ping is 11
+Ping is 23
+Ping is 8
+Ping is 6
+Ping is 5
+Ping stream closed
+Client stopped
+Server stopped
+Client started
+Server started
+Dialling /ip4/127.0.0.1/tcp/35587/p2p/QmfRnaq6NBf9ZbqBGN2HaTsGfpngdUChVXnR8ttu6LguD4/p2p-circuit/p2p/QmXjMgHyTs8rkxyRpssEnGkX8HoJxtQHk65en563cs6ADA from QmQQoq3HGaeQV6igV4wQTeQ5mkqLV9kfJotpQZdY565J2T
+Blob stream created
+Blob controller created
+Sender writing 1469
+Codec::encode
+01:31:39.485 [libp2p-nio-worker-3-9] [?[1;31mERROR?[m] io.libp2p.security.noise.NoiseXXSecureChannel - Unexpected error in Noise channel
+io.libp2p.core.ProtocolViolationException: Inbound traffic quota reached
+	at io.libp2p.etc.util.netty.InboundTrafficLimitHandler.channelRead(InboundTrafficLimitHandler.kt:22)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:357)
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.channelRead(DefaultChannelPipeline.java:1429)
+	at io.netty.channel.DefaultChannelPipeline.fireChannelRead(DefaultChannelPipeline.java:918)
+	at io.libp2p.etc.util.netty.mux.AbstractMuxHandler.deliverToChild(AbstractMuxHandler.kt:329)
+	at io.libp2p.etc.util.netty.mux.AbstractMuxHandler.childRead(AbstractMuxHandler.kt:239)
+	at io.libp2p.mux.yamux.YamuxHandler.access$childRead(YamuxHandler.kt:37)
+	at io.libp2p.mux.yamux.YamuxHandler$YamuxStreamHandler.handleDataRead(YamuxHandler.kt:164)
+	at io.libp2p.mux.yamux.YamuxHandler$YamuxStreamHandler.handleFrameRead(YamuxHandler.kt:138)
+	at io.libp2p.mux.yamux.YamuxHandler.channelRead(YamuxHandler.kt:399)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:357)
+	at io.netty.handler.codec.ByteToMessageDecoder.fireChannelRead(ByteToMessageDecoder.java:361)
+	at io.netty.handler.codec.ByteToMessageDecoder.channelRead(ByteToMessageDecoder.java:325)
+	at io.netty.handler.codec.ByteToMessageCodec.channelRead(ByteToMessageCodec.java:103)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:355)
+	at io.netty.handler.codec.MessageToMessageDecoder.channelRead(MessageToMessageDecoder.java:107)
+	at io.netty.handler.codec.MessageToMessageCodec.channelRead(MessageToMessageCodec.java:120)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:355)
+	at io.netty.channel.CombinedChannelDuplexHandler$DelegatingChannelHandlerContext.fireChannelRead(CombinedChannelDuplexHandler.java:434)
+	at io.netty.handler.codec.ByteToMessageDecoder.fireChannelRead(ByteToMessageDecoder.java:361)
+	at io.netty.handler.codec.ByteToMessageDecoder.channelRead(ByteToMessageDecoder.java:325)
+	at io.netty.channel.CombinedChannelDuplexHandler.channelRead(CombinedChannelDuplexHandler.java:249)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:355)
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.channelRead(DefaultChannelPipeline.java:1429)
+	at io.netty.channel.DefaultChannelPipeline.fireChannelRead(DefaultChannelPipeline.java:918)
+	at io.netty.channel.nio.AbstractNioByteChannel$NioByteUnsafe.read(AbstractNioByteChannel.java:176)
+	at io.netty.channel.nio.AbstractNioChannel$AbstractNioUnsafe.handle(AbstractNioChannel.java:445)
+	at io.netty.channel.nio.NioIoHandler$DefaultNioRegistration.handle(NioIoHandler.java:388)
+	at io.netty.channel.nio.NioIoHandler.processSelectedKey(NioIoHandler.java:596)
+	at io.netty.channel.nio.NioIoHandler.processSelectedKeysOptimized(NioIoHandler.java:571)
+	at io.netty.channel.nio.NioIoHandler.processSelectedKeys(NioIoHandler.java:512)
+	at io.netty.channel.nio.NioIoHandler.run(NioIoHandler.java:484)
+	at io.netty.channel.SingleThreadIoEventLoop.runIo(SingleThreadIoEventLoop.java:225)
+	at io.netty.channel.SingleThreadIoEventLoop.run(SingleThreadIoEventLoop.java:196)
+	at io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:1195)
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+Client stopped
+Server stopped
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

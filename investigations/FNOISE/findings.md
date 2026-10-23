@@ -80,3 +80,5 @@ All resources are in-memory and newly created per case; no persisted restart sta
 2026-10-23T01:31:02.597216+00:00 OBSERVED: one complete-suite request remains queued on the shared slot; no new result. The correction and all completed evidence are unchanged.
 
 2026-10-23T01:31:21.222965+00:00 OBSERVED: shared slot acquired by the tracked suite process; Gradle has started from pushed correction head 812a22c71175817223c80fe69f8c8ba446bbae44. This is complete-suite invocation 1.
+
+2026-10-23T01:36:18.232265+00:00 OBSERVED: the ONE complete suite has ended with exit 1: {"suites": 134, "tests": 1207, "red": 20, "errors": 0, "skipped": 2, "retry_entries": 0, "exit": 1}. NoiseHandshakeOffEventLoopTest is 29/29 first-attempt passes, no skips. The 20 red cases are in other test groups. No attribution of those other outcomes is made here. All suite XML, full traces, raw Gradle output, command metadata, and source head are retained. No second complete suite is run.

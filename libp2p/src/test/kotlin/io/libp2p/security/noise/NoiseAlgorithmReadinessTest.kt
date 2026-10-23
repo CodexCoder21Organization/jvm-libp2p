@@ -1,8 +1,12 @@
 package io.libp2p.security.noise
 
+import io.libp2p.core.Host
 import io.libp2p.core.crypto.KeyType
 import io.libp2p.core.dsl.host
 import io.libp2p.core.mux.StreamMuxerProtocol
+import io.libp2p.core.multiformats.Multiaddr
+import io.libp2p.core.security.SecureChannel
+import io.libp2p.transport.ws.WsTransport
 import io.libp2p.protocol.Ping
 import io.libp2p.protocol.PingController
 import jdk.jfr.Recording
@@ -13,6 +17,7 @@ import org.junit.jupiter.api.Test
 import java.io.File
 import java.nio.file.Files
 import java.time.Duration
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
 
 class NoiseAlgorithmReadinessTest {
@@ -40,30 +45,32 @@ class NoiseAlgorithmReadinessTest {
 object NoiseAlgorithmReadinessProbe {
     @JvmStatic
     fun main(args: Array<String>) {
-        val client = host {
-            identity { random(KeyType.ED25519) }
-            muxers { +StreamMuxerProtocol.getYamux() }
-            protocols { +Ping() }
-            network { listen("/ip4/127.0.0.1/tcp/0") }
-        }
-        val server = host {
-            identity { random(KeyType.ED25519) }
-            muxers { +StreamMuxerProtocol.getYamux() }
-            protocols { +Ping() }
-            network { listen("/ip4/127.0.0.1/tcp/0") }
-        }
+        val mode = args.firstOrNull() ?: "direct"
+        val peer = ProcessBuilder(
+            File(System.getProperty("java.home"), "bin/java").absolutePath,
+            "-Xmx128m", "-Dio.netty.eventLoopThreads=1",
+            "-cp", System.getProperty("java.class.path"),
+            "io.libp2p.security.noise.NoiseReadinessPeer", mode
+        ).redirectError(ProcessBuilder.Redirect.INHERIT).start()
+        var client: Host? = null
         val recordingFile = Files.createTempFile("first-dial-", ".jfr")
         try {
-            client.start().get(10, TimeUnit.SECONDS)
-            server.start().get(10, TimeUnit.SECONDS)
-            check(client.network.connections.isEmpty() && server.network.connections.isEmpty()) {
+            val endpoint = CompletableFuture.supplyAsync {
+                peer.inputStream.bufferedReader().lineSequence()
+                    .first { it.startsWith("PEER=") }.removePrefix("PEER=")
+            }.get(10, TimeUnit.SECONDS)
+            val address = Multiaddr(endpoint)
+            val local = readinessHost(mode)
+            client = local
+            local.start().get(10, TimeUnit.SECONDS)
+            check(local.network.connections.isEmpty()) {
                 "Host start must prepare the transport without opening a connection"
             }
             Recording().use { recording ->
                 recording.enable("jdk.ClassLoad").withThreshold(Duration.ZERO).withStackTrace()
                 recording.start()
-                val opened = client.newStream<PingController>(
-                    listOf("/ipfs/ping/1.0.0"), server.peerId, *server.listenAddresses().toTypedArray()
+                val opened = local.newStream<PingController>(
+                    listOf("/ipfs/ping/1.0.0"), requireNotNull(address.getPeerId()), address
                 )
                 try {
                     val controller = opened.controller.get(10, TimeUnit.SECONDS)
@@ -90,8 +97,57 @@ object NoiseAlgorithmReadinessProbe {
                 "Host.start returned before Noise algorithm initialization: ${loads.size} first-dial class-load events: $names"
             }
         } finally {
-            try { client.stop().get(10, TimeUnit.SECONDS) } finally { server.stop().get(10, TimeUnit.SECONDS) }
-            Files.deleteIfExists(recordingFile)
+            try {
+                client?.stop()?.get(10, TimeUnit.SECONDS)
+            } finally {
+                peer.outputStream.close()
+                try {
+                    check(peer.waitFor(5, TimeUnit.SECONDS)) { "Separate Noise peer did not stop" }
+                    check(peer.exitValue() == 0) { "Separate Noise peer failed with exit ${peer.exitValue()}" }
+                } finally {
+                    peer.destroyForcibly().waitFor(5, TimeUnit.SECONDS)
+                    Files.deleteIfExists(recordingFile)
+                }
+            }
+        }
+    }
+}
+
+
+private fun readinessHost(mode: String): Host = host {
+    identity { random(KeyType.ED25519) }
+    muxers { +StreamMuxerProtocol.getYamux() }
+    protocols { +Ping() }
+    if (mode == "wrapped" || mode == "wrapped-ws") {
+        secureChannels {
+            add { key, _ ->
+                val noise = NoiseXXSecureChannel(key)
+                object : SecureChannel by noise {}
+            }
+        }
+    }
+    if (mode == "ws" || mode == "wrapped-ws") {
+        transports { +::WsTransport }
+        network { listen("/ip4/127.0.0.1/tcp/0/ws") }
+    } else {
+        network { listen("/ip4/127.0.0.1/tcp/0") }
+    }
+}
+
+object NoiseReadinessPeer {
+    @JvmStatic
+    fun main(args: Array<String>) {
+        val server = readinessHost(args.single())
+        try {
+            server.start().get(10, TimeUnit.SECONDS)
+            check(server.network.connections.isEmpty()) {
+                "Host start must prepare the transport without opening a connection"
+            }
+            println("PEER=${server.listenAddresses().single()}")
+            System.out.flush()
+            CompletableFuture.supplyAsync { System.`in`.read() }.get(20, TimeUnit.SECONDS)
+        } finally {
+            server.stop().get(10, TimeUnit.SECONDS)
         }
     }
 }

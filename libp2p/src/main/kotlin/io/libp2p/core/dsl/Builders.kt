@@ -197,7 +197,7 @@ open class Builder {
 
         val upgrader = ConnectionUpgrader(secureMultistreamProtocol, secureChannels, muxerMultistreamProtocol, muxers)
         secureChannels.forEach { channel ->
-            if (channel is NoiseXXSecureChannel) {
+            if (NoiseXXSecureChannel.announce in channel.protocolDescriptor.announceProtocols) {
                 upgrader.addStartupPreparation(::prepareNoiseHandshakeAlgorithms)
             }
         }

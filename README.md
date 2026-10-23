@@ -64,6 +64,7 @@ For autonomous Netty loops, competing handshakes or queued work send computation
 
 TCP and WebSocket hosts built with `host { ... }` prepare the configured Noise handshake and cipher algorithm
 factories on short-lived daemon preparation threads, separate from network I/O workers.
+Registration follows the announced `/noise` protocol, including bindings that delegate to Noise.
 Construction outside a Netty executor waits for preparation and reports its original failure.
 Construction in a Netty callback returns without blocking that executor; `Host.start()`, listening
 and dialing await preparation asynchronously before publishing readiness or opening sockets.

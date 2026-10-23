@@ -436,9 +436,6 @@ class NoiseHandshakeOffEventLoopTest {
         }
     }
 
-    private companion object {
-        const val CONCURRENT_DIALERS = 32
-    }
 }
 
 private fun writeMultistreamMessage(output: OutputStream, message: String) {

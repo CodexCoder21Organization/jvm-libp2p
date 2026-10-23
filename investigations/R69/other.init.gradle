@@ -1,0 +1,22 @@
+gradle.projectsEvaluated {
+    def p = gradle.rootProject.project(':libp2p')
+    def original = p.tasks.named('test').get()
+    p.tasks.register('r69OtherCases', Test) {
+        dependsOn p.tasks.named('testClasses')
+        testClassesDirs = original.testClassesDirs
+        classpath = original.classpath
+        useJUnitPlatform { excludeTags 'interop' }
+        filter {
+            includeTestsMatching 'io.libp2p.pubsub.gossip.SubscriptionsLimitTest.existing peer subscribed to many topics'
+            includeTestsMatching 'io.libp2p.core.HostTestJava.addPingAfterHostStart'
+            includeTestsMatching 'io.libp2p.security.tls.TlsSecureChannelTest.incorrect initiator remote PeerId should throw'
+            includeTestsMatching 'io.libp2p.core.RpcHandlerTest.test1'
+            includeTestsMatching 'io.libp2p.pubsub.gossip.GossipBackwardCompatibilityTest.testConnect_1_2_to_1_1'
+        }
+        maxParallelForks = 1
+        maxHeapSize = '512m'
+        systemProperty 'io.netty.eventLoopThreads', '2'
+        reports.html.required = false
+        outputs.upToDateWhen { false }
+    }
+}

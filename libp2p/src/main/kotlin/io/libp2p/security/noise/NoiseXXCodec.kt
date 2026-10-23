@@ -18,6 +18,10 @@ private val logger = LoggerFactory.getLogger(NoiseXXSecureChannel::class.java.na
 class NoiseXXCodec(val aliceCipher: CipherState, val bobCipher: CipherState) :
     MessageToMessageCodec<ByteBuf, ByteBuf>() {
 
+    internal companion object Factory {
+        fun create(aliceCipher: CipherState, bobCipher: CipherState) = NoiseXXCodec(aliceCipher, bobCipher)
+    }
+
     private var abruptlyClosing = false
 
     override fun encode(ctx: ChannelHandlerContext, msg: ByteBuf, out: MutableList<Any>) {

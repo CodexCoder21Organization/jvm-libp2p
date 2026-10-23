@@ -5,8 +5,8 @@ Original request: publish jvm-libp2p built at exactly 0c3c86ad9ceb1c9d3834da68f2
 Plan:
 - [done] Locate repository, read instructions/history/configuration, identify consumer coordinate and unused version.
 - [done] Build the exact requested commit locally; verify artifact metadata and required merged methods.
-- [in progress] Recheck unused coordinate, publish using Maven publisher CLI, download JAR/POM and compare SHA-256 and bytecode.
-- [pending] Push reviewed findings to evidence branch and report coordinate/checksums/consumer line; confirm no background tasks remain.
+- [done] Recheck unused coordinate, publish using Maven publisher CLI, download JAR/POM and compare SHA-256 and bytecode.
+- [done] Push reviewed findings to evidence branch and report coordinate/checksums/consumer line; confirm no background tasks remain.
 
 Rules: no consumer changes, no PR, no merges/deploys/restarts, no overwritten Maven versions, no remote builds, no JVM tuning. Preserve the requested source commit rather than rebasing it. Evidence must contain summaries only, with no environment/system-property dumps or recordings.
 
@@ -27,3 +27,42 @@ OBSERVED: Local verification PASSED. All 909 JAR class entries match fresh compi
 OBSERVED: Local jvm-libp2p-1.3.0-codexcoder21-snapshot-40.jar: 1849819 bytes; SHA-256 574ebcb307f4da6383a2085cda36e90b2f358554075f468a3e92989bfd881c7b.
 OBSERVED: Local jvm-libp2p-1.3.0-codexcoder21-snapshot-40.pom: 6358 bytes; SHA-256 0b0da2a27aa1a072f39c0fcc8a3f638598ca1d8839642c293a961a0e55dc834f.
 OBSERVED: Publisher 0.0.6 --help exited 0 and confirms documented flags. Only ordinary library JAR and generated POM are staged; no Gradle module metadata, sources or javadoc artifacts. Publishing remains explicitly authorized.
+
+2026-10-23T07:54:31.070866+00:00 — OBSERVED: Local-build evidence milestone pushed as https://github.com/CodexCoder21Organization/jvm-libp2p/commit/962f4fed . Final pre-upload GET checks at 07:52:48 UTC returned HTTP 404 for both snapshot-40 JAR and POM. Publisher 0.0.6 exited 0 and reported successful publication of community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-40. No existing version overwritten.
+OBSERVED: Downloaded JAR and POM both return HTTP 200 and match staged local SHA-256 and byte counts exactly. javap -p -c on the downloaded JAR matches local javap output for all six inspected classes: AbstractMuxHandler, MuxChannel, Connection, ConnectionOverNetty, NettyChannelCloseKt, YamuxCapacityStreamMuxer. MuxChannel.doBeginRead invokes AbstractMuxHandler.childReadRequested (Kotlin internal name is mangled); the merged close-retry API and implementation are also present.
+OBSERVED: Source HEAD is still 0c3c86ad9ceb1c9d3834da68f239108e14b7f780, tree edf67ba8c13a339441d275ca2ac68297e1098eaf, tracked working tree clean. Build, publisher, and downloaded-artifact verification exited 0. ps -eo pid,args -ww confirms owned build JVMs have ended. No background waits or loops remain.
+
+## Published artifact and consumer edit
+
+Coordinate: `community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-40`
+
+- jvm-libp2p-1.3.0-codexcoder21-snapshot-40.jar: 1849819 bytes; local and downloaded SHA-256 `574ebcb307f4da6383a2085cda36e90b2f358554075f468a3e92989bfd881c7b`. Download: https://kotlin.directory/community/kotlin/libp2p/jvm-libp2p/1.3.0-codexcoder21-snapshot-40/jvm-libp2p-1.3.0-codexcoder21-snapshot-40.jar
+- jvm-libp2p-1.3.0-codexcoder21-snapshot-40.pom: 6358 bytes; local and downloaded SHA-256 `0b0da2a27aa1a072f39c0fcc8a3f638598ca1d8839642c293a961a0e55dc834f`. Download: https://kotlin.directory/community/kotlin/libp2p/jvm-libp2p/1.3.0-codexcoder21-snapshot-40/jvm-libp2p-1.3.0-codexcoder21-snapshot-40.pom
+
+UrlProtocol build.kts line replacement (from snapshot-39 in https://github.com/CodexCoder21Organization/UrlProtocol/pull/846):
+
+```kotlin
+MavenPrebuilt2("community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-40"),
+```
+
+Evidence: https://github.com/CodexCoder21Organization/jvm-libp2p/tree/wip/publibp2p-20261023-0c3c86ad/lane-evidence
+
+## Final brief completion audit
+
+1. DONE: Inspected prior release evidence, git history/tags, fork release instructions, Gradle publishing config, kotlin.directory listing, consumer pin. Snapshot-40 was the next unused version; directly checked both files twice, including immediately before publication.
+2. DONE: Fresh clone built at exactly 0c3c86ad9ceb1c9d3834da68f239108e14b7f780. External version metadata only; no tracked source changes. Published main JAR/generated POM using documented CLI; downloaded both, matched SHA-256, compared all 909 classes with compiler outputs, preserved all 27 dependencies, and confirmed both merged fixes with downloaded bytecode.
+3. DONE: Exact coordinate, checksums and one-line consumer edit reported above. Only repository mutations are evidence commits on wip/publibp2p-20261023-0c3c86ad in jvm-libp2p. No consumer edits/PRs, source changes, merges, queue entries, deployments, service restarts, buildtest requests or artifact overwrites. No test suite run in this publication-only lane; no new test or CI success is claimed. No recordings, environment/system-property dumps, credentials or binary artifacts copied to evidence.
+
+## Final status — 2026-10-23 07:54 UTC
+
+Original request: publish jvm-libp2p from exact develop commit 0c3c86ad, verify downloaded JAR and POM against the local build and confirm both merged fixes, then give UrlProtocol's dependency line without changing consumers.
+Status: DONE. Publication and downloaded-file verification succeeded; no remaining lane work or blockers.
+How it works: Gradle compiled the requested source with an external snapshot-40 publication version override. The documented publisher uploaded the ordinary library JAR and generated POM under the existing consumer group/artifact. Downloaded hashes and bytecode match the verified local build and confirm explicit paused-child reads plus connection close retry.
+Delegated work at a glance: none; no subagents started.
+PR state observed during lane: https://github.com/CodexCoder21Organization/jvm-libp2p/pull/70 MERGED with exact requested commit; https://github.com/CodexCoder21Organization/UrlProtocol/pull/846 OPEN/unmerged; https://github.com/CodexCoder21Organization/UrlResolver/pull/1413 OPEN/unmerged. These reads establish provenance only; no PR was created or modified.
+Plan changes: none. No source modification or full test suite was needed to package and verify this already-merged source.
+Holds audit: no remaining lane work is held.
+Landing parallelization sweep: no PR or merge gates in this publication-only lane.
+Owner direction captured: no new direction after the brief; exact-source publication and evidence-only repository writes remained in force.
+Next steps: none — the lane request is complete.
+Lessons: Preserve exact-source publication metadata separately from tracked source so the intended commit remains verifiable. Check direct artifact availability immediately before publishing, since cached listings and source version labels may lag releases. Match downloaded checksums and implementation bytecode to the local build rather than relying on a successful upload message.

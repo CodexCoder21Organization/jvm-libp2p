@@ -1,0 +1,1962 @@
+Compiled from "AbstractMuxHandler.kt"
+public abstract class io.libp2p.etc.util.netty.mux.AbstractMuxHandler<TData> extends io.netty.channel.ChannelInboundHandlerAdapter {
+  private final int maxInboundStreams;
+
+  private final java.util.Map<io.libp2p.etc.util.netty.mux.MuxId, io.libp2p.etc.util.netty.mux.MuxChannel<TData>> streamMap;
+
+  private io.netty.channel.ChannelHandlerContext ctx;
+
+  private final java.util.concurrent.CompletableFuture<java.lang.Void> activeFuture;
+
+  private final java.util.concurrent.ConcurrentHashMap$KeySetView<java.util.concurrent.CompletableFuture<io.libp2p.etc.util.netty.mux.MuxChannel<TData>>, java.lang.Boolean> pendingStreams;
+
+  private volatile boolean closed;
+
+  private final java.util.Set<io.libp2p.etc.util.netty.mux.MuxId> pendingReadComplete;
+
+  private final java.util.Map<io.libp2p.etc.util.netty.mux.MuxId, io.libp2p.etc.util.netty.mux.AbstractMuxHandler$PendingInbound<TData>> pendingInbound;
+
+  private final java.util.Set<io.libp2p.etc.util.netty.mux.MuxId> pausedChildren;
+
+  private java.lang.Boolean parentAutoReadBeforePause;
+
+  private final java.lang.Object parentReadLock;
+
+  private final boolean pauseParentReadsForPausedChild;
+
+  private final long maxPendingChildReadBytes;
+
+  private final java.lang.Integer maxPendingChildReadFrames;
+
+  private int openInboundStreams;
+
+  private long rejectedInboundStreams;
+
+  public io.libp2p.etc.util.netty.mux.AbstractMuxHandler(int);
+    Code:
+       0: aload_0
+       1: invokespecial #10                 // Method io/netty/channel/ChannelInboundHandlerAdapter."<init>":()V
+       4: aload_0
+       5: iload_1
+       6: putfield      #14                 // Field maxInboundStreams:I
+       9: aload_0
+      10: new           #16                 // class java/util/LinkedHashMap
+      13: dup
+      14: invokespecial #17                 // Method java/util/LinkedHashMap."<init>":()V
+      17: checkcast     #19                 // class java/util/Map
+      20: putfield      #23                 // Field streamMap:Ljava/util/Map;
+      23: aload_0
+      24: new           #25                 // class java/util/concurrent/CompletableFuture
+      27: dup
+      28: invokespecial #26                 // Method java/util/concurrent/CompletableFuture."<init>":()V
+      31: putfield      #30                 // Field activeFuture:Ljava/util/concurrent/CompletableFuture;
+      34: aload_0
+      35: invokestatic  #36                 // Method java/util/concurrent/ConcurrentHashMap.newKeySet:()Ljava/util/concurrent/ConcurrentHashMap$KeySetView;
+      38: putfield      #40                 // Field pendingStreams:Ljava/util/concurrent/ConcurrentHashMap$KeySetView;
+      41: aload_0
+      42: new           #42                 // class java/util/LinkedHashSet
+      45: dup
+      46: invokespecial #43                 // Method java/util/LinkedHashSet."<init>":()V
+      49: checkcast     #45                 // class java/util/Set
+      52: putfield      #49                 // Field pendingReadComplete:Ljava/util/Set;
+      55: aload_0
+      56: new           #16                 // class java/util/LinkedHashMap
+      59: dup
+      60: invokespecial #17                 // Method java/util/LinkedHashMap."<init>":()V
+      63: checkcast     #19                 // class java/util/Map
+      66: putfield      #52                 // Field pendingInbound:Ljava/util/Map;
+      69: aload_0
+      70: new           #42                 // class java/util/LinkedHashSet
+      73: dup
+      74: invokespecial #43                 // Method java/util/LinkedHashSet."<init>":()V
+      77: checkcast     #45                 // class java/util/Set
+      80: putfield      #55                 // Field pausedChildren:Ljava/util/Set;
+      83: aload_0
+      84: new           #57                 // class java/lang/Object
+      87: dup
+      88: invokespecial #58                 // Method java/lang/Object."<init>":()V
+      91: putfield      #62                 // Field parentReadLock:Ljava/lang/Object;
+      94: aload_0
+      95: iconst_1
+      96: putfield      #66                 // Field pauseParentReadsForPausedChild:Z
+      99: aload_0
+     100: ldc2_w        #67                 // long 4194304l
+     103: putfield      #72                 // Field maxPendingChildReadBytes:J
+     106: aload_0
+     107: bipush        64
+     109: invokestatic  #78                 // Method java/lang/Integer.valueOf:(I)Ljava/lang/Integer;
+     112: putfield      #82                 // Field maxPendingChildReadFrames:Ljava/lang/Integer;
+     115: return
+
+  public io.libp2p.etc.util.netty.mux.AbstractMuxHandler(int, int, kotlin.jvm.internal.DefaultConstructorMarker);
+    Code:
+       0: iload_2
+       1: iconst_1
+       2: iand
+       3: ifeq          10
+       6: sipush        512
+       9: istore_1
+      10: aload_0
+      11: iload_1
+      12: invokespecial #87                 // Method "<init>":(I)V
+      15: return
+
+  public final io.netty.channel.ChannelHandlerContext getCtx();
+    Code:
+       0: aload_0
+       1: getfield      #94                 // Field ctx:Lio/netty/channel/ChannelHandlerContext;
+       4: areturn
+
+  public final void setCtx(io.netty.channel.ChannelHandlerContext);
+    Code:
+       0: aload_0
+       1: aload_1
+       2: putfield      #94                 // Field ctx:Lio/netty/channel/ChannelHandlerContext;
+       5: return
+
+  protected abstract kotlin.jvm.functions.Function1<io.libp2p.etc.util.netty.mux.MuxChannel<TData>, kotlin.Unit> getInboundInitializer();
+
+  protected boolean getPauseParentReadsForPausedChild();
+    Code:
+       0: aload_0
+       1: getfield      #66                 // Field pauseParentReadsForPausedChild:Z
+       4: ireturn
+
+  protected long getMaxPendingChildReadBytes();
+    Code:
+       0: aload_0
+       1: getfield      #72                 // Field maxPendingChildReadBytes:J
+       4: lreturn
+
+  protected java.lang.Integer getMaxPendingChildReadFrames();
+    Code:
+       0: aload_0
+       1: getfield      #82                 // Field maxPendingChildReadFrames:Ljava/lang/Integer;
+       4: areturn
+
+  protected int pendingChildReadSize(TData);
+    Code:
+       0: iconst_1
+       1: ireturn
+
+  protected TData preparePendingChildRead(TData, long);
+    Code:
+       0: aload_1
+       1: areturn
+
+  protected boolean coalescePendingChildRead(TData, TData);
+    Code:
+       0: iconst_0
+       1: ireturn
+
+  protected void sealPendingChildRead(TData);
+    Code:
+       0: return
+
+  protected void onChildReadDelivered(io.libp2p.etc.util.netty.mux.MuxId, int);
+    Code:
+       0: aload_1
+       1: ldc           #126                // String id
+       3: invokestatic  #132                // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+       6: return
+
+  public final int openInboundStreamCount();
+    Code:
+       0: aload_0
+       1: getfield      #139                // Field openInboundStreams:I
+       4: ireturn
+
+  public final long rejectedInboundStreamCount();
+    Code:
+       0: aload_0
+       1: getfield      #143                // Field rejectedInboundStreams:J
+       4: lreturn
+
+  public void handlerAdded(io.netty.channel.ChannelHandlerContext);
+    Code:
+       0: aload_1
+       1: ldc           #145                // String ctx
+       3: invokestatic  #132                // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+       6: aload_0
+       7: aload_1
+       8: invokespecial #147                // Method io/netty/channel/ChannelInboundHandlerAdapter.handlerAdded:(Lio/netty/channel/ChannelHandlerContext;)V
+      11: aload_0
+      12: aload_1
+      13: putfield      #94                 // Field ctx:Lio/netty/channel/ChannelHandlerContext;
+      16: aload_1
+      17: invokeinterface #153,  1          // InterfaceMethod io/netty/channel/ChannelHandlerContext.channel:()Lio/netty/channel/Channel;
+      22: invokeinterface #159,  1          // InterfaceMethod io/netty/channel/Channel.closeFuture:()Lio/netty/channel/ChannelFuture;
+      27: aload_0
+      28: invokedynamic #177,  0            // InvokeDynamic #0:operationComplete:(Lio/libp2p/etc/util/netty/mux/AbstractMuxHandler;)Lio/netty/util/concurrent/GenericFutureListener;
+      33: invokeinterface #183,  2          // InterfaceMethod io/netty/channel/ChannelFuture.addListener:(Lio/netty/util/concurrent/GenericFutureListener;)Lio/netty/channel/ChannelFuture;
+      38: pop
+      39: return
+
+  public void channelActive(io.netty.channel.ChannelHandlerContext);
+    Code:
+       0: aload_0
+       1: getfield      #187                // Field closed:Z
+       4: ifne          42
+       7: aload_1
+       8: dup
+       9: ifnull        37
+      12: invokeinterface #153,  1          // InterfaceMethod io/netty/channel/ChannelHandlerContext.channel:()Lio/netty/channel/Channel;
+      17: dup
+      18: ifnull        37
+      21: invokeinterface #190,  1          // InterfaceMethod io/netty/channel/Channel.isOpen:()Z
+      26: ifne          33
+      29: iconst_1
+      30: goto          39
+      33: iconst_0
+      34: goto          39
+      37: pop
+      38: iconst_0
+      39: ifeq          61
+      42: aload_0
+      43: getfield      #30                 // Field activeFuture:Ljava/util/concurrent/CompletableFuture;
+      46: new           #192                // class io/libp2p/core/ConnectionClosedException
+      49: dup
+      50: invokespecial #193                // Method io/libp2p/core/ConnectionClosedException."<init>":()V
+      53: checkcast     #195                // class java/lang/Throwable
+      56: invokevirtual #199                // Method java/util/concurrent/CompletableFuture.completeExceptionally:(Ljava/lang/Throwable;)Z
+      59: pop
+      60: return
+      61: aload_0
+      62: getfield      #30                 // Field activeFuture:Ljava/util/concurrent/CompletableFuture;
+      65: aconst_null
+      66: invokevirtual #203                // Method java/util/concurrent/CompletableFuture.complete:(Ljava/lang/Object;)Z
+      69: pop
+      70: aload_0
+      71: aload_1
+      72: invokespecial #205                // Method io/netty/channel/ChannelInboundHandlerAdapter.channelActive:(Lio/netty/channel/ChannelHandlerContext;)V
+      75: return
+
+  public void channelUnregistered(io.netty.channel.ChannelHandlerContext);
+    Code:
+       0: aload_0
+       1: getfield      #30                 // Field activeFuture:Ljava/util/concurrent/CompletableFuture;
+       4: new           #192                // class io/libp2p/core/ConnectionClosedException
+       7: dup
+       8: invokespecial #193                // Method io/libp2p/core/ConnectionClosedException."<init>":()V
+      11: checkcast     #195                // class java/lang/Throwable
+      14: invokevirtual #199                // Method java/util/concurrent/CompletableFuture.completeExceptionally:(Ljava/lang/Throwable;)Z
+      17: pop
+      18: aload_0
+      19: iconst_1
+      20: putfield      #187                // Field closed:Z
+      23: aload_0
+      24: getfield      #52                 // Field pendingInbound:Ljava/util/Map;
+      27: invokeinterface #210,  1          // InterfaceMethod java/util/Map.values:()Ljava/util/Collection;
+      32: checkcast     #212                // class java/lang/Iterable
+      35: invokestatic  #218                // Method kotlin/collections/CollectionsKt.toList:(Ljava/lang/Iterable;)Ljava/util/List;
+      38: astore_2
+      39: aload_0
+      40: getfield      #52                 // Field pendingInbound:Ljava/util/Map;
+      43: invokeinterface #221,  1          // InterfaceMethod java/util/Map.clear:()V
+      48: aload_2
+      49: checkcast     #212                // class java/lang/Iterable
+      52: astore_3
+      53: iconst_0
+      54: istore        4
+      56: aload_3
+      57: invokeinterface #225,  1          // InterfaceMethod java/lang/Iterable.iterator:()Ljava/util/Iterator;
+      62: astore        5
+      64: aload         5
+      66: invokeinterface #230,  1          // InterfaceMethod java/util/Iterator.hasNext:()Z
+      71: ifeq          155
+      74: aload         5
+      76: invokeinterface #234,  1          // InterfaceMethod java/util/Iterator.next:()Ljava/lang/Object;
+      81: astore        6
+      83: aload         6
+      85: checkcast     #236                // class io/libp2p/etc/util/netty/mux/AbstractMuxHandler$PendingInbound
+      88: astore        7
+      90: iconst_0
+      91: istore        8
+      93: aload         7
+      95: invokevirtual #240                // Method io/libp2p/etc/util/netty/mux/AbstractMuxHandler$PendingInbound.getMessages:()Ljava/util/ArrayDeque;
+      98: checkcast     #212                // class java/lang/Iterable
+     101: astore        9
+     103: iconst_0
+     104: istore        10
+     106: aload         9
+     108: invokeinterface #225,  1          // InterfaceMethod java/lang/Iterable.iterator:()Ljava/util/Iterator;
+     113: astore        11
+     115: aload         11
+     117: invokeinterface #230,  1          // InterfaceMethod java/util/Iterator.hasNext:()Z
+     122: ifeq          150
+     125: aload         11
+     127: invokeinterface #234,  1          // InterfaceMethod java/util/Iterator.next:()Ljava/lang/Object;
+     132: astore        12
+     134: aload         12
+     136: astore        13
+     138: iconst_0
+     139: istore        14
+     141: aload_0
+     142: aload         13
+     144: invokevirtual #243                // Method releaseMessage:(Ljava/lang/Object;)V
+     147: goto          115
+     150: nop
+     151: nop
+     152: goto          64
+     155: nop
+     156: aload_0
+     157: getfield      #62                 // Field parentReadLock:Ljava/lang/Object;
+     160: astore        4
+     162: aload         4
+     164: monitorenter
+     165: nop
+     166: iconst_0
+     167: istore        5
+     169: aload_0
+     170: getfield      #55                 // Field pausedChildren:Ljava/util/Set;
+     173: invokeinterface #244,  1          // InterfaceMethod java/util/Set.clear:()V
+     178: aload_0
+     179: aconst_null
+     180: putfield      #248                // Field parentAutoReadBeforePause:Ljava/lang/Boolean;
+     183: nop
+     184: getstatic     #254                // Field kotlin/Unit.INSTANCE:Lkotlin/Unit;
+     187: astore        5
+     189: aload         4
+     191: monitorexit
+     192: goto          203
+     195: astore        5
+     197: aload         4
+     199: monitorexit
+     200: aload         5
+     202: athrow
+     203: aload_0
+     204: aload_1
+     205: invokespecial #256                // Method io/netty/channel/ChannelInboundHandlerAdapter.channelUnregistered:(Lio/netty/channel/ChannelHandlerContext;)V
+     208: return
+    Exception table:
+       from    to  target type
+         165   189   195   any
+         195   197   195   any
+
+  public void exceptionCaught(io.netty.channel.ChannelHandlerContext, java.lang.Throwable);
+    Code:
+       0: aload_1
+       1: ldc           #145                // String ctx
+       3: invokestatic  #132                // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+       6: aload_2
+       7: ldc_w         #274                // String cause
+      10: invokestatic  #132                // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+      13: nop
+      14: aload_2
+      15: ldc_w         #276                // class io/libp2p/core/InternalErrorException
+      18: invokestatic  #282                // Method kotlin/jvm/internal/Reflection.getOrCreateKotlinClass:(Ljava/lang/Class;)Lkotlin/reflect/KClass;
+      21: invokestatic  #288                // Method io/libp2p/etc/types/OtherExtKt.hasCauseOfType:(Ljava/lang/Throwable;Lkotlin/reflect/KClass;)Z
+      24: ifeq          42
+      27: invokestatic  #294                // Method io/libp2p/etc/util/netty/mux/AbstractMuxHandlerKt.access$getLog$p:()Lorg/slf4j/Logger;
+      30: ldc_w         #296                // String Muxer internal error
+      33: aload_2
+      34: invokeinterface #302,  3          // InterfaceMethod org/slf4j/Logger.warn:(Ljava/lang/String;Ljava/lang/Throwable;)V
+      39: goto          82
+      42: aload_2
+      43: ldc_w         #304                // class io/libp2p/core/Libp2pException
+      46: invokestatic  #282                // Method kotlin/jvm/internal/Reflection.getOrCreateKotlinClass:(Ljava/lang/Class;)Lkotlin/reflect/KClass;
+      49: invokestatic  #288                // Method io/libp2p/etc/types/OtherExtKt.hasCauseOfType:(Ljava/lang/Throwable;Lkotlin/reflect/KClass;)Z
+      52: ifeq          70
+      55: invokestatic  #294                // Method io/libp2p/etc/util/netty/mux/AbstractMuxHandlerKt.access$getLog$p:()Lorg/slf4j/Logger;
+      58: ldc_w         #306                // String Muxer exception
+      61: aload_2
+      62: invokeinterface #309,  3          // InterfaceMethod org/slf4j/Logger.debug:(Ljava/lang/String;Ljava/lang/Throwable;)V
+      67: goto          82
+      70: invokestatic  #294                // Method io/libp2p/etc/util/netty/mux/AbstractMuxHandlerKt.access$getLog$p:()Lorg/slf4j/Logger;
+      73: ldc_w         #311                // String Unexpected exception
+      76: aload_2
+      77: invokeinterface #302,  3          // InterfaceMethod org/slf4j/Logger.warn:(Ljava/lang/String;Ljava/lang/Throwable;)V
+      82: return
+
+  public final io.netty.channel.ChannelHandlerContext getChannelHandlerContext();
+    Code:
+       0: aload_0
+       1: getfield      #94                 // Field ctx:Lio/netty/channel/ChannelHandlerContext;
+       4: dup
+       5: ifnonnull     20
+       8: pop
+       9: new           #276                // class io/libp2p/core/InternalErrorException
+      12: dup
+      13: ldc_w         #315                // String Internal error: handler context should be initialized at this stage
+      16: invokespecial #318                // Method io/libp2p/core/InternalErrorException."<init>":(Ljava/lang/String;)V
+      19: athrow
+      20: areturn
+
+  protected final void childRead(io.libp2p.etc.util.netty.mux.MuxId, TData);
+    Code:
+       0: aload_1
+       1: ldc           #126                // String id
+       3: invokestatic  #132                // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+       6: aload_0
+       7: getfield      #23                 // Field streamMap:Ljava/util/Map;
+      10: aload_1
+      11: invokeinterface #325,  2          // InterfaceMethod java/util/Map.get:(Ljava/lang/Object;)Ljava/lang/Object;
+      16: checkcast     #327                // class io/libp2p/etc/util/netty/mux/MuxChannel
+      19: astore_3
+      20: nop
+      21: aload_3
+      22: ifnonnull     44
+      25: aload_0
+      26: aload_2
+      27: invokevirtual #243                // Method releaseMessage:(Ljava/lang/Object;)V
+      30: new           #192                // class io/libp2p/core/ConnectionClosedException
+      33: dup
+      34: aload_1
+      35: invokedynamic #339,  0            // InvokeDynamic #1:makeConcatWithConstants:(Lio/libp2p/etc/util/netty/mux/MuxId;)Ljava/lang/String;
+      40: invokespecial #340                // Method io/libp2p/core/ConnectionClosedException."<init>":(Ljava/lang/String;)V
+      43: athrow
+      44: aload_3
+      45: invokevirtual #343                // Method io/libp2p/etc/util/netty/mux/MuxChannel.getRemoteDisconnected:()Z
+      48: ifne          88
+      51: aload_0
+      52: getfield      #52                 // Field pendingInbound:Ljava/util/Map;
+      55: aload_1
+      56: invokeinterface #325,  2          // InterfaceMethod java/util/Map.get:(Ljava/lang/Object;)Ljava/lang/Object;
+      61: checkcast     #236                // class io/libp2p/etc/util/netty/mux/AbstractMuxHandler$PendingInbound
+      64: dup
+      65: ifnull        83
+      68: invokevirtual #346                // Method io/libp2p/etc/util/netty/mux/AbstractMuxHandler$PendingInbound.getRemoteEndPending:()Z
+      71: iconst_1
+      72: if_icmpne     79
+      75: iconst_1
+      76: goto          85
+      79: iconst_0
+      80: goto          85
+      83: pop
+      84: iconst_0
+      85: ifeq          107
+      88: aload_0
+      89: aload_2
+      90: invokevirtual #243                // Method releaseMessage:(Ljava/lang/Object;)V
+      93: new           #192                // class io/libp2p/core/ConnectionClosedException
+      96: dup
+      97: aload_1
+      98: invokedynamic #349,  0            // InvokeDynamic #2:makeConcatWithConstants:(Lio/libp2p/etc/util/netty/mux/MuxId;)Ljava/lang/String;
+     103: invokespecial #340                // Method io/libp2p/core/ConnectionClosedException."<init>":(Ljava/lang/String;)V
+     106: athrow
+     107: nop
+     108: aload_3
+     109: invokevirtual #353                // Method io/libp2p/etc/util/netty/mux/MuxChannel.config:()Lio/netty/channel/ChannelConfig;
+     112: invokeinterface #358,  1          // InterfaceMethod io/netty/channel/ChannelConfig.isAutoRead:()Z
+     117: istore        4
+     119: aload_0
+     120: getfield      #52                 // Field pendingInbound:Ljava/util/Map;
+     123: aload_1
+     124: invokeinterface #325,  2          // InterfaceMethod java/util/Map.get:(Ljava/lang/Object;)Ljava/lang/Object;
+     129: checkcast     #236                // class io/libp2p/etc/util/netty/mux/AbstractMuxHandler$PendingInbound
+     132: astore        5
+     134: aload         5
+     136: ifnull        205
+     139: aload         5
+     141: invokevirtual #240                // Method io/libp2p/etc/util/netty/mux/AbstractMuxHandler$PendingInbound.getMessages:()Ljava/util/ArrayDeque;
+     144: checkcast     #360                // class java/util/Collection
+     147: invokeinterface #363,  1          // InterfaceMethod java/util/Collection.isEmpty:()Z
+     152: ifne          159
+     155: iconst_1
+     156: goto          160
+     159: iconst_0
+     160: ifeq          205
+     163: iload         4
+     165: ifne          176
+     168: aload         5
+     170: invokevirtual #366                // Method io/libp2p/etc/util/netty/mux/AbstractMuxHandler$PendingInbound.getReadPending:()Z
+     173: ifeq          205
+     176: aload         5
+     178: invokevirtual #369                // Method io/libp2p/etc/util/netty/mux/AbstractMuxHandler$PendingInbound.getDraining:()Z
+     181: ifne          205
+     184: aload_0
+     185: aload_3
+     186: invokespecial #373                // Method drainPendingInbound:(Lio/libp2p/etc/util/netty/mux/MuxChannel;)V
+     189: aload_3
+     190: invokevirtual #374                // Method io/libp2p/etc/util/netty/mux/MuxChannel.isOpen:()Z
+     193: ifne          202
+     196: aload_0
+     197: aload_2
+     198: invokevirtual #243                // Method releaseMessage:(Ljava/lang/Object;)V
+     201: return
+     202: goto          107
+     205: iload         4
+     207: ifne          215
+     210: aload_0
+     211: aload_3
+     212: invokespecial #377                // Method pauseChild:(Lio/libp2p/etc/util/netty/mux/MuxChannel;)V
+     215: iload         4
+     217: ifeq          225
+     220: aload         5
+     222: ifnull        590
+     225: aload         5
+     227: dup
+     228: ifnonnull     264
+     231: pop
+     232: new           #236                // class io/libp2p/etc/util/netty/mux/AbstractMuxHandler$PendingInbound
+     235: dup
+     236: invokespecial #378                // Method io/libp2p/etc/util/netty/mux/AbstractMuxHandler$PendingInbound."<init>":()V
+     239: astore        7
+     241: aload         7
+     243: astore        8
+     245: iconst_0
+     246: istore        9
+     248: aload_0
+     249: getfield      #52                 // Field pendingInbound:Ljava/util/Map;
+     252: aload_1
+     253: aload         8
+     255: invokeinterface #382,  3          // InterfaceMethod java/util/Map.put:(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+     260: pop
+     261: nop
+     262: aload         7
+     264: astore        6
+     266: aload_0
+     267: aload_2
+     268: invokevirtual #384                // Method pendingChildReadSize:(Ljava/lang/Object;)I
+     271: istore        7
+     273: aload_0
+     274: invokevirtual #386                // Method getMaxPendingChildReadFrames:()Ljava/lang/Integer;
+     277: astore        8
+     279: aload         6
+     281: invokevirtual #240                // Method io/libp2p/etc/util/netty/mux/AbstractMuxHandler$PendingInbound.getMessages:()Ljava/util/ArrayDeque;
+     284: invokevirtual #391                // Method java/util/ArrayDeque.peekLast:()Ljava/lang/Object;
+     287: astore        9
+     289: aload         8
+     291: ifnull        314
+     294: aload         6
+     296: invokevirtual #240                // Method io/libp2p/etc/util/netty/mux/AbstractMuxHandler$PendingInbound.getMessages:()Ljava/util/ArrayDeque;
+     299: invokevirtual #394                // Method java/util/ArrayDeque.size:()I
+     302: aload         8
+     304: invokevirtual #397                // Method java/lang/Integer.intValue:()I
+     307: if_icmplt     314
+     310: iconst_1
+     311: goto          315
+     314: iconst_0
+     315: istore        10
+     317: aload         6
+     319: invokevirtual #400                // Method io/libp2p/etc/util/netty/mux/AbstractMuxHandler$PendingInbound.getBytes:()J
+     322: iload         7
+     324: i2l
+     325: ladd
+     326: aload_0
+     327: invokevirtual #402                // Method getMaxPendingChildReadBytes:()J
+     330: lcmp
+     331: ifgt          338
+     334: iconst_1
+     335: goto          339
+     338: iconst_0
+     339: istore        11
+     341: iload         11
+     343: ifeq          370
+     346: iload         10
+     348: ifeq          370
+     351: aload         9
+     353: ifnull        370
+     356: aload_0
+     357: aload         9
+     359: aload_2
+     360: invokevirtual #404                // Method coalescePendingChildRead:(Ljava/lang/Object;Ljava/lang/Object;)Z
+     363: ifeq          370
+     366: iconst_1
+     367: goto          371
+     370: iconst_0
+     371: istore        12
+     373: iload         11
+     375: ifeq          388
+     378: iload         10
+     380: ifeq          513
+     383: iload         12
+     385: ifne          513
+     388: aload_0
+     389: aload_2
+     390: invokevirtual #243                // Method releaseMessage:(Ljava/lang/Object;)V
+     393: new           #192                // class io/libp2p/core/ConnectionClosedException
+     396: dup
+     397: aload_1
+     398: aload         6
+     400: invokevirtual #240                // Method io/libp2p/etc/util/netty/mux/AbstractMuxHandler$PendingInbound.getMessages:()Ljava/util/ArrayDeque;
+     403: invokevirtual #394                // Method java/util/ArrayDeque.size:()I
+     406: iconst_1
+     407: iadd
+     408: aload         6
+     410: invokevirtual #400                // Method io/libp2p/etc/util/netty/mux/AbstractMuxHandler$PendingInbound.getBytes:()J
+     413: iload         7
+     415: i2l
+     416: ladd
+     417: aload         8
+     419: aload_0
+     420: invokevirtual #402                // Method getMaxPendingChildReadBytes:()J
+     423: invokedynamic #409,  0            // InvokeDynamic #3:makeConcatWithConstants:(Lio/libp2p/etc/util/netty/mux/MuxId;IJLjava/lang/Integer;J)Ljava/lang/String;
+     428: invokespecial #340                // Method io/libp2p/core/ConnectionClosedException."<init>":(Ljava/lang/String;)V
+     431: astore        13
+     433: invokestatic  #294                // Method io/libp2p/etc/util/netty/mux/AbstractMuxHandlerKt.access$getLog$p:()Lorg/slf4j/Logger;
+     436: aload         13
+     438: invokevirtual #413                // Method io/libp2p/core/ConnectionClosedException.getMessage:()Ljava/lang/String;
+     441: invokeinterface #415,  2          // InterfaceMethod org/slf4j/Logger.warn:(Ljava/lang/String;)V
+     446: aload_0
+     447: getfield      #52                 // Field pendingInbound:Ljava/util/Map;
+     450: aload_1
+     451: invokeinterface #418,  2          // InterfaceMethod java/util/Map.remove:(Ljava/lang/Object;)Ljava/lang/Object;
+     456: pop
+     457: aload         6
+     459: invokevirtual #240                // Method io/libp2p/etc/util/netty/mux/AbstractMuxHandler$PendingInbound.getMessages:()Ljava/util/ArrayDeque;
+     462: checkcast     #360                // class java/util/Collection
+     465: invokeinterface #363,  1          // InterfaceMethod java/util/Collection.isEmpty:()Z
+     470: ifne          477
+     473: iconst_1
+     474: goto          478
+     477: iconst_0
+     478: ifeq          496
+     481: aload_0
+     482: aload         6
+     484: invokevirtual #240                // Method io/libp2p/etc/util/netty/mux/AbstractMuxHandler$PendingInbound.getMessages:()Ljava/util/ArrayDeque;
+     487: invokevirtual #421                // Method java/util/ArrayDeque.removeFirst:()Ljava/lang/Object;
+     490: invokevirtual #243                // Method releaseMessage:(Ljava/lang/Object;)V
+     493: goto          457
+     496: aload         6
+     498: lconst_0
+     499: invokevirtual #425                // Method io/libp2p/etc/util/netty/mux/AbstractMuxHandler$PendingInbound.setBytes:(J)V
+     502: aload_0
+     503: aload_3
+     504: aload         13
+     506: checkcast     #195                // class java/lang/Throwable
+     509: invokevirtual #429                // Method onChildReadOverflow:(Lio/libp2p/etc/util/netty/mux/MuxChannel;Ljava/lang/Throwable;)V
+     512: return
+     513: iload         12
+     515: ifne          548
+     518: aload         9
+     520: ifnull        529
+     523: aload_0
+     524: aload         9
+     526: invokevirtual #431                // Method sealPendingChildRead:(Ljava/lang/Object;)V
+     529: aload         6
+     531: invokevirtual #240                // Method io/libp2p/etc/util/netty/mux/AbstractMuxHandler$PendingInbound.getMessages:()Ljava/util/ArrayDeque;
+     534: aload_0
+     535: aload_2
+     536: aload         6
+     538: invokevirtual #400                // Method io/libp2p/etc/util/netty/mux/AbstractMuxHandler$PendingInbound.getBytes:()J
+     541: invokevirtual #433                // Method preparePendingChildRead:(Ljava/lang/Object;J)Ljava/lang/Object;
+     544: invokevirtual #436                // Method java/util/ArrayDeque.add:(Ljava/lang/Object;)Z
+     547: pop
+     548: aload         6
+     550: aload         6
+     552: invokevirtual #400                // Method io/libp2p/etc/util/netty/mux/AbstractMuxHandler$PendingInbound.getBytes:()J
+     555: iload         7
+     557: i2l
+     558: ladd
+     559: invokevirtual #425                // Method io/libp2p/etc/util/netty/mux/AbstractMuxHandler$PendingInbound.setBytes:(J)V
+     562: aload_3
+     563: invokevirtual #353                // Method io/libp2p/etc/util/netty/mux/MuxChannel.config:()Lio/netty/channel/ChannelConfig;
+     566: invokeinterface #358,  1          // InterfaceMethod io/netty/channel/ChannelConfig.isAutoRead:()Z
+     571: ifne          582
+     574: aload         6
+     576: invokevirtual #366                // Method io/libp2p/etc/util/netty/mux/AbstractMuxHandler$PendingInbound.getReadPending:()Z
+     579: ifeq          597
+     582: aload_0
+     583: aload_3
+     584: invokespecial #373                // Method drainPendingInbound:(Lio/libp2p/etc/util/netty/mux/MuxChannel;)V
+     587: goto          597
+     590: aload_0
+     591: aload_3
+     592: aload_2
+     593: iconst_0
+     594: invokespecial #440                // Method deliverToChild:(Lio/libp2p/etc/util/netty/mux/MuxChannel;Ljava/lang/Object;Z)V
+     597: return
+
+  protected void onChildReadOverflow(io.libp2p.etc.util.netty.mux.MuxChannel<TData>, java.lang.Throwable);
+    Code:
+       0: aload_1
+       1: ldc_w         #456                // String child
+       4: invokestatic  #132                // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+       7: aload_2
+       8: ldc_w         #274                // String cause
+      11: invokestatic  #132                // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+      14: aload_1
+      15: invokevirtual #459                // Method io/libp2p/etc/util/netty/mux/MuxChannel.close:()Lio/netty/channel/ChannelFuture;
+      18: pop
+      19: return
+
+  public final void childAutoReadChanged$libp2p(io.libp2p.etc.util.netty.mux.MuxChannel<TData>);
+    Code:
+       0: aload_1
+       1: ldc_w         #456                // String child
+       4: invokestatic  #132                // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+       7: aload_0
+       8: invokevirtual #463                // Method getChannelHandlerContext:()Lio/netty/channel/ChannelHandlerContext;
+      11: astore_2
+      12: aload_1
+      13: aload_0
+      14: invokedynamic #473,  0            // InvokeDynamic #4:run:(Lio/libp2p/etc/util/netty/mux/MuxChannel;Lio/libp2p/etc/util/netty/mux/AbstractMuxHandler;)Ljava/lang/Runnable;
+      19: astore_3
+      20: aload_2
+      21: invokeinterface #477,  1          // InterfaceMethod io/netty/channel/ChannelHandlerContext.executor:()Lio/netty/util/concurrent/EventExecutor;
+      26: invokeinterface #482,  1          // InterfaceMethod io/netty/util/concurrent/EventExecutor.inEventLoop:()Z
+      31: ifeq          43
+      34: aload_3
+      35: invokeinterface #486,  1          // InterfaceMethod java/lang/Runnable.run:()V
+      40: goto          55
+      43: aload_2
+      44: invokeinterface #477,  1          // InterfaceMethod io/netty/channel/ChannelHandlerContext.executor:()Lio/netty/util/concurrent/EventExecutor;
+      49: aload_3
+      50: invokeinterface #490,  2          // InterfaceMethod io/netty/util/concurrent/EventExecutor.execute:(Ljava/lang/Runnable;)V
+      55: return
+
+  private final void pauseChild(io.libp2p.etc.util.netty.mux.MuxChannel<TData>);
+    Code:
+       0: aload_0
+       1: invokevirtual #495                // Method getPauseParentReadsForPausedChild:()Z
+       4: ifne          8
+       7: return
+       8: aload_0
+       9: getfield      #62                 // Field parentReadLock:Ljava/lang/Object;
+      12: astore_2
+      13: aload_2
+      14: monitorenter
+      15: nop
+      16: iconst_0
+      17: istore_3
+      18: aload_1
+      19: invokevirtual #374                // Method io/libp2p/etc/util/netty/mux/MuxChannel.isOpen:()Z
+      22: ifeq          53
+      25: aload_1
+      26: invokevirtual #353                // Method io/libp2p/etc/util/netty/mux/MuxChannel.config:()Lio/netty/channel/ChannelConfig;
+      29: invokeinterface #358,  1          // InterfaceMethod io/netty/channel/ChannelConfig.isAutoRead:()Z
+      34: ifne          53
+      37: aload_0
+      38: getfield      #55                 // Field pausedChildren:Ljava/util/Set;
+      41: aload_1
+      42: invokevirtual #499                // Method io/libp2p/etc/util/netty/mux/MuxChannel.getId:()Lio/libp2p/etc/util/netty/mux/MuxId;
+      45: invokeinterface #500,  2          // InterfaceMethod java/util/Set.add:(Ljava/lang/Object;)Z
+      50: ifne          56
+      53: aload_2
+      54: monitorexit
+      55: return
+      56: aload_0
+      57: invokevirtual #463                // Method getChannelHandlerContext:()Lio/netty/channel/ChannelHandlerContext;
+      60: invokeinterface #153,  1          // InterfaceMethod io/netty/channel/ChannelHandlerContext.channel:()Lio/netty/channel/Channel;
+      65: astore        4
+      67: aload_0
+      68: getfield      #248                // Field parentAutoReadBeforePause:Ljava/lang/Boolean;
+      71: ifnonnull     93
+      74: aload_0
+      75: aload         4
+      77: invokeinterface #501,  1          // InterfaceMethod io/netty/channel/Channel.config:()Lio/netty/channel/ChannelConfig;
+      82: invokeinterface #358,  1          // InterfaceMethod io/netty/channel/ChannelConfig.isAutoRead:()Z
+      87: invokestatic  #506                // Method java/lang/Boolean.valueOf:(Z)Ljava/lang/Boolean;
+      90: putfield      #248                // Field parentAutoReadBeforePause:Ljava/lang/Boolean;
+      93: aload         4
+      95: invokeinterface #501,  1          // InterfaceMethod io/netty/channel/Channel.config:()Lio/netty/channel/ChannelConfig;
+     100: iconst_0
+     101: invokeinterface #510,  2          // InterfaceMethod io/netty/channel/ChannelConfig.setAutoRead:(Z)Lio/netty/channel/ChannelConfig;
+     106: pop
+     107: nop
+     108: getstatic     #254                // Field kotlin/Unit.INSTANCE:Lkotlin/Unit;
+     111: astore_3
+     112: aload_2
+     113: monitorexit
+     114: goto          122
+     117: astore_3
+     118: aload_2
+     119: monitorexit
+     120: aload_3
+     121: athrow
+     122: return
+    Exception table:
+       from    to  target type
+          15    53   117   any
+          56   112   117   any
+         117   118   117   any
+
+  private final void restoreParentReadsIfPossible();
+    Code:
+       0: aload_0
+       1: getfield      #55                 // Field pausedChildren:Ljava/util/Set;
+       4: checkcast     #360                // class java/util/Collection
+       7: invokeinterface #363,  1          // InterfaceMethod java/util/Collection.isEmpty:()Z
+      12: ifne          19
+      15: iconst_1
+      16: goto          20
+      19: iconst_0
+      20: ifeq          24
+      23: return
+      24: aload_0
+      25: getfield      #248                // Field parentAutoReadBeforePause:Ljava/lang/Boolean;
+      28: dup
+      29: ifnull        38
+      32: invokevirtual #517                // Method java/lang/Boolean.booleanValue:()Z
+      35: goto          40
+      38: pop
+      39: return
+      40: istore_1
+      41: aload_0
+      42: aconst_null
+      43: putfield      #248                // Field parentAutoReadBeforePause:Ljava/lang/Boolean;
+      46: aload_0
+      47: invokevirtual #463                // Method getChannelHandlerContext:()Lio/netty/channel/ChannelHandlerContext;
+      50: invokeinterface #153,  1          // InterfaceMethod io/netty/channel/ChannelHandlerContext.channel:()Lio/netty/channel/Channel;
+      55: astore_2
+      56: iload_1
+      57: ifeq          82
+      60: aload_2
+      61: invokeinterface #190,  1          // InterfaceMethod io/netty/channel/Channel.isOpen:()Z
+      66: ifeq          82
+      69: aload_2
+      70: invokeinterface #501,  1          // InterfaceMethod io/netty/channel/Channel.config:()Lio/netty/channel/ChannelConfig;
+      75: iconst_1
+      76: invokeinterface #510,  2          // InterfaceMethod io/netty/channel/ChannelConfig.setAutoRead:(Z)Lio/netty/channel/ChannelConfig;
+      81: pop
+      82: return
+
+  public final void childReadRequested$libp2p(io.libp2p.etc.util.netty.mux.MuxChannel<TData>);
+    Code:
+       0: aload_1
+       1: ldc_w         #456                // String child
+       4: invokestatic  #132                // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+       7: aload_1
+       8: invokevirtual #374                // Method io/libp2p/etc/util/netty/mux/MuxChannel.isOpen:()Z
+      11: ifeq          33
+      14: aload_1
+      15: invokevirtual #343                // Method io/libp2p/etc/util/netty/mux/MuxChannel.getRemoteDisconnected:()Z
+      18: ifne          33
+      21: aload_1
+      22: invokevirtual #353                // Method io/libp2p/etc/util/netty/mux/MuxChannel.config:()Lio/netty/channel/ChannelConfig;
+      25: invokeinterface #358,  1          // InterfaceMethod io/netty/channel/ChannelConfig.isAutoRead:()Z
+      30: ifeq          34
+      33: return
+      34: aload_0
+      35: getfield      #52                 // Field pendingInbound:Ljava/util/Map;
+      38: astore_3
+      39: aload_1
+      40: invokevirtual #499                // Method io/libp2p/etc/util/netty/mux/MuxChannel.getId:()Lio/libp2p/etc/util/netty/mux/MuxId;
+      43: astore        4
+      45: iconst_0
+      46: istore        5
+      48: aload_3
+      49: aload         4
+      51: invokeinterface #325,  2          // InterfaceMethod java/util/Map.get:(Ljava/lang/Object;)Ljava/lang/Object;
+      56: astore        6
+      58: aload         6
+      60: ifnonnull     91
+      63: iconst_0
+      64: istore        7
+      66: new           #236                // class io/libp2p/etc/util/netty/mux/AbstractMuxHandler$PendingInbound
+      69: dup
+      70: invokespecial #378                // Method io/libp2p/etc/util/netty/mux/AbstractMuxHandler$PendingInbound."<init>":()V
+      73: astore        7
+      75: aload_3
+      76: aload         4
+      78: aload         7
+      80: invokeinterface #382,  3          // InterfaceMethod java/util/Map.put:(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+      85: pop
+      86: aload         7
+      88: goto          93
+      91: aload         6
+      93: nop
+      94: checkcast     #236                // class io/libp2p/etc/util/netty/mux/AbstractMuxHandler$PendingInbound
+      97: astore_2
+      98: aload_2
+      99: iconst_1
+     100: invokevirtual #523                // Method io/libp2p/etc/util/netty/mux/AbstractMuxHandler$PendingInbound.setReadPending:(Z)V
+     103: aload_0
+     104: aload_1
+     105: invokespecial #373                // Method drainPendingInbound:(Lio/libp2p/etc/util/netty/mux/MuxChannel;)V
+     108: return
+
+  private final void requestParentReadIfNeeded();
+    Code:
+       0: aload_0
+       1: invokevirtual #463                // Method getChannelHandlerContext:()Lio/netty/channel/ChannelHandlerContext;
+       4: invokeinterface #153,  1          // InterfaceMethod io/netty/channel/ChannelHandlerContext.channel:()Lio/netty/channel/Channel;
+       9: astore_1
+      10: aload_1
+      11: invokeinterface #190,  1          // InterfaceMethod io/netty/channel/Channel.isOpen:()Z
+      16: ifeq          147
+      19: aload_1
+      20: invokeinterface #501,  1          // InterfaceMethod io/netty/channel/Channel.config:()Lio/netty/channel/ChannelConfig;
+      25: invokeinterface #358,  1          // InterfaceMethod io/netty/channel/ChannelConfig.isAutoRead:()Z
+      30: ifne          147
+      33: aload_0
+      34: getfield      #52                 // Field pendingInbound:Ljava/util/Map;
+      37: invokeinterface #210,  1          // InterfaceMethod java/util/Map.values:()Ljava/util/Collection;
+      42: checkcast     #212                // class java/lang/Iterable
+      45: astore_2
+      46: iconst_0
+      47: istore_3
+      48: aload_2
+      49: instanceof    #360                // class java/util/Collection
+      52: ifeq          71
+      55: aload_2
+      56: checkcast     #360                // class java/util/Collection
+      59: invokeinterface #363,  1          // InterfaceMethod java/util/Collection.isEmpty:()Z
+      64: ifeq          71
+      67: iconst_0
+      68: goto          137
+      71: aload_2
+      72: invokeinterface #225,  1          // InterfaceMethod java/lang/Iterable.iterator:()Ljava/util/Iterator;
+      77: astore        4
+      79: aload         4
+      81: invokeinterface #230,  1          // InterfaceMethod java/util/Iterator.hasNext:()Z
+      86: ifeq          136
+      89: aload         4
+      91: invokeinterface #234,  1          // InterfaceMethod java/util/Iterator.next:()Ljava/lang/Object;
+      96: astore        5
+      98: aload         5
+     100: checkcast     #236                // class io/libp2p/etc/util/netty/mux/AbstractMuxHandler$PendingInbound
+     103: astore        6
+     105: iconst_0
+     106: istore        7
+     108: aload         6
+     110: invokevirtual #366                // Method io/libp2p/etc/util/netty/mux/AbstractMuxHandler$PendingInbound.getReadPending:()Z
+     113: ifeq          128
+     116: aload         6
+     118: invokevirtual #369                // Method io/libp2p/etc/util/netty/mux/AbstractMuxHandler$PendingInbound.getDraining:()Z
+     121: ifne          128
+     124: iconst_1
+     125: goto          129
+     128: iconst_0
+     129: ifeq          79
+     132: iconst_1
+     133: goto          137
+     136: iconst_0
+     137: ifeq          147
+     140: aload_1
+     141: invokeinterface #533,  1          // InterfaceMethod io/netty/channel/Channel.read:()Lio/netty/channel/Channel;
+     146: pop
+     147: return
+
+  private final void drainPendingInbound(io.libp2p.etc.util.netty.mux.MuxChannel<TData>);
+    Code:
+       0: aload_0
+       1: getfield      #52                 // Field pendingInbound:Ljava/util/Map;
+       4: aload_1
+       5: invokevirtual #499                // Method io/libp2p/etc/util/netty/mux/MuxChannel.getId:()Lio/libp2p/etc/util/netty/mux/MuxId;
+       8: invokeinterface #325,  2          // InterfaceMethod java/util/Map.get:(Ljava/lang/Object;)Ljava/lang/Object;
+      13: checkcast     #236                // class io/libp2p/etc/util/netty/mux/AbstractMuxHandler$PendingInbound
+      16: dup
+      17: ifnonnull     22
+      20: pop
+      21: return
+      22: astore_2
+      23: aload_2
+      24: invokevirtual #369                // Method io/libp2p/etc/util/netty/mux/AbstractMuxHandler$PendingInbound.getDraining:()Z
+      27: ifeq          31
+      30: return
+      31: aload_2
+      32: iconst_1
+      33: invokevirtual #539                // Method io/libp2p/etc/util/netty/mux/AbstractMuxHandler$PendingInbound.setDraining:(Z)V
+      36: nop
+      37: aload_1
+      38: invokevirtual #374                // Method io/libp2p/etc/util/netty/mux/MuxChannel.isOpen:()Z
+      41: ifeq          214
+      44: aload_2
+      45: invokevirtual #240                // Method io/libp2p/etc/util/netty/mux/AbstractMuxHandler$PendingInbound.getMessages:()Ljava/util/ArrayDeque;
+      48: checkcast     #360                // class java/util/Collection
+      51: invokeinterface #363,  1          // InterfaceMethod java/util/Collection.isEmpty:()Z
+      56: ifne          63
+      59: iconst_1
+      60: goto          64
+      63: iconst_0
+      64: ifeq          214
+      67: aload_1
+      68: invokevirtual #353                // Method io/libp2p/etc/util/netty/mux/MuxChannel.config:()Lio/netty/channel/ChannelConfig;
+      71: invokeinterface #358,  1          // InterfaceMethod io/netty/channel/ChannelConfig.isAutoRead:()Z
+      76: ifne          86
+      79: aload_2
+      80: invokevirtual #366                // Method io/libp2p/etc/util/netty/mux/AbstractMuxHandler$PendingInbound.getReadPending:()Z
+      83: ifeq          214
+      86: aload_1
+      87: invokevirtual #353                // Method io/libp2p/etc/util/netty/mux/MuxChannel.config:()Lio/netty/channel/ChannelConfig;
+      90: invokeinterface #358,  1          // InterfaceMethod io/netty/channel/ChannelConfig.isAutoRead:()Z
+      95: ifne          102
+      98: iconst_1
+      99: goto          103
+     102: iconst_0
+     103: istore_3
+     104: aload_2
+     105: iconst_0
+     106: invokevirtual #523                // Method io/libp2p/etc/util/netty/mux/AbstractMuxHandler$PendingInbound.setReadPending:(Z)V
+     109: aload_2
+     110: invokevirtual #240                // Method io/libp2p/etc/util/netty/mux/AbstractMuxHandler$PendingInbound.getMessages:()Ljava/util/ArrayDeque;
+     113: invokevirtual #421                // Method java/util/ArrayDeque.removeFirst:()Ljava/lang/Object;
+     116: astore        4
+     118: aload_2
+     119: aload_2
+     120: invokevirtual #400                // Method io/libp2p/etc/util/netty/mux/AbstractMuxHandler$PendingInbound.getBytes:()J
+     123: aload_0
+     124: aload         4
+     126: invokevirtual #384                // Method pendingChildReadSize:(Ljava/lang/Object;)I
+     129: i2l
+     130: lsub
+     131: invokevirtual #425                // Method io/libp2p/etc/util/netty/mux/AbstractMuxHandler$PendingInbound.setBytes:(J)V
+     134: aload_0
+     135: aload         4
+     137: invokevirtual #431                // Method sealPendingChildRead:(Ljava/lang/Object;)V
+     140: aload_0
+     141: aload_1
+     142: aload         4
+     144: iconst_1
+     145: invokespecial #440                // Method deliverToChild:(Lio/libp2p/etc/util/netty/mux/MuxChannel;Ljava/lang/Object;Z)V
+     148: iload_3
+     149: ifne          194
+     152: aload_1
+     153: invokevirtual #374                // Method io/libp2p/etc/util/netty/mux/MuxChannel.isOpen:()Z
+     156: ifeq          194
+     159: aload_1
+     160: invokevirtual #353                // Method io/libp2p/etc/util/netty/mux/MuxChannel.config:()Lio/netty/channel/ChannelConfig;
+     163: invokeinterface #358,  1          // InterfaceMethod io/netty/channel/ChannelConfig.isAutoRead:()Z
+     168: ifeq          194
+     171: aload_2
+     172: invokevirtual #240                // Method io/libp2p/etc/util/netty/mux/AbstractMuxHandler$PendingInbound.getMessages:()Ljava/util/ArrayDeque;
+     175: checkcast     #360                // class java/util/Collection
+     178: invokeinterface #363,  1          // InterfaceMethod java/util/Collection.isEmpty:()Z
+     183: ifne          190
+     186: iconst_1
+     187: goto          191
+     190: iconst_0
+     191: ifne          109
+     194: aload_1
+     195: invokevirtual #374                // Method io/libp2p/etc/util/netty/mux/MuxChannel.isOpen:()Z
+     198: ifeq          37
+     201: aload_1
+     202: invokevirtual #543                // Method io/libp2p/etc/util/netty/mux/MuxChannel.pipeline:()Lio/netty/channel/ChannelPipeline;
+     205: invokeinterface #548,  1          // InterfaceMethod io/netty/channel/ChannelPipeline.fireChannelReadComplete:()Lio/netty/channel/ChannelPipeline;
+     210: pop
+     211: goto          37
+     214: aload_2
+     215: iconst_0
+     216: invokevirtual #539                // Method io/libp2p/etc/util/netty/mux/AbstractMuxHandler$PendingInbound.setDraining:(Z)V
+     219: aload_2
+     220: invokevirtual #240                // Method io/libp2p/etc/util/netty/mux/AbstractMuxHandler$PendingInbound.getMessages:()Ljava/util/ArrayDeque;
+     223: invokevirtual #549                // Method java/util/ArrayDeque.isEmpty:()Z
+     226: ifeq          240
+     229: aload_2
+     230: invokevirtual #346                // Method io/libp2p/etc/util/netty/mux/AbstractMuxHandler$PendingInbound.getRemoteEndPending:()Z
+     233: ifeq          240
+     236: iconst_1
+     237: goto          241
+     240: iconst_0
+     241: istore_3
+     242: aload_2
+     243: invokevirtual #240                // Method io/libp2p/etc/util/netty/mux/AbstractMuxHandler$PendingInbound.getMessages:()Ljava/util/ArrayDeque;
+     246: invokevirtual #549                // Method java/util/ArrayDeque.isEmpty:()Z
+     249: ifeq          294
+     252: aload_2
+     253: invokevirtual #366                // Method io/libp2p/etc/util/netty/mux/AbstractMuxHandler$PendingInbound.getReadPending:()Z
+     256: ifne          294
+     259: iload_3
+     260: ifne          294
+     263: aload_0
+     264: getfield      #52                 // Field pendingInbound:Ljava/util/Map;
+     267: aload_1
+     268: invokevirtual #499                // Method io/libp2p/etc/util/netty/mux/MuxChannel.getId:()Lio/libp2p/etc/util/netty/mux/MuxId;
+     271: invokeinterface #325,  2          // InterfaceMethod java/util/Map.get:(Ljava/lang/Object;)Ljava/lang/Object;
+     276: aload_2
+     277: if_acmpne     294
+     280: aload_0
+     281: getfield      #52                 // Field pendingInbound:Ljava/util/Map;
+     284: aload_1
+     285: invokevirtual #499                // Method io/libp2p/etc/util/netty/mux/MuxChannel.getId:()Lio/libp2p/etc/util/netty/mux/MuxId;
+     288: invokeinterface #418,  2          // InterfaceMethod java/util/Map.remove:(Ljava/lang/Object;)Ljava/lang/Object;
+     293: pop
+     294: iload_3
+     295: ifeq          380
+     298: nop
+     299: aload_1
+     300: invokevirtual #374                // Method io/libp2p/etc/util/netty/mux/MuxChannel.isOpen:()Z
+     303: ifeq          310
+     306: aload_1
+     307: invokevirtual #552                // Method io/libp2p/etc/util/netty/mux/MuxChannel.onRemoteDisconnected:()V
+     310: aload_0
+     311: getfield      #52                 // Field pendingInbound:Ljava/util/Map;
+     314: aload_1
+     315: invokevirtual #499                // Method io/libp2p/etc/util/netty/mux/MuxChannel.getId:()Lio/libp2p/etc/util/netty/mux/MuxId;
+     318: invokeinterface #325,  2          // InterfaceMethod java/util/Map.get:(Ljava/lang/Object;)Ljava/lang/Object;
+     323: aload_2
+     324: if_acmpne     341
+     327: aload_0
+     328: getfield      #52                 // Field pendingInbound:Ljava/util/Map;
+     331: aload_1
+     332: invokevirtual #499                // Method io/libp2p/etc/util/netty/mux/MuxChannel.getId:()Lio/libp2p/etc/util/netty/mux/MuxId;
+     335: invokeinterface #418,  2          // InterfaceMethod java/util/Map.remove:(Ljava/lang/Object;)Ljava/lang/Object;
+     340: pop
+     341: goto          380
+     344: astore        4
+     346: aload_0
+     347: getfield      #52                 // Field pendingInbound:Ljava/util/Map;
+     350: aload_1
+     351: invokevirtual #499                // Method io/libp2p/etc/util/netty/mux/MuxChannel.getId:()Lio/libp2p/etc/util/netty/mux/MuxId;
+     354: invokeinterface #325,  2          // InterfaceMethod java/util/Map.get:(Ljava/lang/Object;)Ljava/lang/Object;
+     359: aload_2
+     360: if_acmpne     377
+     363: aload_0
+     364: getfield      #52                 // Field pendingInbound:Ljava/util/Map;
+     367: aload_1
+     368: invokevirtual #499                // Method io/libp2p/etc/util/netty/mux/MuxChannel.getId:()Lio/libp2p/etc/util/netty/mux/MuxId;
+     371: invokeinterface #418,  2          // InterfaceMethod java/util/Map.remove:(Ljava/lang/Object;)Ljava/lang/Object;
+     376: pop
+     377: aload         4
+     379: athrow
+     380: aload_0
+     381: invokespecial #554                // Method requestParentReadIfNeeded:()V
+     384: goto          563
+     387: astore_3
+     388: aload_2
+     389: iconst_0
+     390: invokevirtual #539                // Method io/libp2p/etc/util/netty/mux/AbstractMuxHandler$PendingInbound.setDraining:(Z)V
+     393: aload_2
+     394: invokevirtual #240                // Method io/libp2p/etc/util/netty/mux/AbstractMuxHandler$PendingInbound.getMessages:()Ljava/util/ArrayDeque;
+     397: invokevirtual #549                // Method java/util/ArrayDeque.isEmpty:()Z
+     400: ifeq          414
+     403: aload_2
+     404: invokevirtual #346                // Method io/libp2p/etc/util/netty/mux/AbstractMuxHandler$PendingInbound.getRemoteEndPending:()Z
+     407: ifeq          414
+     410: iconst_1
+     411: goto          415
+     414: iconst_0
+     415: istore        4
+     417: aload_2
+     418: invokevirtual #240                // Method io/libp2p/etc/util/netty/mux/AbstractMuxHandler$PendingInbound.getMessages:()Ljava/util/ArrayDeque;
+     421: invokevirtual #549                // Method java/util/ArrayDeque.isEmpty:()Z
+     424: ifeq          470
+     427: aload_2
+     428: invokevirtual #366                // Method io/libp2p/etc/util/netty/mux/AbstractMuxHandler$PendingInbound.getReadPending:()Z
+     431: ifne          470
+     434: iload         4
+     436: ifne          470
+     439: aload_0
+     440: getfield      #52                 // Field pendingInbound:Ljava/util/Map;
+     443: aload_1
+     444: invokevirtual #499                // Method io/libp2p/etc/util/netty/mux/MuxChannel.getId:()Lio/libp2p/etc/util/netty/mux/MuxId;
+     447: invokeinterface #325,  2          // InterfaceMethod java/util/Map.get:(Ljava/lang/Object;)Ljava/lang/Object;
+     452: aload_2
+     453: if_acmpne     470
+     456: aload_0
+     457: getfield      #52                 // Field pendingInbound:Ljava/util/Map;
+     460: aload_1
+     461: invokevirtual #499                // Method io/libp2p/etc/util/netty/mux/MuxChannel.getId:()Lio/libp2p/etc/util/netty/mux/MuxId;
+     464: invokeinterface #418,  2          // InterfaceMethod java/util/Map.remove:(Ljava/lang/Object;)Ljava/lang/Object;
+     469: pop
+     470: iload         4
+     472: ifeq          557
+     475: nop
+     476: aload_1
+     477: invokevirtual #374                // Method io/libp2p/etc/util/netty/mux/MuxChannel.isOpen:()Z
+     480: ifeq          487
+     483: aload_1
+     484: invokevirtual #552                // Method io/libp2p/etc/util/netty/mux/MuxChannel.onRemoteDisconnected:()V
+     487: aload_0
+     488: getfield      #52                 // Field pendingInbound:Ljava/util/Map;
+     491: aload_1
+     492: invokevirtual #499                // Method io/libp2p/etc/util/netty/mux/MuxChannel.getId:()Lio/libp2p/etc/util/netty/mux/MuxId;
+     495: invokeinterface #325,  2          // InterfaceMethod java/util/Map.get:(Ljava/lang/Object;)Ljava/lang/Object;
+     500: aload_2
+     501: if_acmpne     518
+     504: aload_0
+     505: getfield      #52                 // Field pendingInbound:Ljava/util/Map;
+     508: aload_1
+     509: invokevirtual #499                // Method io/libp2p/etc/util/netty/mux/MuxChannel.getId:()Lio/libp2p/etc/util/netty/mux/MuxId;
+     512: invokeinterface #418,  2          // InterfaceMethod java/util/Map.remove:(Ljava/lang/Object;)Ljava/lang/Object;
+     517: pop
+     518: goto          557
+     521: astore        5
+     523: aload_0
+     524: getfield      #52                 // Field pendingInbound:Ljava/util/Map;
+     527: aload_1
+     528: invokevirtual #499                // Method io/libp2p/etc/util/netty/mux/MuxChannel.getId:()Lio/libp2p/etc/util/netty/mux/MuxId;
+     531: invokeinterface #325,  2          // InterfaceMethod java/util/Map.get:(Ljava/lang/Object;)Ljava/lang/Object;
+     536: aload_2
+     537: if_acmpne     554
+     540: aload_0
+     541: getfield      #52                 // Field pendingInbound:Ljava/util/Map;
+     544: aload_1
+     545: invokevirtual #499                // Method io/libp2p/etc/util/netty/mux/MuxChannel.getId:()Lio/libp2p/etc/util/netty/mux/MuxId;
+     548: invokeinterface #418,  2          // InterfaceMethod java/util/Map.remove:(Ljava/lang/Object;)Ljava/lang/Object;
+     553: pop
+     554: aload         5
+     556: athrow
+     557: aload_0
+     558: invokespecial #554                // Method requestParentReadIfNeeded:()V
+     561: aload_3
+     562: athrow
+     563: return
+    Exception table:
+       from    to  target type
+         298   310   344   any
+         344   346   344   any
+         475   487   521   any
+         521   523   521   any
+          36   214   387   any
+         387   388   387   any
+
+  private final void deliverToChild(io.libp2p.etc.util.netty.mux.MuxChannel<TData>, TData, boolean);
+    Code:
+       0: aload_0
+       1: aload_2
+       2: invokevirtual #384                // Method pendingChildReadSize:(Ljava/lang/Object;)I
+       5: istore        4
+       7: iload_3
+       8: ifne          28
+      11: aload_0
+      12: getfield      #49                 // Field pendingReadComplete:Ljava/util/Set;
+      15: checkcast     #360                // class java/util/Collection
+      18: aload_1
+      19: invokevirtual #499                // Method io/libp2p/etc/util/netty/mux/MuxChannel.getId:()Lio/libp2p/etc/util/netty/mux/MuxId;
+      22: invokeinterface #558,  2          // InterfaceMethod java/util/Collection.add:(Ljava/lang/Object;)Z
+      27: pop
+      28: aload_1
+      29: invokevirtual #543                // Method io/libp2p/etc/util/netty/mux/MuxChannel.pipeline:()Lio/netty/channel/ChannelPipeline;
+      32: aload_2
+      33: invokeinterface #562,  2          // InterfaceMethod io/netty/channel/ChannelPipeline.fireChannelRead:(Ljava/lang/Object;)Lio/netty/channel/ChannelPipeline;
+      38: pop
+      39: aload_1
+      40: invokevirtual #374                // Method io/libp2p/etc/util/netty/mux/MuxChannel.isOpen:()Z
+      43: ifeq          56
+      46: aload_0
+      47: aload_1
+      48: invokevirtual #499                // Method io/libp2p/etc/util/netty/mux/MuxChannel.getId:()Lio/libp2p/etc/util/netty/mux/MuxId;
+      51: iload         4
+      53: invokevirtual #564                // Method onChildReadDelivered:(Lio/libp2p/etc/util/netty/mux/MuxId;I)V
+      56: return
+
+  public void channelReadComplete(io.netty.channel.ChannelHandlerContext);
+    Code:
+       0: aload_1
+       1: ldc           #145                // String ctx
+       3: invokestatic  #132                // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+       6: aload_0
+       7: getfield      #49                 // Field pendingReadComplete:Ljava/util/Set;
+      10: checkcast     #212                // class java/lang/Iterable
+      13: astore_2
+      14: iconst_0
+      15: istore_3
+      16: aload_2
+      17: invokeinterface #225,  1          // InterfaceMethod java/lang/Iterable.iterator:()Ljava/util/Iterator;
+      22: astore        4
+      24: aload         4
+      26: invokeinterface #230,  1          // InterfaceMethod java/util/Iterator.hasNext:()Z
+      31: ifeq          91
+      34: aload         4
+      36: invokeinterface #234,  1          // InterfaceMethod java/util/Iterator.next:()Ljava/lang/Object;
+      41: astore        5
+      43: aload         5
+      45: checkcast     #454                // class io/libp2p/etc/util/netty/mux/MuxId
+      48: astore        6
+      50: iconst_0
+      51: istore        7
+      53: aload_0
+      54: getfield      #23                 // Field streamMap:Ljava/util/Map;
+      57: aload         6
+      59: invokeinterface #325,  2          // InterfaceMethod java/util/Map.get:(Ljava/lang/Object;)Ljava/lang/Object;
+      64: checkcast     #327                // class io/libp2p/etc/util/netty/mux/MuxChannel
+      67: dup
+      68: ifnull        87
+      71: invokevirtual #543                // Method io/libp2p/etc/util/netty/mux/MuxChannel.pipeline:()Lio/netty/channel/ChannelPipeline;
+      74: dup
+      75: ifnull        87
+      78: invokeinterface #548,  1          // InterfaceMethod io/netty/channel/ChannelPipeline.fireChannelReadComplete:()Lio/netty/channel/ChannelPipeline;
+      83: pop
+      84: goto          24
+      87: pop
+      88: goto          24
+      91: nop
+      92: aload_0
+      93: getfield      #49                 // Field pendingReadComplete:Ljava/util/Set;
+      96: invokeinterface #244,  1          // InterfaceMethod java/util/Set.clear:()V
+     101: aload_0
+     102: invokespecial #554                // Method requestParentReadIfNeeded:()V
+     105: return
+
+  public abstract void releaseMessage(TData);
+
+  public java.lang.Integer pendingChildWriteSize$libp2p(TData);
+    Code:
+       0: aconst_null
+       1: areturn
+
+  public java.lang.Throwable onPendingChildWrite$libp2p(io.libp2p.etc.util.netty.mux.MuxChannel<TData>, int);
+    Code:
+       0: aload_1
+       1: ldc_w         #456                // String child
+       4: invokestatic  #132                // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+       7: aconst_null
+       8: areturn
+
+  public void onPendingChildWriteComplete$libp2p(io.libp2p.etc.util.netty.mux.MuxChannel<TData>, TData, int);
+    Code:
+       0: aload_1
+       1: ldc_w         #456                // String child
+       4: invokestatic  #132                // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+       7: return
+
+  public abstract io.netty.channel.ChannelFuture onChildWrite(io.libp2p.etc.util.netty.mux.MuxChannel<TData>, TData);
+
+  protected boolean isInboundCapacityReached();
+    Code:
+       0: aload_0
+       1: getfield      #139                // Field openInboundStreams:I
+       4: aload_0
+       5: getfield      #14                 // Field maxInboundStreams:I
+       8: if_icmplt     15
+      11: iconst_1
+      12: goto          16
+      15: iconst_0
+      16: ireturn
+
+  protected final void onRemoteOpen(io.libp2p.etc.util.netty.mux.MuxId);
+    Code:
+       0: aload_1
+       1: ldc           #126                // String id
+       3: invokestatic  #132                // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+       6: aload_0
+       7: invokevirtual #584                // Method getInboundInitializer:()Lkotlin/jvm/functions/Function1;
+      10: astore_2
+      11: aload_0
+      12: getfield      #23                 // Field streamMap:Ljava/util/Map;
+      15: aload_1
+      16: invokeinterface #587,  2          // InterfaceMethod java/util/Map.containsKey:(Ljava/lang/Object;)Z
+      21: ifeq          48
+      24: aload_0
+      25: invokevirtual #463                // Method getChannelHandlerContext:()Lio/netty/channel/ChannelHandlerContext;
+      28: invokeinterface #588,  1          // InterfaceMethod io/netty/channel/ChannelHandlerContext.close:()Lio/netty/channel/ChannelFuture;
+      33: pop
+      34: new           #304                // class io/libp2p/core/Libp2pException
+      37: dup
+      38: aload_1
+      39: invokedynamic #591,  0            // InvokeDynamic #5:makeConcatWithConstants:(Lio/libp2p/etc/util/netty/mux/MuxId;)Ljava/lang/String;
+      44: invokespecial #592                // Method io/libp2p/core/Libp2pException."<init>":(Ljava/lang/String;)V
+      47: athrow
+      48: aload_0
+      49: invokevirtual #594                // Method isInboundCapacityReached:()Z
+      52: ifeq          73
+      55: aload_0
+      56: getfield      #143                // Field rejectedInboundStreams:J
+      59: lstore_3
+      60: aload_0
+      61: lload_3
+      62: lconst_1
+      63: ladd
+      64: putfield      #143                // Field rejectedInboundStreams:J
+      67: aload_0
+      68: aload_1
+      69: invokevirtual #597                // Method resetRemoteSubstream:(Lio/libp2p/etc/util/netty/mux/MuxId;)V
+      72: return
+      73: aload_0
+      74: getfield      #139                // Field openInboundStreams:I
+      77: istore_3
+      78: aload_0
+      79: iload_3
+      80: iconst_1
+      81: iadd
+      82: putfield      #139                // Field openInboundStreams:I
+      85: aload_0
+      86: aload_1
+      87: aload_2
+      88: iconst_0
+      89: invokespecial #601                // Method createChild:(Lio/libp2p/etc/util/netty/mux/MuxId;Lkotlin/jvm/functions/Function1;Z)Lio/libp2p/etc/util/netty/mux/MuxChannel;
+      92: astore_3
+      93: aload_0
+      94: aload_3
+      95: invokevirtual #604                // Method onRemoteCreated:(Lio/libp2p/etc/util/netty/mux/MuxChannel;)V
+      98: return
+
+  protected void resetRemoteSubstream(io.libp2p.etc.util.netty.mux.MuxId);
+    Code:
+       0: aload_1
+       1: ldc           #126                // String id
+       3: invokestatic  #132                // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+       6: return
+
+  protected final void onRemoteDisconnect(io.libp2p.etc.util.netty.mux.MuxId);
+    Code:
+       0: aload_1
+       1: ldc           #126                // String id
+       3: invokestatic  #132                // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+       6: aload_0
+       7: getfield      #23                 // Field streamMap:Ljava/util/Map;
+      10: aload_1
+      11: invokeinterface #325,  2          // InterfaceMethod java/util/Map.get:(Ljava/lang/Object;)Ljava/lang/Object;
+      16: checkcast     #327                // class io/libp2p/etc/util/netty/mux/MuxChannel
+      19: dup
+      20: ifnonnull     25
+      23: pop
+      24: return
+      25: astore_2
+      26: aload_0
+      27: getfield      #52                 // Field pendingInbound:Ljava/util/Map;
+      30: aload_1
+      31: invokeinterface #325,  2          // InterfaceMethod java/util/Map.get:(Ljava/lang/Object;)Ljava/lang/Object;
+      36: checkcast     #236                // class io/libp2p/etc/util/netty/mux/AbstractMuxHandler$PendingInbound
+      39: astore_3
+      40: aload_2
+      41: invokevirtual #343                // Method io/libp2p/etc/util/netty/mux/MuxChannel.getRemoteDisconnected:()Z
+      44: ifne          72
+      47: aload_3
+      48: dup
+      49: ifnull        67
+      52: invokevirtual #346                // Method io/libp2p/etc/util/netty/mux/AbstractMuxHandler$PendingInbound.getRemoteEndPending:()Z
+      55: iconst_1
+      56: if_icmpne     63
+      59: iconst_1
+      60: goto          69
+      63: iconst_0
+      64: goto          69
+      67: pop
+      68: iconst_0
+      69: ifeq          73
+      72: return
+      73: aload_3
+      74: ifnull        109
+      77: aload_3
+      78: iconst_1
+      79: invokevirtual #612                // Method io/libp2p/etc/util/netty/mux/AbstractMuxHandler$PendingInbound.setRemoteEndPending:(Z)V
+      82: aload_2
+      83: invokevirtual #353                // Method io/libp2p/etc/util/netty/mux/MuxChannel.config:()Lio/netty/channel/ChannelConfig;
+      86: invokeinterface #358,  1          // InterfaceMethod io/netty/channel/ChannelConfig.isAutoRead:()Z
+      91: ifne          101
+      94: aload_3
+      95: invokevirtual #366                // Method io/libp2p/etc/util/netty/mux/AbstractMuxHandler$PendingInbound.getReadPending:()Z
+      98: ifeq          113
+     101: aload_0
+     102: aload_2
+     103: invokespecial #373                // Method drainPendingInbound:(Lio/libp2p/etc/util/netty/mux/MuxChannel;)V
+     106: goto          113
+     109: aload_2
+     110: invokevirtual #552                // Method io/libp2p/etc/util/netty/mux/MuxChannel.onRemoteDisconnected:()V
+     113: return
+
+  protected final void onRemoteClose(io.libp2p.etc.util.netty.mux.MuxId);
+    Code:
+       0: aload_1
+       1: ldc           #126                // String id
+       3: invokestatic  #132                // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+       6: aload_0
+       7: getfield      #23                 // Field streamMap:Ljava/util/Map;
+      10: aload_1
+      11: invokeinterface #325,  2          // InterfaceMethod java/util/Map.get:(Ljava/lang/Object;)Ljava/lang/Object;
+      16: checkcast     #327                // class io/libp2p/etc/util/netty/mux/MuxChannel
+      19: dup
+      20: ifnull        29
+      23: invokevirtual #616                // Method io/libp2p/etc/util/netty/mux/MuxChannel.closeImpl:()V
+      26: goto          30
+      29: pop
+      30: return
+
+  protected final void onRemoteClose(io.libp2p.etc.util.netty.mux.MuxId, java.lang.Throwable);
+    Code:
+       0: aload_1
+       1: ldc           #126                // String id
+       3: invokestatic  #132                // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+       6: aload_2
+       7: ldc_w         #274                // String cause
+      10: invokestatic  #132                // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+      13: aload_0
+      14: getfield      #23                 // Field streamMap:Ljava/util/Map;
+      17: aload_1
+      18: invokeinterface #325,  2          // InterfaceMethod java/util/Map.get:(Ljava/lang/Object;)Ljava/lang/Object;
+      23: checkcast     #327                // class io/libp2p/etc/util/netty/mux/MuxChannel
+      26: dup
+      27: ifnonnull     32
+      30: pop
+      31: return
+      32: astore_3
+      33: aload_3
+      34: invokevirtual #620                // Method io/libp2p/etc/util/netty/mux/MuxChannel.getInitiator:()Z
+      37: ifeq          64
+      40: aload_3
+      41: invokevirtual #374                // Method io/libp2p/etc/util/netty/mux/MuxChannel.isOpen:()Z
+      44: ifeq          64
+      47: aload_0
+      48: invokevirtual #463                // Method getChannelHandlerContext:()Lio/netty/channel/ChannelHandlerContext;
+      51: invokeinterface #153,  1          // InterfaceMethod io/netty/channel/ChannelHandlerContext.channel:()Lio/netty/channel/Channel;
+      56: invokeinterface #190,  1          // InterfaceMethod io/netty/channel/Channel.isOpen:()Z
+      61: ifne          70
+      64: aload_0
+      65: aload_1
+      66: invokevirtual #622                // Method onRemoteClose:(Lio/libp2p/etc/util/netty/mux/MuxId;)V
+      69: return
+      70: aload_3
+      71: invokestatic  #628                // Method io/libp2p/etc/StreamSetupCauseKt.getSTREAM_SETUP_CAUSE:()Lio/netty/util/AttributeKey;
+      74: invokevirtual #632                // Method io/libp2p/etc/util/netty/mux/MuxChannel.attr:(Lio/netty/util/AttributeKey;)Lio/netty/util/Attribute;
+      77: aconst_null
+      78: aload_2
+      79: invokeinterface #637,  3          // InterfaceMethod io/netty/util/Attribute.compareAndSet:(Ljava/lang/Object;Ljava/lang/Object;)Z
+      84: pop
+      85: aload_3
+      86: invokestatic  #628                // Method io/libp2p/etc/StreamSetupCauseKt.getSTREAM_SETUP_CAUSE:()Lio/netty/util/AttributeKey;
+      89: invokevirtual #632                // Method io/libp2p/etc/util/netty/mux/MuxChannel.attr:(Lio/netty/util/AttributeKey;)Lio/netty/util/Attribute;
+      92: invokeinterface #639,  1          // InterfaceMethod io/netty/util/Attribute.get:()Ljava/lang/Object;
+      97: checkcast     #195                // class java/lang/Throwable
+     100: astore        4
+     102: nop
+     103: aload_3
+     104: invokestatic  #642                // Method io/libp2p/etc/StreamSetupCauseKt.getSTREAM_SETUP_RESULT:()Lio/netty/util/AttributeKey;
+     107: invokevirtual #632                // Method io/libp2p/etc/util/netty/mux/MuxChannel.attr:(Lio/netty/util/AttributeKey;)Lio/netty/util/Attribute;
+     110: invokeinterface #639,  1          // InterfaceMethod io/netty/util/Attribute.get:()Ljava/lang/Object;
+     115: checkcast     #25                 // class java/util/concurrent/CompletableFuture
+     118: dup
+     119: ifnull        131
+     122: aload         4
+     124: invokevirtual #199                // Method java/util/concurrent/CompletableFuture.completeExceptionally:(Ljava/lang/Throwable;)Z
+     127: pop
+     128: goto          132
+     131: pop
+     132: aload_3
+     133: invokestatic  #647                // Method io/libp2p/etc/AttributesKt.getSTREAM:()Lio/netty/util/AttributeKey;
+     136: invokevirtual #632                // Method io/libp2p/etc/util/netty/mux/MuxChannel.attr:(Lio/netty/util/AttributeKey;)Lio/netty/util/Attribute;
+     139: invokeinterface #639,  1          // InterfaceMethod io/netty/util/Attribute.get:()Ljava/lang/Object;
+     144: checkcast     #649                // class io/libp2p/core/Stream
+     147: dup
+     148: ifnull        169
+     151: invokeinterface #653,  1          // InterfaceMethod io/libp2p/core/Stream.getProtocol:()Ljava/util/concurrent/CompletableFuture;
+     156: dup
+     157: ifnull        169
+     160: aload         4
+     162: invokevirtual #199                // Method java/util/concurrent/CompletableFuture.completeExceptionally:(Ljava/lang/Throwable;)Z
+     165: pop
+     166: goto          170
+     169: pop
+     170: aload_3
+     171: invokevirtual #543                // Method io/libp2p/etc/util/netty/mux/MuxChannel.pipeline:()Lio/netty/channel/ChannelPipeline;
+     174: aload         4
+     176: invokeinterface #657,  2          // InterfaceMethod io/netty/channel/ChannelPipeline.fireExceptionCaught:(Ljava/lang/Throwable;)Lio/netty/channel/ChannelPipeline;
+     181: pop
+     182: aload_3
+     183: invokevirtual #616                // Method io/libp2p/etc/util/netty/mux/MuxChannel.closeImpl:()V
+     186: goto          198
+     189: astore        5
+     191: aload_3
+     192: invokevirtual #616                // Method io/libp2p/etc/util/netty/mux/MuxChannel.closeImpl:()V
+     195: aload         5
+     197: athrow
+     198: return
+    Exception table:
+       from    to  target type
+         102   182   189   any
+         189   191   189   any
+
+  public io.netty.channel.ChannelFuture resetForCapacity$libp2p(io.libp2p.etc.util.netty.mux.MuxChannel<TData>);
+    Code:
+       0: aload_1
+       1: ldc_w         #456                // String child
+       4: invokestatic  #132                // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+       7: aload_1
+       8: invokevirtual #459                // Method io/libp2p/etc/util/netty/mux/MuxChannel.close:()Lio/netty/channel/ChannelFuture;
+      11: dup
+      12: ldc_w         #663                // String child.close()
+      15: invokestatic  #666                // Method kotlin/jvm/internal/Intrinsics.checkNotNullExpressionValue:(Ljava/lang/Object;Ljava/lang/String;)V
+      18: areturn
+
+  public final void localDisconnect(io.libp2p.etc.util.netty.mux.MuxChannel<TData>);
+    Code:
+       0: aload_1
+       1: ldc_w         #456                // String child
+       4: invokestatic  #132                // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+       7: aload_0
+       8: aload_1
+       9: invokevirtual #670                // Method onLocalDisconnect:(Lio/libp2p/etc/util/netty/mux/MuxChannel;)V
+      12: return
+
+  public final void localClose(io.libp2p.etc.util.netty.mux.MuxChannel<TData>);
+    Code:
+       0: aload_1
+       1: ldc_w         #456                // String child
+       4: invokestatic  #132                // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+       7: aload_0
+       8: aload_1
+       9: invokevirtual #674                // Method onLocalClose:(Lio/libp2p/etc/util/netty/mux/MuxChannel;)V
+      12: return
+
+  public final void onClosed(io.libp2p.etc.util.netty.mux.MuxChannel<TData>);
+    Code:
+       0: aload_1
+       1: ldc_w         #456                // String child
+       4: invokestatic  #132                // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+       7: aload_0
+       8: getfield      #52                 // Field pendingInbound:Ljava/util/Map;
+      11: aload_1
+      12: invokevirtual #499                // Method io/libp2p/etc/util/netty/mux/MuxChannel.getId:()Lio/libp2p/etc/util/netty/mux/MuxId;
+      15: invokeinterface #418,  2          // InterfaceMethod java/util/Map.remove:(Ljava/lang/Object;)Ljava/lang/Object;
+      20: checkcast     #236                // class io/libp2p/etc/util/netty/mux/AbstractMuxHandler$PendingInbound
+      23: dup
+      24: ifnull        90
+      27: invokevirtual #240                // Method io/libp2p/etc/util/netty/mux/AbstractMuxHandler$PendingInbound.getMessages:()Ljava/util/ArrayDeque;
+      30: dup
+      31: ifnull        90
+      34: checkcast     #212                // class java/lang/Iterable
+      37: astore        4
+      39: iconst_0
+      40: istore        5
+      42: aload         4
+      44: invokeinterface #225,  1          // InterfaceMethod java/lang/Iterable.iterator:()Ljava/util/Iterator;
+      49: astore        6
+      51: aload         6
+      53: invokeinterface #230,  1          // InterfaceMethod java/util/Iterator.hasNext:()Z
+      58: ifeq          86
+      61: aload         6
+      63: invokeinterface #234,  1          // InterfaceMethod java/util/Iterator.next:()Ljava/lang/Object;
+      68: astore        7
+      70: aload         7
+      72: astore        8
+      74: iconst_0
+      75: istore        9
+      77: aload_0
+      78: aload         8
+      80: invokevirtual #243                // Method releaseMessage:(Ljava/lang/Object;)V
+      83: goto          51
+      86: nop
+      87: goto          92
+      90: pop
+      91: nop
+      92: aload_0
+      93: getfield      #62                 // Field parentReadLock:Ljava/lang/Object;
+      96: astore_3
+      97: aload_3
+      98: monitorenter
+      99: nop
+     100: iconst_0
+     101: istore        4
+     103: aload_0
+     104: getfield      #55                 // Field pausedChildren:Ljava/util/Set;
+     107: aload_1
+     108: invokevirtual #499                // Method io/libp2p/etc/util/netty/mux/MuxChannel.getId:()Lio/libp2p/etc/util/netty/mux/MuxId;
+     111: invokeinterface #677,  2          // InterfaceMethod java/util/Set.remove:(Ljava/lang/Object;)Z
+     116: pop
+     117: aload_0
+     118: invokespecial #679                // Method restoreParentReadsIfPossible:()V
+     121: nop
+     122: getstatic     #254                // Field kotlin/Unit.INSTANCE:Lkotlin/Unit;
+     125: astore        4
+     127: aload_3
+     128: monitorexit
+     129: goto          139
+     132: astore        4
+     134: aload_3
+     135: monitorexit
+     136: aload         4
+     138: athrow
+     139: aload_0
+     140: getfield      #23                 // Field streamMap:Ljava/util/Map;
+     143: aload_1
+     144: invokevirtual #499                // Method io/libp2p/etc/util/netty/mux/MuxChannel.getId:()Lio/libp2p/etc/util/netty/mux/MuxId;
+     147: invokeinterface #418,  2          // InterfaceMethod java/util/Map.remove:(Ljava/lang/Object;)Ljava/lang/Object;
+     152: ifnull        174
+     155: aload_1
+     156: invokevirtual #620                // Method io/libp2p/etc/util/netty/mux/MuxChannel.getInitiator:()Z
+     159: ifne          174
+     162: aload_0
+     163: getfield      #139                // Field openInboundStreams:I
+     166: istore_2
+     167: aload_0
+     168: iload_2
+     169: iconst_m1
+     170: iadd
+     171: putfield      #139                // Field openInboundStreams:I
+     174: aload_0
+     175: aload_1
+     176: invokevirtual #682                // Method onChildClosed:(Lio/libp2p/etc/util/netty/mux/MuxChannel;)V
+     179: return
+    Exception table:
+       from    to  target type
+          99   127   132   any
+         132   134   132   any
+
+  public abstract void channelRead(io.netty.channel.ChannelHandlerContext, java.lang.Object);
+
+  protected void onRemoteCreated(io.libp2p.etc.util.netty.mux.MuxChannel<TData>);
+    Code:
+       0: aload_1
+       1: ldc_w         #456                // String child
+       4: invokestatic  #132                // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+       7: return
+
+  protected abstract void onLocalOpen(io.libp2p.etc.util.netty.mux.MuxChannel<TData>);
+
+  protected abstract void onLocalClose(io.libp2p.etc.util.netty.mux.MuxChannel<TData>);
+
+  protected abstract void onLocalDisconnect(io.libp2p.etc.util.netty.mux.MuxChannel<TData>);
+
+  protected abstract void onChildClosed(io.libp2p.etc.util.netty.mux.MuxChannel<TData>);
+
+  private final io.libp2p.etc.util.netty.mux.MuxChannel<TData> createChild(io.libp2p.etc.util.netty.mux.MuxId, kotlin.jvm.functions.Function1<? super io.libp2p.etc.util.netty.mux.MuxChannel<TData>, kotlin.Unit>, boolean);
+    Code:
+       0: new           #327                // class io/libp2p/etc/util/netty/mux/MuxChannel
+       3: dup
+       4: aload_0
+       5: aload_1
+       6: aload_2
+       7: iload_3
+       8: invokespecial #691                // Method io/libp2p/etc/util/netty/mux/MuxChannel."<init>":(Lio/libp2p/etc/util/netty/mux/AbstractMuxHandler;Lio/libp2p/etc/util/netty/mux/MuxId;Lkotlin/jvm/functions/Function1;Z)V
+      11: astore        4
+      13: aload_0
+      14: getfield      #23                 // Field streamMap:Ljava/util/Map;
+      17: aload_1
+      18: aload         4
+      20: invokeinterface #382,  3          // InterfaceMethod java/util/Map.put:(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+      25: pop
+      26: aload_0
+      27: getfield      #94                 // Field ctx:Lio/netty/channel/ChannelHandlerContext;
+      30: dup
+      31: invokestatic  #694                // Method kotlin/jvm/internal/Intrinsics.checkNotNull:(Ljava/lang/Object;)V
+      34: invokeinterface #153,  1          // InterfaceMethod io/netty/channel/ChannelHandlerContext.channel:()Lio/netty/channel/Channel;
+      39: invokeinterface #698,  1          // InterfaceMethod io/netty/channel/Channel.eventLoop:()Lio/netty/channel/EventLoop;
+      44: aload         4
+      46: checkcast     #155                // class io/netty/channel/Channel
+      49: invokeinterface #704,  2          // InterfaceMethod io/netty/channel/EventLoop.register:(Lio/netty/channel/Channel;)Lio/netty/channel/ChannelFuture;
+      54: invokeinterface #707,  1          // InterfaceMethod io/netty/channel/ChannelFuture.sync:()Lio/netty/channel/ChannelFuture;
+      59: pop
+      60: aload         4
+      62: areturn
+
+  protected abstract io.libp2p.etc.util.netty.mux.MuxId generateNextId();
+
+  public final java.util.concurrent.CompletableFuture<io.libp2p.etc.util.netty.mux.MuxChannel<TData>> newStream(kotlin.jvm.functions.Function1<? super io.libp2p.etc.util.netty.mux.MuxChannel<TData>, kotlin.Unit>);
+    Code:
+       0: aload_1
+       1: ldc_w         #716                // String outboundInitializer
+       4: invokestatic  #132                // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+       7: new           #25                 // class java/util/concurrent/CompletableFuture
+      10: dup
+      11: invokespecial #26                 // Method java/util/concurrent/CompletableFuture."<init>":()V
+      14: astore_2
+      15: nop
+      16: aload_0
+      17: invokespecial #719                // Method checkClosed:()V
+      20: aload_0
+      21: getfield      #40                 // Field pendingStreams:Ljava/util/concurrent/ConcurrentHashMap$KeySetView;
+      24: aload_2
+      25: invokevirtual #722                // Method java/util/concurrent/ConcurrentHashMap$KeySetView.add:(Ljava/lang/Object;)Z
+      28: pop
+      29: aload_2
+      30: aload_0
+      31: aload_2
+      32: invokedynamic #734,  0            // InvokeDynamic #6:accept:(Lio/libp2p/etc/util/netty/mux/AbstractMuxHandler;Ljava/util/concurrent/CompletableFuture;)Ljava/util/function/BiConsumer;
+      37: invokevirtual #738                // Method java/util/concurrent/CompletableFuture.whenComplete:(Ljava/util/function/BiConsumer;)Ljava/util/concurrent/CompletableFuture;
+      40: pop
+      41: aload_0
+      42: invokespecial #719                // Method checkClosed:()V
+      45: aload_0
+      46: getfield      #30                 // Field activeFuture:Ljava/util/concurrent/CompletableFuture;
+      49: aload_2
+      50: aload_0
+      51: aload_1
+      52: invokedynamic #746,  0            // InvokeDynamic #7:run:(Ljava/util/concurrent/CompletableFuture;Lio/libp2p/etc/util/netty/mux/AbstractMuxHandler;Lkotlin/jvm/functions/Function1;)Ljava/lang/Runnable;
+      57: aload_0
+      58: invokevirtual #463                // Method getChannelHandlerContext:()Lio/netty/channel/ChannelHandlerContext;
+      61: invokeinterface #153,  1          // InterfaceMethod io/netty/channel/ChannelHandlerContext.channel:()Lio/netty/channel/Channel;
+      66: invokeinterface #698,  1          // InterfaceMethod io/netty/channel/Channel.eventLoop:()Lio/netty/channel/EventLoop;
+      71: checkcast     #748                // class java/util/concurrent/Executor
+      74: invokevirtual #752                // Method java/util/concurrent/CompletableFuture.thenRunAsync:(Ljava/lang/Runnable;Ljava/util/concurrent/Executor;)Ljava/util/concurrent/CompletableFuture;
+      77: dup
+      78: ldc_w         #754                // String activeFuture.thenRunAsyn…eventLoop()\n            )
+      81: invokestatic  #666                // Method kotlin/jvm/internal/Intrinsics.checkNotNullExpressionValue:(Ljava/lang/Object;Ljava/lang/String;)V
+      84: aload_2
+      85: invokestatic  #760                // Method io/libp2p/etc/types/AsyncExtKt.forwardException:(Ljava/util/concurrent/CompletableFuture;Ljava/util/concurrent/CompletableFuture;)Ljava/util/concurrent/CompletableFuture;
+      88: pop
+      89: goto          102
+      92: astore_3
+      93: aload_2
+      94: aload_3
+      95: checkcast     #195                // class java/lang/Throwable
+      98: invokevirtual #199                // Method java/util/concurrent/CompletableFuture.completeExceptionally:(Ljava/lang/Throwable;)Z
+     101: pop
+     102: aload_2
+     103: areturn
+    Exception table:
+       from    to  target type
+          15    89    92   Class java/lang/Exception
+
+  private final void checkClosed();
+    Code:
+       0: aload_0
+       1: getfield      #187                // Field closed:Z
+       4: ifne          45
+       7: aload_0
+       8: getfield      #94                 // Field ctx:Lio/netty/channel/ChannelHandlerContext;
+      11: dup
+      12: ifnull        40
+      15: invokeinterface #153,  1          // InterfaceMethod io/netty/channel/ChannelHandlerContext.channel:()Lio/netty/channel/Channel;
+      20: dup
+      21: ifnull        40
+      24: invokeinterface #190,  1          // InterfaceMethod io/netty/channel/Channel.isOpen:()Z
+      29: ifne          36
+      32: iconst_1
+      33: goto          42
+      36: iconst_0
+      37: goto          42
+      40: pop
+      41: iconst_0
+      42: ifeq          71
+      45: new           #192                // class io/libp2p/core/ConnectionClosedException
+      48: dup
+      49: aload_0
+      50: getfield      #94                 // Field ctx:Lio/netty/channel/ChannelHandlerContext;
+      53: dup
+      54: invokestatic  #694                // Method kotlin/jvm/internal/Intrinsics.checkNotNull:(Ljava/lang/Object;)V
+      57: invokeinterface #153,  1          // InterfaceMethod io/netty/channel/ChannelHandlerContext.channel:()Lio/netty/channel/Channel;
+      62: invokedynamic #768,  0            // InvokeDynamic #8:makeConcatWithConstants:(Lio/netty/channel/Channel;)Ljava/lang/String;
+      67: invokespecial #340                // Method io/libp2p/core/ConnectionClosedException."<init>":(Ljava/lang/String;)V
+      70: athrow
+      71: nop
+      72: return
+
+  private static final void handlerAdded$lambda-1(io.libp2p.etc.util.netty.mux.AbstractMuxHandler, io.netty.util.concurrent.Future);
+    Code:
+       0: aload_0
+       1: ldc_w         #770                // String this$0
+       4: invokestatic  #132                // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+       7: new           #192                // class io/libp2p/core/ConnectionClosedException
+      10: dup
+      11: invokespecial #193                // Method io/libp2p/core/ConnectionClosedException."<init>":()V
+      14: astore_2
+      15: aload_0
+      16: getfield      #30                 // Field activeFuture:Ljava/util/concurrent/CompletableFuture;
+      19: aload_2
+      20: checkcast     #195                // class java/lang/Throwable
+      23: invokevirtual #199                // Method java/util/concurrent/CompletableFuture.completeExceptionally:(Ljava/lang/Throwable;)Z
+      26: pop
+      27: aload_0
+      28: getfield      #40                 // Field pendingStreams:Ljava/util/concurrent/ConcurrentHashMap$KeySetView;
+      31: dup
+      32: ldc_w         #771                // String pendingStreams
+      35: invokestatic  #666                // Method kotlin/jvm/internal/Intrinsics.checkNotNullExpressionValue:(Ljava/lang/Object;Ljava/lang/String;)V
+      38: checkcast     #212                // class java/lang/Iterable
+      41: astore_3
+      42: iconst_0
+      43: istore        4
+      45: aload_3
+      46: invokeinterface #225,  1          // InterfaceMethod java/lang/Iterable.iterator:()Ljava/util/Iterator;
+      51: astore        5
+      53: aload         5
+      55: invokeinterface #230,  1          // InterfaceMethod java/util/Iterator.hasNext:()Z
+      60: ifeq          95
+      63: aload         5
+      65: invokeinterface #234,  1          // InterfaceMethod java/util/Iterator.next:()Ljava/lang/Object;
+      70: astore        6
+      72: aload         6
+      74: checkcast     #25                 // class java/util/concurrent/CompletableFuture
+      77: astore        7
+      79: iconst_0
+      80: istore        8
+      82: aload         7
+      84: aload_2
+      85: checkcast     #195                // class java/lang/Throwable
+      88: invokevirtual #199                // Method java/util/concurrent/CompletableFuture.completeExceptionally:(Ljava/lang/Throwable;)Z
+      91: pop
+      92: goto          53
+      95: nop
+      96: return
+
+  private static final void childAutoReadChanged$lambda-6(io.libp2p.etc.util.netty.mux.MuxChannel, io.libp2p.etc.util.netty.mux.AbstractMuxHandler);
+    Code:
+       0: aload_0
+       1: ldc_w         #777                // String $child
+       4: invokestatic  #132                // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+       7: aload_1
+       8: ldc_w         #770                // String this$0
+      11: invokestatic  #132                // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+      14: aload_0
+      15: invokevirtual #374                // Method io/libp2p/etc/util/netty/mux/MuxChannel.isOpen:()Z
+      18: ifeq          105
+      21: aload_0
+      22: invokevirtual #353                // Method io/libp2p/etc/util/netty/mux/MuxChannel.config:()Lio/netty/channel/ChannelConfig;
+      25: invokeinterface #358,  1          // InterfaceMethod io/netty/channel/ChannelConfig.isAutoRead:()Z
+      30: ifeq          100
+      33: aload_1
+      34: aload_0
+      35: invokespecial #373                // Method drainPendingInbound:(Lio/libp2p/etc/util/netty/mux/MuxChannel;)V
+      38: aload_1
+      39: getfield      #62                 // Field parentReadLock:Ljava/lang/Object;
+      42: astore_2
+      43: aload_2
+      44: monitorenter
+      45: nop
+      46: iconst_0
+      47: istore_3
+      48: aload_0
+      49: invokevirtual #374                // Method io/libp2p/etc/util/netty/mux/MuxChannel.isOpen:()Z
+      52: ifeq          85
+      55: aload_0
+      56: invokevirtual #353                // Method io/libp2p/etc/util/netty/mux/MuxChannel.config:()Lio/netty/channel/ChannelConfig;
+      59: invokeinterface #358,  1          // InterfaceMethod io/netty/channel/ChannelConfig.isAutoRead:()Z
+      64: ifeq          85
+      67: aload_1
+      68: getfield      #55                 // Field pausedChildren:Ljava/util/Set;
+      71: aload_0
+      72: invokevirtual #499                // Method io/libp2p/etc/util/netty/mux/MuxChannel.getId:()Lio/libp2p/etc/util/netty/mux/MuxId;
+      75: invokeinterface #677,  2          // InterfaceMethod java/util/Set.remove:(Ljava/lang/Object;)Z
+      80: pop
+      81: aload_1
+      82: invokespecial #679                // Method restoreParentReadsIfPossible:()V
+      85: nop
+      86: getstatic     #254                // Field kotlin/Unit.INSTANCE:Lkotlin/Unit;
+      89: astore_3
+      90: aload_2
+      91: monitorexit
+      92: goto          105
+      95: astore_3
+      96: aload_2
+      97: monitorexit
+      98: aload_3
+      99: athrow
+     100: aload_1
+     101: aload_0
+     102: invokespecial #377                // Method pauseChild:(Lio/libp2p/etc/util/netty/mux/MuxChannel;)V
+     105: return
+    Exception table:
+       from    to  target type
+          45    90    95   any
+          95    96    95   any
+
+  private static final void newStream$lambda-13(io.libp2p.etc.util.netty.mux.AbstractMuxHandler, java.util.concurrent.CompletableFuture, io.libp2p.etc.util.netty.mux.MuxChannel, java.lang.Throwable);
+    Code:
+       0: aload_0
+       1: ldc_w         #770                // String this$0
+       4: invokestatic  #132                // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+       7: aload_1
+       8: ldc_w         #780                // String $result
+      11: invokestatic  #132                // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+      14: aload_0
+      15: getfield      #40                 // Field pendingStreams:Ljava/util/concurrent/ConcurrentHashMap$KeySetView;
+      18: aload_1
+      19: invokevirtual #781                // Method java/util/concurrent/ConcurrentHashMap$KeySetView.remove:(Ljava/lang/Object;)Z
+      22: pop
+      23: return
+
+  private static final void newStream$lambda-14(java.util.concurrent.CompletableFuture, io.libp2p.etc.util.netty.mux.AbstractMuxHandler, kotlin.jvm.functions.Function1);
+    Code:
+       0: aload_0
+       1: ldc_w         #780                // String $result
+       4: invokestatic  #132                // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+       7: aload_1
+       8: ldc_w         #770                // String this$0
+      11: invokestatic  #132                // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+      14: aload_2
+      15: ldc_w         #783                // String $outboundInitializer
+      18: invokestatic  #132                // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+      21: aload_0
+      22: invokevirtual #786                // Method java/util/concurrent/CompletableFuture.isDone:()Z
+      25: ifne          60
+      28: aload_1
+      29: invokespecial #719                // Method checkClosed:()V
+      32: aload_1
+      33: aload_1
+      34: invokevirtual #788                // Method generateNextId:()Lio/libp2p/etc/util/netty/mux/MuxId;
+      37: new           #790                // class io/libp2p/etc/util/netty/mux/AbstractMuxHandler$newStream$2$child$1
+      40: dup
+      41: aload_1
+      42: aload_2
+      43: invokespecial #793                // Method io/libp2p/etc/util/netty/mux/AbstractMuxHandler$newStream$2$child$1."<init>":(Lio/libp2p/etc/util/netty/mux/AbstractMuxHandler;Lkotlin/jvm/functions/Function1;)V
+      46: checkcast     #608                // class kotlin/jvm/functions/Function1
+      49: iconst_1
+      50: invokespecial #601                // Method createChild:(Lio/libp2p/etc/util/netty/mux/MuxId;Lkotlin/jvm/functions/Function1;Z)Lio/libp2p/etc/util/netty/mux/MuxChannel;
+      53: astore_3
+      54: aload_0
+      55: aload_3
+      56: invokevirtual #203                // Method java/util/concurrent/CompletableFuture.complete:(Ljava/lang/Object;)Z
+      59: pop
+      60: return
+
+  public io.libp2p.etc.util.netty.mux.AbstractMuxHandler();
+    Code:
+       0: aload_0
+       1: iconst_0
+       2: iconst_1
+       3: aconst_null
+       4: invokespecial #795                // Method "<init>":(IILkotlin/jvm/internal/DefaultConstructorMarker;)V
+       7: return
+}

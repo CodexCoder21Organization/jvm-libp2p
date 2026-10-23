@@ -1,7 +1,7 @@
 import pathlib,subprocess,json,xml.etree.ElementTree as ET,time,datetime,re
 out=pathlib.Path('/tmp/claude-501/-code/2abf611d-5e04-4919-84a8-d7b72869d40c/scratchpad/out')
 lane=out.parent/'workspace/JL62b'; results=out/'JL62b-comparison'
-failures=json.loads((out/'JL62b-full-summary.json').read_text())['failures']
+failures=json.loads((out/'JL62b-full-counts.json').read_text())['failures']
 heads={branch:subprocess.check_output(['git','rev-parse','HEAD'],cwd=lane/('repo' if branch=='pr' else branch),text=True).strip() for branch in ['develop','pr']}
 expected={'develop':'bd7edb2570fb609c20245305c25af29d166a67c6','pr':'091b6d17280045ec2a1260ec890d1a06991bb6ac'}
 assert heads==expected,(heads,expected)

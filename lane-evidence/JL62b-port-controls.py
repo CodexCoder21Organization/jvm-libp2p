@@ -1,7 +1,7 @@
 import pathlib,subprocess,json,xml.etree.ElementTree as ET,socket,datetime
 out=pathlib.Path('/tmp/claude-501/-code/2abf611d-5e04-4919-84a8-d7b72869d40c/scratchpad/out')
 lane=out.parent/'workspace/JL62b'; results=out/'JL62b-port-controls';results.mkdir(exist_ok=True)
-failures=json.loads((out/'JL62b-full-summary.json').read_text())['failures']
+failures=json.loads((out/'JL62b-full-counts.json').read_text())['failures']
 records=[]
 for i in range(8):
  case=failures[i]; method=case['name'].removesuffix('()')

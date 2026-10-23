@@ -2,8 +2,8 @@
 
 Plan:
 - [done] Fresh clone, read repository and linked guidance, verify open draft/head, rebase on develop.
-- [in progress] Run first actual full root Gradle suite once under shared lock; allow at least three execution hours, record memory and fresh results.
-- [pending] Compare every failing test alone on develop and PR; diagnose/fix any new failures with fail-first evidence.
+- [done] Run first actual full root Gradle suite once under shared lock; allow at least three execution hours, record memory and fresh results.
+- [done] Compare every failing test alone on develop and PR; diagnose/fix any new failures with fail-first evidence.
 - [pending] Update draft PR counts/classification via REST PATCH/readback; preserve evidence and stop owned processes.
 
 2026-10-23 05:19 UTC OBSERVED: PR https://github.com/CodexCoder21Organization/jvm-libp2p/pull/70 is OPEN/draft at 091b6d17280045ec2a1260ec890d1a06991bb6ac, base develop. Previous notes/handoff read: full command ./gradlew --no-daemon cleanTest test --continue; previous acquisitions ran zero full-suite tests. Current lane overrides obsolete 45m execution cap and Kotlin-only gate: never kill executing suite; local full suite is authoritative, Actions jobs are required. Shared cgroup memory 9,496,256,512 / 10,737,418,240 bytes. Seven-hour lane starts approximately 05:17 UTC; no code changes or delegates. github-repos search and status-report skills applied; no scheduler tool exposed, cadence maintained in tracked observations.
@@ -91,3 +91,37 @@ Plan:
 2026-10-23T07:12:22.730584+00:00 OBSERVED: comparison 16 io.libp2p.transport.quic.QuicServerTestJava :: tlsAndQuicInSameHostPing() develop=FAIL PR=FAIL; exactly one test discovered/started per process, zero skips/aborts, first attempt.
 
 2026-10-23 07:11 UTC OBSERVED: standalone comparison has5full BindException victims passing on both versions (3Subscriptions,Host.largeBlob,GossipTwoHost). Three other Host methods fail on both with SSL_CTX when run alone. Source binds fixed40002 in HostTestJava and TwoGossipHostTestBase:39; port is currently unbound. INFER: full-only BindException is a test resource-state dependency, not yet classified solely from isolated passes. Next decisive experiment: hold an actual loopback listener at40002 while each of the8binding victims runs alone on each version, checking exact BindException and one started test. This directly creates the OS condition observed in the full run; no mock, CPU load, timeout/iteration/assertion change. Origin of the full-run occupancy is not established; do not claim a specific leak or competing process. Network namespace isolation probe was denied (unshare Operation not permitted); controls stay on the same local test port already used by these tests and release the guard after each case.
+
+2026-10-23T07:14:49.200271+00:00 OBSERVED: real occupied-port control 0 io.libp2p.pubsub.gossip.SubscriptionsLimitTest :: existing peer subscribed to many topics() failed with java.net.BindException: Address already in use on develop and PR, exactly1testperprocess, no skips/aborts/retries. Guard socket closed after each selected test.
+
+2026-10-23T07:14:57.951278+00:00 OBSERVED: real occupied-port control 1 io.libp2p.pubsub.gossip.SubscriptionsLimitTest :: new peer subscribed to many topics() failed with java.net.BindException: Address already in use on develop and PR, exactly1testperprocess, no skips/aborts/retries. Guard socket closed after each selected test.
+
+2026-10-23T07:15:05.740542+00:00 OBSERVED: real occupied-port control 2 io.libp2p.pubsub.gossip.SubscriptionsLimitTest :: new peer subscribed to few topics() failed with java.net.BindException: Address already in use on develop and PR, exactly1testperprocess, no skips/aborts/retries. Guard socket closed after each selected test.
+
+2026-10-23T07:15:14.307159+00:00 OBSERVED: real occupied-port control 3 io.libp2p.core.HostTestJava :: addPingAfterHostStart() failed with java.net.BindException: Address already in use on develop and PR, exactly1testperprocess, no skips/aborts/retries. Guard socket closed after each selected test.
+
+2026-10-23T07:15:21.959551+00:00 OBSERVED: real occupied-port control 4 io.libp2p.core.HostTestJava :: ping() failed with java.net.BindException: Address already in use on develop and PR, exactly1testperprocess, no skips/aborts/retries. Guard socket closed after each selected test.
+
+2026-10-23T07:15:28.563400+00:00 OBSERVED: real occupied-port control 5 io.libp2p.core.HostTestJava :: largeBlob() failed with java.net.BindException: Address already in use on develop and PR, exactly1testperprocess, no skips/aborts/retries. Guard socket closed after each selected test.
+
+2026-10-23T07:15:35.975888+00:00 OBSERVED: real occupied-port control 6 io.libp2p.core.HostTestJava :: largePing() failed with java.net.BindException: Address already in use on develop and PR, exactly1testperprocess, no skips/aborts/retries. Guard socket closed after each selected test.
+
+2026-10-23T07:15:42.568898+00:00 OBSERVED: real occupied-port control 7 io.libp2p.pubsub.gossip.GossipTwoHostTest :: test message larger than mplex frame() failed with java.net.BindException: Address already in use on develop and PR, exactly1testperprocess, no skips/aborts/retries. Guard socket closed after each selected test.
+
+
+## Final comparison result
+
+OBSERVED: one complete root suite, 1,286 tests: 1,267 passed, 17 failed, 2 existing Disabled cases skipped. All 81 focused/neighbour cases passed, including all 13 new cases. The full command executed once and was not killed or retried. Every result came from fresh XML. Shared cgroup oom_kill remained 1 before/after.
+
+OBSERVED: all 17 failing cases ran individually on both commits (34 executions). Twelve fail on both; five pass on both. All eight full-run binding victims were then tested with a real listener occupying 127.0.0.1:40002 on each version (16 more executions). Every control reproduced the exact BindException. Every selected run discovered and started exactly one test, with zero skips or aborts and no retries. No PR-specific failure was identified. The original full-run port owner is not known; a particular leak or competing process is not asserted. The native TLS context failure's lower-level cause is not established; this lane verifies it also occurs on develop.
+
+Independent evidence review: confirmed all 17 full-run identities map exactly to the standalone rows, all eight controlled identities map to the binding failures, both tested heads match, every per-case XML says exactlyOne=true, and every occupied-port control has the exact BindException. Interpretation review: the five isolated passes are classified only with the matching real-port controls, not from an isolated pass alone. No implementation change is required by this comparison.
+
+Tested PR: https://github.com/CodexCoder21Organization/jvm-libp2p/commit/091b6d17280045ec2a1260ec890d1a06991bb6ac
+Tested develop: https://github.com/CodexCoder21Organization/jvm-libp2p/commit/bd7edb2570fb609c20245305c25af29d166a67c6
+PR to update: https://github.com/CodexCoder21Organization/jvm-libp2p/pull/70
+Evidence: https://github.com/CodexCoder21Organization/jvm-libp2p/tree/wip/JL62b-evidence-20261023/lane-evidence
+
+CI OBSERVED: both Kotlin checks succeeded with the explicit summary "no build.kts found in repository". Both Actions suites are completed/startup_failure with zero check runs; the latest Actions run has jobs.total_count=0. This is an infrastructure startup failure before any code/test verdict. No receiver change or CI rerun was performed. The PR must remain draft under the current brief.
+
+The earlier report upload failure recovered: subsequent 06:49 and 07:11 uploads succeeded. Its derived challenge record remains on the WIP branch; the report-challenge auto-merge CLI was not run because the lane forbids enqueue/merge.

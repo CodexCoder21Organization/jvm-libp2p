@@ -4,6 +4,7 @@ import io.libp2p.core.Host
 import io.libp2p.core.crypto.KeyType
 import io.libp2p.core.crypto.generateKeyPair
 import io.libp2p.core.dsl.host
+import io.libp2p.transport.tcp.TcpTransport
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -46,6 +47,9 @@ object NoisePreparationConcurrencyProbe {
         val entered = CountDownLatch(1)
         val release = CountDownLatch(1)
         val factories = CountDownLatch(2)
+        val transportEntries = CountDownLatch(2)
+        val allowSecondInitialization = CountDownLatch(1)
+        val transportNumber = AtomicInteger()
         val callers = CountDownLatch(2)
         val published = AtomicInteger()
         val provider = NoisePreparationProvider {
@@ -62,6 +66,24 @@ object NoisePreparationConcurrencyProbe {
                     check(callers.await(10, TimeUnit.SECONDS)) { "Both builder callers did not enter" }
                     host {
                         identity { factory = { generateKeyPair(KeyType.ED25519).first } }
+                        transports {
+                            add { upgrader ->
+                                val number = transportNumber.incrementAndGet()
+                                object : TcpTransport(upgrader) {
+                                    override fun initialize() {
+                                        if (number == 2) {
+                                            check(allowSecondInitialization.await(10, TimeUnit.SECONDS)) {
+                                                "Second transport initialization was not released"
+                                            }
+                                        }
+                                        val pending = ready()
+                                        check(!pending.isDone) { "Transport preparation finished before both builders entered" }
+                                        transportEntries.countDown()
+                                        super.initialize()
+                                    }
+                                }
+                            }
+                        }
                         secureChannels {
                             add { key, _ ->
                                 NoiseXXSecureChannel(key).also { factories.countDown() }
@@ -72,6 +94,10 @@ object NoisePreparationConcurrencyProbe {
             }
             check(entered.await(10, TimeUnit.SECONDS)) { "Cold builders did not initialize the SHA-256 provider" }
             check(factories.await(10, TimeUnit.SECONDS)) { "Both builders did not construct their Noise bindings" }
+            allowSecondInitialization.countDown()
+            check(transportEntries.await(10, TimeUnit.SECONDS)) {
+                "Both builders did not reach transport initialization before preparation release"
+            }
             check(results.none { it.isDone } && published.get() == 0) { "A builder published a host before preparation finished" }
             release.countDown()
             results.forEach { it.get(10, TimeUnit.SECONDS).start().get(10, TimeUnit.SECONDS) }
@@ -85,6 +111,7 @@ object NoisePreparationConcurrencyProbe {
             check(published.get() == 2) { "Both builders did not publish after preparation" }
             println("CONCURRENT_BUILDERS=2 INITIALIZATIONS=1 ROLE_ALLOCATIONS=2 MAX_ACTIVE=1")
         } finally {
+            allowSecondInitialization.countDown()
             release.countDown()
             executor.shutdownNow()
             check(executor.awaitTermination(10, TimeUnit.SECONDS)) { "Builder callers did not terminate" }

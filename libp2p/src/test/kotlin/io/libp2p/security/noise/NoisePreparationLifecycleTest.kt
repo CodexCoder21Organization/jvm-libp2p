@@ -151,6 +151,9 @@ object NoisePreparationLifecycleProbe {
             } else {
                 val listening = pending.network.listen(Multiaddr("/ip4/127.0.0.1/tcp/0"))
                 val connecting = pending.network.connect(peerId, address)
+                check(pending.network.transports.single().activeConnections == 0) {
+                    "Direct connect opened a socket before preparation"
+                }
                 check(!listening.isDone && !connecting.isDone) { "Direct network operation bypassed pending preparation" }
                 check(pending.listenAddresses().isEmpty() && pending.network.connections.isEmpty()) {
                     "Direct network operation published before preparation"

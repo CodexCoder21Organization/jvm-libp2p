@@ -1,0 +1,56 @@
+diff --git a/libp2p/src/main/kotlin/io/libp2p/security/noise/NoiseXXSecureChannel.kt b/libp2p/src/main/kotlin/io/libp2p/security/noise/NoiseXXSecureChannel.kt
+index 5ad182c3..b55197be 100644
+--- a/libp2p/src/main/kotlin/io/libp2p/security/noise/NoiseXXSecureChannel.kt
++++ b/libp2p/src/main/kotlin/io/libp2p/security/noise/NoiseXXSecureChannel.kt
+@@ -107,6 +107,7 @@ private class NoiseHandshakeReadTimeoutHandler(
+     }
+ 
+     override fun handlerAdded(ctx: ChannelHandlerContext) {
++
+         handlerContext = ctx
+         // A responder waits for message 1 before it has any outbound write whose
+         // completion could arm the next phase. Arm while this handler is being added,
+@@ -198,6 +199,9 @@ class NoiseIoHandshake internal constructor(
+     private var loopHandshakes: MutableSet<NoiseIoHandshake>? = null
+ 
+     override fun handlerAdded(ctx: ChannelHandlerContext) {
++        if (java.lang.Boolean.getBoolean("noise3.trace")) {
++            System.err.println("NOISE3 created channel=${ctx.channel().id().asLongText()} role=$role local=${ctx.channel().localAddress()} remote=${ctx.channel().remoteAddress()} context=" + Thread.currentThread().stackTrace.joinToString(";") { "${it.className}.${it.methodName}:${it.lineNumber}" })
++        }
+         if (ctx.executor() is SingleThreadEventExecutor) {
+             loopHandshakes = handshakesOnLoop.get().also { it.add(this) }
+         }
+@@ -534,6 +538,9 @@ class NoiseIoHandshake internal constructor(
+         val loopExecutor = ctx.executor() as? SingleThreadEventExecutor
+         offloadCrypto = offloadCrypto ||
+             (loopExecutor != null && (pendingOnLoop > 1 || loopExecutor.pendingTasks() > 0))
++        if (java.lang.Boolean.getBoolean("noise3.trace")) {
++            System.err.println("NOISE3 admission channel=${ctx.channel().id().asLongText()} role=$role frames=$receivedHandshakeFrames local=${ctx.channel().localAddress()} remote=${ctx.channel().remoteAddress()} pending=$pendingOnLoop tasks=${loopExecutor?.pendingTasks()} workers=$offloadCrypto observed=$executionObserved")
++        }
+         if (!executionObserved) {
+             executionObserved = true
+             NoiseHandshakeExecutionTestHook.handshakeObserver?.invoke(offloadCrypto)
+@@ -550,6 +557,9 @@ class NoiseIoHandshake internal constructor(
+         val taskExecutor =
+             NoiseHandshakeExecutionTestHook.cryptoExecutorSelector?.invoke(role, receivedHandshakeFrames)
+                 ?: cryptoExecutor
++        if (java.lang.Boolean.getBoolean("noise3.trace")) {
++            System.err.println("NOISE3 selected channel=${ctx.channel().id().asLongText()} role=$role frames=$receivedHandshakeFrames executor=${taskExecutor.javaClass.name}")
++        }
+         val next = tail.thenRunAsync(
+             {
+                 if (!terminal.get()) {
+diff --git a/libp2p/src/main/kotlin/io/libp2p/transport/implementation/PlainNettyTransport.kt b/libp2p/src/main/kotlin/io/libp2p/transport/implementation/PlainNettyTransport.kt
+index 055cb094..20509cc6 100644
+--- a/libp2p/src/main/kotlin/io/libp2p/transport/implementation/PlainNettyTransport.kt
++++ b/libp2p/src/main/kotlin/io/libp2p/transport/implementation/PlainNettyTransport.kt
+@@ -244,6 +244,9 @@ abstract class PlainNettyTransport(
+     ): CompletableFuture<Connection> {
+         if (closed) throw Libp2pException("Transport is closed")
+ 
++        if (java.lang.Boolean.getBoolean("noise3.trace")) {
++            System.err.println("NOISE3 connect address=$addr context=" + Thread.currentThread().stackTrace.joinToString(";") { "${it.className}.${it.methodName}:${it.lineNumber}" })
++        }
+         val remotePeerId = addr.getPeerId()
+         val connectionBuilder = makeConnectionBuilder(connHandler, true, remotePeerId, preHandler)
+         val channelHandler = clientTransportBuilder(connectionBuilder, addr) ?: connectionBuilder

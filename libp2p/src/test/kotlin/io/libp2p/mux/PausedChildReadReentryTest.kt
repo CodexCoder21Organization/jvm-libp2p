@@ -48,7 +48,6 @@ class PausedChildReadReentryTest {
                     maximumDepth = maxOf(maximumDepth, depth)
                     try {
                         while (msg.isReadable) events.add("byte:${msg.readUnsignedByte()}")
-                        
                     } finally {
                         depth--
                     }
@@ -83,14 +82,20 @@ class PausedChildReadReentryTest {
             val data = Unpooled.wrappedBuffer(byteArrayOf(value.toByte()))
             inputs.add(data)
             parent.writeInbound(
-                if (muxer == "mplex") MplexFrame.createDataFrame(mplexId, data)
-                else YamuxFrame(yamuxId, YamuxType.DATA, YamuxFlag.NONE, 1, data)
+                if (muxer == "mplex") {
+                    MplexFrame.createDataFrame(mplexId, data)
+                } else {
+                    YamuxFrame(yamuxId, YamuxType.DATA, YamuxFlag.NONE, 1, data)
+                }
             )
         }
         try {
             parent.writeInbound(
-                if (muxer == "mplex") MplexFrame.createOpenFrame(mplexId)
-                else YamuxFrame(yamuxId, YamuxType.DATA, YamuxFlag.SYN.asSet, 0)
+                if (muxer == "mplex") {
+                    MplexFrame.createOpenFrame(mplexId)
+                } else {
+                    YamuxFrame(yamuxId, YamuxType.DATA, YamuxFlag.SYN.asSet, 0)
+                }
             )
             child.config().isAutoRead = false
             repeat(256) { send(it) }

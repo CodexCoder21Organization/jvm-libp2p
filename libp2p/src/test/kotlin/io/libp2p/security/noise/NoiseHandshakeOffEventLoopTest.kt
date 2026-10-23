@@ -12,14 +12,18 @@ import io.libp2p.etc.CONNECTION
 import io.libp2p.multistream.MultistreamProtocolDebugV1
 import io.libp2p.protocol.Ping
 import io.libp2p.tools.TestChannel
+import io.libp2p.transport.implementation.ConnectionOverNetty
 import io.netty.buffer.ByteBuf
 import io.netty.buffer.Unpooled
 import io.netty.channel.ChannelHandlerContext
+import io.netty.channel.ChannelInboundHandlerAdapter
 import io.netty.channel.ChannelOutboundHandlerAdapter
 import io.netty.channel.ChannelPromise
 import io.netty.channel.embedded.EmbeddedChannel
 import io.netty.handler.timeout.ReadTimeoutException
 import io.netty.util.ReferenceCountUtil
+import io.netty.util.concurrent.EventExecutor
+import io.netty.util.concurrent.SingleThreadEventExecutor
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.catchThrowable
 import org.junit.jupiter.api.RepeatedTest
@@ -33,6 +37,7 @@ import java.nio.channels.ClosedChannelException
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.Executors
@@ -62,6 +67,13 @@ class NoiseHandshakeOffEventLoopTest {
         } finally {
             stopNoiseHosts(listOf(dialer, relay))
         }
+    }
+
+    @Test
+    fun testInlineNoiseSetupWaitsForQueuedCallbacks() {
+        val processOutput = runNoiseHandshakeHarness("callbacks", 25)
+
+        assertThat(processOutput).contains("Sequential Noise handshakes:")
     }
 
     @Test
@@ -543,9 +555,10 @@ object NoiseHandshakePathHarness {
         when (args.singleOrNull()) {
             "inline" -> verifySingleInlineHandshake()
             "sequential" -> verifySequentialInlineHandshakes()
+            "callbacks" -> verifySequentialInlineHandshakes(queueCallbacks = true)
             "saturated" -> verifySaturatedRemoteWaitsTimeOut()
             else -> error(
-                "Expected exactly one harness mode: 'inline', 'sequential', or 'saturated'; " +
+                "Expected exactly one harness mode: 'inline', 'sequential', 'callbacks', or 'saturated'; " +
                     "received ${args.toList()}"
             )
         }
@@ -575,19 +588,21 @@ object NoiseHandshakePathHarness {
         }
     }
 
-    private fun verifySequentialInlineHandshakes() {
+    private fun verifySequentialInlineHandshakes(queueCallbacks: Boolean = false) {
         val executionRecorder = NoiseHandshakeExecutionRecorder().also { it.install() }
         val hosts = mutableListOf<Host>()
+        val setup = InlineNoiseSetup(queueCallbacks)
         try {
-            val relay = newNoiseHost(listen = true).also { hosts += it }
-            val dialer = newNoiseHost().also { hosts += it }
+            val relay = newNoiseHost(listen = true, inlineSetup = setup).also { hosts += it }
+            val dialer = newNoiseHost(inlineSetup = setup).also { hosts += it }
             startNoiseHosts(hosts)
             val relayAddress = relay.listenAddresses().single()
 
             val startedAt = System.nanoTime()
             repeat(SEQUENTIAL_HANDSHAKES) {
-                val connection = dialer.network.connect(relay.peerId, relayAddress)
-                    .get(5, TimeUnit.SECONDS)
+                val pendingConnection = dialer.network.connect(relay.peerId, relayAddress)
+                setup.releaseCurrentConnection()
+                val connection = pendingConnection.get(5, TimeUnit.SECONDS)
                 connection.close().get(5, TimeUnit.SECONDS)
                 waitForConnectionsToClose(dialer, relay)
             }
@@ -788,7 +803,65 @@ private class NoiseHandshakeExecutionRecorder {
     }
 }
 
-private fun newNoiseHost(listen: Boolean = false): Host = host {
+private class InlineNoiseSetup(private val queueCallbacks: Boolean = false) {
+    private val activeContexts = ArrayBlockingQueue<ChannelHandlerContext>(2)
+
+    fun prepare(connection: ConnectionOverNetty) {
+        connection.nettyChannel.config().isAutoRead = false
+        connection.pushHandler(object : ChannelInboundHandlerAdapter() {
+            override fun channelActive(ctx: ChannelHandlerContext) {
+                check(activeContexts.offer(ctx)) { "More than two inline setup channels became active" }
+            }
+
+            override fun channelRead(ctx: ChannelHandlerContext, msg: Any) {
+                if (queueCallbacks) ctx.executor().execute { ctx.channel().isRegistered }
+                dispatch(ctx) {
+                    if (ctx.channel().isActive) ctx.fireChannelRead(msg) else ReferenceCountUtil.release(msg)
+                }
+            }
+
+            override fun channelReadComplete(ctx: ChannelHandlerContext) {
+                dispatch(ctx) { ctx.fireChannelReadComplete() }
+            }
+        })
+    }
+
+    fun releaseCurrentConnection() {
+        val contexts = List(2) {
+            requireNotNull(activeContexts.poll(5, TimeUnit.SECONDS)) {
+                "Both inline setup channels must become active within 5 seconds"
+            }
+        }
+        // Returning from the accept loop ensures its registration listener is attached.
+        contexts.forEach { ctx ->
+            ctx.channel().parent()?.eventLoop()?.submit {}?.get(5, TimeUnit.SECONDS)
+        }
+        contexts.forEach { ctx ->
+            val released = CompletableFuture<Unit>()
+            ctx.executor().execute {
+                dispatch(ctx) {
+                    ctx.fireChannelActive()
+                    ctx.channel().config().isAutoRead = true
+                    released.complete(Unit)
+                }
+            }
+            released.get(5, TimeUnit.SECONDS)
+        }
+    }
+
+    private fun dispatch(ctx: ChannelHandlerContext, action: () -> Unit) {
+        check(ctx.executor().inEventLoop())
+        action()
+    }
+}
+
+private fun newNoiseHost(listen: Boolean = false, inlineSetup: InlineNoiseSetup? = null): Host = host {
+    if (inlineSetup != null) {
+        secureMultistreamProtocol = MultistreamProtocolDebugV1()
+        debug {
+            beforeSecureHandler.addHandler { inlineSetup.prepare(it as ConnectionOverNetty) }
+        }
+    }
     identity {
         random(KeyType.ED25519)
     }

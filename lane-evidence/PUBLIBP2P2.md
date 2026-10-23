@@ -3,8 +3,8 @@
 ## Plan
 - [done] Locate repositories; read release instructions and consumer coordinates; inspect requested commit and prior releases.
 - [done] Select an unused kotlin.directory version and build the exact requested commit locally.
-- [in progress] Publish with existing group/artifact, download jar and POM, compare SHA-256 and inspect merged bytecode.
-- [pending] Push final evidence on wip/publibp2p-* and report coordinate and consumer edit.
+- [done] Publish with existing group/artifact, download jar and POM, compare SHA-256 and inspect merged bytecode.
+- [done] Push final evidence on wip/publibp2p-* and report coordinate and consumer edit.
 
 ## Scope
 Requested source: bd7edb2570fb609c20245305c25af29d166a67c6 in https://github.com/CodexCoder21Organization/jvm-libp2p . Publishing explicitly authorized. No consumer edits, PRs, merges, deployments, service restarts, or artifact overwrites. Only repository mutation is the evidence branch.
@@ -37,3 +37,58 @@ OBSERVED: Jar staging initially used the Maven artifact name as the Gradle outpu
 OBSERVED: Verification PASSED. All 909 JAR class entries match fresh local compiler output; no Netty dependency classes are bundled. Generated POM coordinate is community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-39 and all 27 dependency declarations match snapshot-38. Source HEAD/tree unchanged, working tree clean. javap confirms YamuxHandler.coalescePendingChildRead, Connection.retryClose(), ConnectionOverNetty.retryClose() delegating to retryNettyChannelClose, and the YamuxCapacityStreamMuxer class.
 OBSERVED: Local JAR: 1849066 bytes, SHA-256 dc613b7d6149c77687073d31b4f6e39b100ff3e5adac809cf845e088fa322ecf. Local POM: 6358 bytes, SHA-256 3741e705fed7a64c161653c846fd9be27fa7bf4104174aa3005538f3b87a14ea.
 OBSERVED: Publisher 0.0.6 --help exited 0 and confirms --artifact-dir, --api-url, and --force (skip confirmation) support. Publishing remains explicitly authorized. Only the main jar and generated POM are staged; Gradle module metadata is excluded as FORK.md instructs.
+
+## 03:55 UTC publication and read-back milestone
+OBSERVED: Final pre-upload check at 03:53:12 UTC returned HTTP 404 for both snapshot-39 files. Publisher 0.0.6 exited 0 and printed:
+
+```
+Successfully published artifact(s):
+  community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-39
+```
+
+OBSERVED: Downloaded JAR and POM both returned HTTP 200, and both match the local staged SHA-256 and byte count exactly. Published JAR SHA-256: dc613b7d6149c77687073d31b4f6e39b100ff3e5adac809cf845e088fa322ecf (1849066 bytes). Published POM SHA-256: 3741e705fed7a64c161653c846fd9be27fa7bf4104174aa3005538f3b87a14ea (6358 bytes).
+OBSERVED: javap -p -c on the downloaded JAR matches local javap output for YamuxHandler, Connection, ConnectionOverNetty, NettyChannelCloseKt, and YamuxCapacityStreamMuxer. In particular, ConnectionOverNetty.retryClose() invokes NettyChannelCloseKt.retryNettyChannelClose, and YamuxHandler has coalescePendingChildRead(ByteBuf,ByteBuf). This verifies the merged retry implementation, not just a version label.
+OBSERVED: Exact source HEAD bd7edb2570fb609c20245305c25af29d166a67c6 and tree 5334baa141378a70c6c3e5b4562b306d2d93b6d3 remain unchanged; source checkout clean. The tracked build, publisher, and download verification have all exited 0. ps -eo pid,args -ww confirms both build JVMs and the memory launcher have ended. No background loop was created.
+
+## Published artifact and consumer edit
+
+Coordinate: `community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-39`
+
+- JAR: https://kotlin.directory/community/kotlin/libp2p/jvm-libp2p/1.3.0-codexcoder21-snapshot-39/jvm-libp2p-1.3.0-codexcoder21-snapshot-39.jar
+- POM: https://kotlin.directory/community/kotlin/libp2p/jvm-libp2p/1.3.0-codexcoder21-snapshot-39/jvm-libp2p-1.3.0-codexcoder21-snapshot-39.pom
+- Evidence branch: https://github.com/CodexCoder21Organization/jvm-libp2p/tree/wip/publibp2p-20261023-bd7edb25/lane-evidence
+
+UrlProtocol build.kts replacement line (snapshot-25 on main; snapshot-38 in https://github.com/CodexCoder21Organization/UrlProtocol/pull/846):
+
+```kotlin
+MavenPrebuilt2("community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-39"),
+```
+
+This release includes issue-61's explicit close retry. Issue 62 remains in its separate lane and is not included in this exact source commit; the brief explicitly asked to publish now and publish another release after that fix lands. No consumer PR or edit was made.
+
+## Final brief completion audit
+
+1. DONE: Inspected fork release history, tags (no fork snapshot release tags), README/FORK.md, Gradle publishing configuration, kotlin.directory listing, and consumer coordinate. Selected next unused snapshot-39 and rechecked both files immediately before upload. No overwrite.
+2. DONE: Built the fresh clone at exactly bd7edb2570fb609c20245305c25af29d166a67c6, with only external release metadata. Published through the documented HTTP CLI. Downloaded both files, matched SHA-256, checked dependencies, matched 909 class entries to the local compiler, and inspected downloaded bytecode for merged behavior.
+3. DONE: Exact coordinate, both SHA-256 values, artifact links, and one-line consumer edit are above. All remote repository writes are confined to wip/publibp2p-20261023-bd7edb25 in jvm-libp2p. No consumer changes, PRs, merges, queue entries, deployments, restarts, buildtest requests, or artifact overwrites. No remaining lane background processes.
+
+## Final status report — 2026-10-23 03:55 UTC
+
+Original request: Publish jvm-libp2p from develop at exactly bd7edb2570fb609c20245305c25af29d166a67c6, using the existing consumer coordinate, and verify the published JAR and POM against the local build; only push an evidence branch.
+
+Status: DONE. Publication and downloaded-file verification succeeded. This is a publishing-only lane: no test suite was run, and no claim of newly passing tests or green CI is made. No PR was created or changed in this lane.
+
+How it works: Gradle compiled the pinned source and generated its resolved Maven POM using an external snapshot-39 version override. The documented publisher uploaded only the ordinary library JAR and POM under the existing community.kotlin.libp2p group. Downloaded hashes and bytecode match the local build and confirm the merged API and implementation are present.
+
+Delegated work at a glance: no delegated work active or recently finished. No subagents were started.
+
+Blockers: none for this lane. The separately assigned issue-62 fix is expressly not a publication blocker in this brief.
+
+Plan changes: memory admission was adjusted to account for clean inactive file cache, without JVM tuning or source changes; all release steps are now verified complete.
+
+Holds audit: no remaining lane work is held.
+Landing parallelization sweep: no PR or landing gates in this publishing-only lane.
+Owner direction captured: no new direction after the brief; exact-source, no-consumer-edits, and evidence-only repository writes remained in force.
+Next steps: none — this lane's publication request is complete.
+
+Transferable lessons: Verify release availability with direct artifact requests as well as repository listings, because source version labels and cached listings can lag actual publications. Preserve exact-source release evidence separately from the build checkout, and verify downloaded hashes plus bytecode so the published version can be tied to the intended implementation.

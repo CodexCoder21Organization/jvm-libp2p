@@ -1,0 +1,29 @@
+allprojects { p ->
+    afterEvaluate {
+        if (p.path == ':libp2p') {
+            tasks.register('noise2Classpath') {
+                dependsOn tasks.named('testClasses')
+                doLast {
+                    file('build/noise2-classpath.txt').text = sourceSets.test.runtimeClasspath.asPath
+                }
+            }
+        }
+    }
+}
+
+gradle.projectsEvaluated {
+    def p = gradle.rootProject.project(':libp2p')
+    def original = p.tasks.named('test').get()
+    p.tasks.register('noise2Trace', Test) {
+        dependsOn p.tasks.named('testClasses')
+        testClassesDirs = original.testClassesDirs
+        classpath = original.classpath
+        useJUnitPlatform { excludeTags 'interop' }
+        filter { includeTestsMatching 'io.libp2p.security.noise.NoiseHandshakeOffEventLoopTest' }
+        maxParallelForks = 1
+        maxHeapSize = '512m'
+        reports.html.required = false
+        reports.junitXml.required = true
+        outputs.upToDateWhen { false }
+    }
+}

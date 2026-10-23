@@ -1,0 +1,29 @@
+Compiled from "Stream.kt"
+public interface io.libp2p.core.Stream extends io.libp2p.core.P2PChannel {
+  public abstract io.libp2p.core.Connection getConnection();
+    descriptor: ()Lio/libp2p/core/Connection;
+
+  public abstract io.libp2p.core.PeerId remotePeerId();
+    descriptor: ()Lio/libp2p/core/PeerId;
+
+  public abstract java.util.concurrent.CompletableFuture<java.lang.String> getProtocol();
+    descriptor: ()Ljava/util/concurrent/CompletableFuture;
+
+  public default <TMessage> void pushHandler(io.libp2p.protocol.ProtocolMessageHandler<TMessage>);
+    descriptor: (Lio/libp2p/protocol/ProtocolMessageHandler;)V
+
+  public abstract void writeAndFlush(java.lang.Object);
+    descriptor: (Ljava/lang/Object;)V
+
+  public default java.util.concurrent.CompletableFuture<kotlin.Unit> writeAndFlushWithFuture(java.lang.Object);
+    descriptor: (Ljava/lang/Object;)Ljava/util/concurrent/CompletableFuture;
+
+  public default java.util.concurrent.CompletableFuture<kotlin.Unit> reset();
+    descriptor: ()Ljava/util/concurrent/CompletableFuture;
+
+  public abstract java.util.concurrent.CompletableFuture<kotlin.Unit> close();
+    descriptor: ()Ljava/util/concurrent/CompletableFuture;
+
+  public abstract java.util.concurrent.CompletableFuture<kotlin.Unit> closeWrite();
+    descriptor: ()Ljava/util/concurrent/CompletableFuture;
+}

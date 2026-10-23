@@ -79,6 +79,41 @@ from that callback. Closing the parent fails pending stream opens and subsequent
 With Yamux and Mplex, cancelling or completing the returned stream future does not prevent a pending
 controller from reporting parent closure.
 
+## Negotiated stream capacity results
+
+Applications can offer `YamuxCapacityStreamMuxer` before the existing Yamux binding. Its protocol ID is
+`/urlprotocol/yamux-capacity/1.0.0`. Both peers must select that ID for capacity results to be available;
+connections selecting `/yamux/1.0.0` or Mplex keep their existing reset behavior.
+
+```kotlin
+import io.libp2p.core.Stream
+import io.libp2p.core.StreamCapacityReset
+import io.libp2p.core.mux.StreamMuxerProtocol
+import io.libp2p.mux.yamux.YamuxCapacityStreamMuxer
+
+val capacityYamux = StreamMuxerProtocol { multistream, protocols ->
+    YamuxCapacityStreamMuxer(
+        multistream.createMultistream(protocols).toStreamHandler(),
+        multistream,
+        maxInboundStreams = 512
+    )
+}
+// In the host's muxers block: +capacityYamux, then +StreamMuxerProtocol.getYamux().
+
+fun closeAtReceiverCapacity(stream: Stream) {
+    val capacity = stream as? StreamCapacityReset
+    if (capacity == null) stream.reset() else capacity.resetForCapacity()
+}
+```
+
+The optional `StreamCapacityReset` operation sends the selected binding's capacity reset, or an
+ordinary reset on a legacy session. Receiver admission code should call it before accepting the
+child protocol. Mux admission also sends this result before creating a child when its configured
+inbound limit is reached. A limit of zero admits no inbound children; negative limits are invalid.
+The opener receives `StreamCapacityException` on pending setup futures for that child. Completed
+futures keep their outcome, and the parent and sibling streams remain usable. The exception carries
+no numeric peer limit. Ordinary resets and unknown reset reasons keep ordinary close semantics.
+
 ## Closing a stream's write side
 
 For Yamux and Mplex, `Stream.closeWrite()` closes only the local write side of a live stream.

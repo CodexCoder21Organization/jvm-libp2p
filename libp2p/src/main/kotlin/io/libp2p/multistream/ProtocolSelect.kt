@@ -5,6 +5,7 @@ import io.libp2p.core.NoSuchLocalProtocolException
 import io.libp2p.core.NoSuchRemoteProtocolException
 import io.libp2p.core.multistream.ProtocolBinding
 import io.libp2p.etc.PROTOCOL
+import io.libp2p.etc.STREAM_SETUP_CAUSE
 import io.libp2p.etc.events.ProtocolNegotiationFailed
 import io.libp2p.etc.events.ProtocolNegotiationSucceeded
 import io.libp2p.etc.getP2PChannel
@@ -94,7 +95,8 @@ class ProtocolSelect<TController>(val protocols: List<ProtocolBinding<TControlle
     }
 
     override fun channelUnregistered(ctx: ChannelHandlerContext) {
-        val exception = ConnectionClosedException("Channel closed ${ctx.channel()}")
+        val exception = ctx.channel().attr(STREAM_SETUP_CAUSE).get()
+            ?: ConnectionClosedException("Channel closed ${ctx.channel()}")
         selectedFuture.completeExceptionally(exception)
         ctx.channel().attr(PROTOCOL).get()?.completeExceptionally(exception)
         ctx.fireChannelUnregistered()

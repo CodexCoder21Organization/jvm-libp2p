@@ -3,6 +3,9 @@ package io.libp2p.etc.util.netty.mux
 import io.libp2p.core.ConnectionClosedException
 import io.libp2p.core.InternalErrorException
 import io.libp2p.core.Libp2pException
+import io.libp2p.etc.STREAM
+import io.libp2p.etc.STREAM_SETUP_CAUSE
+import io.libp2p.etc.STREAM_SETUP_RESULT
 import io.libp2p.etc.types.forwardException
 import io.libp2p.etc.types.hasCauseOfType
 import io.netty.channel.ChannelFuture
@@ -362,13 +365,15 @@ abstract class AbstractMuxHandler<TData>(
 
     abstract fun onChildWrite(child: MuxChannel<TData>, data: TData): ChannelFuture
 
+    protected open fun isInboundCapacityReached(): Boolean = openInboundStreams >= maxInboundStreams
+
     protected fun onRemoteOpen(id: MuxId) {
         val initializer = inboundInitializer
         if (id in streamMap) {
             getChannelHandlerContext().close()
             throw Libp2pException("Remote party attempts to open a stream with existing id: $id")
         }
-        if (openInboundStreams >= maxInboundStreams) {
+        if (isInboundCapacityReached()) {
             // Refuse the inbound substream BEFORE building the heavy MuxChannel + multistream
             // Negotiator + negotiation-timeout scaffolding (see [maxInboundStreams]). Resetting it
             // at the mux layer keeps the inbound-substream heap bounded even when the event loop is
@@ -416,6 +421,25 @@ abstract class AbstractMuxHandler<TData>(
         // the channel could be RESET locally, so ignore remote RESET
         streamMap[id]?.closeImpl()
     }
+
+    protected fun onRemoteClose(id: MuxId, cause: Throwable) {
+        val child = streamMap[id] ?: return
+        if (!child.initiator || !child.isOpen || !getChannelHandlerContext().channel().isOpen) {
+            onRemoteClose(id)
+            return
+        }
+        child.attr(STREAM_SETUP_CAUSE).compareAndSet(null, cause)
+        val terminalCause = child.attr(STREAM_SETUP_CAUSE).get()
+        try {
+            child.attr(STREAM_SETUP_RESULT).get()?.completeExceptionally(terminalCause)
+            child.attr(STREAM).get()?.getProtocol()?.completeExceptionally(terminalCause)
+            child.pipeline().fireExceptionCaught(terminalCause)
+        } finally {
+            child.closeImpl()
+        }
+    }
+
+    internal open fun resetForCapacity(child: MuxChannel<TData>): ChannelFuture = child.close()
 
     fun localDisconnect(child: MuxChannel<TData>) {
         onLocalDisconnect(child)

@@ -53,9 +53,10 @@ class HostImpl(
     }
 
     override fun start(): CompletableFuture<Void> {
-        return CompletableFuture.allOf(
-            *listenAddrs.map { network.listen(it) }.toTypedArray()
-        )
+        return CompletableFuture.allOf(*network.transports.map { it.ready() }.toTypedArray())
+            .thenCompose {
+                CompletableFuture.allOf(*listenAddrs.map { network.listen(it) }.toTypedArray())
+            }
     }
 
     override fun stop(): CompletableFuture<Void> {

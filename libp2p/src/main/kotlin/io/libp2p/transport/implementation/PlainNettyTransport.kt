@@ -25,10 +25,12 @@ import io.netty.channel.nio.NioIoHandler
 import io.netty.channel.socket.nio.NioServerSocketChannel
 import io.netty.channel.socket.nio.NioSocketChannel
 import io.netty.util.concurrent.DefaultThreadFactory
+import io.netty.util.internal.ThreadExecutorMap
 import java.net.InetSocketAddress
 import java.net.SocketAddress
 import java.time.Duration
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CompletionException
 import java.util.concurrent.TimeUnit
 
 /**
@@ -97,17 +99,38 @@ abstract class PlainNettyTransport(
         }
     }
 
-    override fun initialize() {
-        if (closed) return
+    private val preparation by lazy {
         val preparations = upgrader.startupPreparationsSnapshot()
-        if (preparations.isEmpty()) return
-        val executor = workerGroup.firstOrNull { it.inEventLoop() } ?: workerGroup.next()
-        if (executor.inEventLoop()) {
-            preparations.forEach { it() }
+        if (preparations.isEmpty()) {
+            CompletableFuture.completedFuture(Unit)
         } else {
-            executor.submit { preparations.forEach { it() } }.syncUninterruptibly()
+            val result = CompletableFuture<Unit>()
+            Thread({
+                try {
+                    preparations.forEach { it() }
+                    result.complete(Unit)
+                } catch (failure: Throwable) {
+                    result.completeExceptionally(failure)
+                }
+            }, "libp2p-transport-preparation").apply { isDaemon = true }.start()
+            result
         }
     }
+
+    override fun initialize() {
+        if (closed) return
+        val pending = preparation
+        // Netty callbacks must compose readiness rather than park their event loop.
+        if (ThreadExecutorMap.currentExecutor()?.inEventLoop() != true) {
+            try {
+                pending.join()
+            } catch (failure: CompletionException) {
+                throw failure.cause ?: failure
+            }
+        }
+    }
+
+    override fun ready(): CompletableFuture<Unit> = preparation.thenApply { }
 
     override fun close(): CompletableFuture<Unit> {
         // Take a consistent snapshot of the listener and child-channel collections
@@ -196,6 +219,10 @@ abstract class PlainNettyTransport(
         connHandler: ConnectionHandler,
         preHandler: ChannelVisitor<P2PChannel>?
     ): CompletableFuture<Unit> {
+        if (!preparation.isDone || preparation.isCompletedExceptionally) {
+            return ready().thenCompose { listen(addr, connHandler, preHandler) }
+        }
+
         // Hold the transport monitor for the entire `closed`-check ->
         // `listener.bind(addr)` -> `listeners += ...` sequence. Splitting these
         // across the lock boundary (as the prior shape did) opens a race window:
@@ -251,6 +278,10 @@ abstract class PlainNettyTransport(
         connHandler: ConnectionHandler,
         preHandler: ChannelVisitor<P2PChannel>?
     ): CompletableFuture<Connection> {
+        if (!preparation.isDone || preparation.isCompletedExceptionally) {
+            return ready().thenCompose { dial(addr, connHandler, preHandler) }
+        }
+
         if (closed) throw Libp2pException("Transport is closed")
 
         val remotePeerId = addr.getPeerId()

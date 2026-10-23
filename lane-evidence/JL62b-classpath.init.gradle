@@ -1,0 +1,13 @@
+allprojects {
+    afterEvaluate { p ->
+        if (p.path == ':libp2p') {
+            p.tasks.register('jl62bRuntimeClasspath') {
+                dependsOn p.tasks.named('testClasses')
+                dependsOn p.sourceSets.test.runtimeClasspath
+                doLast {
+                    new File(p.property('jl62bClasspathFile').toString()).text = p.sourceSets.test.runtimeClasspath.asPath
+                }
+            }
+        }
+    }
+}

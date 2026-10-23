@@ -801,8 +801,9 @@ private fun verifyConcurrentNoiseIdentities(delayPublication: Boolean = false) {
         val outboundConnections = dialers.map {
             it.network.connect(relay.peerId, relayAddress)
         }
+        val connectedBy = System.nanoTime() + TimeUnit.SECONDS.toNanos(20)
         CompletableFuture.allOf(*outboundConnections.toTypedArray()).get(20, TimeUnit.SECONDS)
-        responderSetup.awaitConnections()
+        responderSetup.awaitConnections(connectedBy)
 
         outboundConnections.forEachIndexed { index, connectionFuture ->
             val session = connectionFuture.join().secureSession()
@@ -848,8 +849,12 @@ private class ResponderNoiseSetup(delayPublication: Boolean) {
         }
     }
 
-    fun awaitConnections() {
-        // The initial fixture check observes only initiator completion.
+    fun awaitConnections(connectedBy: Long) {
+        release()
+        check(registered.await(maxOf(0, connectedBy - System.nanoTime()), TimeUnit.NANOSECONDS)) {
+            "Expected all $CONCURRENT_DIALERS responder connections within the connection budget, " +
+                "but ${registered.count} remain unpublished"
+        }
     }
 
     fun release() {

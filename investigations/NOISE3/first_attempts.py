@@ -13,6 +13,6 @@ def run(n):
     (out / f"{n:03}.json").write_text(json.dumps(record)+"\n")
     print(json.dumps(record), flush=True)
     return record
-with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:
+with concurrent.futures.ThreadPoolExecutor(max_workers=int(sys.argv[4]) if len(sys.argv) > 4 else 3) as pool:
     records = list(pool.map(run, range(1, count+1)))
 sys.exit(0 if all(r["exit"] == 0 for r in records) else 1)

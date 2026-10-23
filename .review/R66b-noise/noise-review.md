@@ -24,3 +24,5 @@ Observed: baseline selections 1–20 each have one XML case for the requested te
 Observed: first-attempt counts were parsed from each XML case, including retry and rerun tags. The aggregate is saved in `base/summary.txt`.
 
 Inference: these counts describe the selected test on the merge base only.
+
+Control selection at the base revision: one selected XML case, pass on its first recorded attempt, no skipped case, and no retry or rerun tags. The temporary test source was removed from the project tree after the run; its archived copy, command, status, and XML remain under `.review/R66b-noise/timer-order-control/`.

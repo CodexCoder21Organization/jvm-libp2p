@@ -1,0 +1,55 @@
+usage: build-watchman --repo <owner/name> --pr <number> [options] | build-watchman --run
+                      <buildtest-run-id> [options]
+     --all-checks                      Wait on EVERY check on the PR head (the pre-0.0.19 behavior)
+                                       instead of only the checks required on the base branch. By
+                                       default the verdict is decided by the required checks
+                                       (repository rulesets plus classic branch protection); other
+                                       checks are reported as INFO but never block the exit. If the
+                                       required checks cannot be determined, the watcher falls back
+                                       to all checks and says so.
+     --buildtest-api <arg>             buildtest API base URL (default
+                                       https://buildtest.kotlin.build)
+     --check <name>                    Also wait on the named check (repeatable), even though it is
+                                       not required; its failure fails the verdict like a required
+                                       check's. Not combinable with --all-checks.
+     --dispatch-grace-seconds <arg>    Seconds a check suite may sit queued with zero runs before it
+                                       is a lost dispatch (default 60)
+     --duration-concern-minutes <arg>  Runtime after which elapsed time is compared against the
+                                       repo's own successful-run history (default 20; the baseline
+                                       itself is never hard-coded)
+     --github-api <arg>                GitHub API base URL (default https://api.github.com)
+     --help                            Show this help
+     --idle-timeout-minutes <arg>      Exit with IDLE_TIMEOUT (exit 5) when nothing observable
+                                       changes for this many minutes: head SHA, a check run
+                                       starting/completing/changing/appearing, a buildtest run's
+                                       completed-test count or status, or the merge-queue entry
+                                       state/position. Time passing is not a change. Default 120; 0
+                                       disables it
+     --interval-seconds <arg>          Poll interval in seconds (default 240)
+     --once                            Run a single assessment poll and exit instead of watching to
+                                       completion
+     --pr <arg>                        Pull request number (required)
+     --repo <arg>                      Repository in owner/name form (required)
+     --run <arg>                       Watch one raw buildtest run by id instead of a PR (mutually
+                                       exclusive with --repo/--pr; needs no GitHub token)
+     --stall-minutes <arg>             Minutes of zero forward progress before declaring a stall
+                                       (default 20)
+     --to-merged                       Follow the PR all the way to MERGED (PR mode only): once head
+                                       checks are green, enqueue via the GraphQL enqueuePullRequest
+                                       mutation and keep watching the GraphQL mergeQueueEntry state
+                                       plus gh-readonly-queue ref (with the same
+                                       dispatch-loss/progress discipline) until the PR is MERGED —
+                                       auto re-requesting a lost queue-ref dispatch and auto
+                                       re-enqueuing once on eviction. Exits 0 on MERGED, non-zero on
+                                       a terminal queue failure. Default (flag absent) exits at
+                                       checks-green for the caller to enqueue.
+     --token <arg>                     GitHub token (default: GH_TOKEN or GITHUB_TOKEN env, else `gh
+                                       auth token`)
+     --until-merged                    Watch-only: follow the PR to MERGED (or CLOSED / EVICTED /
+                                       RED) without any mutation — never enqueues, re-enqueues,
+                                       re-requests, warms webhooks, merges, or comments. Works
+                                       whoever enqueued the PR. Mutually exclusive with --to-merged
+                                       (PR mode only)
+The last line printed on every exit is: [watchman] RESULT: <KIND> exit=<code> target=<owner/name#pr | run:<id> | none>
+Exit codes: 0 GREEN (gating checks green / raw run COMPLETED), 0 MERGED, 0 PENDING (--once, nothing terminal yet), 0 HELP, 1 RED (a gating check failed, a raw run FAILED/CANCELED, or --to-merged enqueue permanently rejected), 2 ERROR (usage error), 3 CLOSED (PR closed without merging), 4 EVICTED (PR left the merge queue without merging), 5 IDLE_TIMEOUT (nothing changed for --idle-timeout-minutes), 6 ERROR (unexpected internal failure), 130 INTERRUPTED (SIGTERM/SIGINT).
+[watchman] RESULT: HELP exit=0 target=none

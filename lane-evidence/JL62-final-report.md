@@ -1,13 +1,13 @@
-Verification blocked — 2026-10-23 04:44 UTC. The [draft PR](https://github.com/CodexCoder21Organization/jvm-libp2p/pull/70) is open and unmerged.
+2026-10-23 05:12 UTC — BLOCKED on full-suite verification for the paused-child read fix.
 
-An explicit read now delivers queued data while automatic reads stay paused. Pending requests coalesce. Callback reads re-arm Mplex after its held queue empties.
+The [draft PR](https://github.com/CodexCoder21Organization/jvm-libp2p/pull/70) is open and unmerged. An explicit read now delivers queued data while automatic reads stay paused. Pending requests coalesce. Callback reads re-arm the paused parent after its queue empties.
 
-- All **81 focused cases passed first attempt in three runs**; static checks, assembly and independent review pass.
-- **Full suite never started:** 90-minute and 10-minute lock waits expired. Baseline comparison remains incomplete.
-- **CI has zero dispatched runs**, so there is no code verdict. No rerequest or other prohibited action was performed.
+- **81/81 focused cases passed first attempt in three runs.** Static checks, assembly and independent review passed.
+- **The specified Kotlin check is green**, and build-watchman exited GREEN/0. Its summary says no build.kts was found, so it ran no Gradle build or tests.
+- **The full suite never started:** three bounded lock waits expired. Comparison with the known 20 develop failures remains incomplete.
 
-All independent steps are complete; no delegates or background test/watch jobs remain. The remaining work is full-suite verification and an actual CI verdict. No merge, publication or deployment occurred; owner constraints are unchanged.
+No delegates or background test/watch jobs remain. Holds audit: the full-suite gate still needs the shared lock. Landing sweep: no remaining gate can run within the lane's execution and cleanup window. Owner direction: none new; no merge, publication, deployment, restart or CI rerequest occurred.
 
-[Handoff](https://www.handoff.wasmserver.com/handoffs/hf-2026-10-23-finish-full-suite-and-ci-verification-for-paused-child-manual-reads) · [Evidence](https://github.com/CodexCoder21Organization/jvm-libp2p/tree/wip/JL62-evidence-20261023/lane-evidence)
+Next: run the full suite once under the lock and compare exact failure names. All source and evidence are pushed; the [handoff](https://www.handoff.wasmserver.com/handoffs/hf-2026-10-23-finish-full-suite-and-ci-verification-for-paused-child-manual-reads) preserves that unfinished item.
 
-Lessons: force queued data, distinguish automatic reads, test re-entry after the queue empties.
+Lessons: force queued data, distinguish automatic reads, and read CI summaries before counting test execution.

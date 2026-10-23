@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.libp2p.security.noise.NoiseHandshakeOffEventLoopTest" tests="9" skipped="0" failures="1" errors="0" timestamp="2026-10-23T01:38:07.832Z" hostname="0418f9b78349" time="29.925">
+  <properties/>
+  <testcase name="initiator times out silent responder while waiting for message 2()" classname="io.libp2p.security.noise.NoiseHandshakeOffEventLoopTest" time="5.019"/>
+  <testcase name="responder times out silent initiator while waiting for message 3()" classname="io.libp2p.security.noise.NoiseHandshakeOffEventLoopTest" time="5.018"/>
+  <testcase name="remote read timeout fails saturated handshakes while responder crypto is queued()" classname="io.libp2p.security.noise.NoiseHandshakeOffEventLoopTest" time="8.602">
+    <failure message="java.lang.AssertionError: Noise handshake saturated child JVM failed:&#10;Exception in thread &quot;main&quot; java.lang.IllegalStateException: Expected every one of the 120 queued responder message-1 crypto tasks to leave exactly one initiator waiting until timeout, but 118 dials failed&#10;&#9;at io.libp2p.security.noise.NoiseHandshakePathHarness.verifySaturatedRemoteWaitsTimeOut(NoiseHandshakeOffEventLoopTest.kt:565)&#10;&#9;at io.libp2p.security.noise.NoiseHandshakePathHarness.main(NoiseHandshakeOffEventLoopTest.kt:425)&#10;" type="java.lang.AssertionError">java.lang.AssertionError: Noise handshake saturated child JVM failed:
+Exception in thread &quot;main&quot; java.lang.IllegalStateException: Expected every one of the 120 queued responder message-1 crypto tasks to leave exactly one initiator waiting until timeout, but 118 dials failed
+	at io.libp2p.security.noise.NoiseHandshakePathHarness.verifySaturatedRemoteWaitsTimeOut(NoiseHandshakeOffEventLoopTest.kt:565)
+	at io.libp2p.security.noise.NoiseHandshakePathHarness.main(NoiseHandshakeOffEventLoopTest.kt:425)
+
+	at io.libp2p.security.noise.NoiseHandshakeOffEventLoopTestKt.runNoiseHandshakeHarness(NoiseHandshakeOffEventLoopTest.kt:727)
+	at io.libp2p.security.noise.NoiseHandshakeOffEventLoopTestKt.access$runNoiseHandshakeHarness(NoiseHandshakeOffEventLoopTest.kt:1)
+	at io.libp2p.security.noise.NoiseHandshakeOffEventLoopTest.remote read timeout fails saturated handshakes while responder crypto is queued(NoiseHandshakeOffEventLoopTest.kt:83)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+</failure>
+  </testcase>
+  <testcase name="concurrent handshakes preserve both peer identities and immediate mux negotiation()" classname="io.libp2p.security.noise.NoiseHandshakeOffEventLoopTest" time="0.099"/>
+  <testcase name="responder times out silent initiator after Noise selection()" classname="io.libp2p.security.noise.NoiseHandshakeOffEventLoopTest" time="5.013"/>
+  <testcase name="single Noise handshake runs crypto inline on event loops()" classname="io.libp2p.security.noise.NoiseHandshakeOffEventLoopTest" time="1.944"/>
+  <testcase name="twenty sequential Noise handshakes stay inline and within the latency budget()" classname="io.libp2p.security.noise.NoiseHandshakeOffEventLoopTest" time="1.848"/>
+  <testcase name="corrupted handshake frame fails promptly and closes the channel()" classname="io.libp2p.security.noise.NoiseHandshakeOffEventLoopTest" time="0.038"/>
+  <testcase name="established connection stays responsive during concurrent Noise handshakes()" classname="io.libp2p.security.noise.NoiseHandshakeOffEventLoopTest" time="2.341"/>
+  <system-out><![CDATA[Silent Noise responder message 2 timed out after 5000ms
+Silent Noise initiator message 3 timed out after 4995ms
+Exception in thread "main" java.lang.IllegalStateException: Expected every one of the 120 queued responder message-1 crypto tasks to leave exactly one initiator waiting until timeout, but 118 dials failed
+	at io.libp2p.security.noise.NoiseHandshakePathHarness.verifySaturatedRemoteWaitsTimeOut(NoiseHandshakeOffEventLoopTest.kt:565)
+	at io.libp2p.security.noise.NoiseHandshakePathHarness.main(NoiseHandshakeOffEventLoopTest.kt:425)
+Silent Noise initiator timed out after 5006ms
+Noise handshake inline path: execution=NoiseHandshakeExecutionSnapshot(inlineHandshakes=2, offloadedHandshakes=0, inlineCryptoTasks=4, inlineCryptoTasksOffEventLoop=0, offloadedCryptoTasks=0, offloadedCryptoTasksOnEventLoop=0)
+Sequential Noise handshakes: count=20 elapsedMs=361 execution=NoiseHandshakeExecutionSnapshot(inlineHandshakes=40, offloadedHandshakes=0, inlineCryptoTasks=80, inlineCryptoTasksOffEventLoop=0, offloadedCryptoTasks=0, offloadedCryptoTasksOnEventLoop=0)
+Noise handshake storm: peers=160 pingLatenciesMs=[0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 2, 2, 8, 15, 46, 86] p95Ms=46 elapsedMs=1495 execution=NoiseHandshakeExecutionSnapshot(inlineHandshakes=0, offloadedHandshakes=322, inlineCryptoTasks=0, inlineCryptoTasksOffEventLoop=0, offloadedCryptoTasks=644, offloadedCryptoTasksOnEventLoop=0)
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

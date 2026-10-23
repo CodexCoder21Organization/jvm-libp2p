@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.libp2p.transport.PlainNettyTransportConcurrentListenCloseTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-10-23T01:38:53.561Z" hostname="0418f9b78349" time="5.944">
+  <properties/>
+  <testcase name="parallel listen and close from separate threads must not leak the listener channel()" classname="io.libp2p.transport.PlainNettyTransportConcurrentListenCloseTest" time="5.558"/>
+  <testcase name="concurrent listen and close on the same port must not leak the listener channel()" classname="io.libp2p.transport.PlainNettyTransportConcurrentListenCloseTest" time="0.385"/>
+  <system-out><![CDATA[01:38:53.611 [listen-18] [?[1;31mERROR?[m] io.netty.util.concurrent.DefaultPromise.rejectedExecution - Failed to submit a listener notification task. Event loop shut down?
+java.util.concurrent.RejectedExecutionException: event executor terminated
+	at io.netty.util.concurrent.SingleThreadEventExecutor.reject(SingleThreadEventExecutor.java:1125)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.offerTask(SingleThreadEventExecutor.java:413)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.addTask(SingleThreadEventExecutor.java:406)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.execute(SingleThreadEventExecutor.java:1027)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.execute0(SingleThreadEventExecutor.java:993)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.execute(SingleThreadEventExecutor.java:983)
+	at io.netty.util.concurrent.DefaultPromise.safeExecute(DefaultPromise.java:879)
+	at io.netty.util.concurrent.DefaultPromise.notifyListeners(DefaultPromise.java:514)
+	at io.netty.util.concurrent.DefaultPromise.addListener(DefaultPromise.java:199)
+	at io.netty.channel.DefaultChannelPromise.addListener(DefaultChannelPromise.java:95)
+	at io.netty.channel.DefaultChannelPromise.addListener(DefaultChannelPromise.java:30)
+	at io.libp2p.etc.types.NettyExtKt.toCompletableFuture(NettyExt.kt:14)
+	at io.libp2p.etc.types.NettyExtKt.toVoidCompletableFuture(NettyExt.kt:10)
+	at io.libp2p.transport.implementation.PlainNettyTransport.listen(PlainNettyTransport.kt:227)
+	at io.libp2p.transport.PlainNettyTransportConcurrentListenCloseTest$parallel listen and close from separate threads must not leak the listener channel$listenThread$1.invoke(PlainNettyTransportConcurrentListenCloseTest.kt:155)
+	at io.libp2p.transport.PlainNettyTransportConcurrentListenCloseTest$parallel listen and close from separate threads must not leak the listener channel$listenThread$1.invoke(PlainNettyTransportConcurrentListenCloseTest.kt:151)
+	at kotlin.concurrent.ThreadsKt$thread$thread$1.run(Thread.kt:30)
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -105,7 +105,8 @@ class PausedChildManualReadTcpTest {
                     .get(5, TimeUnit.SECONDS)
                 // Mplex pauses the parent too. Admit the next physical read without resuming it.
                 if (value == 2) parent.read()
-                assertEquals(1, forwarded.poll(5, TimeUnit.SECONDS), "The payload must reach the paused child queue")
+                val forwardedBytes = forwarded.poll(5, TimeUnit.SECONDS)
+                assertTrue(forwardedBytes == 1, "Expected one payload byte forwarded to the paused child, actual=$forwardedBytes")
                 parent.eventLoop().submit(
                     Callable {
                         assertEquals(

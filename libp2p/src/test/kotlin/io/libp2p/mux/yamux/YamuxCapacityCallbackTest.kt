@@ -95,7 +95,17 @@ private class CallbackPair(
             val legacy: io.libp2p.core.mux.StreamMuxer = if (legacyMplex) io.libp2p.mux.mplex.MplexStreamMuxer(handler, multistream) else YamuxStreamMuxer(handler, multistream, DEFAULT_MAX_BUFFERED_CONNECTION_WRITES, DEFAULT_ACK_BACKLOG_LIMIT)
             val capacity = YamuxCapacityStreamMuxer(handler, multistream, maxInboundStreams = muxLimit)
             if (channel === client) {
-                (legacy as io.libp2p.core.mux.StreamMuxerDebug).muxFramesDebugHandler = ChannelVisitor { selected.complete(if (legacyMplex) "/mplex/6.7.0" else if (legacyMplex) "/mplex/6.7.0" else "/yamux/1.0.0") }
+                (legacy as io.libp2p.core.mux.StreamMuxerDebug).muxFramesDebugHandler = ChannelVisitor {
+                    selected.complete(
+                        if (legacyMplex) {
+                            "/mplex/6.7.0"
+                        } else if (legacyMplex) {
+                            "/mplex/6.7.0"
+                        } else {
+                            "/yamux/1.0.0"
+                        }
+                    )
+                }
                 capacity.muxFramesDebugHandler = ChannelVisitor { selected.complete("/urlprotocol/yamux-capacity/1.0.0") }
             }
             val bindings: List<ProtocolBinding<StreamMuxer.Session>> = if (modern) {
@@ -113,7 +123,15 @@ private class CallbackPair(
         clientSession = clientReady.get(5, TimeUnit.SECONDS)
         serverReady.get(5, TimeUnit.SECONDS)
 
-        assertThat(selected.get(5, TimeUnit.SECONDS)).isEqualTo(if (clientNew && serverNew) "/urlprotocol/yamux-capacity/1.0.0" else if (legacyMplex) "/mplex/6.7.0" else "/yamux/1.0.0")
+        assertThat(selected.get(5, TimeUnit.SECONDS)).isEqualTo(
+            if (clientNew && serverNew) {
+                "/urlprotocol/yamux-capacity/1.0.0"
+            } else if (legacyMplex) {
+                "/mplex/6.7.0"
+            } else {
+                "/yamux/1.0.0"
+            }
+        )
     }
     fun open(): StreamPromise<Stream> = clientSession.createStream(listOf(protocol)).also { client.runPendingTasks() }
     fun exchange() {
@@ -141,10 +159,12 @@ class YamuxCapacityCallbackTest {
         for (useAsync in listOf(false, true)) {
             CallbackPair().use { pair ->
                 val pending = CompletableFuture<Stream>()
-                val opening = (pair.clientSession as MuxHandler).createStream(StreamHandler<Stream> { stream ->
-                    stream.getProtocol().whenComplete { _, _ -> pending.complete(stream) }
-                    pending
-                })
+                val opening = (pair.clientSession as MuxHandler).createStream(
+                    StreamHandler<Stream> { stream ->
+                        stream.getProtocol().whenComplete { _, _ -> pending.complete(stream) }
+                        pending
+                    }
+                )
                 pair.client.runPendingTasks()
                 val stream = opening.stream.get(5, TimeUnit.SECONDS) as StreamOverNetty
                 assertThat(opening.controller.isDone).isFalse()
@@ -174,10 +194,12 @@ class YamuxCapacityCallbackTest {
         for (useAsync in listOf(false, true)) {
             CallbackPair().use { pair ->
                 val pending = CompletableFuture<Stream>()
-                val opening = (pair.clientSession as MuxHandler).createStream(StreamHandler<Stream> { stream ->
-                    stream.getProtocol().whenComplete { _, _ -> pending.completeExceptionally(IllegalStateException("Protocol callback result")) }
-                    pending
-                })
+                val opening = (pair.clientSession as MuxHandler).createStream(
+                    StreamHandler<Stream> { stream ->
+                        stream.getProtocol().whenComplete { _, _ -> pending.completeExceptionally(IllegalStateException("Protocol callback result")) }
+                        pending
+                    }
+                )
                 pair.client.runPendingTasks()
                 val stream = opening.stream.get(5, TimeUnit.SECONDS) as StreamOverNetty
                 assertThat(opening.controller.isDone).isFalse()

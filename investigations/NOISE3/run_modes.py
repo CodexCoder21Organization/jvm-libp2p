@@ -15,4 +15,4 @@ def run(item):
     print(json.dumps(record),flush=True)
     return record
 with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:
-    list(pool.map(run,[(sys.argv[1],i) for i in range(1,int(sys.argv[2])+1)]))
+    list(pool.map(run,[(sys.argv[1],i) for i in range(int(sys.argv[3]) if len(sys.argv)>3 else 1,(int(sys.argv[3]) if len(sys.argv)>3 else 1)+int(sys.argv[2]))]))

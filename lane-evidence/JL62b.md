@@ -1,9 +1,21 @@
 # JL62b full-suite comparison
 
 Plan:
-- [in progress] Fresh clone, read repository and linked guidance, verify open draft/head, rebase on develop.
-- [pending] Run first actual full root Gradle suite once under shared lock; allow at least three execution hours, record memory and fresh results.
+- [done] Fresh clone, read repository and linked guidance, verify open draft/head, rebase on develop.
+- [in progress] Run first actual full root Gradle suite once under shared lock; allow at least three execution hours, record memory and fresh results.
 - [pending] Compare every failing test alone on develop and PR; diagnose/fix any new failures with fail-first evidence.
 - [pending] Update draft PR counts/classification via REST PATCH/readback; preserve evidence and stop owned processes.
 
 2026-10-23 05:19 UTC OBSERVED: PR https://github.com/CodexCoder21Organization/jvm-libp2p/pull/70 is OPEN/draft at 091b6d17280045ec2a1260ec890d1a06991bb6ac, base develop. Previous notes/handoff read: full command ./gradlew --no-daemon cleanTest test --continue; previous acquisitions ran zero full-suite tests. Current lane overrides obsolete 45m execution cap and Kotlin-only gate: never kill executing suite; local full suite is authoritative, Actions jobs are required. Shared cgroup memory 9,496,256,512 / 10,737,418,240 bytes. Seven-hour lane starts approximately 05:17 UTC; no code changes or delegates. github-repos search and status-report skills applied; no scheduler tool exposed, cadence maintained in tracked observations.
+
+2026-10-23 05:22 UTC OBSERVED: fresh checkout at workspace/JL62b/repo; README, CLAUDE.md and FORK.md read (no AGENTS.md). Rebased successfully on unchanged develop bd7edb2570fb609c20245305c25af29d166a67c6, head remains 091b6d17. Suite queued 05:20:17 under flock, PID82253; three lanes ahead (holder65230, waiters44904/65525). Exact command after acquisition: timeout 4h ./gradlew --no-daemon cleanTest test --continue; no deadline on lock wait, four hours execution from acquisition. No test timeout or JVM options changed. Memory sampled every120seconds from queue onward. First evidence commit8dd25d04 pushed/verified on wip/JL62b-evidence-20261023. Required TESTING.md and PHILOSOPHY.md fully read from authenticated GitHub API after browser could not fetch them. Handoff guide also read; its legacy merge exception is superseded by service-only skill and explicit lane prohibition. Documentation says remote gate mandatory, but current lane explicitly overrides it as informational. Actions suites108121244990/108143125085 completed startup_failure, zero check runs; workflow build uses gradle ubuntu/windows jobs. Existing runs https://github.com/CodexCoder21Organization/jvm-libp2p/actions/runs/39891399114 and https://github.com/CodexCoder21Organization/jvm-libp2p/actions/runs/39899535098 both startup_failure. No CI mutating operation performed.
+
+2026-10-23T05:23:24.602450+00:00 OBSERVED: full suite waiting for shared lock; memory.current=10608943104; locks: 82253 flock   WRITE* /tmp/claude-501/complete-suite.lock; 65525 flock   WRITE* /tmp/claude-501/complete-suite.lock; 44904 flock   WRITE* /tmp/claude-501/complete-suite.lock; 65230 flock   WRITE  /tmp/claude-501/complete-suite.lock
+
+2026-10-23T05:28:54.857805+00:00 OBSERVED: full suite waiting for shared lock; memory.current=10244915200; locks: 82253 flock   WRITE* /tmp/claude-501/complete-suite.lock; 65525 flock   WRITE* /tmp/claude-501/complete-suite.lock; 44904 flock   WRITE* /tmp/claude-501/complete-suite.lock; 65230 flock   WRITE  /tmp/claude-501/complete-suite.lock
+
+2026-10-23T05:34:25.250081+00:00 OBSERVED: full suite waiting for shared lock; memory.current=9710616576; locks: 82253 flock   WRITE* /tmp/claude-501/complete-suite.lock; 65525 flock   WRITE* /tmp/claude-501/complete-suite.lock; 44904 flock   WRITE* /tmp/claude-501/complete-suite.lock; 65230 flock   WRITE  /tmp/claude-501/complete-suite.lock
+
+2026-10-23T05:39:55.511681+00:00 OBSERVED: full suite waiting for shared lock; memory.current=10304851968; locks: 39011 flock   WRITE* /tmp/claude-501/complete-suite.lock; 82253 flock   WRITE* /tmp/claude-501/complete-suite.lock; 65525 flock   WRITE* /tmp/claude-501/complete-suite.lock; 44904 flock   WRITE* /tmp/claude-501/complete-suite.lock; 65230 flock   WRITE  /tmp/claude-501/complete-suite.lock
+
+2026-10-23T05:45:25.834715+00:00 OBSERVED: full suite waiting for shared lock; memory.current=10233270272; locks: 39011 flock   WRITE* /tmp/claude-501/complete-suite.lock; 82253 flock   WRITE* /tmp/claude-501/complete-suite.lock; 65525 flock   WRITE* /tmp/claude-501/complete-suite.lock; 44904 flock   WRITE* /tmp/claude-501/complete-suite.lock; 65230 flock   WRITE  /tmp/claude-501/complete-suite.lock

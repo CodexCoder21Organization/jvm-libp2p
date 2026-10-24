@@ -77,8 +77,10 @@ public final class ReviewCompletedShutdownProbe {
   }
 
   public static void main(String[] args) throws Exception {
-    String mode = args[0];
-    boolean terminating = true;
+    String scenario = args[0];
+    boolean closing = scenario.startsWith("close-");
+    String mode = closing ? scenario.substring(6) : scenario;
+    boolean terminating = !closing;
     java.io.IOException parentFailure =
         new java.io.IOException("The separate-executor parent write failed");
     CountDownLatch rejectedShutdown = new CountDownLatch(1);
@@ -148,12 +150,14 @@ public final class ReviewCompletedShutdownProbe {
         unflushedWrite = child.write(unflushedPayload);
       }
       EventLoop loop = child.eventLoop();
+      MuxChannel<ByteBuf> ownerChild = child;
       loop.submit(() -> {}).get(5, TimeUnit.SECONDS);
       loop.execute(
           () -> {
             entered.countDown();
             try {
               if (!release.await(10, TimeUnit.SECONDS)) throw new AssertionError("Release missing");
+              if (closing) ownerChild.close();
             } catch (InterruptedException e) {
               throw new RuntimeException(e);
             }
@@ -192,9 +196,11 @@ public final class ReviewCompletedShutdownProbe {
       if (pending.decrementAndGet() == 0) drained.countDown();
       if (!promise.isDone()) throw new AssertionError("Parent must complete before shutdown starts");
       if (result.isDone()) throw new AssertionError("Child delivery must remain pending while its loop is held");
-      group.shutdownGracefully(0, 5, TimeUnit.SECONDS);
-      if (!rejectedShutdown.await(5, TimeUnit.SECONDS))
-        throw new AssertionError("Retained child delivery must be rejected during shutdown");
+      if (terminating) {
+        group.shutdownGracefully(0, 5, TimeUnit.SECONDS);
+        if (!rejectedShutdown.await(5, TimeUnit.SECONDS))
+          throw new AssertionError("Retained child delivery must be rejected during shutdown");
+      }
       release.countDown();
       if (!drained.await(5, TimeUnit.SECONDS)) throw new AssertionError("Queue did not drain");
       if (terminating) {

@@ -9,18 +9,27 @@ internal fun noiseProbePhase(phase: String) {
     System.out.flush()
 }
 
-internal fun awaitNoiseProbe(process: Process, output: Path): Boolean {
+internal fun awaitNoiseProbe(
+    process: Process,
+    output: Path,
+    nanoTime: () -> Long = System::nanoTime,
+    onOutput: (String) -> Unit = {}
+): Boolean {
     // Phase observations share the former 30s aggregate process guard. Progress
     // never starts another aggregate allowance; the smaller cleanup/exit caps
     // still apply within the time remaining from helper entry.
-    val started = System.nanoTime()
+    // Deadline fixtures drive a manual clock after taking each output snapshot.
+    // Retain the real aggregate guard as well, so even a stopped manual clock
+    // cannot leave a live child waiting indefinitely.
+    val wallDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30)
+    val started = nanoTime()
     val aggregateDeadline = started + TimeUnit.SECONDS.toNanos(30)
     var previous = started
     val durations = mutableListOf<String>()
     fun remaining(phase: String, text: String): Long {
-        val now = System.nanoTime()
+        val now = nanoTime()
         val nanos = aggregateDeadline - now
-        check(nanos > 0) {
+        check(nanos > 0 && System.nanoTime() < wallDeadline) {
             val pending = "$phase pending=${TimeUnit.NANOSECONDS.toMillis(now - previous)}ms"
             "Noise probe exceeded the 30s aggregate deadline while awaiting $phase; " +
                 "phase durations: ${(durations + pending).joinToString()}:\n$text"
@@ -32,19 +41,22 @@ internal fun awaitNoiseProbe(process: Process, output: Path): Boolean {
         while (true) {
             val alive = process.isAlive
             val text = Files.readString(output)
+            onOutput(phase)
             remaining(phase, text)
             if (text.lineSequence().any { it == "NOISE_PROBE_PHASE=$phase" }) break
             check(alive) { "Noise probe exited before $phase:\n$text" }
-            check(System.nanoTime() < deadline) { "Noise probe did not reach $phase within ${seconds}s:\n$text" }
+            check(nanoTime() < deadline) { "Noise probe did not reach $phase within ${seconds}s:\n$text" }
             Thread.sleep(1)
         }
-        val now = System.nanoTime()
+        val now = nanoTime()
         val millis = TimeUnit.NANOSECONDS.toMillis(now - previous)
         durations += "$phase=${millis}ms"
         println("NOISE_PROBE_$phase=${millis}ms")
         previous = now
     }
-    val exitBudget = minOf(TimeUnit.SECONDS.toNanos(5), remaining("EXIT", Files.readString(output)))
+    val exitText = Files.readString(output)
+    onOutput("EXIT")
+    val exitBudget = minOf(TimeUnit.SECONDS.toNanos(5), remaining("EXIT", exitText))
     val exited = process.waitFor(exitBudget, TimeUnit.NANOSECONDS)
     remaining("EXIT", Files.readString(output))
     return exited

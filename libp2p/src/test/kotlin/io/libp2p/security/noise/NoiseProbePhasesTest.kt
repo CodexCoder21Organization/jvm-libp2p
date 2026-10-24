@@ -1,5 +1,6 @@
 package io.libp2p.security.noise
 
+import io.libp2p.tools.schedulers.TimeControllerImpl
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -16,8 +17,35 @@ class NoiseProbePhasesTest {
     @ValueSource(strings = ["BODY_COMPLETE", "CLEANUP_COMPLETE", "EXIT"])
     fun `phase progress cannot extend the original thirty second deadline`(latePhase: String) {
         withControlledNoiseProbe(latePhase) { process, output ->
+            val clock = TimeControllerImpl()
+            val released = mutableSetOf<String>()
             val failure = assertThrows(IllegalStateException::class.java, {
-                awaitNoiseProbe(process, output)
+                awaitNoiseProbe(
+                    process,
+                    output,
+                    nanoTime = { TimeUnit.MILLISECONDS.toNanos(clock.time) },
+                    onOutput = { phase ->
+                        if (released.add(phase)) {
+                            clock.addTime(
+                                when (phase) {
+                                    "READY" -> 16000L
+                                    "BODY_COMPLETE" -> if (latePhase == phase) 15540L else 12000L
+                                    "CLEANUP_COMPLETE" -> when (latePhase) {
+                                        "BODY_COMPLETE" -> 0L
+                                        phase -> 3540L
+                                        else -> 1000L
+                                    }
+                                    "EXIT" -> if (latePhase == phase) 2540L else 0L
+                                    else -> error("Unexpected Noise probe phase: $phase")
+                                }
+                            )
+                            // Release the real child only after the helper snapshots
+                            // output. The expired phase cannot appear in that snapshot.
+                            process.outputStream.write(1)
+                            process.outputStream.flush()
+                        }
+                    }
+                )
             }, "Noise probe accepted a child taking at least 31540ms within its individual phase bounds")
             val message = requireNotNull(failure.message)
             assertTrue(
@@ -101,18 +129,15 @@ object NoiseProbeDeadlineChild {
         val phases = listOf("READY", "BODY_COMPLETE", "CLEANUP_COMPLETE")
         Files.writeString(Path.of(args[1]), "READY")
         check(System.`in`.read() == 1)
-        // Deliberately exercise the real 30s process guard: every individual phase
-        // fits its existing limit, but the child's total is at least 31,540ms.
-        if (delayed) Thread.sleep(16000)
+        // The parent drives the same 31,540ms schedule with its manual clock.
+        // Each phase is released after the preceding output snapshot, so the
+        // exact expiry phase does not depend on child scheduling.
         for (phase in phases) {
             if (mode == "missing-$phase") return
-            if (phase == "BODY_COMPLETE" && delayed) Thread.sleep(if (mode == phase) 15540 else 12000)
-            if (phase == "CLEANUP_COMPLETE" && delayed && mode != "BODY_COMPLETE") {
-                Thread.sleep(if (mode == phase) 3540 else 1000)
-            }
+            if (delayed) check(System.`in`.read() == 1)
             println("NOISE_PROBE_PHASE=$phase")
             System.out.flush()
         }
-        if (mode == "EXIT") Thread.sleep(2540)
+        if (delayed) check(System.`in`.read() == 1)
     }
 }

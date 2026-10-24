@@ -8,7 +8,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class ReviewCompletedShutdownTest {
-  @ParameterizedTest @ValueSource(strings = {"success", "failure", "cancel"})
+  @ParameterizedTest @ValueSource(strings = {"success", "failure", "cancel", "close-success", "close-failure", "close-cancel"})
   public void completedParentResultSurvivesShutdown(String mode) throws Exception {
     Path output = Files.createTempFile("review-public-write-", ".log");
     Process process = new ProcessBuilder(

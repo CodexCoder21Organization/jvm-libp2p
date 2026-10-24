@@ -215,6 +215,13 @@ fun replyWhileRequestsPaused(stream: StreamOverNetty, reply: ByteArray): Complet
 
 The returned future reports the write result; handle it asynchronously so the stream event loop can keep processing window updates.
 
+## Completed Netty future conversion
+
+Converting an already-completed Netty future to a `CompletableFuture` preserves its value,
+original failure, or cancellation even when its listener executor has a full queue or has
+terminated. Completion during listener registration is observed directly as well. A pending
+Netty operation continues to use its normal listener executor.
+
 ## Connection reuse during close
 
 `Network.connect` reuses an established connection to the requested peer when one is live. Entries

@@ -66,8 +66,8 @@ private fun closeOperation(channel: Channel, retry: Boolean): CompletableFuture<
 private fun requestPhysicalClose(channel: Channel, operation: CompletableFuture<Unit>) {
     try {
         if (channel.closeFuture().isDone) {
-            if (channel.eventLoop().inEventLoop() && (channel.attr(closeNotificationKey).get()?.get() ?: 0) > 0) {
-                // Only actual close-callback reentry must join the current physical-close notification.
+            if ((channel.attr(closeNotificationKey).get()?.get() ?: 0) > 0) {
+                // Callback handoffs to another thread still join the active physical-close notification.
                 channel.closeFuture().addListener { operation.complete(Unit) }
             } else {
                 // The terminal result must not depend on another accepted notification task.

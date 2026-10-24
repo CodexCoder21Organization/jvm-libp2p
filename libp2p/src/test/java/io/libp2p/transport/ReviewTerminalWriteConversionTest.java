@@ -5,11 +5,13 @@ import static org.junit.jupiter.api.Assertions.*;
 import java.io.*;
 import java.nio.file.*;
 import java.util.concurrent.TimeUnit;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 public class ReviewTerminalWriteConversionTest {
-  @Test
-  public void publicWriteSettlesAfterOwnerTermination() throws Exception {
+  @ParameterizedTest
+  @ValueSource(strings = {"pending", "success", "failure", "cancel"})
+  public void publicWriteSettlesAfterOwnerTermination(String parentOutcome) throws Exception {
     Path output = Files.createTempFile("review-public-write-", ".log");
     Process process =
         new ProcessBuilder(
@@ -19,7 +21,8 @@ public class ReviewTerminalWriteConversionTest {
                 "-cp",
                 System.getProperty("java.class.path"),
                 "io.libp2p.transport.ReviewTerminalWriteConversionProbe",
-                "blocked-close")
+                "blocked-close",
+                parentOutcome)
             .redirectErrorStream(true)
             .redirectOutput(output.toFile())
             .start();

@@ -78,6 +78,8 @@ public final class ReviewTerminalWriteConversionProbe {
 
   public static void main(String[] args) throws Exception {
     String mode = args[0];
+    String parentOutcome = args.length > 1 ? args[1] : "pending";
+    boolean completedParent = !parentOutcome.equals("pending");
     boolean terminating = mode.equals("shutdown") || mode.equals("blocked-close");
     java.io.IOException parentFailure =
         new java.io.IOException("The separate-executor parent write failed");
@@ -179,13 +181,15 @@ public final class ReviewTerminalWriteConversionProbe {
       }
       if (accepted == 65536 || loop.isShuttingDown())
         throw new AssertionError("Expected full live loop");
-      if (!mode.equals("close") && !terminating)
+      if ((!mode.equals("close") && !terminating) || completedParent)
         external
             .submit(
                 () -> {
                   if (loop.inEventLoop()) throw new AssertionError("Must be external");
-                  if (mode.equals("failure")) promise.setFailure(parentFailure);
-                  else if (mode.equals("cancel")) promise.cancel(false);
+                  if (mode.equals("failure") || parentOutcome.equals("failure"))
+                    promise.setFailure(parentFailure);
+                  else if (mode.equals("cancel") || parentOutcome.equals("cancel"))
+                    promise.cancel(false);
                   else promise.setSuccess();
                 })
             .get(5, TimeUnit.SECONDS);
@@ -210,7 +214,21 @@ public final class ReviewTerminalWriteConversionProbe {
       if (!result.isDone())
         throw new AssertionError(
             "A separate-executor parent result must settle its child write after queue recovery");
-      if (mode.equals("success")) {
+      if (completedParent) {
+        if (parentOutcome.equals("failure")) {
+          if (result.cause() != parentFailure)
+            throw new AssertionError(
+                "The exact original parent failure must survive refused close", result.cause());
+        } else if (parentOutcome.equals("cancel")) {
+          if (result.cause() != promise.cause()
+              || !(result.cause() instanceof CancellationException))
+            throw new AssertionError(
+                "The original parent cancellation must survive refused close", result.cause());
+        } else if (!result.isSuccess()) {
+          throw new AssertionError(
+              "The original parent success must survive refused close", result.cause());
+        }
+      } else if (mode.equals("success")) {
         if (!result.isSuccess())
           throw new AssertionError(
               "The original successful parent result must reach the child", result.cause());
@@ -262,11 +280,27 @@ public final class ReviewTerminalWriteConversionProbe {
             "Termination must settle the public stream write on its owning loop");
       if (!publicResult.isCompletedExceptionally())
         throw new AssertionError("The public stream write must report termination failure");
+      Throwable expectedFailure = result.cause();
+      if (completedParent) {
+        if (!unflushedWrite.isDone())
+          throw new AssertionError("Loop termination must settle accepted unflushed child writes");
+        expectedFailure = unflushedWrite.cause();
+        String expected =
+            "The child event loop terminated before pending writes could complete: "
+                + child.getId();
+        if (!(expectedFailure instanceof RejectedExecutionException)
+            || !expected.equals(expectedFailure.getMessage()))
+          throw new AssertionError(
+              "Queued writes must report the exact termination rejection", expectedFailure);
+        if (unflushedPayload.refCnt() != 0)
+          throw new AssertionError(
+              "Loop termination must release an accepted unflushed payload exactly once");
+      }
       try {
         publicResult.join();
         throw new AssertionError("Expected termination failure");
       } catch (CompletionException failure) {
-        if (failure.getCause() != result.cause())
+        if (failure.getCause() != expectedFailure)
           throw new AssertionError(
               "The public stream write must retain the identical termination cause", failure);
       }

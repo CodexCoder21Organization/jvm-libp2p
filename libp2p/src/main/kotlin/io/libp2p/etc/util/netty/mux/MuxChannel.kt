@@ -10,8 +10,6 @@ import io.netty.channel.ChannelOutboundHandlerAdapter
 import io.netty.channel.ChannelPromise
 import io.netty.channel.EventLoop
 import io.netty.util.ReferenceCountUtil
-import io.netty.util.concurrent.Future
-import io.netty.util.concurrent.GenericFutureListener
 import io.netty.util.concurrent.GlobalEventExecutor
 import io.netty.util.concurrent.ScheduledFuture
 import io.netty.util.concurrent.SingleThreadEventExecutor
@@ -130,19 +128,22 @@ class MuxChannel<TData>(
                     val completion = ParentWriteCompletion(
                         eventLoop(),
                         completeWrite,
-                        Runnable { closeImpl() },
                         Runnable {
-                            // Once the loop has terminated no owner operation can race disposal.
+                            // Finish accepted writes while their notification executor still runs,
+                            // even when an application handler refuses the normal close request.
+                            closeImpl()
                             if (pendingParentWrite === parentFuture) {
                                 pendingParentWrite = null
                                 waitingForParentWrite = false
+                                localDisconnected = true
+                                parentWriteCompletion?.let(::cancelParentWriteCompletion)
+                                parentWriteCompletion = null
                                 val failure = RejectedExecutionException(
                                     "The child event loop terminated before pending writes could complete: $id"
                                 )
                                 // Include accepted writes which the caller has not flushed.
                                 buf.addFlush()
                                 while (buf.current() != null) buf.remove(failure)
-                                parentWriteCompletion = null
                             }
                         }
                     )
@@ -236,18 +237,11 @@ class MuxChannel<TData>(
 private class ParentWriteCompletion(
     val loop: EventLoop,
     val operation: Runnable,
-    val closeOnShutdown: Runnable,
-    val failAfterTermination: Runnable
+    val closeOnShutdown: Runnable
 ) {
     @Volatile
     var active = true
     var retry: ScheduledFuture<*>? = null
-    val terminationListener = GenericFutureListener<Future<Any?>> {
-        if (active) {
-            failAfterTermination.run()
-            cancelParentWriteCompletion(this)
-        }
-    }
 }
 
 private fun armParentWriteCompletion(completion: ParentWriteCompletion) {
@@ -255,7 +249,6 @@ private fun armParentWriteCompletion(completion: ParentWriteCompletion) {
     // Caller-driven loops have no owned termination future or shutdown lifecycle.
     val executor = completion.loop as? SingleThreadEventExecutor ?: return
     executor.addShutdownHook(completion.closeOnShutdown)
-    executor.terminationFuture().addListener(completion.terminationListener)
 }
 
 private fun cancelParentWriteCompletion(completion: ParentWriteCompletion) {
@@ -268,7 +261,6 @@ private fun cancelParentWriteCompletion(completion: ParentWriteCompletion) {
     if (!executor.isTerminated) {
         executor.removeShutdownHook(completion.closeOnShutdown)
     }
-    executor.terminationFuture().removeListener(completion.terminationListener)
 }
 
 private fun dispatchParentWriteCompletion(completion: ParentWriteCompletion) {
@@ -291,7 +283,7 @@ private fun dispatchParentWriteCompletion(completion: ParentWriteCompletion) {
                 }
             }
         }
-        // Shutdown closes on the owning loop; termination also disposes any remaining writes.
+        // Shutdown settles remaining writes on the owning loop before it stops.
     }
 }
 

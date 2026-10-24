@@ -84,19 +84,23 @@ public final class ReviewCompletedShutdownProbe {
     java.io.IOException parentFailure =
         new java.io.IOException("The separate-executor parent write failed");
     CountDownLatch rejectedShutdown = new CountDownLatch(1);
-    DefaultEventLoopGroup group = new DefaultEventLoopGroup(1) {
-      @Override protected EventLoop newChild(java.util.concurrent.Executor executor, Object... args) {
-        return new DefaultEventLoop(this, executor) {
-          @Override public void execute(Runnable task) {
-            try { super.execute(task); }
-            catch (RejectedExecutionException rejection) {
-              if (isShuttingDown() && !inEventLoop()) rejectedShutdown.countDown();
-              throw rejection;
-            }
+    DefaultEventLoopGroup group =
+        new DefaultEventLoopGroup(1) {
+          @Override
+          protected EventLoop newChild(java.util.concurrent.Executor executor, Object... args) {
+            return new DefaultEventLoop(this, executor) {
+              @Override
+              public void execute(Runnable task) {
+                try {
+                  super.execute(task);
+                } catch (RejectedExecutionException rejection) {
+                  if (isShuttingDown() && !inEventLoop()) rejectedShutdown.countDown();
+                  throw rejection;
+                }
+              }
+            };
           }
         };
-      }
-    };
     DefaultEventExecutor external = new DefaultEventExecutor();
     CountDownLatch entered = new CountDownLatch(1), release = new CountDownLatch(1);
     Channel server = null, parent = null;
@@ -194,8 +198,10 @@ public final class ReviewCompletedShutdownProbe {
             .get(5, TimeUnit.SECONDS);
       external.submit(() -> {}).get(5, TimeUnit.SECONDS);
       if (pending.decrementAndGet() == 0) drained.countDown();
-      if (!promise.isDone()) throw new AssertionError("Parent must complete before shutdown starts");
-      if (result.isDone()) throw new AssertionError("Child delivery must remain pending while its loop is held");
+      if (!promise.isDone())
+        throw new AssertionError("Parent must complete before shutdown starts");
+      if (result.isDone())
+        throw new AssertionError("Child delivery must remain pending while its loop is held");
       if (terminating) {
         group.shutdownGracefully(0, 5, TimeUnit.SECONDS);
         if (!rejectedShutdown.await(5, TimeUnit.SECONDS))

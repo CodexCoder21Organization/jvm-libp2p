@@ -130,8 +130,11 @@ public final class ReviewTerminalWriteConversionProbe {
       ChannelFuture result = child.writeAndFlush(payload);
       ChannelPromise promise = mux.write.get(5, TimeUnit.SECONDS);
       io.libp2p.transport.implementation.ConnectionOverNetty connection =
-          new io.libp2p.transport.implementation.ConnectionOverNetty(parent,
-              (io.libp2p.transport.implementation.NettyTransport) host.getNetwork().getTransports().get(0), true);
+          new io.libp2p.transport.implementation.ConnectionOverNetty(
+              parent,
+              (io.libp2p.transport.implementation.NettyTransport)
+                  host.getNetwork().getTransports().get(0),
+              true);
       io.libp2p.transport.implementation.StreamOverNetty stream =
           new io.libp2p.transport.implementation.StreamOverNetty(child, connection, true);
       ByteBuf publicPayload = Unpooled.buffer(1).writeByte(11);
@@ -245,18 +248,27 @@ public final class ReviewTerminalWriteConversionProbe {
         if (child.isOpen())
           throw new AssertionError("Close or shutdown must leave the child closed");
       }
-      System.out.println("rawDone=" + result.isDone() + " rawFailure=" + result.cause()
-          + " publicPayloadRefCnt=" + publicPayload.refCnt());
+      System.out.println(
+          "rawDone="
+              + result.isDone()
+              + " rawFailure="
+              + result.cause()
+              + " publicPayloadRefCnt="
+              + publicPayload.refCnt());
       if (!publicResult.isDone())
         throw new AssertionError("The public stream write must settle after loop termination");
       if (!completionOnOwner.join())
-        throw new AssertionError("Termination must settle the public stream write on its owning loop");
+        throw new AssertionError(
+            "Termination must settle the public stream write on its owning loop");
       if (!publicResult.isCompletedExceptionally())
         throw new AssertionError("The public stream write must report termination failure");
-      try { publicResult.join(); throw new AssertionError("Expected termination failure"); }
-      catch (CompletionException failure) {
+      try {
+        publicResult.join();
+        throw new AssertionError("Expected termination failure");
+      } catch (CompletionException failure) {
         if (failure.getCause() != result.cause())
-          throw new AssertionError("The public stream write must retain the identical termination cause", failure);
+          throw new AssertionError(
+              "The public stream write must retain the identical termination cause", failure);
       }
       if (publicPayload.refCnt() != 0)
         throw new AssertionError("The public stream payload must be released exactly once");

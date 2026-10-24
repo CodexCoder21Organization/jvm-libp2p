@@ -8,6 +8,7 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
 import java.io.File
 import java.nio.file.Files
+import java.nio.file.Path
 import java.util.concurrent.TimeUnit
 
 class NoiseProbePhasesTest {
@@ -54,24 +55,38 @@ class NoiseProbePhasesTest {
     }
 }
 
-private fun withControlledNoiseProbe(mode: String, verify: (Process, java.nio.file.Path) -> Unit) {
+private fun withControlledNoiseProbe(mode: String, verify: (Process, Path) -> Unit) {
     val output = Files.createTempFile("noise-probe-deadline-", ".log")
     try {
-        val process = ProcessBuilder(
-            File(System.getProperty("java.home"), "bin/java").absolutePath,
-            "-Xmx32m",
-            "-cp",
-            System.getProperty("java.class.path"),
-            "io.libp2p.security.noise.NoiseProbeDeadlineChild",
-            mode
-        ).redirectErrorStream(true).redirectOutput(output.toFile()).start()
+        val startup = Files.createTempFile("noise-probe-startup-", ".log")
         try {
-            process.outputStream.write(1)
-            process.outputStream.flush()
-            verify(process, output)
+            val process = ProcessBuilder(
+                File(System.getProperty("java.home"), "bin/java").absolutePath,
+                "-Xmx32m",
+                "-cp",
+                System.getProperty("java.class.path"),
+                "io.libp2p.security.noise.NoiseProbeDeadlineChild",
+                mode,
+                startup.toString()
+            ).redirectErrorStream(true).redirectOutput(output.toFile()).start()
+            try {
+                // Start the controlled schedule only after the child JVM has loaded
+                // its fixture. Otherwise cold startup can change which phase expires.
+                val startupDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30)
+                while (Files.readString(startup) != "READY") {
+                    check(process.isAlive) { "Controlled Noise probe exited during fixture startup:\n${Files.readString(output)}" }
+                    check(System.nanoTime() < startupDeadline) { "Controlled Noise probe did not start its fixture within 30s" }
+                    Thread.sleep(1)
+                }
+                process.outputStream.write(1)
+                process.outputStream.flush()
+                verify(process, output)
+            } finally {
+                process.descendants().forEach { it.destroyForcibly() }
+                assertTrue(process.destroyForcibly().waitFor(5, TimeUnit.SECONDS), "Controlled Noise probe was not reaped")
+            }
         } finally {
-            process.descendants().forEach { it.destroyForcibly() }
-            assertTrue(process.destroyForcibly().waitFor(5, TimeUnit.SECONDS), "Controlled Noise probe was not reaped")
+            Files.deleteIfExists(startup)
         }
     } finally {
         Files.deleteIfExists(output)
@@ -81,13 +96,15 @@ private fun withControlledNoiseProbe(mode: String, verify: (Process, java.nio.fi
 object NoiseProbeDeadlineChild {
     @JvmStatic
     fun main(args: Array<String>) {
-        check(System.`in`.read() == 1)
-        val mode = args.single()
+        val mode = args[0]
         val delayed = mode in listOf("BODY_COMPLETE", "CLEANUP_COMPLETE", "EXIT")
+        val phases = listOf("READY", "BODY_COMPLETE", "CLEANUP_COMPLETE")
+        Files.writeString(Path.of(args[1]), "READY")
+        check(System.`in`.read() == 1)
         // Deliberately exercise the real 30s process guard: every individual phase
         // fits its existing limit, but the child's total is at least 31,540ms.
         if (delayed) Thread.sleep(16000)
-        for (phase in listOf("READY", "BODY_COMPLETE", "CLEANUP_COMPLETE")) {
+        for (phase in phases) {
             if (mode == "missing-$phase") return
             if (phase == "BODY_COMPLETE" && delayed) Thread.sleep(if (mode == phase) 15540 else 12000)
             if (phase == "CLEANUP_COMPLETE" && delayed && mode != "BODY_COMPLETE") {

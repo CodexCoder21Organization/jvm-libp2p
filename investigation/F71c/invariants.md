@@ -1,0 +1,10 @@
+OBSERVED: Mechanism 1: a completed physical-close future added at listener depth eight defers notification to the full event-loop queue; Netty logs rejection without invoking it. Reproducer: eight nested real promises and a full live queue after real peer closure.
+OBSERVED: Mechanism 2: a public custom muxer can return a pending promise on another executor; its listener rethrows child-loop rejection outside doWrite, leaving waitingForParentWrite and the outbound buffer unchanged. Reproducer: actual local channels, separate promise executor, full child-loop queue.
+OBSERVED: Mechanism 3: off-thread direct close completion can run while the owning loop is still notifying earlier physical-close listeners. Reproducer: early callback hands close to another thread, later callback records order.
+
+| Resource | Creator/owner | Terminal / caller visibility | Re-entry / close in flight / restart | Public regression |
+|---|---|---|---|---|
+| Physical connection and close result | Host/Netty channel; one close state per channel | Success/failure shared through derived futures; caller completion isolated | Registered channel still delivering close callbacks must retain order; fully deregistered terminal observation needs no dispatch; no persistence | Nested completed close; same-loop and off-thread early callback ordering; existing close conversion |
+| Child outbound payload and write promise | Netty child outbound buffer; muxer owns retained parent reference | Exactly one promise result and payload release | Continuation must run on owner loop; close cannot leave stale buffer mutation; no persistence | Separate-executor parent promise, full loop, queue recovery, later write, payload refcount |
+| Event loops / probe JVMs | Test owns every loop/host/process | All stopped in finally; waits bounded | Queue saturation is actual accepted tasks, never synthetic CPU load | Real queue rejection, fresh drain/barrier |
+| Rejection cause | Original Netty write | Preserve type and exact message including null | No replacement cause during conversion | Both muxer rejection cases and changed-message mutation |

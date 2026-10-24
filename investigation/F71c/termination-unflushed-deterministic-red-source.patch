@@ -1,0 +1,13 @@
+diff --git a/libp2p/src/test/java/io/libp2p/transport/OffLoopParentWriteNotificationProbe.java b/libp2p/src/test/java/io/libp2p/transport/OffLoopParentWriteNotificationProbe.java
+index ef1e18a4..fbe97f01 100644
+--- a/libp2p/src/test/java/io/libp2p/transport/OffLoopParentWriteNotificationProbe.java
++++ b/libp2p/src/test/java/io/libp2p/transport/OffLoopParentWriteNotificationProbe.java
+@@ -85,7 +85,7 @@ public final class OffLoopParentWriteNotificationProbe {
+         catch (RejectedExecutionException expected) { pending.decrementAndGet(); break; }
+       }
+       if (accepted==65536 || loop.isShuttingDown()) throw new AssertionError("Expected full live loop");
+-      if (!mode.equals("close")) external.submit(() -> { if (loop.inEventLoop()) throw new AssertionError("Must be external"); if (mode.equals("failure")) promise.setFailure(parentFailure);
++      if (!mode.equals("close") && !mode.equals("blocked-close")) external.submit(() -> { if (loop.inEventLoop()) throw new AssertionError("Must be external"); if (mode.equals("failure")) promise.setFailure(parentFailure);
+         else if (mode.equals("cancel")) promise.cancel(false);
+         else promise.setSuccess(); }).get(5,TimeUnit.SECONDS);
+       external.submit(() -> {}).get(5,TimeUnit.SECONDS);

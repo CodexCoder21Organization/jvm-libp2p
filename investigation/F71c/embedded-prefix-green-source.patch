@@ -1,0 +1,32 @@
+diff --git a/libp2p/src/main/kotlin/io/libp2p/etc/util/netty/mux/MuxChannel.kt b/libp2p/src/main/kotlin/io/libp2p/etc/util/netty/mux/MuxChannel.kt
+index 1c3730ed..ad1c3185 100644
+--- a/libp2p/src/main/kotlin/io/libp2p/etc/util/netty/mux/MuxChannel.kt
++++ b/libp2p/src/main/kotlin/io/libp2p/etc/util/netty/mux/MuxChannel.kt
+@@ -252,8 +252,10 @@ private class ParentWriteCompletion(
+ 
+ private fun armParentWriteCompletion(completion: ParentWriteCompletion) {
+     // These are registered from the owning loop, before a parent callback can arrive.
+-    (completion.loop as? SingleThreadEventExecutor)?.addShutdownHook(completion.closeOnShutdown)
+-    completion.loop.terminationFuture().addListener(completion.terminationListener)
++    // Caller-driven loops have no owned termination future or shutdown lifecycle.
++    val executor = completion.loop as? SingleThreadEventExecutor ?: return
++    executor.addShutdownHook(completion.closeOnShutdown)
++    executor.terminationFuture().addListener(completion.terminationListener)
+ }
+ 
+ private fun cancelParentWriteCompletion(completion: ParentWriteCompletion) {
+@@ -262,10 +264,11 @@ private fun cancelParentWriteCompletion(completion: ParentWriteCompletion) {
+         completion.retry?.cancel(false)
+         completion.retry = null
+     }
+-    if (!completion.loop.isTerminated) {
+-        (completion.loop as? SingleThreadEventExecutor)?.removeShutdownHook(completion.closeOnShutdown)
++    val executor = completion.loop as? SingleThreadEventExecutor ?: return
++    if (!executor.isTerminated) {
++        executor.removeShutdownHook(completion.closeOnShutdown)
+     }
+-    completion.loop.terminationFuture().removeListener(completion.terminationListener)
++    executor.terminationFuture().removeListener(completion.terminationListener)
+ }
+ 
+ private fun dispatchParentWriteCompletion(completion: ParentWriteCompletion) {

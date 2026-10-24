@@ -1,0 +1,73 @@
+diff --git a/libp2p/src/main/kotlin/io/libp2p/transport/implementation/ConnectionOverNetty.kt b/libp2p/src/main/kotlin/io/libp2p/transport/implementation/ConnectionOverNetty.kt
+index 5c8b37c1..a66cfc60 100644
+--- a/libp2p/src/main/kotlin/io/libp2p/transport/implementation/ConnectionOverNetty.kt
++++ b/libp2p/src/main/kotlin/io/libp2p/transport/implementation/ConnectionOverNetty.kt
+@@ -17,6 +17,8 @@ open class ConnectionOverNetty(
+     private val nettyTransport: NettyTransport,
+     initiator: Boolean
+ ) : Connection, P2PChannelOverNetty(ch, initiator) {
++    private val observedCloseFuture by lazy { observeConnectionClose(nettyChannel, super.closeFuture()) }
++
+     private lateinit var muxerSession: StreamMuxer.Session
+     private lateinit var secureSession: SecureChannel.Session
+ 
+@@ -31,6 +33,8 @@ open class ConnectionOverNetty(
+         secureSession = ss
+     }
+ 
++    override fun closeFuture() = observedCloseFuture
++
+     override fun close() = closeNettyChannelOnce(nettyChannel)
+ 
+     override fun retryClose() = retryNettyChannelClose(nettyChannel)
+diff --git a/libp2p/src/main/kotlin/io/libp2p/transport/implementation/NettyChannelClose.kt b/libp2p/src/main/kotlin/io/libp2p/transport/implementation/NettyChannelClose.kt
+index c7063aec..d0a44813 100644
+--- a/libp2p/src/main/kotlin/io/libp2p/transport/implementation/NettyChannelClose.kt
++++ b/libp2p/src/main/kotlin/io/libp2p/transport/implementation/NettyChannelClose.kt
+@@ -4,6 +4,7 @@ import io.libp2p.etc.types.toVoidCompletableFuture
+ import io.netty.channel.Channel
+ import io.netty.util.AttributeKey
+ import java.util.concurrent.CompletableFuture
++import java.util.concurrent.atomic.AtomicInteger
+ import java.util.concurrent.atomic.AtomicReference
+ 
+ private class ChannelCloseState {
+@@ -13,6 +14,27 @@ private class ChannelCloseState {
+ 
+ private val closeOperationKey = AttributeKey.valueOf<ChannelCloseState>("libp2p.channel.closeOperation")
+ 
++private val closeNotificationKey = AttributeKey.valueOf<AtomicInteger>("libp2p.channel.closeNotificationDepth")
++
++/** Track public close callbacks rather than unrelated nested Netty promise notifications. */
++internal fun observeConnectionClose(
++    channel: Channel,
++    source: CompletableFuture<Unit>
++): CompletableFuture<Unit> {
++    val candidate = AtomicInteger()
++    val depth = channel.attr(closeNotificationKey).setIfAbsent(candidate) ?: candidate
++    val result = CompletableFuture<Unit>()
++    source.whenComplete { _, failure ->
++        depth.incrementAndGet()
++        try {
++            if (failure == null) result.complete(Unit) else result.completeExceptionally(failure)
++        } finally {
++            depth.decrementAndGet()
++        }
++    }
++    return result
++}
++
+ /** Ordinary owners always observe the original close, even after an explicit retry. */
+ internal fun closeNettyChannelOnce(channel: Channel): CompletableFuture<Unit> =
+     closeOperation(channel, retry = false).thenApply { Unit }
+@@ -44,8 +66,8 @@ private fun closeOperation(channel: Channel, retry: Boolean): CompletableFuture<
+ private fun requestPhysicalClose(channel: Channel, operation: CompletableFuture<Unit>) {
+     try {
+         if (channel.closeFuture().isDone) {
+-            if (channel.eventLoop().inEventLoop()) {
+-                // A reentrant close observer must follow the other physical-close listeners.
++            if (channel.eventLoop().inEventLoop() && (channel.attr(closeNotificationKey).get()?.get() ?: 0) > 0) {
++                // Only actual close-callback reentry must join the current physical-close notification.
+                 channel.closeFuture().addListener { operation.complete(Unit) }
+             } else {
+                 // The terminal result must not depend on another accepted notification task.

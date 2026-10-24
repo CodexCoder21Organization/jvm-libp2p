@@ -1,0 +1,16 @@
+gradle.projectsEvaluated {
+ def p=gradle.rootProject.project(':libp2p')
+ p.spotless {
+  kotlin { target(p.files(["/tmp/claude-1000/-code/4127b3f9-6050-446f-a28d-b0511dacd396/scratchpad/hq/ws/F71c/jvm-libp2p/libp2p/src/main/kotlin/io/libp2p/etc/types/NettyExt.kt", "/tmp/claude-1000/-code/4127b3f9-6050-446f-a28d-b0511dacd396/scratchpad/hq/ws/F71c/jvm-libp2p/libp2p/src/main/kotlin/io/libp2p/etc/util/netty/mux/MuxChannel.kt", "/tmp/claude-1000/-code/4127b3f9-6050-446f-a28d-b0511dacd396/scratchpad/hq/ws/F71c/jvm-libp2p/libp2p/src/main/kotlin/io/libp2p/transport/implementation/ConnectionOverNetty.kt", "/tmp/claude-1000/-code/4127b3f9-6050-446f-a28d-b0511dacd396/scratchpad/hq/ws/F71c/jvm-libp2p/libp2p/src/main/kotlin/io/libp2p/transport/implementation/NettyChannelClose.kt", "/tmp/claude-1000/-code/4127b3f9-6050-446f-a28d-b0511dacd396/scratchpad/hq/ws/F71c/jvm-libp2p/libp2p/src/main/kotlin/io/libp2p/transport/implementation/StreamOverNetty.kt", "/tmp/claude-1000/-code/4127b3f9-6050-446f-a28d-b0511dacd396/scratchpad/hq/ws/F71c/jvm-libp2p/libp2p/src/test/kotlin/io/libp2p/etc/types/CompletedNettyFutureConversionTest.kt", "/tmp/claude-1000/-code/4127b3f9-6050-446f-a28d-b0511dacd396/scratchpad/hq/ws/F71c/jvm-libp2p/libp2p/src/test/kotlin/io/libp2p/etc/types/NettyFutureConversionStateTest.kt", "/tmp/claude-1000/-code/4127b3f9-6050-446f-a28d-b0511dacd396/scratchpad/hq/ws/F71c/jvm-libp2p/libp2p/src/test/kotlin/io/libp2p/etc/types/PendingNettyFutureConversionTest.kt", "/tmp/claude-1000/-code/4127b3f9-6050-446f-a28d-b0511dacd396/scratchpad/hq/ws/F71c/jvm-libp2p/libp2p/src/test/kotlin/io/libp2p/transport/CompletedConnectionCloseNotificationTest.kt", "/tmp/claude-1000/-code/4127b3f9-6050-446f-a28d-b0511dacd396/scratchpad/hq/ws/F71c/jvm-libp2p/libp2p/src/test/kotlin/io/libp2p/transport/CompletedStreamWriteNotificationTest.kt", "/tmp/claude-1000/-code/4127b3f9-6050-446f-a28d-b0511dacd396/scratchpad/hq/ws/F71c/jvm-libp2p/libp2p/src/test/kotlin/io/libp2p/transport/NestedConnectionCloseNotificationTest.kt", "/tmp/claude-1000/-code/4127b3f9-6050-446f-a28d-b0511dacd396/scratchpad/hq/ws/F71c/jvm-libp2p/libp2p/src/test/kotlin/io/libp2p/transport/OffLoopParentWriteNotificationTest.kt", "/tmp/claude-1000/-code/4127b3f9-6050-446f-a28d-b0511dacd396/scratchpad/hq/ws/F71c/jvm-libp2p/libp2p/src/test/kotlin/io/libp2p/transport/OffThreadConnectionCloseNotificationTest.kt", "/tmp/claude-1000/-code/4127b3f9-6050-446f-a28d-b0511dacd396/scratchpad/hq/ws/F71c/jvm-libp2p/libp2p/src/test/kotlin/io/libp2p/transport/ReentrantConnectionCloseNotificationTest.kt"])) }
+  java { target(p.files(["/tmp/claude-1000/-code/4127b3f9-6050-446f-a28d-b0511dacd396/scratchpad/hq/ws/F71c/jvm-libp2p/libp2p/src/test/java/io/libp2p/transport/OffLoopParentWriteNotificationProbe.java"])) }
+ }
+ ['spotlessKotlin','spotlessJava'].each { name ->
+  p.tasks.named(name).configure {
+   doFirst {
+    def sourceInputs=inputs.files.files.findAll { it.path.endsWith('.kt') || it.path.endsWith('.java') }
+    new File('/tmp/claude-1000/-code/4127b3f9-6050-446f-a28d-b0511dacd396/scratchpad/hq/out/F71c-evidence/'+name+'-inputs.txt').text=sourceInputs.collect { it.path }.sort().join('\n')
+    println('F71C_FORMAT_INPUTS_'+name+'='+sourceInputs.size())
+   }
+  }
+ }
+}

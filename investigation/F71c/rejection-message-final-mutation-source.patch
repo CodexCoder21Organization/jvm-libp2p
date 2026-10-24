@@ -1,0 +1,15 @@
+diff --git a/libp2p/src/main/kotlin/io/libp2p/transport/implementation/StreamOverNetty.kt b/libp2p/src/main/kotlin/io/libp2p/transport/implementation/StreamOverNetty.kt
+index 3914dfad..75b5775d 100644
+--- a/libp2p/src/main/kotlin/io/libp2p/transport/implementation/StreamOverNetty.kt
++++ b/libp2p/src/main/kotlin/io/libp2p/transport/implementation/StreamOverNetty.kt
+@@ -44,7 +44,9 @@ open class StreamOverNetty(
+                 result.complete(Unit)
+             } else {
+                 result.completeExceptionally(
+-                    nettyChannel.attr(WRITE_FAILURE).get()
++                    if (failure is java.util.concurrent.RejectedExecutionException)
++                        java.util.concurrent.RejectedExecutionException("Review replacement lost the original queue rejection")
++                    else nettyChannel.attr(WRITE_FAILURE).get()
+                         ?: connectionWriteFailure()
+                         ?: failure
+                 )

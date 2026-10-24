@@ -263,6 +263,8 @@ public final class ReviewCompletedShutdownProbe {
         if (child.isOpen())
           throw new AssertionError("Close or shutdown must leave the child closed");
       }
+      if (closing && child.isOpen())
+        throw new AssertionError("Explicit close must leave the child closed");
       if (payload.refCnt() != 0)
         throw new AssertionError("The completed child write must release its payload exactly once");
       if (!terminating) {
@@ -271,7 +273,7 @@ public final class ReviewCompletedShutdownProbe {
         if (!second.await(5, TimeUnit.SECONDS))
           throw new AssertionError(
               "A later child write must finish after recovered parent completion");
-        if (mode.equals("close")) {
+        if (mode.equals("close") || closing) {
           if (!(second.cause() instanceof java.nio.channels.ClosedChannelException)
               || second.cause().getMessage() != null)
             throw new AssertionError(

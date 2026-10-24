@@ -225,8 +225,9 @@ Netty operation continues to use its normal listener executor.
 A custom muxer may return a parent write future whose listeners use another executor.
 Child write completion still runs on the child's event loop. If that loop rejects delivery,
 the completed parent result is retained until the child can process it. Closing the child
-cancels retained delivery and releases its pending payloads. Loop termination also fails
-accepted, unflushed writes if an application handler prevents child closure.
+applies an already-completed parent result before cancelling retained delivery and releasing
+remaining payloads. Shutdown settles accepted writes on their owning loop before it stops,
+including unflushed writes when an application handler prevents child closure.
 
 ## Connection reuse during close
 

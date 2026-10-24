@@ -1,0 +1,84 @@
+diff --git a/libp2p/src/main/kotlin/io/libp2p/etc/util/netty/mux/MuxChannel.kt b/libp2p/src/main/kotlin/io/libp2p/etc/util/netty/mux/MuxChannel.kt
+index 509d92cf..ad1c3185 100644
+--- a/libp2p/src/main/kotlin/io/libp2p/etc/util/netty/mux/MuxChannel.kt
++++ b/libp2p/src/main/kotlin/io/libp2p/etc/util/netty/mux/MuxChannel.kt
+@@ -10,6 +10,8 @@ import io.netty.channel.ChannelOutboundHandlerAdapter
+ import io.netty.channel.ChannelPromise
+ import io.netty.channel.EventLoop
+ import io.netty.util.ReferenceCountUtil
++import io.netty.util.concurrent.Future
++import io.netty.util.concurrent.GenericFutureListener
+ import io.netty.util.concurrent.GlobalEventExecutor
+ import io.netty.util.concurrent.ScheduledFuture
+ import io.netty.util.concurrent.SingleThreadEventExecutor
+@@ -128,22 +130,19 @@ class MuxChannel<TData>(
+                     val completion = ParentWriteCompletion(
+                         eventLoop(),
+                         completeWrite,
++                        Runnable { closeImpl() },
+                         Runnable {
+-                            // Finish accepted writes while their notification executor still runs,
+-                            // even when an application handler refuses the normal close request.
+-                            closeImpl()
++                            // Once the loop has terminated no owner operation can race disposal.
+                             if (pendingParentWrite === parentFuture) {
+                                 pendingParentWrite = null
+                                 waitingForParentWrite = false
+-                                localDisconnected = true
+-                                parentWriteCompletion?.let(::cancelParentWriteCompletion)
+-                                parentWriteCompletion = null
+                                 val failure = RejectedExecutionException(
+                                     "The child event loop terminated before pending writes could complete: $id"
+                                 )
+                                 // Include accepted writes which the caller has not flushed.
+                                 buf.addFlush()
+                                 while (buf.current() != null) buf.remove(failure)
++                                parentWriteCompletion = null
+                             }
+                         }
+                     )
+@@ -237,11 +236,18 @@ class MuxChannel<TData>(
+ private class ParentWriteCompletion(
+     val loop: EventLoop,
+     val operation: Runnable,
+-    val closeOnShutdown: Runnable
++    val closeOnShutdown: Runnable,
++    val failAfterTermination: Runnable
+ ) {
+     @Volatile
+     var active = true
+     var retry: ScheduledFuture<*>? = null
++    val terminationListener = GenericFutureListener<Future<Any?>> {
++        if (active) {
++            failAfterTermination.run()
++            cancelParentWriteCompletion(this)
++        }
++    }
+ }
+ 
+ private fun armParentWriteCompletion(completion: ParentWriteCompletion) {
+@@ -249,6 +255,7 @@ private fun armParentWriteCompletion(completion: ParentWriteCompletion) {
+     // Caller-driven loops have no owned termination future or shutdown lifecycle.
+     val executor = completion.loop as? SingleThreadEventExecutor ?: return
+     executor.addShutdownHook(completion.closeOnShutdown)
++    executor.terminationFuture().addListener(completion.terminationListener)
+ }
+ 
+ private fun cancelParentWriteCompletion(completion: ParentWriteCompletion) {
+@@ -261,6 +268,7 @@ private fun cancelParentWriteCompletion(completion: ParentWriteCompletion) {
+     if (!executor.isTerminated) {
+         executor.removeShutdownHook(completion.closeOnShutdown)
+     }
++    executor.terminationFuture().removeListener(completion.terminationListener)
+ }
+ 
+ private fun dispatchParentWriteCompletion(completion: ParentWriteCompletion) {
+@@ -283,7 +291,7 @@ private fun dispatchParentWriteCompletion(completion: ParentWriteCompletion) {
+                 }
+             }
+         }
+-        // Shutdown settles remaining writes on the owning loop before it stops.
++        // Shutdown closes on the owning loop; termination also disposes any remaining writes.
+     }
+ }
+ 

@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.libp2p.transport.ReviewTerminalWriteConversionTest" tests="1" skipped="0" failures="1" errors="0" timestamp="2026-10-24T21:59:17.984Z" hostname="8bf01af06d2e" time="9.406">
+  <properties/>
+  <testcase name="publicWriteSettlesAfterOwnerTermination()" classname="io.libp2p.transport.ReviewTerminalWriteConversionTest" time="9.406">
+    <failure message="org.opentest4j.AssertionFailedError: 21:59:26.153 [globalEventExecutor-1-1] [?[1;31mERROR?[m] io.netty.util.concurrent.DefaultPromise.rejectedExecution - Failed to submit a listener notification task. Event loop shut down?&#10;java.util.concurrent.RejectedExecutionException: event executor terminated&#10;&#9;at io.netty.util.concurrent.SingleThreadEventExecutor.reject(SingleThreadEventExecutor.java:1125)&#10;&#9;at io.netty.util.concurrent.SingleThreadEventExecutor.offerTask(SingleThreadEventExecutor.java:413)&#10;&#9;at io.netty.util.concurrent.SingleThreadEventExecutor.addTask(SingleThreadEventExecutor.java:406)&#10;&#9;at io.netty.util.concurrent.SingleThreadEventExecutor.execute(SingleThreadEventExecutor.java:1027)&#10;&#9;at io.netty.util.concurrent.SingleThreadEventExecutor.execute0(SingleThreadEventExecutor.java:993)&#10;&#9;at io.netty.util.concurrent.SingleThreadEventExecutor.execute(SingleThreadEventExecutor.java:983)&#10;&#9;at io.netty.util.concurrent.DefaultPromise.safeExecute(DefaultPromise.java:879)&#10;&#9;at io.netty.util.concurrent.DefaultPromise.notifyListeners(DefaultPromise.java:514)&#10;&#9;at io.netty.util.concurrent.DefaultPromise.setValue0(DefaultPromise.java:650)&#10;&#9;at io.netty.util.concurrent.DefaultPromise.setFailure0(DefaultPromise.java:643)&#10;&#9;at io.netty.util.concurrent.DefaultPromise.tryFailure(DefaultPromise.java:132)&#10;&#9;at io.netty.util.internal.PromiseNotificationUtil.tryFailure(PromiseNotificationUtil.java:64)&#10;&#9;at io.netty.channel.ChannelOutboundBuffer.safeFail(ChannelOutboundBuffer.java:753)&#10;&#9;at io.netty.channel.ChannelOutboundBuffer.remove0(ChannelOutboundBuffer.java:338)&#10;&#9;at io.netty.channel.ChannelOutboundBuffer.remove(ChannelOutboundBuffer.java:318)&#10;&#9;at io.libp2p.etc.util.netty.mux.MuxChannel.doWrite$lambda-2(MuxChannel.kt:144)&#10;&#9;at io.libp2p.etc.util.netty.mux.ParentWriteCompletion.terminationListener$lambda-0(MuxChannel.kt:247)&#10;&#9;at io.netty.util.concurrent.DefaultPromise.notifyListener0(DefaultPromise.java:604)&#10;&#9;at io.netty.util.concurrent.DefaultPromise.notifyListeners0(DefaultPromise.java:597)&#10;&#9;at io.netty.util.concurrent.DefaultPromise.notifyListenersNow(DefaultPromise.java:573)&#10;&#9;at io.netty.util.concurrent.DefaultPromise.access$200(DefaultPromise.java:37)&#10;&#9;at io.netty.util.concurrent.DefaultPromise$1.run(DefaultPromise.java:517)&#10;&#9;at io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:148)&#10;&#9;at io.netty.util.concurrent.GlobalEventExecutor$TaskRunner.run(GlobalEventExecutor.java:286)&#10;&#9;at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)&#10;&#9;at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)&#10;&#9;at java.base/java.lang.Thread.run(Thread.java:1583)&#10;rawDone=true rawFailure=java.util.concurrent.RejectedExecutionException: The child event loop terminated before pending writes could complete: probe-1 publicPayloadRefCnt=0&#10;Exception in thread &quot;main&quot; java.lang.AssertionError: The public stream write must settle after loop termination&#10;&#9;at io.libp2p.transport.ReviewTerminalWriteConversionProbe.main(ReviewTerminalWriteConversionProbe.java:259)&#10; ==&gt; expected: &lt;0&gt; but was: &lt;1&gt;" type="org.opentest4j.AssertionFailedError">org.opentest4j.AssertionFailedError: 21:59:26.153 [globalEventExecutor-1-1] [?[1;31mERROR?[m] io.netty.util.concurrent.DefaultPromise.rejectedExecution - Failed to submit a listener notification task. Event loop shut down?
+java.util.concurrent.RejectedExecutionException: event executor terminated
+	at io.netty.util.concurrent.SingleThreadEventExecutor.reject(SingleThreadEventExecutor.java:1125)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.offerTask(SingleThreadEventExecutor.java:413)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.addTask(SingleThreadEventExecutor.java:406)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.execute(SingleThreadEventExecutor.java:1027)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.execute0(SingleThreadEventExecutor.java:993)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.execute(SingleThreadEventExecutor.java:983)
+	at io.netty.util.concurrent.DefaultPromise.safeExecute(DefaultPromise.java:879)
+	at io.netty.util.concurrent.DefaultPromise.notifyListeners(DefaultPromise.java:514)
+	at io.netty.util.concurrent.DefaultPromise.setValue0(DefaultPromise.java:650)
+	at io.netty.util.concurrent.DefaultPromise.setFailure0(DefaultPromise.java:643)
+	at io.netty.util.concurrent.DefaultPromise.tryFailure(DefaultPromise.java:132)
+	at io.netty.util.internal.PromiseNotificationUtil.tryFailure(PromiseNotificationUtil.java:64)
+	at io.netty.channel.ChannelOutboundBuffer.safeFail(ChannelOutboundBuffer.java:753)
+	at io.netty.channel.ChannelOutboundBuffer.remove0(ChannelOutboundBuffer.java:338)
+	at io.netty.channel.ChannelOutboundBuffer.remove(ChannelOutboundBuffer.java:318)
+	at io.libp2p.etc.util.netty.mux.MuxChannel.doWrite$lambda-2(MuxChannel.kt:144)
+	at io.libp2p.etc.util.netty.mux.ParentWriteCompletion.terminationListener$lambda-0(MuxChannel.kt:247)
+	at io.netty.util.concurrent.DefaultPromise.notifyListener0(DefaultPromise.java:604)
+	at io.netty.util.concurrent.DefaultPromise.notifyListeners0(DefaultPromise.java:597)
+	at io.netty.util.concurrent.DefaultPromise.notifyListenersNow(DefaultPromise.java:573)
+	at io.netty.util.concurrent.DefaultPromise.access$200(DefaultPromise.java:37)
+	at io.netty.util.concurrent.DefaultPromise$1.run(DefaultPromise.java:517)
+	at io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:148)
+	at io.netty.util.concurrent.GlobalEventExecutor$TaskRunner.run(GlobalEventExecutor.java:286)
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+rawDone=true rawFailure=java.util.concurrent.RejectedExecutionException: The child event loop terminated before pending writes could complete: probe-1 publicPayloadRefCnt=0
+Exception in thread &quot;main&quot; java.lang.AssertionError: The public stream write must settle after loop termination
+	at io.libp2p.transport.ReviewTerminalWriteConversionProbe.main(ReviewTerminalWriteConversionProbe.java:259)
+ ==&gt; expected: &lt;0&gt; but was: &lt;1&gt;
+	at app//org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+	at app//org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+	at app//org.junit.jupiter.api.AssertEquals.failNotEqual(AssertEquals.java:197)
+	at app//org.junit.jupiter.api.AssertEquals.assertEquals(AssertEquals.java:150)
+	at app//org.junit.jupiter.api.Assertions.assertEquals(Assertions.java:563)
+	at app//io.libp2p.transport.ReviewTerminalWriteConversionTest.publicWriteSettlesAfterOwnerTermination(ReviewTerminalWriteConversionTest.java:31)
+	at java.base@21.0.12.1/java.lang.reflect.Method.invoke(Method.java:580)
+	at java.base@21.0.12.1/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at java.base@21.0.12.1/java.util.ArrayList.forEach(ArrayList.java:1596)
+</failure>
+  </testcase>
+  <system-out><![CDATA[21:59:26.153 [globalEventExecutor-1-1] [?[1;31mERROR?[m] io.netty.util.concurrent.DefaultPromise.rejectedExecution - Failed to submit a listener notification task. Event loop shut down?
+java.util.concurrent.RejectedExecutionException: event executor terminated
+	at io.netty.util.concurrent.SingleThreadEventExecutor.reject(SingleThreadEventExecutor.java:1125)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.offerTask(SingleThreadEventExecutor.java:413)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.addTask(SingleThreadEventExecutor.java:406)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.execute(SingleThreadEventExecutor.java:1027)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.execute0(SingleThreadEventExecutor.java:993)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.execute(SingleThreadEventExecutor.java:983)
+	at io.netty.util.concurrent.DefaultPromise.safeExecute(DefaultPromise.java:879)
+	at io.netty.util.concurrent.DefaultPromise.notifyListeners(DefaultPromise.java:514)
+	at io.netty.util.concurrent.DefaultPromise.setValue0(DefaultPromise.java:650)
+	at io.netty.util.concurrent.DefaultPromise.setFailure0(DefaultPromise.java:643)
+	at io.netty.util.concurrent.DefaultPromise.tryFailure(DefaultPromise.java:132)
+	at io.netty.util.internal.PromiseNotificationUtil.tryFailure(PromiseNotificationUtil.java:64)
+	at io.netty.channel.ChannelOutboundBuffer.safeFail(ChannelOutboundBuffer.java:753)
+	at io.netty.channel.ChannelOutboundBuffer.remove0(ChannelOutboundBuffer.java:338)
+	at io.netty.channel.ChannelOutboundBuffer.remove(ChannelOutboundBuffer.java:318)
+	at io.libp2p.etc.util.netty.mux.MuxChannel.doWrite$lambda-2(MuxChannel.kt:144)
+	at io.libp2p.etc.util.netty.mux.ParentWriteCompletion.terminationListener$lambda-0(MuxChannel.kt:247)
+	at io.netty.util.concurrent.DefaultPromise.notifyListener0(DefaultPromise.java:604)
+	at io.netty.util.concurrent.DefaultPromise.notifyListeners0(DefaultPromise.java:597)
+	at io.netty.util.concurrent.DefaultPromise.notifyListenersNow(DefaultPromise.java:573)
+	at io.netty.util.concurrent.DefaultPromise.access$200(DefaultPromise.java:37)
+	at io.netty.util.concurrent.DefaultPromise$1.run(DefaultPromise.java:517)
+	at io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:148)
+	at io.netty.util.concurrent.GlobalEventExecutor$TaskRunner.run(GlobalEventExecutor.java:286)
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+rawDone=true rawFailure=java.util.concurrent.RejectedExecutionException: The child event loop terminated before pending writes could complete: probe-1 publicPayloadRefCnt=0
+Exception in thread "main" java.lang.AssertionError: The public stream write must settle after loop termination
+	at io.libp2p.transport.ReviewTerminalWriteConversionProbe.main(ReviewTerminalWriteConversionProbe.java:259)
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -192,14 +192,16 @@ internal fun writeNoiseClassLoadAgent(path: Path) {
         mainAttributes[Attributes.Name.MANIFEST_VERSION] = "1.0"
         mainAttributes.putValue("Premain-Class", "io.libp2p.security.noise.NoiseClassLoadObserver")
     }
-    JarOutputStream(Files.newOutputStream(path), manifest).use { jar ->
-        for (name in listOf("NoiseClassLoadObserver.class", "NoiseClassLoadObserver\$1.class")) {
-            val resource = "/io/libp2p/security/noise/$name"
-            jar.putNextEntry(JarEntry(resource.removePrefix("/")))
-            requireNotNull(NoiseClassLoadObserver::class.java.getResourceAsStream(resource)) {
-                "Missing class-load observer agent resource: $resource"
-            }.use { it.copyTo(jar) }
-            jar.closeEntry()
+    Files.newOutputStream(path).use { output ->
+        JarOutputStream(output, manifest).use { jar ->
+            for (name in listOf("NoiseClassLoadObserver.class", "NoiseClassLoadObserver\$1.class")) {
+                val resource = "/io/libp2p/security/noise/$name"
+                jar.putNextEntry(JarEntry(resource.removePrefix("/")))
+                requireNotNull(NoiseClassLoadObserver::class.java.getResourceAsStream(resource)) {
+                    "Missing class-load observer agent resource: $resource"
+                }.use { it.copyTo(jar) }
+                jar.closeEntry()
+            }
         }
     }
 }

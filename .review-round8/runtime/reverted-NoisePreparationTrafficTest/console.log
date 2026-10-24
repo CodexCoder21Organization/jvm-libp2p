@@ -1,0 +1,117 @@
+Build configured without Android submodules.
+    To include Android submodules define a valid SDK location with an ANDROID_HOME environment variable 
+    or by setting the sdk.dir path in your project's local properties file local.properties.
+> Task :libp2p:extractIncludeProto UP-TO-DATE
+> Task :libp2p:extractProto UP-TO-DATE
+> Task :libp2p:generateProto UP-TO-DATE
+> Task :libp2p:processResources UP-TO-DATE
+> Task :libp2p:extractTestFixturesProto UP-TO-DATE
+> Task :libp2p:processTestFixturesResources NO-SOURCE
+> Task :libp2p:testFixturesClasses
+> Task :libp2p:testFixturesJar UP-TO-DATE
+> Task :libp2p:extractTestProto UP-TO-DATE
+> Task :libp2p:processTestResources UP-TO-DATE
+> Task :libp2p:testClasses
+> Task :tools:schedulers:compileKotlin UP-TO-DATE
+> Task :tools:schedulers:compileJava UP-TO-DATE
+> Task :tools:schedulers:processResources NO-SOURCE
+> Task :tools:schedulers:classes UP-TO-DATE
+> Task :tools:schedulers:inspectClassesForKotlinIC UP-TO-DATE
+> Task :tools:schedulers:jar UP-TO-DATE
+> Task :libp2p:compileKotlin
+> Task :libp2p:compileJava
+> Task :libp2p:classes
+> Task :libp2p:inspectClassesForKotlinIC
+> Task :libp2p:jar
+
+> Task :libp2p:test
+
+NoisePreparationTrafficTest > construction failure preserves its cause and closes live plaintext fixtures() FAILED
+    org.opentest4j.AssertionFailedError: NOISE_PROBE_PHASE=READY
+    NOISE_PROBE_PHASE=BODY_COMPLETE
+    NOISE_PROBE_PHASE=CLEANUP_COMPLETE
+    Exception in thread "main" java.lang.AssertionError: Cleanup did not preserve the original construction failure
+    	at io.libp2p.security.noise.NoisePreparationTrafficProbe.main(NoisePreparationTrafficProbe.java:151)
+    Caused by: java.lang.AssertionError: Noise preparation did not request the scoped digest
+    	at io.libp2p.security.noise.NoisePreparationTrafficProbe.runProbe(NoisePreparationTrafficProbe.java:250)
+    	at io.libp2p.security.noise.NoisePreparationTrafficProbe.main(NoisePreparationTrafficProbe.java:140)
+     ==> expected: <0> but was: <1>
+        at app//org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+        at app//org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+        at app//org.junit.jupiter.api.AssertEquals.failNotEqual(AssertEquals.java:197)
+        at app//org.junit.jupiter.api.AssertEquals.assertEquals(AssertEquals.java:150)
+        at app//org.junit.jupiter.api.Assertions.assertEquals(Assertions.java:563)
+        at app//io.libp2p.security.noise.NoisePreparationTrafficTest.probe(NoisePreparationTrafficTest.kt:38)
+        at app//io.libp2p.security.noise.NoisePreparationTrafficTest.construction failure preserves its cause and closes live plaintext fixtures(NoisePreparationTrafficTest.kt:21)
+
+NoisePreparationTrafficTest > close during cold preparation prevents late listener publication() FAILED
+    org.opentest4j.AssertionFailedError: NOISE_PROBE_PHASE=READY
+    NOISE_PROBE_PHASE=BODY_COMPLETE
+    NOISE_PROBE_PHASE=CLEANUP_COMPLETE
+    Exception in thread "main" java.lang.AssertionError: Noise preparation did not request the scoped digest
+    	at io.libp2p.security.noise.NoisePreparationTrafficProbe.runProbe(NoisePreparationTrafficProbe.java:250)
+    	at io.libp2p.security.noise.NoisePreparationTrafficProbe.main(NoisePreparationTrafficProbe.java:134)
+     ==> expected: <0> but was: <1>
+        at app//org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+        at app//org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+        at app//org.junit.jupiter.api.AssertEquals.failNotEqual(AssertEquals.java:197)
+        at app//org.junit.jupiter.api.AssertEquals.assertEquals(AssertEquals.java:150)
+        at app//org.junit.jupiter.api.Assertions.assertEquals(Assertions.java:563)
+        at app//io.libp2p.security.noise.NoisePreparationTrafficTest.probe(NoisePreparationTrafficTest.kt:38)
+        at app//io.libp2p.security.noise.NoisePreparationTrafficTest.close during cold preparation prevents late listener publication(NoisePreparationTrafficTest.kt:18)
+
+NoisePreparationTrafficTest > cold preparation from another thread leaves plaintext traffic running() FAILED
+    org.opentest4j.AssertionFailedError: NOISE_PROBE_PHASE=READY
+    NOISE_PROBE_PHASE=BODY_COMPLETE
+    NOISE_PROBE_PHASE=CLEANUP_COMPLETE
+    Exception in thread "main" java.lang.AssertionError: Noise preparation did not request the scoped digest
+    	at io.libp2p.security.noise.NoisePreparationTrafficProbe.runProbe(NoisePreparationTrafficProbe.java:250)
+    	at io.libp2p.security.noise.NoisePreparationTrafficProbe.main(NoisePreparationTrafficProbe.java:134)
+     ==> expected: <0> but was: <1>
+        at app//org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+        at app//org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+        at app//org.junit.jupiter.api.AssertEquals.failNotEqual(AssertEquals.java:197)
+        at app//org.junit.jupiter.api.AssertEquals.assertEquals(AssertEquals.java:150)
+        at app//org.junit.jupiter.api.Assertions.assertEquals(Assertions.java:563)
+        at app//io.libp2p.security.noise.NoisePreparationTrafficTest.probe(NoisePreparationTrafficTest.kt:38)
+        at app//io.libp2p.security.noise.NoisePreparationTrafficTest.cold preparation from another thread leaves plaintext traffic running(NoisePreparationTrafficTest.kt:12)
+
+NoisePreparationTrafficTest > cold preparation requested on live event loop awaits readiness asynchronously() FAILED
+    org.opentest4j.AssertionFailedError: NOISE_PROBE_PHASE=READY
+    NOISE_PROBE_PHASE=BODY_COMPLETE
+    NOISE_PROBE_PHASE=CLEANUP_COMPLETE
+    Exception in thread "main" java.lang.AssertionError: Noise preparation did not request the scoped digest
+    	at io.libp2p.security.noise.NoisePreparationTrafficProbe.runProbe(NoisePreparationTrafficProbe.java:250)
+    	at io.libp2p.security.noise.NoisePreparationTrafficProbe.main(NoisePreparationTrafficProbe.java:134)
+     ==> expected: <0> but was: <1>
+        at app//org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+        at app//org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+        at app//org.junit.jupiter.api.AssertEquals.failNotEqual(AssertEquals.java:197)
+        at app//org.junit.jupiter.api.AssertEquals.assertEquals(AssertEquals.java:150)
+        at app//org.junit.jupiter.api.Assertions.assertEquals(Assertions.java:563)
+        at app//io.libp2p.security.noise.NoisePreparationTrafficTest.probe(NoisePreparationTrafficTest.kt:38)
+        at app//io.libp2p.security.noise.NoisePreparationTrafficTest.cold preparation requested on live event loop awaits readiness asynchronously(NoisePreparationTrafficTest.kt:15)
+
+4 tests completed, 4 failed
+
+> Task :libp2p:test FAILED
+
+[Incubating] Problems report is available at: file:///tmp/claude-1000/-code/4127b3f9-6050-446f-a28d-b0511dacd396/scratchpad/hq/ws/F68g/jvm-libp2p/build/reports/problems/problems-report.html
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':libp2p:test'.
+> There were failing tests. See the report at: file:///tmp/claude-1000/-code/4127b3f9-6050-446f-a28d-b0511dacd396/scratchpad/hq/ws/F68g/jvm-libp2p/libp2p/build/reports/tests/test/index.html
+
+* Try:
+> Run with --scan to get full insights.
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 9.0.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/8.14.3/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD FAILED in 1m 5s
+17 actionable tasks: 5 executed, 12 up-to-date

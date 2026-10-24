@@ -1,0 +1,80 @@
+### Round 4: full-module control and fixture ownership
+
+The owner requested a matching whole-module develop control, a cause-based review of all fourteen prior head failures, fixes for tests added or changed by this PR, and an exact account of what CI runs. This round does not merge, enqueue, deploy, publish, change workflows/settings, or modify the handoff.
+
+CI does **not** execute the Gradle workflow for this PR. [Run 40034838300](https://github.com/CodexCoder21Organization/jvm-libp2p/actions/runs/40034838300) concluded `startup_failure` with zero jobs and zero check-runs. Every listed push/PR run for the branch has the same conclusion. The repository Actions permissions endpoint returns `enabled=true, allowed_actions=local_only`; the selected-actions endpoint returns HTTP 409, “Only local actions and workflows are allowed on this repository.” `build.yml` references `actions/checkout@v3`, `actions/setup-java@v3`, `gradle/gradle-build-action@v2`, and `android-actions/setup-android@v3`, so repository policy rejects it before a job exists. The smallest correction is to permit those four action repositories under the repository/org Actions allow-list. There is no workflow-only correction while the repository permits only local actions; no setting or workflow was changed here. The org currently allows GitHub-owned/verified actions with no extra patterns.
+
+Both `kotlin.build` successes explicitly report “no build.kts found in repository”; they ran no build or tests. The `develop` branch protection endpoint returns HTTP 404 “Branch not protected.” These green informational checks cannot substantiate a merge decision.
+
+The brief calls the OffEventLoop and QueuedReady tests PR-added, but both files are byte-for-byte identical to develop and absent from this PR's 17-file diff. Their failures still need explaining; their provenance is recorded correctly below.
+
+The same failure persists after this round's push: [run 40041280804](https://github.com/CodexCoder21Organization/jvm-libp2p/actions/runs/40041280804) and [run 40041271437](https://github.com/CodexCoder21Organization/jvm-libp2p/actions/runs/40041271437) both ended `startup_failure` on `1a27fda8`; the former has zero jobs. The visible new-head `kotlin.build (remote)` success again explicitly skipped because there is no `build.kts`.
+
+**Develop control, first attempt.** Fresh detached worktree at `0c3c86ad9ceb1c9d3834da68f239108e14b7f780`, unchanged `./gradlew :libp2p:test`, one heavy run at a time, 50-minute outer bound: **1244/1259 passed, 13 failed, 2 existing skips**, Gradle elapsed 25m20s including cold compilation. Failing methods:
+
+- `core.HostTestJava.largePing()`: java.util.concurrent.CompletionException: io.libp2p.core.ConnectionClosedException: Connection is closed
+- `core.RpcHandlerTest.test1()`: java.util.concurrent.ExecutionException: java.net.BindException: Address already in use
+- `pubsub.gossip.GossipBackwardCompatibilityTest.testConnect_1_2_to_1_1()`: java.util.concurrent.ExecutionException: java.net.BindException: Address already in use
+- `pubsub.gossip.GossipBackwardCompatibilityTest.testConnect_1_1_to_1_2()`: java.util.concurrent.ExecutionException: java.net.BindException: Address already in use
+- `pubsub.gossip.GossipTwoHostTest.test message larger than mplex frame()`: java.util.concurrent.ExecutionException: java.net.BindException: Address already in use
+- `pubsub.gossip.SubscriptionsLimitTest.existing peer subscribed to many topics()`: java.util.concurrent.ExecutionException: java.net.BindException: Address already in use
+- `pubsub.gossip.SubscriptionsLimitTest.new peer subscribed to many topics()`: java.util.concurrent.ExecutionException: java.net.BindException: Address already in use
+- `pubsub.gossip.SubscriptionsLimitTest.new peer subscribed to few topics()`: java.util.concurrent.ExecutionException: java.net.BindException: Address already in use
+- `security.noise.NoiseHandshakeOffEventLoopTest.single Noise handshake runs crypto inline on event loops()`: org.opentest4j.AssertionFailedError: Noise handshake inline child JVM did not finish within 10 seconds:
+- `security.noise.NoiseHandshakeOffEventLoopTest.established connection stays responsive during concurrent Noise handshakes()`: org.opentest4j.AssertionFailedError: Noise handshake starvation child JVM did not finish within 15 seconds:
+- `transport.quic.QuicKuboTestJava.pingKubo()`: java.net.ConnectException: Connection refused
+- `transport.ws.WsTransportTest.dial then close server transport()`: java.util.concurrent.TimeoutException
+- `transport.ws.WsTransportTest.dial then close client transport()`: java.util.concurrent.TimeoutException
+
+This base run also exposed a separate cleanup cascade: `HostTestJava.largePing` failed during TLS/Yamux delivery and skipped its later `stop()` calls, which are outside a `finally`. `/proc` confirmed the same worker retained listener port 40002. Later RPC/gossip/subscription tests reuse that fixed port and failed binding. The primary TLS ping closure is not diagnosed by this round and is not called fixed.
+
+**Classification of all fourteen prior head failures.** A passing method in the single base module is not treated as proof of a regression. Supplemental base controls below force the relevant condition; those are explicitly distinguished from module outcomes.
+
+| Prior failed method | Classification | Evidence and mechanism |
+| --- | --- | --- |
+| `YamuxResumeAtFrameBoundCloseTcpTest.callbackCloseWhileDrainingReleasesTheArrivingFrame` | `PRE_EXISTING` | Base forced automatic-read ordering; exact closed-channel sender error. |
+| `YamuxResumeAtFrameBoundTcpTest.resumedChildDrainsItsFullQueueBeforeAdmittingNextFrame` | `PRE_EXISTING` | Base forced automatic-read ordering; exact one-byte delivery before resume. |
+| `GossipTwoHostTest.test message larger than mplex frame` | `LOAD_SENSITIVE` | Base module bind failure; fixed ports/cleanup, plus prior head full-buffer formatting profile. |
+| `SubscriptionsLimitTest.existing peer subscribed to many topics` | `LOAD_SENSITIVE` | Base module bind failure; fixed ports and skipped cleanup; isolated head passes. |
+| `SubscriptionsLimitTest.new peer subscribed to many topics` | `LOAD_SENSITIVE` | Base module bind failure; fixed ports and skipped cleanup; isolated head passes. |
+| `SubscriptionsLimitTest.new peer subscribed to few topics` | `LOAD_SENSITIVE` | Base module bind failure; fixed ports and skipped cleanup; isolated head passes. |
+| `NoiseHandshakeOffEventLoopTest.concurrent handshakes preserve both peer identities and immediate mux negotiation` | `PRE_EXISTING` | Base public mux gate: local connect completion precedes remote table publication. |
+| `NoiseHandshakeOffEventLoopTest.single Noise handshake runs crypto inline on event loops` | `PRE_EXISTING` | Base module same 10-second whole-child failure. |
+| `NoiseHandshakeOffEventLoopTest.established connection stays responsive during concurrent Noise handshakes` | `PRE_EXISTING` | Base module same 15-second whole-child failure; all crypto off-loop. |
+| `NoisePreparationLifecycleTest.direct network listen and connect await preparation without start` | `PR_CAUSED` | PR-owned nested peer startup inside 10-second endpoint wait; fixed. |
+| `NoiseQueuedReadyCallbackTest.queued ready callback runs before another connection computation finishes` | `PRE_EXISTING` | Supplemental base children 2/4 exceed 20 seconds after correct ordering; single base module passes. |
+| `QuicKuboTestJava.pingKubo` | `PRE_EXISTING` | Base module same absent local Kubo connection refusal. |
+| `TcpTransportTest.dial then close client transport` | `PRE_EXISTING` | Supplemental base 200 real TCP dials exceed 20 seconds; single base module TCP 24/24 pass. |
+| `WsTransportTest.dial then close server transport` | `LOAD_SENSITIVE` | Base module same 20-second dial bound; real RSA fixture on I/O workers. |
+
+The pre-existing cases remain unchanged, as requested. No preparation/handshake production race was demonstrated by these controls:
+
+- **Remote table publication:** 8 natural batches of 256 concurrent real TCP/Noise/Mplex handshakes passed (2048 total, 51411ms). Holding the real responder mux-completion future through its public binding interface gives 256 completed outbound connects and zero remotely published connections; the old immediate-table assertion fails exactly `Expected size: 256 but was: 0` (20862ms). Releasing that future and awaiting the real inbound connection callbacks produces all 256 exact local/remote identities (21106ms). The local connect future does not synchronize the remote table; this is evidence for a missing inbound-publication barrier in the unchanged test, not lost registrations.
+- **Yamux read ordering:** 32 natural concurrent scenario instances passed on base (18115ms), so those passes alone were not accepted as a diagnosis. A public outbound-read gate then held a genuine automatic read after Netty selected it with autoRead=true. Pausing off-loop before forwarding it makes `MuxChannel.doBeginRead -> childReadRequested` grant one manual allowance. Base then reports `AUTO_READ=false DELIVERED_BEFORE_RESUME=1` and fails the original zero-delivery contract (12488ms). Closing from that first delivery reproduces the exact sender `StacklessClosedChannelException` while attempting all 65 real writes (9973ms). The captured automatic-read stack goes through Netty `HeadContext.readIfIsAutoRead`/`channelReadComplete`; these mux files are unchanged by this PR.
+- **Whole-child timing:** four genuine concurrent base queued-ready children all reported `pending=1, onLoop=false, readyBeforeComputationFinished=true`; two exceeded their unchanged 20-second process bounds at 20128/20192ms. One of those exited zero while timeout cleanup raced; it remains a failed deadline, not a pass. The other two completed in 19816/19482ms. This demonstrates that startup/fixture/shutdown work can exhaust the process-wide bound after the ordering result succeeded.
+- **Transport fixture work:** four real pairs using OS-assigned ports and the existing `NullConnectionUpgrader` started four groups of 50 dials on develop. All 200 were pending at the same 20-second completion bound; cleanup also exceeded its five-second bound (33258ms overall). Prior full-worker stacks show real RSA generation in this fixture on shared I/O workers. This supplements the actual base WS module failures; the base TCP module's 24/24 pass is retained as such.
+
+**Fixture fix and red-before / first-green evidence.** [Commit 1a27fda8](https://github.com/CodexCoder21Organization/jvm-libp2p/commit/1a27fda81589ba69b3f7f2e03928c0f4290644ce) changes only three PR-added test files. The parent starts and owns the real peer before it launches the still-cold subject JVM, passing its already-bound ephemeral address explicitly. This removes the second cold JVM's startup and independent lifetime from the subject's readiness scenario. It does not warm the subject's Noise state. Peer shutdown, complete process output/exit checks, provider counts/destruction/thread checks, JFR zero algorithm-load checks, real Ping/stream closure, and all lifecycle/re-entry/cancellation/failure assertions remain.
+
+| Changed test file | Red before this change | First green after change |
+| --- | --- | --- |
+| `NoisePreparationLifecycleTest.kt` | Prior final module: `TimeoutException` at nested peer endpoint wait, probe line99, before target assertions (19815ms method) | 5/5, 36934ms class |
+| `NoiseBindingReadinessTest.kt` | Prior first wrapped-TCP attempt: `TimeoutException` at shared AlgorithmReadinessProbe endpoint wait, line68 (17196ms method) | 3/3, 35471ms class |
+| `NoiseAlgorithmReadinessTest.kt` | Shared nested-peer launcher is the one exercised by that Binding red; no independent Algorithm-test red is claimed | 1/1, 18738ms class |
+
+The three classes passed **9/9, zero skips, first attempt** on the corrected source; full Spotless check passed. Dedicated test-comprehensiveness and implementation review passes checked every existing assertion/scenario and each process/peer cleanup path. No timeout or heap limit was raised, no iteration count was reduced, and no test or behavioral assertion was weakened, skipped, disabled or deleted. Production code and README contracts are unchanged in round 4.
+
+**Final pushed-head module:** **1268/1276 passed, 6 failed, 2 existing skips, first attempt**, exact pushed `1a27fda81589ba69b3f7f2e03928c0f4290644ce`, unchanged `./gradlew :libp2p:test`, Gradle elapsed 14m33s (875669ms command wall). **All 17 PR-added tests passed**, including all nine in the three corrected files. Remaining failures:
+
+- `GossipTwoHostTest.test message larger than mplex frame` = `LOAD_SENSITIVE`.
+- `SubscriptionsLimitTest.existing peer subscribed to many topics` = `LOAD_SENSITIVE`.
+- `SubscriptionsLimitTest.new peer subscribed to many topics` = `LOAD_SENSITIVE`.
+- `SubscriptionsLimitTest.new peer subscribed to few topics` = `LOAD_SENSITIVE`.
+- `NoiseHandshakeOffEventLoopTest.established connection stays responsive during concurrent Noise handshakes` = `PRE_EXISTING`.
+- `QuicKuboTestJava.pingKubo` = `PRE_EXISTING`.
+
+The gossip failure again includes suppressed first-host cleanup timeout at `stopHosts:94`, and the same worker retained port40001; this explains the three bind failures. The inherited storm probe reported p95=995ms with all 644 crypto tasks off-loop. Kubo is absent locally. These six cases remain unfixed under the instruction to leave pre-existing tests unchanged; the module remains failing. No PR-added failure remains.
+
+
+All first-attempt native failure stacks, exact XML, console logs, diagnostic sources and classpaths are preserved in this lane's requested `F68c-findings.md` and `F68c-runtime/` output records. No other PR, workflow/settings mutation, handoff edit, merge, enqueue, build-watchman run, deployment or publication occurred.
+

@@ -1,0 +1,255 @@
+diff --git a/libp2p/src/main/kotlin/io/libp2p/core/dsl/Builders.kt b/libp2p/src/main/kotlin/io/libp2p/core/dsl/Builders.kt
+index 2b605ffe..7f6e6d9c 100644
+--- a/libp2p/src/main/kotlin/io/libp2p/core/dsl/Builders.kt
++++ b/libp2p/src/main/kotlin/io/libp2p/core/dsl/Builders.kt
+@@ -29,7 +29,6 @@ import io.libp2p.host.MemoryAddressBook
+ import io.libp2p.network.NetworkImpl
+ import io.libp2p.protocol.IdentifyBinding
+ import io.libp2p.security.noise.NoiseXXSecureChannel
+-import io.libp2p.security.noise.prepareNoiseHandshakeAlgorithms
+ import io.libp2p.transport.ConnectionUpgrader
+ import io.libp2p.transport.tcp.TcpTransport
+ import io.netty.channel.ChannelHandler
+@@ -196,15 +195,6 @@ open class Builder {
+         }
+ 
+         val upgrader = ConnectionUpgrader(secureMultistreamProtocol, secureChannels, muxerMultistreamProtocol, muxers)
+-        if (
+-            secureChannels.any { channel ->
+-                val descriptor = channel.protocolDescriptor
+-                NoiseXXSecureChannel.announce in descriptor.announceProtocols ||
+-                    descriptor.protocolMatcher.matches(NoiseXXSecureChannel.announce)
+-            }
+-        ) {
+-            upgrader.addStartupPreparation(::prepareNoiseHandshakeAlgorithms)
+-        }
+ 
+         val allTransports =
+             listOf(
+diff --git a/libp2p/src/main/kotlin/io/libp2p/core/transport/Transport.kt b/libp2p/src/main/kotlin/io/libp2p/core/transport/Transport.kt
+index 4f755ec7..c5c5a5c8 100644
+--- a/libp2p/src/main/kotlin/io/libp2p/core/transport/Transport.kt
++++ b/libp2p/src/main/kotlin/io/libp2p/core/transport/Transport.kt
+@@ -30,9 +30,6 @@ interface Transport {
+      */
+     fun initialize()
+ 
+-    /** Completes when startup preparation has finished, before listening or dialing. */
+-    fun ready(): CompletableFuture<Unit> = CompletableFuture.completedFuture(Unit)
+-
+     /**
+      * Stops the transport entirely, closing down all ongoing connections, outbound dials, and listening endpoints.
+      */
+diff --git a/libp2p/src/main/kotlin/io/libp2p/host/HostImpl.kt b/libp2p/src/main/kotlin/io/libp2p/host/HostImpl.kt
+index 61bc209a..21825739 100644
+--- a/libp2p/src/main/kotlin/io/libp2p/host/HostImpl.kt
++++ b/libp2p/src/main/kotlin/io/libp2p/host/HostImpl.kt
+@@ -6,7 +6,6 @@ import io.libp2p.core.Connection
+ import io.libp2p.core.ConnectionClosedException
+ import io.libp2p.core.ConnectionHandler
+ import io.libp2p.core.Host
+-import io.libp2p.core.Libp2pException
+ import io.libp2p.core.Network
+ import io.libp2p.core.NoSuchLocalProtocolException
+ import io.libp2p.core.PeerId
+@@ -15,7 +14,6 @@ import io.libp2p.core.StreamPromise
+ import io.libp2p.core.crypto.PrivKey
+ import io.libp2p.core.multiformats.Multiaddr
+ import io.libp2p.core.multistream.ProtocolBinding
+-import io.libp2p.etc.types.completedExceptionally
+ import io.libp2p.etc.types.hasCauseOfType
+ import java.util.concurrent.CompletableFuture
+ import java.util.concurrent.CopyOnWriteArrayList
+@@ -30,9 +28,6 @@ class HostImpl(
+     private val streamVisitors: ChannelVisitor.Broadcast<Stream>
+ ) : Host {
+ 
+-    @Volatile
+-    private var stopped = false
+-
+     override val peerId = PeerId.fromPubKey(privKey.publicKey())
+     override val streams = CopyOnWriteArrayList<Stream>()
+ 
+@@ -58,19 +53,12 @@ class HostImpl(
+     }
+ 
+     override fun start(): CompletableFuture<Void> {
+-        if (stopped) return completedExceptionally(Libp2pException("Transport is closed"))
+-        return CompletableFuture.allOf(*network.transports.map { it.ready() }.toTypedArray())
+-            .thenCompose {
+-                if (stopped) throw Libp2pException("Transport is closed")
+-                CompletableFuture.allOf(*listenAddrs.map { network.listen(it) }.toTypedArray())
+-            }.thenApply {
+-                if (stopped) throw Libp2pException("Transport is closed")
+-                it
+-            }
++        return CompletableFuture.allOf(
++            *listenAddrs.map { network.listen(it) }.toTypedArray()
++        )
+     }
+ 
+     override fun stop(): CompletableFuture<Void> {
+-        stopped = true
+         return CompletableFuture.allOf(
+             network.close()
+         )
+diff --git a/libp2p/src/main/kotlin/io/libp2p/security/noise/NoiseXXSecureChannel.kt b/libp2p/src/main/kotlin/io/libp2p/security/noise/NoiseXXSecureChannel.kt
+index 6f8f917f..5ad182c3 100644
+--- a/libp2p/src/main/kotlin/io/libp2p/security/noise/NoiseXXSecureChannel.kt
++++ b/libp2p/src/main/kotlin/io/libp2p/security/noise/NoiseXXSecureChannel.kt
+@@ -185,7 +185,7 @@ class NoiseIoHandshake internal constructor(
+     ) : this(localKey, handshakeComplete, role, computationObserver, prepareNoiseIdentity(localKey))
+ 
+     private val readTimeout = NoiseHandshakeReadTimeoutHandler(armInitialReadWhenAdded = role == Role.RESP)
+-    private val handshakeState = allocateNoiseHandshakeState(role)
++    private val handshakeState = HandshakeState(NoiseXXSecureChannel.protocolName, role.intVal)
+     private var tail: CompletableFuture<Void> = CompletableFuture.completedFuture(null)
+     private val terminal = AtomicBoolean()
+     private val pendingFrames = mutableListOf<ByteArray>()
+@@ -627,24 +627,6 @@ internal class PreparedNoiseIdentity(private val staticKey: DHState, val payload
+     }
+ }
+ 
+-private fun allocateNoiseHandshakeState(role: Role): HandshakeState =
+-    HandshakeState(NoiseXXSecureChannel.protocolName, role.intVal)
+-
+-private val preparedNoiseHandshakeAlgorithms: Unit by lazy {
+-    // Use the same state and cipher factories as connections, without starting a key exchange.
+-    Role.values().forEach { role -> allocateNoiseHandshakeState(role).destroy() }
+-    val cipher = Noise.createCipher("ChaChaPoly")
+-    val key = ByteArray(cipher.keyLength)
+-    try {
+-        cipher.initializeKey(key, 0)
+-    } finally {
+-        key.fill(0)
+-        cipher.destroy()
+-    }
+-}
+-
+-internal fun prepareNoiseHandshakeAlgorithms(): Unit = preparedNoiseHandshakeAlgorithms
+-
+ private fun prepareNoiseIdentity(localKey: PrivKey): PreparedNoiseIdentity {
+     val staticKey = Noise.createDH("25519")
+     val privateBytes = NoiseXXSecureChannel.localStaticPrivateKey25519.copyOf()
+diff --git a/libp2p/src/main/kotlin/io/libp2p/transport/ConnectionUpgrader.kt b/libp2p/src/main/kotlin/io/libp2p/transport/ConnectionUpgrader.kt
+index e89f832d..4df94b19 100644
+--- a/libp2p/src/main/kotlin/io/libp2p/transport/ConnectionUpgrader.kt
++++ b/libp2p/src/main/kotlin/io/libp2p/transport/ConnectionUpgrader.kt
+@@ -21,15 +21,6 @@ open class ConnectionUpgrader(
+     private val muxerMultistream: MultistreamProtocol,
+     private val muxers: List<StreamMuxer>,
+ ) {
+-    private val startupPreparations = mutableListOf<() -> Unit>()
+-
+-    // Builder finishes this list before constructing the network and its transports.
+-    internal fun addStartupPreparation(preparation: () -> Unit) {
+-        startupPreparations += preparation
+-    }
+-
+-    internal fun startupPreparationsSnapshot(): List<() -> Unit> = startupPreparations.toList()
+-
+     open fun establishSecureChannel(connection: Connection): CompletableFuture<SecureChannel.Session> {
+         return establish(
+             secureMultistream,
+diff --git a/libp2p/src/main/kotlin/io/libp2p/transport/implementation/PlainNettyTransport.kt b/libp2p/src/main/kotlin/io/libp2p/transport/implementation/PlainNettyTransport.kt
+index 75d16781..055cb094 100644
+--- a/libp2p/src/main/kotlin/io/libp2p/transport/implementation/PlainNettyTransport.kt
++++ b/libp2p/src/main/kotlin/io/libp2p/transport/implementation/PlainNettyTransport.kt
+@@ -9,7 +9,6 @@ import io.libp2p.core.PeerId
+ import io.libp2p.core.multiformats.Multiaddr
+ import io.libp2p.core.multiformats.MultiaddrDns
+ import io.libp2p.core.multiformats.Protocol
+-import io.libp2p.etc.types.completedExceptionally
+ import io.libp2p.etc.types.lazyVar
+ import io.libp2p.etc.types.toCompletableFuture
+ import io.libp2p.etc.types.toVoidCompletableFuture
+@@ -26,12 +25,10 @@ import io.netty.channel.nio.NioIoHandler
+ import io.netty.channel.socket.nio.NioServerSocketChannel
+ import io.netty.channel.socket.nio.NioSocketChannel
+ import io.netty.util.concurrent.DefaultThreadFactory
+-import io.netty.util.internal.ThreadExecutorMap
+ import java.net.InetSocketAddress
+ import java.net.SocketAddress
+ import java.time.Duration
+ import java.util.concurrent.CompletableFuture
+-import java.util.concurrent.CompletionException
+ import java.util.concurrent.TimeUnit
+ 
+ /**
+@@ -100,42 +97,9 @@ abstract class PlainNettyTransport(
+         }
+     }
+ 
+-    // Closing this transport settles its callers without interrupting shared algorithm setup.
+-    private val readiness = CompletableFuture<Unit>()
+-
+-    private val preparation by lazy {
+-        val preparations = upgrader.startupPreparationsSnapshot()
+-        if (preparations.isEmpty()) {
+-            readiness.complete(Unit)
+-        } else {
+-            Thread({
+-                try {
+-                    preparations.forEach { it() }
+-                    readiness.complete(Unit)
+-                } catch (failure: Throwable) {
+-                    readiness.completeExceptionally(failure)
+-                }
+-            }, "libp2p-transport-preparation").apply { isDaemon = true }.start()
+-        }
+-        readiness
+-    }
+-
+     override fun initialize() {
+-        if (closed) return
+-        val pending = preparation
+-        // Netty callbacks must compose readiness rather than park their event loop.
+-        if (ThreadExecutorMap.currentExecutor()?.inEventLoop() != true) {
+-            try {
+-                pending.join()
+-            } catch (failure: CompletionException) {
+-                throw failure.cause ?: failure
+-            }
+-        }
+     }
+ 
+-    override fun ready(): CompletableFuture<Unit> =
+-        if (closed) completedExceptionally(Libp2pException("Transport is closed")) else preparation.thenApply { }
+-
+     override fun close(): CompletableFuture<Unit> {
+         // Take a consistent snapshot of the listener and child-channel collections
+         // under the same monitor that listen() / dial() / registerChannel() use to
+@@ -170,9 +134,6 @@ abstract class PlainNettyTransport(
+             channelsToClose = channels.toList()
+         }
+ 
+-        // Complete outside the monitor: readiness callbacks can re-enter transport operations.
+-        readiness.completeExceptionally(Libp2pException("Transport is closed"))
+-
+         val unbindsCompleted = listenersToClose
+             .map { closeNettyChannelOnce(it) }
+ 
+@@ -226,11 +187,6 @@ abstract class PlainNettyTransport(
+         connHandler: ConnectionHandler,
+         preHandler: ChannelVisitor<P2PChannel>?
+     ): CompletableFuture<Unit> {
+-        if (closed) throw Libp2pException("Transport is closed")
+-        if (!preparation.isDone || preparation.isCompletedExceptionally) {
+-            return ready().thenCompose { listen(addr, connHandler, preHandler) }
+-        }
+-
+         // Hold the transport monitor for the entire `closed`-check ->
+         // `listener.bind(addr)` -> `listeners += ...` sequence. Splitting these
+         // across the lock boundary (as the prior shape did) opens a race window:
+@@ -286,11 +242,6 @@ abstract class PlainNettyTransport(
+         connHandler: ConnectionHandler,
+         preHandler: ChannelVisitor<P2PChannel>?
+     ): CompletableFuture<Connection> {
+-        if (closed) throw Libp2pException("Transport is closed")
+-        if (!preparation.isDone || preparation.isCompletedExceptionally) {
+-            return ready().thenCompose { dial(addr, connHandler, preHandler) }
+-        }
+-
+         if (closed) throw Libp2pException("Transport is closed")
+ 
+         val remotePeerId = addr.getPeerId()

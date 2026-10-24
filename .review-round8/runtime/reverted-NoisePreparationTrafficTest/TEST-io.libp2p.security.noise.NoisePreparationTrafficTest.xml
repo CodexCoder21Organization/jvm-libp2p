@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.libp2p.security.noise.NoisePreparationTrafficTest" tests="4" skipped="0" failures="4" errors="0" timestamp="2026-10-24T06:39:22.682Z" hostname="8bf01af06d2e" time="53.277">
+  <properties/>
+  <testcase name="construction failure preserves its cause and closes live plaintext fixtures()" classname="io.libp2p.security.noise.NoisePreparationTrafficTest" time="13.395">
+    <failure message="org.opentest4j.AssertionFailedError: NOISE_PROBE_PHASE=READY&#10;NOISE_PROBE_PHASE=BODY_COMPLETE&#10;NOISE_PROBE_PHASE=CLEANUP_COMPLETE&#10;Exception in thread &quot;main&quot; java.lang.AssertionError: Cleanup did not preserve the original construction failure&#10;&#9;at io.libp2p.security.noise.NoisePreparationTrafficProbe.main(NoisePreparationTrafficProbe.java:151)&#10;Caused by: java.lang.AssertionError: Noise preparation did not request the scoped digest&#10;&#9;at io.libp2p.security.noise.NoisePreparationTrafficProbe.runProbe(NoisePreparationTrafficProbe.java:250)&#10;&#9;at io.libp2p.security.noise.NoisePreparationTrafficProbe.main(NoisePreparationTrafficProbe.java:140)&#10; ==&gt; expected: &lt;0&gt; but was: &lt;1&gt;" type="org.opentest4j.AssertionFailedError">org.opentest4j.AssertionFailedError: NOISE_PROBE_PHASE=READY
+NOISE_PROBE_PHASE=BODY_COMPLETE
+NOISE_PROBE_PHASE=CLEANUP_COMPLETE
+Exception in thread &quot;main&quot; java.lang.AssertionError: Cleanup did not preserve the original construction failure
+	at io.libp2p.security.noise.NoisePreparationTrafficProbe.main(NoisePreparationTrafficProbe.java:151)
+Caused by: java.lang.AssertionError: Noise preparation did not request the scoped digest
+	at io.libp2p.security.noise.NoisePreparationTrafficProbe.runProbe(NoisePreparationTrafficProbe.java:250)
+	at io.libp2p.security.noise.NoisePreparationTrafficProbe.main(NoisePreparationTrafficProbe.java:140)
+ ==&gt; expected: &lt;0&gt; but was: &lt;1&gt;
+	at app//org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+	at app//org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+	at app//org.junit.jupiter.api.AssertEquals.failNotEqual(AssertEquals.java:197)
+	at app//org.junit.jupiter.api.AssertEquals.assertEquals(AssertEquals.java:150)
+	at app//org.junit.jupiter.api.Assertions.assertEquals(Assertions.java:563)
+	at app//io.libp2p.security.noise.NoisePreparationTrafficTest.probe(NoisePreparationTrafficTest.kt:38)
+	at app//io.libp2p.security.noise.NoisePreparationTrafficTest.construction failure preserves its cause and closes live plaintext fixtures(NoisePreparationTrafficTest.kt:21)
+	at java.base@21.0.12.1/java.lang.reflect.Method.invoke(Method.java:580)
+	at java.base@21.0.12.1/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at java.base@21.0.12.1/java.util.ArrayList.forEach(ArrayList.java:1596)
+</failure>
+  </testcase>
+  <testcase name="close during cold preparation prevents late listener publication()" classname="io.libp2p.security.noise.NoisePreparationTrafficTest" time="13.214">
+    <failure message="org.opentest4j.AssertionFailedError: NOISE_PROBE_PHASE=READY&#10;NOISE_PROBE_PHASE=BODY_COMPLETE&#10;NOISE_PROBE_PHASE=CLEANUP_COMPLETE&#10;Exception in thread &quot;main&quot; java.lang.AssertionError: Noise preparation did not request the scoped digest&#10;&#9;at io.libp2p.security.noise.NoisePreparationTrafficProbe.runProbe(NoisePreparationTrafficProbe.java:250)&#10;&#9;at io.libp2p.security.noise.NoisePreparationTrafficProbe.main(NoisePreparationTrafficProbe.java:134)&#10; ==&gt; expected: &lt;0&gt; but was: &lt;1&gt;" type="org.opentest4j.AssertionFailedError">org.opentest4j.AssertionFailedError: NOISE_PROBE_PHASE=READY
+NOISE_PROBE_PHASE=BODY_COMPLETE
+NOISE_PROBE_PHASE=CLEANUP_COMPLETE
+Exception in thread &quot;main&quot; java.lang.AssertionError: Noise preparation did not request the scoped digest
+	at io.libp2p.security.noise.NoisePreparationTrafficProbe.runProbe(NoisePreparationTrafficProbe.java:250)
+	at io.libp2p.security.noise.NoisePreparationTrafficProbe.main(NoisePreparationTrafficProbe.java:134)
+ ==&gt; expected: &lt;0&gt; but was: &lt;1&gt;
+	at app//org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+	at app//org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+	at app//org.junit.jupiter.api.AssertEquals.failNotEqual(AssertEquals.java:197)
+	at app//org.junit.jupiter.api.AssertEquals.assertEquals(AssertEquals.java:150)
+	at app//org.junit.jupiter.api.Assertions.assertEquals(Assertions.java:563)
+	at app//io.libp2p.security.noise.NoisePreparationTrafficTest.probe(NoisePreparationTrafficTest.kt:38)
+	at app//io.libp2p.security.noise.NoisePreparationTrafficTest.close during cold preparation prevents late listener publication(NoisePreparationTrafficTest.kt:18)
+	at java.base@21.0.12.1/java.lang.reflect.Method.invoke(Method.java:580)
+	at java.base@21.0.12.1/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at java.base@21.0.12.1/java.util.ArrayList.forEach(ArrayList.java:1596)
+</failure>
+  </testcase>
+  <testcase name="cold preparation from another thread leaves plaintext traffic running()" classname="io.libp2p.security.noise.NoisePreparationTrafficTest" time="13.094">
+    <failure message="org.opentest4j.AssertionFailedError: NOISE_PROBE_PHASE=READY&#10;NOISE_PROBE_PHASE=BODY_COMPLETE&#10;NOISE_PROBE_PHASE=CLEANUP_COMPLETE&#10;Exception in thread &quot;main&quot; java.lang.AssertionError: Noise preparation did not request the scoped digest&#10;&#9;at io.libp2p.security.noise.NoisePreparationTrafficProbe.runProbe(NoisePreparationTrafficProbe.java:250)&#10;&#9;at io.libp2p.security.noise.NoisePreparationTrafficProbe.main(NoisePreparationTrafficProbe.java:134)&#10; ==&gt; expected: &lt;0&gt; but was: &lt;1&gt;" type="org.opentest4j.AssertionFailedError">org.opentest4j.AssertionFailedError: NOISE_PROBE_PHASE=READY
+NOISE_PROBE_PHASE=BODY_COMPLETE
+NOISE_PROBE_PHASE=CLEANUP_COMPLETE
+Exception in thread &quot;main&quot; java.lang.AssertionError: Noise preparation did not request the scoped digest
+	at io.libp2p.security.noise.NoisePreparationTrafficProbe.runProbe(NoisePreparationTrafficProbe.java:250)
+	at io.libp2p.security.noise.NoisePreparationTrafficProbe.main(NoisePreparationTrafficProbe.java:134)
+ ==&gt; expected: &lt;0&gt; but was: &lt;1&gt;
+	at app//org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+	at app//org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+	at app//org.junit.jupiter.api.AssertEquals.failNotEqual(AssertEquals.java:197)
+	at app//org.junit.jupiter.api.AssertEquals.assertEquals(AssertEquals.java:150)
+	at app//org.junit.jupiter.api.Assertions.assertEquals(Assertions.java:563)
+	at app//io.libp2p.security.noise.NoisePreparationTrafficTest.probe(NoisePreparationTrafficTest.kt:38)
+	at app//io.libp2p.security.noise.NoisePreparationTrafficTest.cold preparation from another thread leaves plaintext traffic running(NoisePreparationTrafficTest.kt:12)
+	at java.base@21.0.12.1/java.lang.reflect.Method.invoke(Method.java:580)
+	at java.base@21.0.12.1/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at java.base@21.0.12.1/java.util.ArrayList.forEach(ArrayList.java:1596)
+</failure>
+  </testcase>
+  <testcase name="cold preparation requested on live event loop awaits readiness asynchronously()" classname="io.libp2p.security.noise.NoisePreparationTrafficTest" time="13.559">
+    <failure message="org.opentest4j.AssertionFailedError: NOISE_PROBE_PHASE=READY&#10;NOISE_PROBE_PHASE=BODY_COMPLETE&#10;NOISE_PROBE_PHASE=CLEANUP_COMPLETE&#10;Exception in thread &quot;main&quot; java.lang.AssertionError: Noise preparation did not request the scoped digest&#10;&#9;at io.libp2p.security.noise.NoisePreparationTrafficProbe.runProbe(NoisePreparationTrafficProbe.java:250)&#10;&#9;at io.libp2p.security.noise.NoisePreparationTrafficProbe.main(NoisePreparationTrafficProbe.java:134)&#10; ==&gt; expected: &lt;0&gt; but was: &lt;1&gt;" type="org.opentest4j.AssertionFailedError">org.opentest4j.AssertionFailedError: NOISE_PROBE_PHASE=READY
+NOISE_PROBE_PHASE=BODY_COMPLETE
+NOISE_PROBE_PHASE=CLEANUP_COMPLETE
+Exception in thread &quot;main&quot; java.lang.AssertionError: Noise preparation did not request the scoped digest
+	at io.libp2p.security.noise.NoisePreparationTrafficProbe.runProbe(NoisePreparationTrafficProbe.java:250)
+	at io.libp2p.security.noise.NoisePreparationTrafficProbe.main(NoisePreparationTrafficProbe.java:134)
+ ==&gt; expected: &lt;0&gt; but was: &lt;1&gt;
+	at app//org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+	at app//org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+	at app//org.junit.jupiter.api.AssertEquals.failNotEqual(AssertEquals.java:197)
+	at app//org.junit.jupiter.api.AssertEquals.assertEquals(AssertEquals.java:150)
+	at app//org.junit.jupiter.api.Assertions.assertEquals(Assertions.java:563)
+	at app//io.libp2p.security.noise.NoisePreparationTrafficTest.probe(NoisePreparationTrafficTest.kt:38)
+	at app//io.libp2p.security.noise.NoisePreparationTrafficTest.cold preparation requested on live event loop awaits readiness asynchronously(NoisePreparationTrafficTest.kt:15)
+	at java.base@21.0.12.1/java.lang.reflect.Method.invoke(Method.java:580)
+	at java.base@21.0.12.1/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at java.base@21.0.12.1/java.util.ArrayList.forEach(ArrayList.java:1596)
+</failure>
+  </testcase>
+  <system-out><![CDATA[NOISE_PROBE_READY=2224ms
+NOISE_PROBE_BODY_COMPLETE=10028ms
+NOISE_PROBE_CLEANUP_COMPLETE=54ms
+NOISE_PROBE_PHASE=READY
+NOISE_PROBE_PHASE=BODY_COMPLETE
+NOISE_PROBE_PHASE=CLEANUP_COMPLETE
+Exception in thread "main" java.lang.AssertionError: Cleanup did not preserve the original construction failure
+	at io.libp2p.security.noise.NoisePreparationTrafficProbe.main(NoisePreparationTrafficProbe.java:151)
+Caused by: java.lang.AssertionError: Noise preparation did not request the scoped digest
+	at io.libp2p.security.noise.NoisePreparationTrafficProbe.runProbe(NoisePreparationTrafficProbe.java:250)
+	at io.libp2p.security.noise.NoisePreparationTrafficProbe.main(NoisePreparationTrafficProbe.java:140)
+NOISE_PROBE_READY=2075ms
+NOISE_PROBE_BODY_COMPLETE=10027ms
+NOISE_PROBE_CLEANUP_COMPLETE=60ms
+NOISE_PROBE_PHASE=READY
+NOISE_PROBE_PHASE=BODY_COMPLETE
+NOISE_PROBE_PHASE=CLEANUP_COMPLETE
+Exception in thread "main" java.lang.AssertionError: Noise preparation did not request the scoped digest
+	at io.libp2p.security.noise.NoisePreparationTrafficProbe.runProbe(NoisePreparationTrafficProbe.java:250)
+	at io.libp2p.security.noise.NoisePreparationTrafficProbe.main(NoisePreparationTrafficProbe.java:134)
+NOISE_PROBE_READY=1986ms
+NOISE_PROBE_BODY_COMPLETE=10026ms
+NOISE_PROBE_CLEANUP_COMPLETE=38ms
+NOISE_PROBE_PHASE=READY
+NOISE_PROBE_PHASE=BODY_COMPLETE
+NOISE_PROBE_PHASE=CLEANUP_COMPLETE
+Exception in thread "main" java.lang.AssertionError: Noise preparation did not request the scoped digest
+	at io.libp2p.security.noise.NoisePreparationTrafficProbe.runProbe(NoisePreparationTrafficProbe.java:250)
+	at io.libp2p.security.noise.NoisePreparationTrafficProbe.main(NoisePreparationTrafficProbe.java:134)
+NOISE_PROBE_READY=2466ms
+NOISE_PROBE_BODY_COMPLETE=10022ms
+NOISE_PROBE_CLEANUP_COMPLETE=37ms
+NOISE_PROBE_PHASE=READY
+NOISE_PROBE_PHASE=BODY_COMPLETE
+NOISE_PROBE_PHASE=CLEANUP_COMPLETE
+Exception in thread "main" java.lang.AssertionError: Noise preparation did not request the scoped digest
+	at io.libp2p.security.noise.NoisePreparationTrafficProbe.runProbe(NoisePreparationTrafficProbe.java:250)
+	at io.libp2p.security.noise.NoisePreparationTrafficProbe.main(NoisePreparationTrafficProbe.java:134)
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

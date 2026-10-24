@@ -1,0 +1,48 @@
+diff --git a/libp2p/src/test/kotlin/io/libp2p/security/noise/NoiseAlgorithmReadinessTest.kt b/libp2p/src/test/kotlin/io/libp2p/security/noise/NoiseAlgorithmReadinessTest.kt
+index 463d81bc..c1dd5ca1 100644
+--- a/libp2p/src/test/kotlin/io/libp2p/security/noise/NoiseAlgorithmReadinessTest.kt
++++ b/libp2p/src/test/kotlin/io/libp2p/security/noise/NoiseAlgorithmReadinessTest.kt
+@@ -39,7 +39,8 @@ class NoiseAlgorithmReadinessTest {
+                 val process = ProcessBuilder(
+                     File(System.getProperty("java.home"), "bin/java").absolutePath,
+                     "-Xmx128m",
+-                    "-javaagent:$agent",
++                    *(if (System.getProperty("noise.control.phase") == "missing-agent") emptyArray<String>() else arrayOf("-javaagent:$agent")),
++                    "-Dnoise.control.phase=${System.getProperty("noise.control.phase")}",
+                     "-cp",
+                     System.getProperty("java.class.path"),
+                     "io.libp2p.security.noise.NoiseAlgorithmReadinessProbe",
+@@ -99,8 +100,11 @@ object NoiseAlgorithmReadinessProbe {
+             check(local.network.connections.isEmpty()) {
+                 "Host start must prepare the transport without opening a connection"
+             }
++            val observationControl = System.getProperty("noise.control.phase")
++            if (observationControl == "before") com.southernstorm.noise.crypto.ClassLoadIntervalControl.load()
+             NoiseClassLoadObserver.begin()
+             operation("CLASS_OBSERVATION_START_DONE")
++            if (observationControl == "inside") com.southernstorm.noise.crypto.ClassLoadIntervalControl.load()
+             val opened = local.newStream<PingController>(
+                 listOf("/ipfs/ping/1.0.0"),
+                 requireNotNull(address.getPeerId()),
+@@ -112,6 +116,7 @@ object NoiseAlgorithmReadinessProbe {
+                 operation("STREAM_NEGOTIATED")
+                 observed = NoiseClassLoadObserver.end()
+                 operation("CLASS_OBSERVATION_END_DONE")
++                if (observationControl == "after") com.southernstorm.noise.crypto.ClassLoadIntervalControl.load()
+                 check(controller.ping().get(10, TimeUnit.SECONDS) >= 0)
+                 operation("PING_ANSWERED")
+             } finally {
+diff --git a/libp2p/src/test/kotlin/io/libp2p/security/noise/NoiseBindingReadinessTest.kt b/libp2p/src/test/kotlin/io/libp2p/security/noise/NoiseBindingReadinessTest.kt
+index f49a4c88..61ced485 100644
+--- a/libp2p/src/test/kotlin/io/libp2p/security/noise/NoiseBindingReadinessTest.kt
++++ b/libp2p/src/test/kotlin/io/libp2p/security/noise/NoiseBindingReadinessTest.kt
+@@ -57,7 +57,8 @@ private fun bindingProbe(mode: String) {
+             val process = ProcessBuilder(
+                 File(System.getProperty("java.home"), "bin/java").absolutePath,
+                 "-Xmx128m",
+-                "-javaagent:$agent",
++                *(if (System.getProperty("noise.control.phase") == "missing-agent") emptyArray<String>() else arrayOf("-javaagent:$agent")),
++                    "-Dnoise.control.phase=${System.getProperty("noise.control.phase")}",
+                 "-Dio.netty.eventLoopThreads=1",
+                 "-cp",
+                 System.getProperty("java.class.path"),

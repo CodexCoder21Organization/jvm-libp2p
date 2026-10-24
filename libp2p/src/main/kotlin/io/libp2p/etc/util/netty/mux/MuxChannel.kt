@@ -8,8 +8,13 @@ import io.netty.channel.ChannelMetadata
 import io.netty.channel.ChannelOutboundBuffer
 import io.netty.channel.ChannelOutboundHandlerAdapter
 import io.netty.channel.ChannelPromise
+import io.netty.channel.EventLoop
 import io.netty.util.ReferenceCountUtil
 import io.netty.util.concurrent.ScheduledFuture
+import io.netty.util.concurrent.Future
+import io.netty.util.concurrent.GenericFutureListener
+import io.netty.util.concurrent.GlobalEventExecutor
+import io.netty.util.concurrent.SingleThreadEventExecutor
 import java.net.SocketAddress
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.TimeUnit
@@ -29,7 +34,7 @@ class MuxChannel<TData>(
     private var localDisconnectRequested = false
     private var waitingForParentWrite = false
     private var pendingParentWrite: ChannelFuture? = null
-    private var parentWriteObserver: ScheduledFuture<*>? = null
+    private var parentWriteCompletion: ParentWriteCompletion? = null
 
     internal fun resetForCapacity(): ChannelFuture = parent.resetForCapacity(this)
 
@@ -113,8 +118,8 @@ class MuxChannel<TData>(
                         // Close also clears ownership before disposing the outbound buffer.
                         if (pendingParentWrite === parentFuture) {
                             pendingParentWrite = null
-                            parentWriteObserver?.cancel(false)
-                            parentWriteObserver = null
+                            parentWriteCompletion?.let(::cancelParentWriteCompletion)
+                            parentWriteCompletion = null
                             waitingForParentWrite = false
                             if (isOpen && unsafe().outboundBuffer() === buf) {
                                 removeParentWrite(buf, parentFuture.causeOrNull())
@@ -122,30 +127,30 @@ class MuxChannel<TData>(
                             }
                         }
                     }
-                    // Arm this on the owner loop before listening. Later notifications can be
-                    // rejected even after the parent has completed. The scheduled observer retains
-                    // that result without another cross-thread submission or a parent-write retry.
-                    parentWriteObserver = eventLoop().scheduleWithFixedDelay(
-                        { if (parentFuture.isDone) completeWrite.run() },
-                        10, 10, TimeUnit.MILLISECONDS
-                    )
-                    parentFuture.addListener {
-                        try {
-                            eventLoop().execute(completeWrite)
-                        } catch (rejected: RejectedExecutionException) {
-                            if (eventLoop().inEventLoop()) {
-                                completeWrite.run()
+                    val completion = ParentWriteCompletion(
+                        eventLoop(), completeWrite,
+                        Runnable { closeImpl() },
+                        Runnable {
+                            // Once the loop has terminated no owner operation can race disposal.
+                            if (pendingParentWrite === parentFuture) {
+                                pendingParentWrite = null
+                                waitingForParentWrite = false
+                                val failure = RejectedExecutionException(
+                                    "The child event loop terminated before pending writes could complete: $id"
+                                )
+                                while (buf.current() != null) buf.remove(failure)
                             }
-                            // Off-loop rejection is handled by the already-armed owner-loop
-                            // observer. Never touch the child's outbound buffer on this thread.
                         }
-                    }
+                    )
+                    parentWriteCompletion = completion
+                    armParentWriteCompletion(completion)
+                    parentFuture.addListener { dispatchParentWriteCompletion(completion) }
                     break
                 }
             } catch (cause: Throwable) {
                 pendingParentWrite = null
-                parentWriteObserver?.cancel(false)
-                parentWriteObserver = null
+                parentWriteCompletion?.let(::cancelParentWriteCompletion)
+                parentWriteCompletion = null
                 waitingForParentWrite = false
                 buf.remove(cause)
             }
@@ -199,8 +204,8 @@ class MuxChannel<TData>(
 
     override fun doClose() {
         pendingParentWrite = null
-        parentWriteObserver?.cancel(false)
-        parentWriteObserver = null
+        parentWriteCompletion?.let(::cancelParentWriteCompletion)
+        parentWriteCompletion = null
         waitingForParentWrite = false
         // Close callbacks may call disconnect before the superclass finishes its teardown.
         localDisconnected = true
@@ -221,6 +226,61 @@ class MuxChannel<TData>(
 
     private fun closeIfBothDisconnected() {
         if (remoteDisconnected && localDisconnected) closeImpl()
+    }
+}
+
+private class ParentWriteCompletion(
+    val loop: EventLoop,
+    val operation: Runnable,
+    val closeOnShutdown: Runnable,
+    val failAfterTermination: Runnable
+) {
+    @Volatile
+    var active = true
+    var retry: ScheduledFuture<*>? = null
+    val terminationListener = GenericFutureListener<Future<Any?>> {
+        if (active) {
+            failAfterTermination.run()
+            cancelParentWriteCompletion(this)
+        }
+    }
+}
+
+private fun armParentWriteCompletion(completion: ParentWriteCompletion) {
+    // These are registered from the owning loop, before a parent callback can arrive.
+    (completion.loop as? SingleThreadEventExecutor)?.addShutdownHook(completion.closeOnShutdown)
+    completion.loop.terminationFuture().addListener(completion.terminationListener)
+}
+
+private fun cancelParentWriteCompletion(completion: ParentWriteCompletion) {
+    synchronized(completion) {
+        completion.active = false
+        completion.retry?.cancel(false)
+        completion.retry = null
+    }
+    (completion.loop as? SingleThreadEventExecutor)?.removeShutdownHook(completion.closeOnShutdown)
+    completion.loop.terminationFuture().removeListener(completion.terminationListener)
+}
+
+private fun dispatchParentWriteCompletion(completion: ParentWriteCompletion) {
+    if (!completion.active) return
+    try {
+        completion.loop.execute(completion.operation)
+    } catch (rejected: RejectedExecutionException) {
+        if (completion.loop.inEventLoop()) {
+            completion.operation.run()
+        } else if (!completion.loop.isShuttingDown) {
+            // Only a rejected completion needs retained delivery. One scheduled attempt at a time
+            // avoids consuming the child queue while its parent write is still pending.
+            synchronized(completion) {
+                if (completion.active) {
+                    completion.retry = GlobalEventExecutor.INSTANCE.schedule(
+                        { dispatchParentWriteCompletion(completion) }, 10, TimeUnit.MILLISECONDS
+                    )
+                }
+            }
+        }
+        // Shutdown closes on the owning loop; termination also disposes any remaining writes.
     }
 }
 

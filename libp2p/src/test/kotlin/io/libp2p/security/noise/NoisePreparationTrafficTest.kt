@@ -17,6 +17,9 @@ class NoisePreparationTrafficTest {
     @Test
     fun `close during cold preparation prevents late listener publication`() = probe("close")
 
+    @Test
+    fun `construction failure preserves its cause and closes live plaintext fixtures`() = probe("construction-failure")
+
     private fun probe(mode: String) {
         val output = Files.createTempFile("noise-live-traffic-", ".log")
         val process = ProcessBuilder(

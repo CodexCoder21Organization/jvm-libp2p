@@ -22,6 +22,35 @@ public class NoisePreparationTrafficProbe {
   private static final AtomicReference<Thread> preparationThread = new AtomicReference<>();
   private static final AtomicBoolean onLiveLoop = new AtomicBoolean();
   private static volatile EventLoop liveLoop;
+  private static boolean failConstruction;
+  private static final ProviderException CONSTRUCTION_FAILURE =
+      new ProviderException("Noise construction failure requested by traffic cleanup test");
+
+  private static final class Fixture {
+    Host client;
+    Host server;
+    final AtomicReference<Host> noiseHost = new AtomicReference<>();
+    final ExecutorService executor = Executors.newSingleThreadExecutor();
+    Provider provider;
+
+    // The test driver rescues a broken probe only after observing its cleanup contract.
+    void rescue() throws Exception {
+      release.countDown();
+      if (provider != null) Security.removeProvider(provider.getName());
+      executor.shutdownNow();
+      try {
+        if (noiseHost.get() != null) noiseHost.get().stop().get(10, TimeUnit.SECONDS);
+      } finally {
+        try {
+          if (client != null) client.stop().get(10, TimeUnit.SECONDS);
+        } finally {
+          if (server != null) server.stop().get(10, TimeUnit.SECONDS);
+        }
+      }
+      if (!executor.awaitTermination(10, TimeUnit.SECONDS))
+        throw new AssertionError("Rescued builder executor did not terminate");
+    }
+  }
 
   private static final class Digest extends MessageDigest {
     private final MessageDigest delegate;
@@ -46,6 +75,7 @@ public class NoisePreparationTrafficProbe {
 
     @Override
     protected int engineGetDigestLength() {
+      if (failConstruction) throw CONSTRUCTION_FAILURE;
       return 32;
     }
 
@@ -98,10 +128,75 @@ public class NoisePreparationTrafficProbe {
   }
 
   public static void main(String[] args) throws Exception {
+    Fixture fixture = new Fixture();
+    failConstruction = args.length > 0 && args[0].equals("construction-failure");
+    if (!failConstruction) {
+      runProbe(args, fixture);
+      return;
+    }
+    Throwable caught = null;
+    Throwable reported = null;
+    try {
+      runProbe(args, fixture);
+    } catch (Throwable failure) {
+      reported = failure;
+      caught = failure;
+      while (caught instanceof ExecutionException || caught instanceof CompletionException)
+        caught = caught.getCause();
+    }
+    try {
+      if (caught != CONSTRUCTION_FAILURE
+          || !"Noise construction failure requested by traffic cleanup test"
+              .equals(caught.getMessage()))
+        throw new AssertionError(
+            "Cleanup did not preserve the original construction failure", caught);
+      rejectUnexpectedCleanupFailure(reported);
+      if (Security.getProvider(fixture.provider.getName()) != null)
+        throw new AssertionError("Provider remained registered after construction failure", caught);
+      if (!fixture.executor.isTerminated())
+        throw new AssertionError(
+            "Builder executor remained active after construction failure", caught);
+      for (Host h : List.of(fixture.client, fixture.server)) {
+        if (!h.listenAddresses().isEmpty() || !h.getNetwork().getConnections().isEmpty())
+          throw new AssertionError(
+              "Plaintext host remained open after construction failure", caught);
+        for (io.libp2p.core.transport.Transport transport : h.getNetwork().getTransports()) {
+          if (transport.getActiveListeners() != 0 || transport.getActiveConnections() != 0)
+            throw new AssertionError(
+                "Plaintext transport retained sockets after construction failure", caught);
+        }
+        try {
+          h.start().get(10, TimeUnit.SECONDS);
+          throw new AssertionError(
+              "Stopped plaintext fixture restarted after construction failure");
+        } catch (ExecutionException closed) {
+          if (!(closed.getCause() instanceof Libp2pException)
+              || !"Transport is closed".equals(closed.getCause().getMessage())) throw closed;
+        }
+      }
+      System.out.println("CONSTRUCTION_FAILURE_PRESERVED_AND_ALL_FIXTURES_CLOSED=true");
+    } finally {
+      fixture.rescue();
+    }
+  }
+
+  private static void rejectUnexpectedCleanupFailure(Throwable reported) {
+    for (Throwable secondary : reported.getSuppressed()) {
+      Throwable cause = secondary;
+      while (cause instanceof ExecutionException || cause instanceof CompletionException)
+        cause = cause.getCause();
+      if (cause != CONSTRUCTION_FAILURE)
+        throw new AssertionError("Unexpected secondary traffic cleanup failure", secondary);
+      rejectUnexpectedCleanupFailure(secondary);
+    }
+    if (reported.getCause() != null) rejectUnexpectedCleanupFailure(reported.getCause());
+  }
+
+  private static void runProbe(String[] args, Fixture fixture) throws Exception {
     Host client = null;
     Host server = null;
-    AtomicReference<Host> noiseHost = new AtomicReference<>();
-    ExecutorService executor = Executors.newSingleThreadExecutor();
+    AtomicReference<Host> noiseHost = fixture.noiseHost;
+    ExecutorService executor = fixture.executor;
     Future<Host> building = null;
     CompletableFuture<Void> starting = null;
     Provider provider =
@@ -122,9 +217,11 @@ public class NoisePreparationTrafficProbe {
                 });
           }
         };
+    fixture.provider = provider;
+    Throwable primaryFailure = null;
     try {
-      server = host(true, true);
-      client = host(true, false);
+      server = fixture.server = host(true, true);
+      client = fixture.client = host(true, false);
       server.start().get(10, TimeUnit.SECONDS);
       client.start().get(10, TimeUnit.SECONDS);
       StreamPromise<PingController> stream =
@@ -200,21 +297,57 @@ public class NoisePreparationTrafficProbe {
       ping.ping().get(10, TimeUnit.SECONDS);
       System.out.println(
           "PLAINTEXT_PING_COMPLETED_WHILE_NOISE_PREPARATION_HELD=" + !onLiveLoop.get());
+    } catch (Exception | Error failure) {
+      primaryFailure = failure;
+      throw failure;
     } finally {
       release.countDown();
-      if (building != null) building.get(10, TimeUnit.SECONDS);
-      Security.removeProvider(provider.getName());
-      executor.shutdownNow();
-      executor.awaitTermination(10, TimeUnit.SECONDS);
+      Throwable cleanupFailure = null;
+      try {
+        if (building != null) building.get(10, TimeUnit.SECONDS);
+      } catch (Exception | Error failure) {
+        cleanupFailure = failure;
+      }
+      try {
+        Security.removeProvider(provider.getName());
+      } catch (Exception | Error failure) {
+        cleanupFailure = retainFailure(cleanupFailure, failure);
+      }
+      try {
+        executor.shutdownNow();
+        if (!executor.awaitTermination(10, TimeUnit.SECONDS))
+          throw new AssertionError("Builder executor did not terminate during traffic cleanup");
+      } catch (Exception | Error failure) {
+        cleanupFailure = retainFailure(cleanupFailure, failure);
+      }
       try {
         if (noiseHost.get() != null) noiseHost.get().stop().get(10, TimeUnit.SECONDS);
-      } finally {
-        try {
-          if (client != null) client.stop().get(10, TimeUnit.SECONDS);
-        } finally {
-          if (server != null) server.stop().get(10, TimeUnit.SECONDS);
-        }
+      } catch (Exception | Error failure) {
+        cleanupFailure = retainFailure(cleanupFailure, failure);
+      }
+      try {
+        if (client != null) client.stop().get(10, TimeUnit.SECONDS);
+      } catch (Exception | Error failure) {
+        cleanupFailure = retainFailure(cleanupFailure, failure);
+      }
+      try {
+        if (server != null) server.stop().get(10, TimeUnit.SECONDS);
+      } catch (Exception | Error failure) {
+        cleanupFailure = retainFailure(cleanupFailure, failure);
+      }
+      if (cleanupFailure != null) {
+        if (primaryFailure != null) retainFailure(primaryFailure, cleanupFailure);
+        else if (cleanupFailure instanceof Exception) throw (Exception) cleanupFailure;
+        else throw (Error) cleanupFailure;
       }
     }
+  }
+
+  private static Throwable retainFailure(Throwable primary, Throwable later) {
+    if (primary == null) return later;
+    // A cleanup step can report the original failure again. Avoid adding an
+    // exception to itself while keeping independent cleanup failures visible.
+    if (primary != later) primary.addSuppressed(later);
+    return primary;
   }
 }

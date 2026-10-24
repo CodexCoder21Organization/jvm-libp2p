@@ -143,7 +143,7 @@ class MuxChannel<TData>(
                             localDisconnected = true
                             settleBeforeClose.run()
                             closeImpl()
-                            if (pendingParentWrite === parentFuture) {
+                            if (unsafe().outboundBuffer() === buf) {
                                 pendingParentWrite = null
                                 waitingForParentWrite = false
                                 parentWriteCompletion?.let(::cancelParentWriteCompletion)

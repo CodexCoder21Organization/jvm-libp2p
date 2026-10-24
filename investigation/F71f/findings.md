@@ -1,7 +1,7 @@
 # F71f plan and findings
 Started 2026-10-24 23:03 UTC; hard cutoff 2026-10-25 00:33 UTC (90 minutes).
-- [in progress] Item 1: inspect readiness path and original failure, run class alone several times and alongside shared-fixture class; name mechanism or report NOT_REACHED without guessing.
-- [pending] Item 2: run NoiseHandshakeOffEventLoopTest first attempt on final source; record full result.
+- [done: NOT_REACHED] Item 1: inspect readiness path and original failure, run class alone several times and alongside shared-fixture class; name mechanism or report NOT_REACHED without guessing.
+- [in progress] Item 2: run NoiseHandshakeOffEventLoopTest first attempt on final source; record full result.
 - [pending] Item 3: preserve all PR evidence on evidence/pr71-20261024, remove it from PR branch, push and update description/register.
 - [pending] Stop all owned Gradle/Java processes; verify clean PR tree and final head.
 OBSERVED: PR is OPEN at required efa10e9731b174191f424d2894078cef2ed95ce0, base develop. Fresh clone under workspace; fetch/rebase origin/develop was a no-op. No subagents allowed or used.
@@ -19,3 +19,7 @@ OBSERVED: 2026-10-24 23:13 UTC: First isolated command has completed main and te
 OBSERVED: 2026-10-24T23:15:31.367471+00:00: Isolated readiness attempt 1: 3 tests, 0 failures/errors/skips, 24047ms XML; 478610ms command including fresh compilation. Normal original :libp2p:test task, offline private home, max-workers=2. Cold child outputs preserved by the external observer; no child lived long enough to trigger its 15-second diagnostic thread-print threshold. No change applied; this pass is reproduction evidence, not a fix. Attempts 2 and 3 start sequentially with forced task execution and captured original Test settings.
 
 OBSERVED: 2026-10-24T23:17:49.025347+00:00: Isolated readiness attempts 1/2/3 each passed 3/3 with 0 failures/errors/skips: 24047/30327/24108ms XML. READY observations span 1441–5337ms; BODY_COMPLETE spans 2311–4988ms. Exact commands are retained per-attempt in process.json and result.json. No source/test changes. The three predeclared paired attempts now run with NoiseAlgorithmReadinessTest in isolated standard Gradle Test projects using the captured original task configuration and freshly compiled classes in the fresh checkout; no compiled outputs copied. Fetch/rebase develop before the group was a no-op.
+
+OBSERVED: 2026-10-24T23:20:30.247363+00:00: Item 1 completed under the brief outcome (c), NOT_REACHED. Six readiness class attempts passed 18/18 checks, no failures/errors/skips: isolated 24047/30327/24108ms, paired-command 16147/26774/22407ms XML. Companion NoiseAlgorithmReadinessTest passed 1/1 in each pair: 8479/12200/13832ms. Pair 1 had 0ms test-body overlap (daemon startup); pairs 2/3 had 12200/13832ms verified overlap from XML suite intervals. No claim of three runtime-overlapping pairs. Maximum concurrent Gradle test commands 2. Commands and complete XML retained in per-attempt directories.
+INFER: Final Item 1 mechanism sentence: UNKNOWN: the original cold child spent 19657ms before READY and had not negotiated its first stream by the 30-second aggregate deadline, but neither the old record nor six successful reproductions establishes the cause of that delay. No fixture or production fix is justified by these passes. This does not resolve or erase the original failure, and does not establish PRE_EXISTING.
+OBSERVED: Item 2 starts once on the unchanged final source efa10e9731b174191f424d2894078cef2ed95ce0 with no other Gradle test command active.

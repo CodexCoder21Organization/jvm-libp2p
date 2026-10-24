@@ -63,6 +63,11 @@ object NoiseAlgorithmReadinessProbe {
     @JvmStatic
     fun main(args: Array<String>) {
         check(args.size == 2) { "Readiness probe requires a mode and an already listening peer endpoint; received ${args.toList()}" }
+        val started = System.nanoTime()
+        fun operation(name: String) {
+            println("NOISE_PROBE_OPERATION=$name elapsed=${TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started)}ms")
+            System.out.flush()
+        }
         val mode = args[0]
         val address = Multiaddr(args[1])
         var client: Host? = null
@@ -71,10 +76,12 @@ object NoiseAlgorithmReadinessProbe {
         var capture: Recording? = null
         try {
             val activeCapture = Recording()
+            operation("JFR_CONSTRUCTION_DONE")
             capture = activeCapture
             check(Security.insertProviderAt(provider, 1) == 1) { "Counting SHA-256 provider was not installed first" }
             noiseProbePhase("READY")
             val local = readinessHost(mode)
+            operation("HOST_CONSTRUCTION_DONE")
             client = local
             check(provider.initializations.get() == 1) { "Host returned before the real SHA-256 provider's first use" }
             check(provider.allocations.get() == 2) { "Host did not prepare both Noise roles" }
@@ -84,12 +91,14 @@ object NoiseAlgorithmReadinessProbe {
             check(!provider.onNettyExecutor.get()) { "Noise preparation used a Netty executor before readiness" }
             val initializedBeforeStream = provider.initializations.get()
             local.start().get(10, TimeUnit.SECONDS)
+            operation("STARTUP_DONE")
             check(local.network.connections.isEmpty()) {
                 "Host start must prepare the transport without opening a connection"
             }
             activeCapture.use { recording ->
                 recording.enable("jdk.ClassLoad").withThreshold(Duration.ZERO).withStackTrace()
                 recording.start()
+                operation("JFR_START_DONE")
                 val opened = local.newStream<PingController>(
                     listOf("/ipfs/ping/1.0.0"),
                     requireNotNull(address.getPeerId()),
@@ -97,11 +106,15 @@ object NoiseAlgorithmReadinessProbe {
                 )
                 try {
                     val controller = opened.controller.get(10, TimeUnit.SECONDS)
+                    operation("STREAM_NEGOTIATED")
                     recording.stop()
                     recording.dump(recordingFile)
+                    operation("JFR_WORK_DONE")
                     check(controller.ping().get(10, TimeUnit.SECONDS) >= 0)
+                    operation("PING_ANSWERED")
                 } finally {
                     opened.stream.get(10, TimeUnit.SECONDS).close().get(10, TimeUnit.SECONDS)
+                    operation("CLOSURE_DONE")
                 }
             }
             val loads = RecordingFile.readAllEvents(recordingFile).filter { it.eventType.name == "jdk.ClassLoad" }
@@ -114,6 +127,7 @@ object NoiseAlgorithmReadinessProbe {
                         name == "com.southernstorm.noise.protocol.ChaChaPolyCipherState" ||
                         name == "com.southernstorm.noise.protocol.DHStateHybrid"
                 }
+            operation("EVENT_PARSING_DONE")
             check(provider.initializations.get() == initializedBeforeStream) {
                 "First real stream initialized the SHA-256 provider after host readiness"
             }

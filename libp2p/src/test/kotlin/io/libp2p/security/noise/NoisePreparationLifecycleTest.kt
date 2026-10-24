@@ -1,5 +1,6 @@
 package io.libp2p.security.noise
 
+import io.libp2p.core.ConnectionHandler
 import io.libp2p.core.Host
 import io.libp2p.core.Libp2pException
 import io.libp2p.core.crypto.KeyType
@@ -154,9 +155,31 @@ object NoisePreparationLifecycleProbe {
                 } catch (closed: Libp2pException) {
                     check(closed.message == "Transport is closed")
                 }
+                val transport = pending.network.transports.single()
+                val handler = ConnectionHandler.create { error("Stopped transport invoked a connection callback") }
+                expectClosedCall { transport.listen(Multiaddr("/ip4/127.0.0.1/tcp/0"), handler) }
+                expectClosedCall { transport.dial(address, handler) }
                 release.countDown()
                 survivor.start().get(10, TimeUnit.SECONDS)
+                survivor.network.transports.single().ready().get(10, TimeUnit.SECONDS)
                 check(provider.allocations.get() == 2) { "Stopping one host cancelled shared preparation" }
+                check(provider.active.get() == 0 && provider.destroyed.get() == 2) {
+                    "Survivor became ready before shared preparation completed"
+                }
+                // Retry every public entry after confirmed shared completion, not only
+                // while the provider gate still keeps readiness pending.
+                expectClosed(pending.start())
+                expectClosed(transport.ready())
+                expectClosed(pending.network.connect(peerId, address))
+                expectClosedCall { pending.network.listen(Multiaddr("/ip4/127.0.0.1/tcp/0")) }
+                expectClosedCall { transport.listen(Multiaddr("/ip4/127.0.0.1/tcp/0"), handler) }
+                expectClosedCall { transport.dial(address, handler) }
+                check(pending.listenAddresses().isEmpty() && pending.network.connections.isEmpty()) {
+                    "Stopped host published after shared preparation completed"
+                }
+                check(transport.activeListeners == 0 && transport.activeConnections == 0) {
+                    "Stopped transport opened a socket after shared preparation completed"
+                }
             } else {
                 val listening = pending.network.listen(Multiaddr("/ip4/127.0.0.1/tcp/0"))
                 val connecting = pending.network.connect(peerId, address)
@@ -238,4 +261,14 @@ private fun expectPreparationFailure(future: CompletableFuture<*>, expected: Thr
         while (cause.cause != null) cause = requireNotNull(cause.cause)
         check(cause === expected && cause.message == expected.message) { "Lost original preparation failure: $cause" }
     }
+}
+
+private fun expectClosedCall(call: () -> CompletableFuture<*>) {
+    val result = try {
+        call()
+    } catch (closed: Libp2pException) {
+        check(closed.message == "Transport is closed") { "Wrong closed error: $closed" }
+        return
+    }
+    expectClosed(result)
 }

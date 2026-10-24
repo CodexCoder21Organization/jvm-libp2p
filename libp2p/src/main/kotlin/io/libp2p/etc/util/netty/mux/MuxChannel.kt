@@ -125,17 +125,27 @@ class MuxChannel<TData>(
                             }
                         }
                     }
+                    val settleBeforeClose = Runnable {
+                        if (pendingParentWrite === parentFuture && parentFuture.isDone) {
+                            pendingParentWrite = null
+                            parentWriteCompletion?.let(::cancelParentWriteCompletion)
+                            parentWriteCompletion = null
+                            waitingForParentWrite = false
+                            removeParentWrite(buf, parentFuture.causeOrNull())
+                        }
+                    }
                     val completion = ParentWriteCompletion(
                         eventLoop(),
                         completeWrite,
                         Runnable {
                             // Finish accepted writes while their notification executor still runs,
                             // even when an application handler refuses the normal close request.
+                            localDisconnected = true
+                            settleBeforeClose.run()
                             closeImpl()
                             if (pendingParentWrite === parentFuture) {
                                 pendingParentWrite = null
                                 waitingForParentWrite = false
-                                localDisconnected = true
                                 parentWriteCompletion?.let(::cancelParentWriteCompletion)
                                 parentWriteCompletion = null
                                 val failure = RejectedExecutionException(
@@ -145,7 +155,8 @@ class MuxChannel<TData>(
                                 buf.addFlush()
                                 while (buf.current() != null) buf.remove(failure)
                             }
-                        }
+                        },
+                        settleBeforeClose
                     )
                     parentWriteCompletion = completion
                     armParentWriteCompletion(completion)
@@ -208,12 +219,14 @@ class MuxChannel<TData>(
     }
 
     override fun doClose() {
+        // A completed parent outcome belongs to the accepted write even if delivery was rejected.
+        // Set the write-side state before notifying callers, whose callbacks may reenter close.
+        localDisconnected = true
+        parentWriteCompletion?.settleBeforeClose?.run()
         pendingParentWrite = null
         parentWriteCompletion?.let(::cancelParentWriteCompletion)
         parentWriteCompletion = null
         waitingForParentWrite = false
-        // Close callbacks may call disconnect before the superclass finishes its teardown.
-        localDisconnected = true
         // The muxer's own bookkeeping - removing this child from `streamMap` and releasing its slot in the
         // inbound-substream admission count - must happen even when the teardown above fails. Without the
         // `finally`, a close that throws leaks a `streamMap` entry and permanently consumes one of the 512
@@ -237,7 +250,8 @@ class MuxChannel<TData>(
 private class ParentWriteCompletion(
     val loop: EventLoop,
     val operation: Runnable,
-    val closeOnShutdown: Runnable
+    val closeOnShutdown: Runnable,
+    val settleBeforeClose: Runnable
 ) {
     @Volatile
     var active = true

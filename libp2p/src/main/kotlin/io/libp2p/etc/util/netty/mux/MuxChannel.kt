@@ -10,6 +10,7 @@ import io.netty.channel.ChannelOutboundHandlerAdapter
 import io.netty.channel.ChannelPromise
 import io.netty.util.ReferenceCountUtil
 import java.net.SocketAddress
+import java.util.concurrent.RejectedExecutionException
 
 /**
  * Alternative effort to start MultistreamChannel implementation from AbstractChannel
@@ -103,10 +104,18 @@ class MuxChannel<TData>(
                 } else {
                     waitingForParentWrite = true
                     parentFuture.addListener {
-                        eventLoop().execute {
+                        val completeWrite = Runnable {
                             waitingForParentWrite = false
                             removeParentWrite(buf, parentFuture.causeOrNull())
                             doWrite(buf)
+                        }
+                        try {
+                            eventLoop().execute(completeWrite)
+                        } catch (rejected: RejectedExecutionException) {
+                            // The parent listener already owns the child event loop. A full queue
+                            // must not discard its completed write or retain the child payload.
+                            if (!eventLoop().inEventLoop()) throw rejected
+                            completeWrite.run()
                         }
                     }
                     break

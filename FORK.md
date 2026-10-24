@@ -42,7 +42,7 @@ Fork releases are published to [kotlin.directory](https://kotlin.directory) unde
 The version assigned to the current source is below; publication is a separate release step.
 
 ```
-community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-37
+community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-41
 ```
 
 ## When this fork goes away

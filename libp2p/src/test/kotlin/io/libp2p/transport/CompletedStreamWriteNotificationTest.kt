@@ -3,6 +3,7 @@ package io.libp2p.transport
 import io.libp2p.core.P2PChannel
 import io.libp2p.core.P2PChannelHandler
 import io.libp2p.core.Stream
+import io.libp2p.core.StreamCapacityReset
 import io.libp2p.core.crypto.KeyType
 import io.libp2p.core.dsl.host
 import io.libp2p.core.multistream.StrictProtocolBinding
@@ -15,6 +16,7 @@ import io.netty.channel.ChannelHandlerContext
 import io.netty.channel.ChannelOutboundHandlerAdapter
 import io.netty.channel.ChannelPromise
 import io.netty.util.ReferenceCountUtil
+import io.netty.util.concurrent.DefaultPromise
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
@@ -45,6 +47,14 @@ class CompletedStreamWriteNotificationTest {
     @ValueSource(booleans = [true, false])
     fun completedParentWriteCompletesChildOnFullLoop(yamux: Boolean) {
         runWriteNotificationProbe("parent", yamux)
+    }
+}
+
+class CompletedCapacityResetNotificationTest {
+    @ParameterizedTest
+    @ValueSource(booleans = [true, false])
+    fun completedCapacityResetSurvivesNestedListenerRejection(yamux: Boolean) {
+        runWriteNotificationProbe("capacity", yamux)
     }
 }
 
@@ -106,6 +116,10 @@ object CompletedStreamWriteProbe {
                 .controller.get(5, TimeUnit.SECONDS)
             val parent = (stream.connection as P2PChannelOverNetty).nettyChannel
             val loop = parent.eventLoop()
+            if (args[0] == "capacity") {
+                checkCompletedCapacityReset(stream)
+                return
+            }
             loop.submit {
                 parent.pipeline().addFirst("hold-transport-write", object : ChannelOutboundHandlerAdapter() {
                     override fun write(ctx: ChannelHandlerContext, msg: Any, promise: ChannelPromise) {
@@ -174,5 +188,43 @@ object CompletedStreamWriteProbe {
             }
             CompletableFuture.allOf(client.stop(), server.stop()).get(10, TimeUnit.SECONDS)
         }
+    }
+}
+
+private fun checkCompletedCapacityReset(stream: Stream) {
+    stream.close().get(5, TimeUnit.SECONDS)
+    val loop = (stream as P2PChannelOverNetty).nettyChannel.eventLoop()
+    loop.submit {}.get(5, TimeUnit.SECONDS)
+    val entered = CountDownLatch(1)
+    val release = CountDownLatch(1)
+    val drained = CountDownLatch(2048)
+    val observed = CompletableFuture<CompletableFuture<Unit>>()
+    try {
+        loop.execute {
+            entered.countDown()
+            check(release.await(10, TimeUnit.SECONDS)) { "The test must release its event loop" }
+            try {
+                val chain = List(8) { DefaultPromise<Void>(loop) }
+                for (index in 0 until chain.lastIndex) {
+                    chain[index].addListener { chain[index + 1].setSuccess(null) }
+                }
+                chain.last().addListener { observed.complete((stream as StreamCapacityReset).resetForCapacity()) }
+                chain.first().setSuccess(null)
+            } catch (failure: Throwable) {
+                observed.completeExceptionally(failure)
+            }
+        }
+        check(entered.await(5, TimeUnit.SECONDS)) { "The event loop must enter its controlled wait" }
+        repeat(2048) { loop.execute { drained.countDown() } }
+        assertThrows(RejectedExecutionException::class.java) { loop.execute {} }
+        assertFalse(loop.isShuttingDown)
+        release.countDown()
+        val reset = observed.get(5, TimeUnit.SECONDS)
+        check(drained.await(5, TimeUnit.SECONDS)) { "The full event-loop queue must drain" }
+        loop.submit {}.get(5, TimeUnit.SECONDS)
+        assertTrue(reset.isDone, "An already-closed stream must complete capacity reset after the event loop recovers")
+        reset.get(1, TimeUnit.SECONDS)
+    } finally {
+        release.countDown()
     }
 }

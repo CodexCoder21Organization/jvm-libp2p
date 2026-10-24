@@ -5,6 +5,8 @@ import io.libp2p.core.Host
 import io.libp2p.core.crypto.KeyType
 import io.libp2p.core.dsl.host
 import io.libp2p.protocol.Ping
+import io.libp2p.transport.implementation.P2PChannelOverNetty
+import io.libp2p.transport.tcp.TcpTransport
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -43,20 +45,42 @@ object NoisePreparationReentryProbe {
     fun main(@Suppress("UNUSED_PARAMETER") args: Array<String>) {
         val nested = AtomicReference<Host>()
         val callback = CompletableFuture<Host>()
+        val startupGate = CompletableFuture<Unit>()
+        val queuedRelease = CompletableFuture<Unit>()
         val server = host {
             identity { random(KeyType.ED25519) }
             protocols { +Ping() }
             network { listen("/ip4/127.0.0.1/tcp/0") }
             connectionHandlers {
-                +ConnectionHandler.create {
+                +ConnectionHandler.create { connection ->
                     try {
                         val created = host {
+                            transports {
+                                add { upgrader ->
+                                    object : TcpTransport(upgrader) {
+                                        override fun ready(): CompletableFuture<Unit> =
+                                            super.ready().thenCompose { startupGate }
+                                    }
+                                }
+                            }
                             identity { random(KeyType.ED25519) }
                             protocols { +Ping() }
                         }
                         nested.set(created)
-                        created.start().get(10, TimeUnit.SECONDS)
-                        callback.complete(created)
+                        val loop = (connection as P2PChannelOverNetty).nettyChannel.eventLoop()
+                        check(loop.inEventLoop()) { "Connection callback did not run on its I/O event loop" }
+                        check(!startupGate.isDone) { "Nested startup gate was already released" }
+                        loop.execute {
+                            queuedRelease.complete(Unit)
+                            startupGate.complete(Unit)
+                        }
+                        created.start().whenComplete { _, failure ->
+                            if (failure == null) {
+                                callback.complete(created)
+                            } else {
+                                callback.completeExceptionally(failure)
+                            }
+                        }
                     } catch (failure: Throwable) {
                         callback.completeExceptionally(failure)
                         throw failure
@@ -74,10 +98,12 @@ object NoisePreparationReentryProbe {
             client.start().get(10, TimeUnit.SECONDS)
             client.network.connect(server.peerId, *server.listenAddresses().toTypedArray()).get(10, TimeUnit.SECONDS)
             val created = callback.get(10, TimeUnit.SECONDS)
+            check(queuedRelease.isDone) { "Queued readiness release did not run on the callback event loop" }
             check(created.network.connections.isEmpty()) { "Nested host construction must not open a preparation connection" }
             noiseProbePhase("BODY_COMPLETE")
             println("NOISE_PREPARATION_REENTRY_COMPLETE")
         } finally {
+            startupGate.complete(Unit)
             try {
                 nested.get()?.stop()?.get(10, TimeUnit.SECONDS)
             } finally {

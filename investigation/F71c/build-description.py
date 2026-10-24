@@ -16,6 +16,11 @@ assert old in body;body=body.replace(old,new)
 body=body.replace('Registration audit: 23 original notification sites;', 'Round-2 registration audit (historical): 23 original notification sites;')
 body=body.replace('GitHub Actions does not run tests for this fork: enterprise policy blocks its external actions, so the verification evidence is local. No workflow was rerun, requested or watched.', 'GitHub Actions has not provided executed-test verification for this fork; the verification evidence is local. Earlier startup failures were attributed to external-action policy. No workflow was rerun, requested or watched in this round.')
 head=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()
+if (ev/'actions-final-head.json').exists():
+ actions=json.loads((ev/'actions-final-head.json').read_text())['workflow_runs']
+ links=', '.join('[startup-failure record]('+r['html_url']+')' for r in actions)
+ if links:body+='\n\nCurrent final-head workflow records: '+links+'. Both completed before executing tests.'
+
 section='''\n\n## Round 3\n\nThe owner requested the two fresh-context round-2 reviews' findings be closed test-first, with bounded Gradle commands, preserved first attempts, and no merge or publication. Those reviews examined `2a3b9e2f6e93e8c35e0897f3a6b8e1cc2d2adfc6`: [adversarial findings](ADVERSARIAL), [test-comprehensiveness findings](COVERAGE). This section supersedes the earlier close/write guard claims where the new probes found gaps.\n\n'''.replace('ADVERSARIAL',base+'R71adv2-findings.md').replace('COVERAGE',base+'R71tc2-findings.md')
 rows=[
 ('Nested listener close', '37b0c7fe','6eb0c379','nested-red','nested-green','nested-reversal','A nested-listener close must complete after the event loop recovers'),

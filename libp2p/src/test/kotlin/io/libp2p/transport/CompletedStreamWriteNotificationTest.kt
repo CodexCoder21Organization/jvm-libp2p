@@ -86,7 +86,8 @@ object CompletedStreamWriteProbe {
         val yamux = args[1].toBoolean()
         val protocol = "/completed-write-notification/1.0.0"
         val binding = object : StrictProtocolBinding<Stream>(
-            protocol, object : P2PChannelHandler<Stream> {
+            protocol,
+            object : P2PChannelHandler<Stream> {
                 override fun initChannel(ch: P2PChannel): CompletableFuture<Stream> =
                     CompletableFuture.completedFuture(ch as Stream)
             }
@@ -121,12 +122,18 @@ object CompletedStreamWriteProbe {
                 return
             }
             loop.submit {
-                parent.pipeline().addFirst("hold-transport-write", object : ChannelOutboundHandlerAdapter() {
-                    override fun write(ctx: ChannelHandlerContext, msg: Any, promise: ChannelPromise) {
-                        if (holdNext.compareAndSet(true, false)) held.complete(Triple(ctx, msg, promise))
-                        else ctx.write(msg, promise)
+                parent.pipeline().addFirst(
+                    "hold-transport-write",
+                    object : ChannelOutboundHandlerAdapter() {
+                        override fun write(ctx: ChannelHandlerContext, msg: Any, promise: ChannelPromise) {
+                            if (holdNext.compareAndSet(true, false)) {
+                                held.complete(Triple(ctx, msg, promise))
+                            } else {
+                                ctx.write(msg, promise)
+                            }
+                        }
                     }
-                })
+                )
             }.get(5, TimeUnit.SECONDS)
             val payload = Unpooled.buffer(1).writeByte(7)
             var writing: CompletableFuture<Unit>? = null
@@ -165,10 +172,15 @@ object CompletedStreamWriteProbe {
             val result = checkNotNull(writing)
             assertTrue(
                 result.isDone,
-                if (parentMode) "A completed parent write must complete its child after the event loop recovers"
-                else "A rejected stream write must report its failure after the event loop recovers"
+                if (parentMode) {
+                    "A completed parent write must complete its child after the event loop recovers"
+                } else {
+                    "A rejected stream write must report its failure after the event loop recovers"
+                }
             )
-            if (parentMode && !parentFailure) result.get(1, TimeUnit.SECONDS) else {
+            if (parentMode && !parentFailure) {
+                result.get(1, TimeUnit.SECONDS)
+            } else {
                 val failure = assertThrows(ExecutionException::class.java) { result.get(1, TimeUnit.SECONDS) }
                 if (parentFailure) {
                     assertSame(writeFailure, failure.cause)

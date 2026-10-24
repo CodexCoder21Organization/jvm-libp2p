@@ -161,6 +161,7 @@ object CompletedStreamWriteProbe {
                     assertEquals("The held parent write failed after listener attachment", failure.cause!!.message)
                 } else {
                     assertInstanceOf(RejectedExecutionException::class.java, failure.cause)
+                    assertNull(failure.cause!!.message, "The original queue rejection message must be retained")
                 }
             }
             assertEquals(0, payload.refCnt(), "The write must release its payload exactly once")

@@ -10,7 +10,7 @@ import java.util.concurrent.TimeUnit
 
 class OffLoopParentWriteNotificationTest {
     @ParameterizedTest
-    @ValueSource(strings = ["success", "failure", "cancel"])
+    @ValueSource(strings = ["success", "failure", "cancel", "close", "shutdown", "blocked-close"])
     fun separateExecutorParentCompletionSurvivesChildLoopRejection(mode: String) {
         val output = Files.createTempFile("off-loop-parent-write-", ".log")
         val process = ProcessBuilder(

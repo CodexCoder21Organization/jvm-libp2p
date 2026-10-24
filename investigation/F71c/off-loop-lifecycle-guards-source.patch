@@ -1,0 +1,74 @@
+diff --git a/libp2p/src/test/java/io/libp2p/transport/OffLoopParentWriteNotificationProbe.java b/libp2p/src/test/java/io/libp2p/transport/OffLoopParentWriteNotificationProbe.java
+index 15fa8ada..31c93c98 100644
+--- a/libp2p/src/test/java/io/libp2p/transport/OffLoopParentWriteNotificationProbe.java
++++ b/libp2p/src/test/java/io/libp2p/transport/OffLoopParentWriteNotificationProbe.java
+@@ -71,29 +71,51 @@ public final class OffLoopParentWriteNotificationProbe {
+         catch (RejectedExecutionException expected) { pending.decrementAndGet(); break; }
+       }
+       if (accepted==65536 || loop.isShuttingDown()) throw new AssertionError("Expected full live loop");
+-      external.submit(() -> { if (loop.inEventLoop()) throw new AssertionError("Must be external"); if (mode.equals("failure")) promise.setFailure(parentFailure);
++      if (!mode.equals("close")) external.submit(() -> { if (loop.inEventLoop()) throw new AssertionError("Must be external"); if (mode.equals("failure")) promise.setFailure(parentFailure);
+         else if (mode.equals("cancel")) promise.cancel(false);
+         else promise.setSuccess(); }).get(5,TimeUnit.SECONDS);
+       external.submit(() -> {}).get(5,TimeUnit.SECONDS);
+       if (pending.decrementAndGet()==0) drained.countDown();
++      if (mode.equals("shutdown")) group.shutdownGracefully(0,5,TimeUnit.SECONDS);
+       release.countDown();
+       if (!drained.await(5,TimeUnit.SECONDS)) throw new AssertionError("Queue did not drain");
+-      loop.submit(() -> {}).get(5,TimeUnit.SECONDS);
++      if (mode.equals("shutdown")) {
++        if (!group.terminationFuture().await(5,TimeUnit.SECONDS)) throw new AssertionError("The owner loop must finish shutdown");
++      } else {
++        loop.submit(() -> {}).get(5,TimeUnit.SECONDS);
++      }
++      if (mode.equals("close")) {
++        child.close().sync();
++        external.submit(() -> promise.setSuccess()).get(5,TimeUnit.SECONDS);
++        external.submit(() -> {}).get(5,TimeUnit.SECONDS);
++        loop.submit(() -> {}).get(5,TimeUnit.SECONDS);
++      }
+       result.await(5,TimeUnit.SECONDS);
+       if (!result.isDone()) throw new AssertionError("A separate-executor parent result must settle its child write after queue recovery");
+       if (mode.equals("success")) {
+         if (!result.isSuccess()) throw new AssertionError("The original successful parent result must reach the child",result.cause());
+       } else if (mode.equals("failure")) {
+         if (result.cause()!=parentFailure) throw new AssertionError("The exact original parent failure must reach the child",result.cause());
+-      } else if (!(result.cause() instanceof CancellationException)) {
+-        throw new AssertionError("Parent cancellation must fail the child with its cancellation cause",result.cause());
++      } else if (mode.equals("cancel")) {
++        if (result.cause()!=promise.cause() || !(result.cause() instanceof CancellationException))
++          throw new AssertionError("Parent cancellation must retain its exact cancellation cause",result.cause());
++      } else {
++        if (!(result.cause() instanceof java.nio.channels.ClosedChannelException) || result.cause().getMessage()!=null)
++          throw new AssertionError("Closing must retain the original closed-channel failure with no message",result.cause());
++        if (child.isOpen()) throw new AssertionError("Close or shutdown must leave the child closed");
+       }
+       if (payload.refCnt()!=0) throw new AssertionError("The completed child write must release its payload exactly once");
++      if (!mode.equals("shutdown")) {
+       ByteBuf laterPayload=Unpooled.buffer(1).writeByte(8);
+       ChannelFuture second=child.writeAndFlush(laterPayload);
+-      if (!second.await(5,TimeUnit.SECONDS) || !second.isSuccess()) throw new AssertionError("A later child write must progress after recovered parent completion",second.cause());
++      if (!second.await(5,TimeUnit.SECONDS)) throw new AssertionError("A later child write must finish after recovered parent completion");
++      if (mode.equals("close")) {
++        if (!(second.cause() instanceof java.nio.channels.ClosedChannelException) || second.cause().getMessage()!=null)
++          throw new AssertionError("A write after close must report the original closed-channel failure with no message",second.cause());
++      } else if (!second.isSuccess()) throw new AssertionError("A later child write must progress after recovered parent completion",second.cause());
+       if (laterPayload.refCnt()!=0) throw new AssertionError("The later child write must release its payload exactly once");
+       System.out.println("queueAccepted="+accepted+" parentDone="+promise.isDone()+" childDoneAfterRecovery="+result.isDone()+" payloadRefCnt="+payload.refCnt()+" laterWriteSuccess="+second.isSuccess());
++      }
+     } finally {
+       release.countDown();
+       if (child!=null) child.close().await(5,TimeUnit.SECONDS);
+diff --git a/libp2p/src/test/kotlin/io/libp2p/transport/OffLoopParentWriteNotificationTest.kt b/libp2p/src/test/kotlin/io/libp2p/transport/OffLoopParentWriteNotificationTest.kt
+index 6a0918f3..3cb90815 100644
+--- a/libp2p/src/test/kotlin/io/libp2p/transport/OffLoopParentWriteNotificationTest.kt
++++ b/libp2p/src/test/kotlin/io/libp2p/transport/OffLoopParentWriteNotificationTest.kt
+@@ -10,7 +10,7 @@ import java.util.concurrent.TimeUnit
+ 
+ class OffLoopParentWriteNotificationTest {
+     @ParameterizedTest
+-    @ValueSource(strings = ["success", "failure", "cancel"])
++    @ValueSource(strings = ["success", "failure", "cancel", "close", "shutdown"])
+     fun separateExecutorParentCompletionSurvivesChildLoopRejection(mode: String) {
+         val output = Files.createTempFile("off-loop-parent-write-", ".log")
+         val process = ProcessBuilder(

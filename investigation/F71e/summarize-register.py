@@ -1,6 +1,8 @@
 from pathlib import Path
 import json,decimal
-repo=Path(__file__).resolve().parent/'jvm-libp2p';ev=repo/'investigation/F71e'
+script=Path(__file__).resolve()
+repo=script.parents[2] if script.parent.name=='F71e' and script.parent.parent.name=='investigation' else script.parent/'jvm-libp2p'
+ev=repo/'investigation/F71e'
 rows=[];missing=[];failed=[]
 for cls in (ev/'register-classes.txt').read_text().splitlines():
  path=ev/('register-'+cls.rsplit('.',1)[-1])/'result.json'

@@ -1,0 +1,14 @@
+gradle.projectsEvaluated {
+ def p=gradle.rootProject.project(':libp2p')
+ p.spotless {
+ kotlin { target(p.files(["src/main/kotlin/io/libp2p/etc/types/NettyExt.kt", "src/main/kotlin/io/libp2p/etc/util/netty/mux/MuxChannel.kt", "src/main/kotlin/io/libp2p/transport/implementation/ConnectionOverNetty.kt", "src/main/kotlin/io/libp2p/transport/implementation/NettyChannelClose.kt", "src/main/kotlin/io/libp2p/transport/implementation/StreamOverNetty.kt", "src/test/kotlin/io/libp2p/etc/types/CompletedNettyFutureConversionTest.kt", "src/test/kotlin/io/libp2p/etc/types/NettyFutureConversionStateTest.kt", "src/test/kotlin/io/libp2p/etc/types/PendingNettyFutureConversionTest.kt", "src/test/kotlin/io/libp2p/transport/CompletedConnectionCloseNotificationTest.kt", "src/test/kotlin/io/libp2p/transport/CompletedStreamWriteNotificationTest.kt", "src/test/kotlin/io/libp2p/transport/NestedConnectionCloseNotificationTest.kt", "src/test/kotlin/io/libp2p/transport/OffLoopParentWriteNotificationTest.kt", "src/test/kotlin/io/libp2p/transport/OffThreadConnectionCloseNotificationTest.kt", "src/test/kotlin/io/libp2p/transport/ReentrantConnectionCloseNotificationTest.kt"])) }
+ java { target(p.files(["src/test/java/io/libp2p/transport/OffLoopParentWriteNotificationProbe.java", "src/test/java/io/libp2p/transport/ReviewChildLoopAffinityProbe.java", "src/test/java/io/libp2p/transport/ReviewChildLoopAffinityTest.java", "src/test/java/io/libp2p/transport/ReviewCompletedShutdownProbe.java", "src/test/java/io/libp2p/transport/ReviewCompletedShutdownTest.java", "src/test/java/io/libp2p/transport/ReviewTerminalWriteConversionProbe.java", "src/test/java/io/libp2p/transport/ReviewTerminalWriteConversionTest.java"])) }
+ }
+ ['spotlessKotlin','spotlessJava'].each { name ->
+ p.tasks.named(name).configure { doFirst {
+ def src=inputs.files.files.findAll { it.path.endsWith('.kt') || it.path.endsWith('.java') }
+ new File(p.rootProject.projectDir,'investigation/F71e/formatter-'+name+'-inputs.txt').text=src.collect { it.path }.sort().join('\n')
+ println('F71E_FORMAT_INPUTS_'+name+'='+src.size())
+ } }
+ }
+}

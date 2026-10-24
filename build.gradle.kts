@@ -83,7 +83,8 @@ configure(
     // snapshot-35: make child write-close idempotent after full close, reset, and callback re-entry.
     // snapshot-36: drain accepted child writes before half-close with Yamux and Mplex.
     // snapshot-37: pause Yamux delivery and credit per stream while parent reads continue.
-    version = "1.3.0-codexcoder21-snapshot-37"
+    // snapshot-41 preserves completed future results when listener dispatch is unavailable.
+    version = "1.3.0-codexcoder21-snapshot-41"
 
     apply(plugin = "kotlin")
     apply(plugin = "idea")

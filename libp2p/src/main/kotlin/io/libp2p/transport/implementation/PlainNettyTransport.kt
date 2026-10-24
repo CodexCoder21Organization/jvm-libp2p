@@ -9,6 +9,7 @@ import io.libp2p.core.PeerId
 import io.libp2p.core.multiformats.Multiaddr
 import io.libp2p.core.multiformats.MultiaddrDns
 import io.libp2p.core.multiformats.Protocol
+import io.libp2p.etc.types.completedExceptionally
 import io.libp2p.etc.types.lazyVar
 import io.libp2p.etc.types.toCompletableFuture
 import io.libp2p.etc.types.toVoidCompletableFuture
@@ -25,10 +26,12 @@ import io.netty.channel.nio.NioIoHandler
 import io.netty.channel.socket.nio.NioServerSocketChannel
 import io.netty.channel.socket.nio.NioSocketChannel
 import io.netty.util.concurrent.DefaultThreadFactory
+import io.netty.util.internal.ThreadExecutorMap
 import java.net.InetSocketAddress
 import java.net.SocketAddress
 import java.time.Duration
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CompletionException
 import java.util.concurrent.TimeUnit
 
 /**
@@ -97,8 +100,41 @@ abstract class PlainNettyTransport(
         }
     }
 
-    override fun initialize() {
+    // Closing this transport settles its callers without interrupting shared algorithm setup.
+    private val readiness = CompletableFuture<Unit>()
+
+    private val preparation by lazy {
+        val preparations = upgrader.startupPreparationsSnapshot()
+        if (preparations.isEmpty()) {
+            readiness.complete(Unit)
+        } else {
+            Thread({
+                try {
+                    preparations.forEach { it() }
+                    readiness.complete(Unit)
+                } catch (failure: Throwable) {
+                    readiness.completeExceptionally(failure)
+                }
+            }, "libp2p-transport-preparation").apply { isDaemon = true }.start()
+        }
+        readiness
     }
+
+    override fun initialize() {
+        if (closed) return
+        val pending = preparation
+        // Netty callbacks must compose readiness rather than park their event loop.
+        if (ThreadExecutorMap.currentExecutor()?.inEventLoop() != true) {
+            try {
+                pending.join()
+            } catch (failure: CompletionException) {
+                throw failure.cause ?: failure
+            }
+        }
+    }
+
+    override fun ready(): CompletableFuture<Unit> =
+        if (closed) completedExceptionally(Libp2pException("Transport is closed")) else preparation.thenApply { }
 
     override fun close(): CompletableFuture<Unit> {
         // Take a consistent snapshot of the listener and child-channel collections
@@ -133,6 +169,9 @@ abstract class PlainNettyTransport(
             listenersToClose = listeners.values.toList()
             channelsToClose = channels.toList()
         }
+
+        // Complete outside the monitor: readiness callbacks can re-enter transport operations.
+        readiness.completeExceptionally(Libp2pException("Transport is closed"))
 
         val unbindsCompleted = listenersToClose
             .map { closeNettyChannelOnce(it) }
@@ -187,6 +226,11 @@ abstract class PlainNettyTransport(
         connHandler: ConnectionHandler,
         preHandler: ChannelVisitor<P2PChannel>?
     ): CompletableFuture<Unit> {
+        if (closed) throw Libp2pException("Transport is closed")
+        if (!preparation.isDone || preparation.isCompletedExceptionally) {
+            return ready().thenCompose { listen(addr, connHandler, preHandler) }
+        }
+
         // Hold the transport monitor for the entire `closed`-check ->
         // `listener.bind(addr)` -> `listeners += ...` sequence. Splitting these
         // across the lock boundary (as the prior shape did) opens a race window:
@@ -242,6 +286,11 @@ abstract class PlainNettyTransport(
         connHandler: ConnectionHandler,
         preHandler: ChannelVisitor<P2PChannel>?
     ): CompletableFuture<Connection> {
+        if (closed) throw Libp2pException("Transport is closed")
+        if (!preparation.isDone || preparation.isCompletedExceptionally) {
+            return ready().thenCompose { dial(addr, connHandler, preHandler) }
+        }
+
         if (closed) throw Libp2pException("Transport is closed")
 
         val remotePeerId = addr.getPeerId()

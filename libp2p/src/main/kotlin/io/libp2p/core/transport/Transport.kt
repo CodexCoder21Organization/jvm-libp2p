@@ -30,6 +30,9 @@ interface Transport {
      */
     fun initialize()
 
+    /** Completes when startup preparation has finished, before listening or dialing. */
+    fun ready(): CompletableFuture<Unit> = CompletableFuture.completedFuture(Unit)
+
     /**
      * Stops the transport entirely, closing down all ongoing connections, outbound dials, and listening endpoints.
      */

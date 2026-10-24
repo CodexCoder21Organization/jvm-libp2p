@@ -29,6 +29,7 @@ import io.libp2p.host.MemoryAddressBook
 import io.libp2p.network.NetworkImpl
 import io.libp2p.protocol.IdentifyBinding
 import io.libp2p.security.noise.NoiseXXSecureChannel
+import io.libp2p.security.noise.prepareNoiseHandshakeAlgorithms
 import io.libp2p.transport.ConnectionUpgrader
 import io.libp2p.transport.tcp.TcpTransport
 import io.netty.channel.ChannelHandler
@@ -195,6 +196,15 @@ open class Builder {
         }
 
         val upgrader = ConnectionUpgrader(secureMultistreamProtocol, secureChannels, muxerMultistreamProtocol, muxers)
+        if (
+            secureChannels.any { channel ->
+                val descriptor = channel.protocolDescriptor
+                NoiseXXSecureChannel.announce in descriptor.announceProtocols ||
+                    descriptor.protocolMatcher.matches(NoiseXXSecureChannel.announce)
+            }
+        ) {
+            upgrader.addStartupPreparation(::prepareNoiseHandshakeAlgorithms)
+        }
 
         val allTransports =
             listOf(

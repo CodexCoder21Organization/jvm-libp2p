@@ -60,6 +60,21 @@ Legend:
 
 For autonomous Netty loops, competing handshakes or queued work send computation to the shared workers. An uncontended loop keeps computation inline. Once a handshake uses the workers, subsequent computations keep their per-channel order there. Embedded channels remain synchronous on their caller-driven loops.
 
+## Noise algorithm preparation
+
+TCP and WebSocket hosts built with `host { ... }` prepare the configured Noise handshake and cipher algorithm
+factories on short-lived daemon preparation threads, separate from network I/O workers.
+Registration covers descriptors that announce or match `/noise`, including bindings that delegate to Noise.
+Construction outside a Netty executor waits for preparation and reports its original failure.
+Construction in a Netty callback returns without blocking that executor; `Host.start()`, listening
+and dialing await preparation asynchronously before publishing readiness or opening sockets.
+Stopping a host fails its pending readiness, startup, listen and dial operations with `Transport is closed`;
+shared preparation continues for other hosts. A stopped host cannot become ready or start again.
+This setup is shared by bindings in the same process. It opens no connection and
+runs no peer key exchange or application callback. Each connection still creates fresh handshake
+state, ephemeral keys and cipher state. Noise pipeline callbacks, mux sessions and application
+protocol wrappers keep their existing initialization boundaries.
+
 ## Noise identity preparation
 
 A `NoiseXXSecureChannel` prepares its static key and signed identity payload when it is constructed,

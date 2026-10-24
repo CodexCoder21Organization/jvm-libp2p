@@ -185,7 +185,7 @@ class NoiseIoHandshake internal constructor(
     ) : this(localKey, handshakeComplete, role, computationObserver, prepareNoiseIdentity(localKey))
 
     private val readTimeout = NoiseHandshakeReadTimeoutHandler(armInitialReadWhenAdded = role == Role.RESP)
-    private val handshakeState = HandshakeState(NoiseXXSecureChannel.protocolName, role.intVal)
+    private val handshakeState = allocateNoiseHandshakeState(role)
     private var tail: CompletableFuture<Void> = CompletableFuture.completedFuture(null)
     private val terminal = AtomicBoolean()
     private val pendingFrames = mutableListOf<ByteArray>()
@@ -626,6 +626,24 @@ internal class PreparedNoiseIdentity(private val staticKey: DHState, val payload
         target.copyFrom(staticKey)
     }
 }
+
+private fun allocateNoiseHandshakeState(role: Role): HandshakeState =
+    HandshakeState(NoiseXXSecureChannel.protocolName, role.intVal)
+
+private val preparedNoiseHandshakeAlgorithms: Unit by lazy {
+    // Use the same state and cipher factories as connections, without starting a key exchange.
+    Role.values().forEach { role -> allocateNoiseHandshakeState(role).destroy() }
+    val cipher = Noise.createCipher("ChaChaPoly")
+    val key = ByteArray(cipher.keyLength)
+    try {
+        cipher.initializeKey(key, 0)
+    } finally {
+        key.fill(0)
+        cipher.destroy()
+    }
+}
+
+internal fun prepareNoiseHandshakeAlgorithms(): Unit = preparedNoiseHandshakeAlgorithms
 
 private fun prepareNoiseIdentity(localKey: PrivKey): PreparedNoiseIdentity {
     val staticKey = Noise.createDH("25519")

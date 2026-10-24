@@ -130,7 +130,11 @@ class NettyFutureConversionStateTest {
 }
 
 private fun assertConversionOutcome(
-    converted: CompletableFuture<*>, source: Future<*>, outcome: String, failure: IOException, success: Any?
+    converted: CompletableFuture<*>,
+    source: Future<*>,
+    outcome: String,
+    failure: IOException,
+    success: Any?
 ) {
     assertTrue(converted.isDone, "The source's terminal result must remain observable")
     assertEquals(outcome != "success", converted.isCompletedExceptionally)

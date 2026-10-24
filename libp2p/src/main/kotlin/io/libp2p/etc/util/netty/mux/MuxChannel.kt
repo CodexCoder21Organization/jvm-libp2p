@@ -10,10 +10,10 @@ import io.netty.channel.ChannelOutboundHandlerAdapter
 import io.netty.channel.ChannelPromise
 import io.netty.channel.EventLoop
 import io.netty.util.ReferenceCountUtil
-import io.netty.util.concurrent.ScheduledFuture
 import io.netty.util.concurrent.Future
 import io.netty.util.concurrent.GenericFutureListener
 import io.netty.util.concurrent.GlobalEventExecutor
+import io.netty.util.concurrent.ScheduledFuture
 import io.netty.util.concurrent.SingleThreadEventExecutor
 import java.net.SocketAddress
 import java.util.concurrent.RejectedExecutionException
@@ -128,7 +128,8 @@ class MuxChannel<TData>(
                         }
                     }
                     val completion = ParentWriteCompletion(
-                        eventLoop(), completeWrite,
+                        eventLoop(),
+                        completeWrite,
                         Runnable { closeImpl() },
                         Runnable {
                             // Once the loop has terminated no owner operation can race disposal.
@@ -280,7 +281,9 @@ private fun dispatchParentWriteCompletion(completion: ParentWriteCompletion) {
             synchronized(completion) {
                 if (completion.active) {
                     completion.retry = GlobalEventExecutor.INSTANCE.schedule(
-                        { dispatchParentWriteCompletion(completion) }, 10, TimeUnit.MILLISECONDS
+                        { dispatchParentWriteCompletion(completion) },
+                        10,
+                        TimeUnit.MILLISECONDS
                     )
                 }
             }

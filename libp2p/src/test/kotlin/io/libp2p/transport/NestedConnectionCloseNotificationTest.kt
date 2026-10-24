@@ -23,7 +23,8 @@ class NestedConnectionCloseNotificationTest {
             "-Xmx128m",
             "-Dio.netty.eventLoopThreads=1",
             "-Dio.netty.eventLoop.maxPendingTasks=16",
-            "-cp", System.getProperty("java.class.path"),
+            "-cp",
+            System.getProperty("java.class.path"),
             "io.libp2p.transport.NestedConnectionCloseProbe"
         ).redirectErrorStream(true).redirectOutput(output.toFile()).start()
         try {

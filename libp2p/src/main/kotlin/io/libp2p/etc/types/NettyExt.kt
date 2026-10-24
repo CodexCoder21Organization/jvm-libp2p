@@ -12,8 +12,11 @@ fun ChannelFuture.toVoidCompletableFuture(): CompletableFuture<Unit> = toComplet
 fun ChannelFuture.toCompletableFuture(): CompletableFuture<Channel> {
     val ret = CompletableFuture<Channel>()
     val transfer = {
-        if (isSuccess) ret.complete(channel())
-        else ret.completeExceptionally(cause())
+        if (isSuccess) {
+            ret.complete(channel())
+        } else {
+            ret.completeExceptionally(cause())
+        }
     }
     if (isDone) {
         transfer()
@@ -31,8 +34,11 @@ fun Future<*>.toVoidCompletableFuture(): CompletableFuture<Unit> = toCompletable
 fun <T> Future<T>.toCompletableFuture(): CompletableFuture<T> {
     val ret = CompletableFuture<T>()
     val transfer = {
-        if (isSuccess) ret.complete(getNow())
-        else ret.completeExceptionally(cause())
+        if (isSuccess) {
+            ret.complete(getNow())
+        } else {
+            ret.completeExceptionally(cause())
+        }
     }
     if (isDone) {
         transfer()

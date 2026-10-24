@@ -13,12 +13,15 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.io.File
-import java.io.RandomAccessFile
 import java.nio.file.Files
 import java.nio.file.Path
 import java.security.Security
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
+import java.util.jar.Attributes
+import java.util.jar.JarEntry
+import java.util.jar.JarOutputStream
+import java.util.jar.Manifest
 
 class NoiseAlgorithmReadinessTest {
     @Test
@@ -30,13 +33,13 @@ class NoiseAlgorithmReadinessTest {
                 "Host start must prepare the transport without opening a connection"
             }
             val output = Files.createTempFile("host-transport-readiness-", ".log")
-            val classLoads = output.resolveSibling(output.fileName.toString() + ".classes")
+            val agent = output.resolveSibling(output.fileName.toString() + ".agent.jar")
             try {
+                writeNoiseClassLoadAgent(agent)
                 val process = ProcessBuilder(
                     File(System.getProperty("java.home"), "bin/java").absolutePath,
                     "-Xmx128m",
-                    "-Xlog:class+load=info:file=$classLoads:none:filecount=0",
-                    "-Dnoise.class.load.log=$classLoads",
+                    "-javaagent:$agent",
                     "-cp",
                     System.getProperty("java.class.path"),
                     "io.libp2p.security.noise.NoiseAlgorithmReadinessProbe",
@@ -54,7 +57,7 @@ class NoiseAlgorithmReadinessTest {
                 }
             } finally {
                 try {
-                    Files.deleteIfExists(classLoads)
+                    Files.deleteIfExists(agent)
                 } finally {
                     Files.deleteIfExists(output)
                 }
@@ -78,7 +81,6 @@ object NoiseAlgorithmReadinessProbe {
         val address = Multiaddr(args[1])
         var client: Host? = null
         val provider = NoisePreparationProvider()
-        val classLoads = Path.of(requireNotNull(System.getProperty("noise.class.load.log")))
         try {
             check(Security.insertProviderAt(provider, 1) == 1) { "Counting SHA-256 provider was not installed first" }
             noiseProbePhase("READY")
@@ -97,48 +99,32 @@ object NoiseAlgorithmReadinessProbe {
             check(local.network.connections.isEmpty()) {
                 "Host start must prepare the transport without opening a connection"
             }
-            // Unified logging writes synchronously, without rotation. A known preparation
-            // class proves the logger is active before taking the first-stream byte range.
-            // https://docs.oracle.com/en/java/javase/21/docs/specs/man/java.html#enable-logging-with-the-jvm-unified-logging-framework
-            check(
-                Files.readString(classLoads).lineSequence().any {
-                    it.startsWith("com.southernstorm.noise.protocol.HandshakeState source: ")
-                }
-            ) { "Class-load logging did not record Noise preparation before the first stream" }
-            val loadStart = Files.size(classLoads)
-            operation("CLASS_LOG_START_DONE")
+            NoiseClassLoadObserver.begin()
+            operation("CLASS_OBSERVATION_START_DONE")
             val opened = local.newStream<PingController>(
                 listOf("/ipfs/ping/1.0.0"),
                 requireNotNull(address.getPeerId()),
                 address
             )
-            val loadEnd: Long
+            val observed: List<String>
             try {
                 val controller = opened.controller.get(10, TimeUnit.SECONDS)
                 operation("STREAM_NEGOTIATED")
-                loadEnd = Files.size(classLoads)
-                operation("CLASS_LOG_END_DONE")
+                observed = NoiseClassLoadObserver.end()
+                operation("CLASS_OBSERVATION_END_DONE")
                 check(controller.ping().get(10, TimeUnit.SECONDS) >= 0)
                 operation("PING_ANSWERED")
             } finally {
                 opened.stream.get(10, TimeUnit.SECONDS).close().get(10, TimeUnit.SECONDS)
                 operation("CLOSURE_DONE")
             }
-            val loads = RandomAccessFile(classLoads.toFile(), "r").use { log ->
-                log.seek(loadStart)
-                val interval = ByteArray(Math.toIntExact(loadEnd - loadStart))
-                log.readFully(interval)
-                interval.toString(Charsets.UTF_8).lineSequence()
-                    .filter { it.contains(" source: ") }
-                    .map { it.substringBefore(" source: ") }
-                    .filter { name ->
-                        name.startsWith("com.southernstorm.noise.crypto.") ||
-                            name == "com.southernstorm.noise.protocol.HandshakeState" ||
-                            name == "com.southernstorm.noise.protocol.Pattern" ||
-                            name == "com.southernstorm.noise.protocol.SymmetricState" ||
-                            name == "com.southernstorm.noise.protocol.ChaChaPolyCipherState" ||
-                            name == "com.southernstorm.noise.protocol.DHStateHybrid"
-                    }.toList()
+            val loads = observed.filter { name ->
+                name.startsWith("com.southernstorm.noise.crypto.") ||
+                    name == "com.southernstorm.noise.protocol.HandshakeState" ||
+                    name == "com.southernstorm.noise.protocol.Pattern" ||
+                    name == "com.southernstorm.noise.protocol.SymmetricState" ||
+                    name == "com.southernstorm.noise.protocol.ChaChaPolyCipherState" ||
+                    name == "com.southernstorm.noise.protocol.DHStateHybrid"
             }
             operation("EVENT_PARSING_DONE")
             check(provider.initializations.get() == initializedBeforeStream) {
@@ -153,6 +139,7 @@ object NoiseAlgorithmReadinessProbe {
             noiseProbePhase("BODY_COMPLETE")
         } finally {
             try {
+                NoiseClassLoadObserver.close()
                 client?.stop()?.get(10, TimeUnit.SECONDS)
             } finally {
                 Security.removeProvider(provider.name)
@@ -196,6 +183,23 @@ object NoiseReadinessPeer {
             CompletableFuture.supplyAsync { System.`in`.read() }.get(20, TimeUnit.SECONDS)
         } finally {
             server.stop().get(10, TimeUnit.SECONDS)
+        }
+    }
+}
+
+internal fun writeNoiseClassLoadAgent(path: Path) {
+    val manifest = Manifest().apply {
+        mainAttributes[Attributes.Name.MANIFEST_VERSION] = "1.0"
+        mainAttributes.putValue("Premain-Class", "io.libp2p.security.noise.NoiseClassLoadObserver")
+    }
+    JarOutputStream(Files.newOutputStream(path), manifest).use { jar ->
+        for (name in listOf("NoiseClassLoadObserver.class", "NoiseClassLoadObserver\$1.class")) {
+            val resource = "/io/libp2p/security/noise/$name"
+            jar.putNextEntry(JarEntry(resource.removePrefix("/")))
+            requireNotNull(NoiseClassLoadObserver::class.java.getResourceAsStream(resource)) {
+                "Missing class-load observer agent resource: $resource"
+            }.use { it.copyTo(jar) }
+            jar.closeEntry()
         }
     }
 }

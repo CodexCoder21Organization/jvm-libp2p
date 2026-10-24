@@ -51,13 +51,13 @@ private fun bindingProbe(mode: String) {
             "Host start must prepare the transport without opening a connection"
         }
         val output = Files.createTempFile("noise-binding-readiness-", ".log")
-        val classLoads = output.resolveSibling(output.fileName.toString() + ".classes")
+        val agent = output.resolveSibling(output.fileName.toString() + ".agent.jar")
         try {
+            writeNoiseClassLoadAgent(agent)
             val process = ProcessBuilder(
                 File(System.getProperty("java.home"), "bin/java").absolutePath,
                 "-Xmx128m",
-                "-Xlog:class+load=info:file=$classLoads:none:filecount=0",
-                "-Dnoise.class.load.log=$classLoads",
+                "-javaagent:$agent",
                 "-Dio.netty.eventLoopThreads=1",
                 "-cp",
                 System.getProperty("java.class.path"),
@@ -76,7 +76,7 @@ private fun bindingProbe(mode: String) {
             }
         } finally {
             try {
-                Files.deleteIfExists(classLoads)
+                Files.deleteIfExists(agent)
             } finally {
                 Files.deleteIfExists(output)
             }

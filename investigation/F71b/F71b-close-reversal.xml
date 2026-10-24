@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.libp2p.transport.CompletedConnectionCloseNotificationTest" tests="1" skipped="0" failures="1" errors="0" timestamp="2026-10-24T15:27:20.738Z" hostname="8bf01af06d2e" time="9.865">
+  <properties/>
+  <testcase name="peerClosedConnectionCompletesAfterRejectedNotificationAndLoopRecovery()" classname="io.libp2p.transport.CompletedConnectionCloseNotificationTest" time="9.865">
+    <failure message="org.opentest4j.AssertionFailedError: 15:27:29.330 [main] [?[1;31mERROR?[m] io.netty.util.concurrent.DefaultPromise.rejectedExecution - Failed to submit a listener notification task. Event loop shut down?&#10;java.util.concurrent.RejectedExecutionException&#10;&#9;at io.netty.util.concurrent.RejectedExecutionHandlers$1.rejected(RejectedExecutionHandlers.java:31)&#10;&#9;at io.netty.util.concurrent.SingleThreadEventExecutor.reject(SingleThreadEventExecutor.java:1134)&#10;&#9;at io.netty.util.concurrent.SingleThreadEventExecutor.addTask(SingleThreadEventExecutor.java:407)&#10;&#9;at io.netty.util.concurrent.SingleThreadEventExecutor.execute(SingleThreadEventExecutor.java:1027)&#10;&#9;at io.netty.util.concurrent.SingleThreadEventExecutor.execute0(SingleThreadEventExecutor.java:993)&#10;&#9;at io.netty.util.concurrent.SingleThreadEventExecutor.execute(SingleThreadEventExecutor.java:983)&#10;&#9;at io.netty.util.concurrent.DefaultPromise.safeExecute(DefaultPromise.java:879)&#10;&#9;at io.netty.util.concurrent.DefaultPromise.notifyListeners(DefaultPromise.java:514)&#10;&#9;at io.netty.util.concurrent.DefaultPromise.addListener(DefaultPromise.java:199)&#10;&#9;at io.netty.channel.DefaultChannelPromise.addListener(DefaultChannelPromise.java:95)&#10;&#9;at io.netty.channel.DefaultChannelPromise.addListener(DefaultChannelPromise.java:30)&#10;&#9;at io.libp2p.transport.implementation.NettyChannelCloseKt.requestPhysicalClose(NettyChannelClose.kt:48)&#10;&#9;at io.libp2p.transport.implementation.NettyChannelCloseKt.closeOperation(NettyChannelClose.kt:29)&#10;&#9;at io.libp2p.transport.implementation.NettyChannelCloseKt.closeNettyChannelOnce(NettyChannelClose.kt:18)&#10;&#9;at io.libp2p.transport.implementation.ConnectionOverNetty.close(ConnectionOverNetty.kt:34)&#10;&#9;at io.libp2p.transport.CompletedConnectionCloseProbe.main(CompletedConnectionCloseNotificationTest.kt:72)&#10;Exception in thread &quot;main&quot; java.lang.IllegalStateException: A peer-closed connection must complete close after the event loop recovers&#10;&#9;at io.libp2p.transport.CompletedConnectionCloseProbe.main(CompletedConnectionCloseNotificationTest.kt:76)&#10; ==&gt; expected: &lt;0&gt; but was: &lt;1&gt;" type="org.opentest4j.AssertionFailedError">org.opentest4j.AssertionFailedError: 15:27:29.330 [main] [?[1;31mERROR?[m] io.netty.util.concurrent.DefaultPromise.rejectedExecution - Failed to submit a listener notification task. Event loop shut down?
+java.util.concurrent.RejectedExecutionException
+	at io.netty.util.concurrent.RejectedExecutionHandlers$1.rejected(RejectedExecutionHandlers.java:31)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.reject(SingleThreadEventExecutor.java:1134)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.addTask(SingleThreadEventExecutor.java:407)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.execute(SingleThreadEventExecutor.java:1027)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.execute0(SingleThreadEventExecutor.java:993)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.execute(SingleThreadEventExecutor.java:983)
+	at io.netty.util.concurrent.DefaultPromise.safeExecute(DefaultPromise.java:879)
+	at io.netty.util.concurrent.DefaultPromise.notifyListeners(DefaultPromise.java:514)
+	at io.netty.util.concurrent.DefaultPromise.addListener(DefaultPromise.java:199)
+	at io.netty.channel.DefaultChannelPromise.addListener(DefaultChannelPromise.java:95)
+	at io.netty.channel.DefaultChannelPromise.addListener(DefaultChannelPromise.java:30)
+	at io.libp2p.transport.implementation.NettyChannelCloseKt.requestPhysicalClose(NettyChannelClose.kt:48)
+	at io.libp2p.transport.implementation.NettyChannelCloseKt.closeOperation(NettyChannelClose.kt:29)
+	at io.libp2p.transport.implementation.NettyChannelCloseKt.closeNettyChannelOnce(NettyChannelClose.kt:18)
+	at io.libp2p.transport.implementation.ConnectionOverNetty.close(ConnectionOverNetty.kt:34)
+	at io.libp2p.transport.CompletedConnectionCloseProbe.main(CompletedConnectionCloseNotificationTest.kt:72)
+Exception in thread &quot;main&quot; java.lang.IllegalStateException: A peer-closed connection must complete close after the event loop recovers
+	at io.libp2p.transport.CompletedConnectionCloseProbe.main(CompletedConnectionCloseNotificationTest.kt:76)
+ ==&gt; expected: &lt;0&gt; but was: &lt;1&gt;
+	at app//org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+	at app//org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+	at app//org.junit.jupiter.api.AssertEquals.failNotEqual(AssertEquals.java:197)
+	at app//org.junit.jupiter.api.AssertEquals.assertEquals(AssertEquals.java:150)
+	at app//org.junit.jupiter.api.Assertions.assertEquals(Assertions.java:563)
+	at app//io.libp2p.transport.CompletedConnectionCloseNotificationTest.peerClosedConnectionCompletesAfterRejectedNotificationAndLoopRecovery(CompletedConnectionCloseNotificationTest.kt:32)
+	at java.base@21.0.12.1/java.lang.reflect.Method.invoke(Method.java:580)
+	at java.base@21.0.12.1/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at java.base@21.0.12.1/java.util.ArrayList.forEach(ArrayList.java:1596)
+</failure>
+  </testcase>
+  <system-out><![CDATA[15:27:29.330 [main] [?[1;31mERROR?[m] io.netty.util.concurrent.DefaultPromise.rejectedExecution - Failed to submit a listener notification task. Event loop shut down?
+java.util.concurrent.RejectedExecutionException
+	at io.netty.util.concurrent.RejectedExecutionHandlers$1.rejected(RejectedExecutionHandlers.java:31)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.reject(SingleThreadEventExecutor.java:1134)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.addTask(SingleThreadEventExecutor.java:407)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.execute(SingleThreadEventExecutor.java:1027)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.execute0(SingleThreadEventExecutor.java:993)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.execute(SingleThreadEventExecutor.java:983)
+	at io.netty.util.concurrent.DefaultPromise.safeExecute(DefaultPromise.java:879)
+	at io.netty.util.concurrent.DefaultPromise.notifyListeners(DefaultPromise.java:514)
+	at io.netty.util.concurrent.DefaultPromise.addListener(DefaultPromise.java:199)
+	at io.netty.channel.DefaultChannelPromise.addListener(DefaultChannelPromise.java:95)
+	at io.netty.channel.DefaultChannelPromise.addListener(DefaultChannelPromise.java:30)
+	at io.libp2p.transport.implementation.NettyChannelCloseKt.requestPhysicalClose(NettyChannelClose.kt:48)
+	at io.libp2p.transport.implementation.NettyChannelCloseKt.closeOperation(NettyChannelClose.kt:29)
+	at io.libp2p.transport.implementation.NettyChannelCloseKt.closeNettyChannelOnce(NettyChannelClose.kt:18)
+	at io.libp2p.transport.implementation.ConnectionOverNetty.close(ConnectionOverNetty.kt:34)
+	at io.libp2p.transport.CompletedConnectionCloseProbe.main(CompletedConnectionCloseNotificationTest.kt:72)
+Exception in thread "main" java.lang.IllegalStateException: A peer-closed connection must complete close after the event loop recovers
+	at io.libp2p.transport.CompletedConnectionCloseProbe.main(CompletedConnectionCloseNotificationTest.kt:76)
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -1,0 +1,92 @@
+Created autostash: d2b3b524
+Current branch fix/completed-netty-future-results is up to date.
+Applied autostash.
+COMMAND: timeout --signal=TERM --kill-after=20s 600s ./gradlew :libp2p:test --tests io.libp2p.transport.CompletedConnectionCloseNotificationTest --console=plain
+Build configured without Android submodules.
+    To include Android submodules define a valid SDK location with an ANDROID_HOME environment variable 
+    or by setting the sdk.dir path in your project's local properties file local.properties.
+> Task :libp2p:extractIncludeProto UP-TO-DATE
+> Task :libp2p:extractProto UP-TO-DATE
+> Task :libp2p:generateProto UP-TO-DATE
+> Task :libp2p:processResources UP-TO-DATE
+> Task :tools:schedulers:processResources NO-SOURCE
+> Task :libp2p:extractIncludeTestFixturesProto UP-TO-DATE
+> Task :libp2p:extractTestFixturesProto UP-TO-DATE
+> Task :libp2p:generateTestFixturesProto NO-SOURCE
+> Task :tools:schedulers:compileKotlin UP-TO-DATE
+> Task :tools:schedulers:compileJava UP-TO-DATE
+> Task :tools:schedulers:classes UP-TO-DATE
+> Task :tools:schedulers:inspectClassesForKotlinIC UP-TO-DATE
+> Task :tools:schedulers:jar UP-TO-DATE
+> Task :libp2p:processTestFixturesResources NO-SOURCE
+> Task :libp2p:extractIncludeTestProto UP-TO-DATE
+> Task :libp2p:extractTestProto UP-TO-DATE
+> Task :libp2p:generateTestProto NO-SOURCE
+> Task :libp2p:processTestResources UP-TO-DATE
+> Task :libp2p:compileKotlin
+> Task :libp2p:compileJava UP-TO-DATE
+> Task :libp2p:classes UP-TO-DATE
+> Task :libp2p:inspectClassesForKotlinIC
+> Task :libp2p:jar
+> Task :libp2p:compileTestFixturesKotlin
+> Task :libp2p:compileTestFixturesJava UP-TO-DATE
+> Task :libp2p:testFixturesClasses UP-TO-DATE
+> Task :libp2p:testFixturesJar UP-TO-DATE
+> Task :libp2p:compileTestKotlin
+> Task :libp2p:compileTestJava UP-TO-DATE
+> Task :libp2p:testClasses UP-TO-DATE
+
+> Task :libp2p:test
+
+CompletedConnectionCloseNotificationTest > peerClosedConnectionCompletesAfterRejectedNotificationAndLoopRecovery() FAILED
+    org.opentest4j.AssertionFailedError: 15:27:29.330 [main] [[1;31mERROR[m] io.netty.util.concurrent.DefaultPromise.rejectedExecution - Failed to submit a listener notification task. Event loop shut down?
+    java.util.concurrent.RejectedExecutionException
+    	at io.netty.util.concurrent.RejectedExecutionHandlers$1.rejected(RejectedExecutionHandlers.java:31)
+    	at io.netty.util.concurrent.SingleThreadEventExecutor.reject(SingleThreadEventExecutor.java:1134)
+    	at io.netty.util.concurrent.SingleThreadEventExecutor.addTask(SingleThreadEventExecutor.java:407)
+    	at io.netty.util.concurrent.SingleThreadEventExecutor.execute(SingleThreadEventExecutor.java:1027)
+    	at io.netty.util.concurrent.SingleThreadEventExecutor.execute0(SingleThreadEventExecutor.java:993)
+    	at io.netty.util.concurrent.SingleThreadEventExecutor.execute(SingleThreadEventExecutor.java:983)
+    	at io.netty.util.concurrent.DefaultPromise.safeExecute(DefaultPromise.java:879)
+    	at io.netty.util.concurrent.DefaultPromise.notifyListeners(DefaultPromise.java:514)
+    	at io.netty.util.concurrent.DefaultPromise.addListener(DefaultPromise.java:199)
+    	at io.netty.channel.DefaultChannelPromise.addListener(DefaultChannelPromise.java:95)
+    	at io.netty.channel.DefaultChannelPromise.addListener(DefaultChannelPromise.java:30)
+    	at io.libp2p.transport.implementation.NettyChannelCloseKt.requestPhysicalClose(NettyChannelClose.kt:48)
+    	at io.libp2p.transport.implementation.NettyChannelCloseKt.closeOperation(NettyChannelClose.kt:29)
+    	at io.libp2p.transport.implementation.NettyChannelCloseKt.closeNettyChannelOnce(NettyChannelClose.kt:18)
+    	at io.libp2p.transport.implementation.ConnectionOverNetty.close(ConnectionOverNetty.kt:34)
+    	at io.libp2p.transport.CompletedConnectionCloseProbe.main(CompletedConnectionCloseNotificationTest.kt:72)
+    Exception in thread "main" java.lang.IllegalStateException: A peer-closed connection must complete close after the event loop recovers
+    	at io.libp2p.transport.CompletedConnectionCloseProbe.main(CompletedConnectionCloseNotificationTest.kt:76)
+     ==> expected: <0> but was: <1>
+        at app//org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+        at app//org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+        at app//org.junit.jupiter.api.AssertEquals.failNotEqual(AssertEquals.java:197)
+        at app//org.junit.jupiter.api.AssertEquals.assertEquals(AssertEquals.java:150)
+        at app//org.junit.jupiter.api.Assertions.assertEquals(Assertions.java:563)
+        at app//io.libp2p.transport.CompletedConnectionCloseNotificationTest.peerClosedConnectionCompletesAfterRejectedNotificationAndLoopRecovery(CompletedConnectionCloseNotificationTest.kt:32)
+
+1 test completed, 1 failed
+
+> Task :libp2p:test FAILED
+
+[Incubating] Problems report is available at: file:///tmp/claude-1000/-code/4127b3f9-6050-446f-a28d-b0511dacd396/scratchpad/hq/ws/F71b/jvm-libp2p/build/reports/problems/problems-report.html
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':libp2p:test'.
+> There were failing tests. See the report at: file:///tmp/claude-1000/-code/4127b3f9-6050-446f-a28d-b0511dacd396/scratchpad/hq/ws/F71b/jvm-libp2p/libp2p/build/reports/tests/test/index.html
+
+* Try:
+> Run with --scan to get full insights.
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 9.0.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/8.14.3/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD FAILED in 41s
+23 actionable tasks: 6 executed, 17 up-to-date

@@ -114,7 +114,7 @@ class MuxChannel<TData>(
                     waitingForParentWrite = true
                     pendingParentWrite = parentFuture
                     val completeWrite = Runnable {
-                        // The observer and an accepted listener task can both reach this point.
+                        // Retained delivery and an accepted listener task can both reach this point.
                         // Close also clears ownership before disposing the outbound buffer.
                         if (pendingParentWrite === parentFuture) {
                             pendingParentWrite = null
@@ -138,7 +138,10 @@ class MuxChannel<TData>(
                                 val failure = RejectedExecutionException(
                                     "The child event loop terminated before pending writes could complete: $id"
                                 )
+                                // Include accepted writes which the caller has not flushed.
+                                buf.addFlush()
                                 while (buf.current() != null) buf.remove(failure)
+                                parentWriteCompletion = null
                             }
                         }
                     )
@@ -258,7 +261,9 @@ private fun cancelParentWriteCompletion(completion: ParentWriteCompletion) {
         completion.retry?.cancel(false)
         completion.retry = null
     }
-    (completion.loop as? SingleThreadEventExecutor)?.removeShutdownHook(completion.closeOnShutdown)
+    if (!completion.loop.isTerminated) {
+        (completion.loop as? SingleThreadEventExecutor)?.removeShutdownHook(completion.closeOnShutdown)
+    }
     completion.loop.terminationFuture().removeListener(completion.terminationListener)
 }
 

@@ -2,7 +2,7 @@ import subprocess,time,pathlib,json,sys,shutil,xml.etree.ElementTree as ET
 root=pathlib.Path.cwd(); evidence=root.parent.parent.parent/'out'/'F71c-evidence'; label,cls=sys.argv[1:3]
 subprocess.run(['git','fetch','origin'],check=True,stdout=subprocess.DEVNULL)
 subprocess.run(['git','rebase','--autostash','origin/develop'],check=True)
-cmd=['timeout','--signal=TERM','--kill-after=30s','25m','./gradlew','--gradle-user-home','/tmp/F71c-gradle-home','--offline','--max-workers=2',':libp2p:test','--tests',cls,'--stacktrace']
+cmd=['timeout','--foreground','--signal=TERM','--kill-after=30s','25m','./gradlew','--gradle-user-home','/tmp/F71c-gradle-home','--offline','--max-workers=2',':libp2p:test','--tests',cls,'--stacktrace']
 start=time.monotonic(); head=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()
 patch=subprocess.check_output(['git','diff','HEAD'],text=True);(evidence/(label+'-source.patch')).write_text(patch)
 xml=root/'libp2p/build/test-results/test'/('TEST-'+cls+'.xml'); xml.unlink(missing_ok=True)

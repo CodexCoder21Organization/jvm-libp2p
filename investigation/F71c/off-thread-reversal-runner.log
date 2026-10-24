@@ -1,0 +1,15 @@
+Created autostash: a8716818
+Current branch fix/completed-netty-future-results is up to date.
+Applied autostash.
+org.opentest4j.AssertionFailedError: A reentrant close must finish after previously registered physical-close listeners ==> expected: <[early listener, later listener, close operation]> but was: <[early listener, close operation, later listener]>
+	at app//org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+	at app//org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+	at app//org.junit.jupiter.api.AssertEquals.failNotEqual(AssertEquals.java:197)
+	at app//org.junit.jupiter.api.AssertEquals.assertEquals(AssertEquals.java:182)
+	at app//org.junit.jupiter.api.Assertions.assertEquals(Assertions.java:1156)
+	at app//io.libp2p.transport.OffThreadConnectionCloseNotificationTest.callbackHandoffCloseCompletesAfterPreviouslyRegisteredPhysicalCloseListeners(OffThreadConnectionCloseNotificationTest.kt:47)
+	at java.base@21.0.12.1/java.lang.reflect.Method.invoke(Method.java:580)
+	at java.base@21.0.12.1/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at java.base@21.0.12.1/java.util.ArrayList.forEach(ArrayList.java:1596)
+
+{"label": "off-thread-reversal", "class": "io.libp2p.transport.OffThreadConnectionCloseNotificationTest", "head": "e2cc20fe63d9f6412a8fbad752e0e967f6aea1e8", "exit": 1, "wall_ms": 44970, "command": ["timeout", "--foreground", "--signal=TERM", "--kill-after=30s", "25m", "./gradlew", "--gradle-user-home", "/tmp/F71c-gradle-home", "--offline", "--max-workers=2", ":libp2p:test", "--tests", "io.libp2p.transport.OffThreadConnectionCloseNotificationTest", "--stacktrace"], "xml": {"name": "io.libp2p.transport.OffThreadConnectionCloseNotificationTest", "tests": "1", "skipped": "0", "failures": "1", "errors": "0", "timestamp": "2026-10-24T19:29:44.516Z", "hostname": "8bf01af06d2e", "time": "7.696"}}

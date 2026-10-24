@@ -1,0 +1,15 @@
+diff --git a/libp2p/src/main/kotlin/io/libp2p/transport/implementation/StreamOverNetty.kt b/libp2p/src/main/kotlin/io/libp2p/transport/implementation/StreamOverNetty.kt
+index 3914dfad..cd50bcb2 100644
+--- a/libp2p/src/main/kotlin/io/libp2p/transport/implementation/StreamOverNetty.kt
++++ b/libp2p/src/main/kotlin/io/libp2p/transport/implementation/StreamOverNetty.kt
+@@ -62,8 +62,8 @@ open class StreamOverNetty(
+         val operation = Runnable {
+             try {
+                 val closed = (nettyChannel as? MuxChannel<*>)?.resetForCapacity() ?: nettyChannel.close()
+-                closed.toVoidCompletableFuture().whenComplete { _, failure ->
+-                    if (failure == null) result.complete(Unit) else result.completeExceptionally(failure)
++                closed.addListener {
++                    if (it.isSuccess) result.complete(Unit) else result.completeExceptionally(it.cause())
+                 }
+             } catch (cause: Throwable) {
+                 result.completeExceptionally(cause)

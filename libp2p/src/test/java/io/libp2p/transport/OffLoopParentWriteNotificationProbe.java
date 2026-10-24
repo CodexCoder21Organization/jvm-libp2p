@@ -85,7 +85,7 @@ public final class OffLoopParentWriteNotificationProbe {
         catch (RejectedExecutionException expected) { pending.decrementAndGet(); break; }
       }
       if (accepted==65536 || loop.isShuttingDown()) throw new AssertionError("Expected full live loop");
-      if (!mode.equals("close")) external.submit(() -> { if (loop.inEventLoop()) throw new AssertionError("Must be external"); if (mode.equals("failure")) promise.setFailure(parentFailure);
+      if (!mode.equals("close") && !terminating) external.submit(() -> { if (loop.inEventLoop()) throw new AssertionError("Must be external"); if (mode.equals("failure")) promise.setFailure(parentFailure);
         else if (mode.equals("cancel")) promise.cancel(false);
         else promise.setSuccess(); }).get(5,TimeUnit.SECONDS);
       external.submit(() -> {}).get(5,TimeUnit.SECONDS);

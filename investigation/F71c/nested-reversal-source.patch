@@ -1,0 +1,13 @@
+diff --git a/libp2p/src/main/kotlin/io/libp2p/transport/implementation/NettyChannelClose.kt b/libp2p/src/main/kotlin/io/libp2p/transport/implementation/NettyChannelClose.kt
+index dc57ff79..2772127c 100644
+--- a/libp2p/src/main/kotlin/io/libp2p/transport/implementation/NettyChannelClose.kt
++++ b/libp2p/src/main/kotlin/io/libp2p/transport/implementation/NettyChannelClose.kt
+@@ -66,7 +66,7 @@ private fun closeOperation(channel: Channel, retry: Boolean): CompletableFuture<
+ private fun requestPhysicalClose(channel: Channel, operation: CompletableFuture<Unit>) {
+     try {
+         if (channel.closeFuture().isDone) {
+-            if ((channel.attr(closeNotificationKey).get()?.get() ?: 0) > 0) {
++            if (channel.eventLoop().inEventLoop()) {
+                 // Callback handoffs to another thread still join the active physical-close notification.
+                 channel.closeFuture().addListener { operation.complete(Unit) }
+             } else {

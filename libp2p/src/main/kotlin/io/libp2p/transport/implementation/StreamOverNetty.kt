@@ -62,8 +62,8 @@ open class StreamOverNetty(
         val operation = Runnable {
             try {
                 val closed = (nettyChannel as? MuxChannel<*>)?.resetForCapacity() ?: nettyChannel.close()
-                closed.addListener {
-                    if (it.isSuccess) result.complete(Unit) else result.completeExceptionally(it.cause())
+                closed.toVoidCompletableFuture().whenComplete { _, failure ->
+                    if (failure == null) result.complete(Unit) else result.completeExceptionally(failure)
                 }
             } catch (cause: Throwable) {
                 result.completeExceptionally(cause)

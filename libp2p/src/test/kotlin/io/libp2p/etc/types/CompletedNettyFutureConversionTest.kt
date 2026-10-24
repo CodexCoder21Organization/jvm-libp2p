@@ -4,6 +4,8 @@ import io.netty.channel.DefaultChannelPromise
 import io.netty.channel.embedded.EmbeddedChannel
 import io.netty.util.concurrent.DefaultEventExecutor
 import io.netty.util.concurrent.DefaultPromise
+import io.netty.util.concurrent.Future
+import io.netty.util.concurrent.GenericFutureListener
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertThrows
@@ -19,6 +21,39 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.ThreadFactory
 
 class CompletedNettyFutureConversionTest {
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun completionDuringListenerRegistrationRemainsObservable(channelFuture: Boolean) {
+        withUnavailableListenerExecutor(true) { executor ->
+            val channel = EmbeddedChannel()
+            try {
+                if (channelFuture) {
+                    val source = object : DefaultChannelPromise(channel, executor) {
+                        override fun addListener(listener: GenericFutureListener<out Future<in Void>>): io.netty.channel.ChannelPromise {
+                            trySuccess()
+                            return super.addListener(listener)
+                        }
+                    }
+                    val converted = source.toCompletableFuture()
+                    assertTrue(converted.isDone, "Completion during channel-listener registration must remain observable")
+                    assertSame(channel, converted.join())
+                } else {
+                    val source = object : DefaultPromise<String>(executor) {
+                        override fun addListener(listener: GenericFutureListener<out Future<in String>>): io.netty.util.concurrent.Promise<String> {
+                            trySuccess("completed-during-registration")
+                            return super.addListener(listener)
+                        }
+                    }
+                    val converted = source.toCompletableFuture()
+                    assertTrue(converted.isDone, "Completion during listener registration must remain observable")
+                    assertEquals("completed-during-registration", converted.join())
+                }
+            } finally {
+                channel.finishAndReleaseAll()
+            }
+        }
+    }
+
     @ParameterizedTest
     @ValueSource(booleans = [false, true])
     fun completedChannelResultsDoNotNeedTheirListenerExecutor(terminated: Boolean) {

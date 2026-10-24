@@ -159,6 +159,7 @@ public class NoisePreparationFailureProbe {
           ((P2PChannelOverNetty) client.getNetwork().getConnections().get(0))
               .getNettyChannel()
               .eventLoop();
+      NoiseProbePhasesKt.noiseProbePhase("READY");
       Security.insertProviderAt(provider, 1);
       Throwable caught = null;
       try {
@@ -198,6 +199,7 @@ public class NoisePreparationFailureProbe {
       Security.removeProvider(provider.getName());
       recovered = build();
       recovered.start().get(10, TimeUnit.SECONDS);
+      NoiseProbePhasesKt.noiseProbePhase("BODY_COMPLETE");
       System.out.println(
           "ORIGINAL_CAUSE_AND_FULL_MESSAGE=true NO_READY_HOST=true LIVE_WORKER_RESPONSIVE=true RECOVERY=true");
     } finally {
@@ -212,6 +214,7 @@ public class NoisePreparationFailureProbe {
             if (client != null) client.stop().get(10, TimeUnit.SECONDS);
           } finally {
             if (server != null) server.stop().get(10, TimeUnit.SECONDS);
+            NoiseProbePhasesKt.noiseProbePhase("CLEANUP_COMPLETE");
           }
         }
       }

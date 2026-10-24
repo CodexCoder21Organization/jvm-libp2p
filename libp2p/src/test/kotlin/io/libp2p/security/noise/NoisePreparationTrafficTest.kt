@@ -32,7 +32,7 @@ class NoisePreparationTrafficTest {
             mode
         ).redirectErrorStream(true).redirectOutput(output.toFile()).start()
         try {
-            assertTrue(process.waitFor(30, TimeUnit.SECONDS), "Cold traffic probe did not finish")
+            assertTrue(awaitNoiseProbe(process, output), "Cold traffic probe did not finish")
             val text = Files.readString(output)
             print(text)
             assertEquals(0, process.exitValue(), text)

@@ -235,6 +235,7 @@ public class NoisePreparationTrafficProbe {
           ((P2PChannelOverNetty) client.getNetwork().getConnections().get(0))
               .getNettyChannel()
               .eventLoop();
+      NoiseProbePhasesKt.noiseProbePhase("READY");
       Security.insertProviderAt(provider, 1);
       Callable<Host> createNoise =
           () -> {
@@ -295,10 +296,12 @@ public class NoisePreparationTrafficProbe {
         starting.get(10, TimeUnit.SECONDS);
       }
       ping.ping().get(10, TimeUnit.SECONDS);
+      NoiseProbePhasesKt.noiseProbePhase("BODY_COMPLETE");
       System.out.println(
           "PLAINTEXT_PING_COMPLETED_WHILE_NOISE_PREPARATION_HELD=" + !onLiveLoop.get());
     } catch (Exception | Error failure) {
       primaryFailure = failure;
+      NoiseProbePhasesKt.noiseProbePhase("BODY_COMPLETE");
       throw failure;
     } finally {
       release.countDown();
@@ -340,6 +343,7 @@ public class NoisePreparationTrafficProbe {
         else if (cleanupFailure instanceof Exception) throw (Exception) cleanupFailure;
         else throw (Error) cleanupFailure;
       }
+      NoiseProbePhasesKt.noiseProbePhase("CLEANUP_COMPLETE");
     }
   }
 

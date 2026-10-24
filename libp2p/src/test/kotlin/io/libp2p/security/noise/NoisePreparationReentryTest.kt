@@ -27,7 +27,7 @@ class NoisePreparationReentryTest {
             "io.libp2p.security.noise.NoisePreparationReentryProbe"
         ).redirectErrorStream(true).redirectOutput(output.toFile()).start()
         try {
-            assertTrue(process.waitFor(30, TimeUnit.SECONDS), "Host construction from its connection callback did not finish")
+            assertTrue(awaitNoiseProbe(process, output), "Host construction from its connection callback did not finish")
             val text = Files.readString(output)
             print(text)
             assertEquals(0, process.exitValue(), text)
@@ -68,12 +68,14 @@ object NoisePreparationReentryProbe {
             identity { random(KeyType.ED25519) }
             protocols { +Ping() }
         }
+        noiseProbePhase("READY")
         try {
             server.start().get(10, TimeUnit.SECONDS)
             client.start().get(10, TimeUnit.SECONDS)
             client.network.connect(server.peerId, *server.listenAddresses().toTypedArray()).get(10, TimeUnit.SECONDS)
             val created = callback.get(10, TimeUnit.SECONDS)
             check(created.network.connections.isEmpty()) { "Nested host construction must not open a preparation connection" }
+            noiseProbePhase("BODY_COMPLETE")
             println("NOISE_PREPARATION_REENTRY_COMPLETE")
         } finally {
             try {
@@ -83,6 +85,7 @@ object NoisePreparationReentryProbe {
                     client.stop().get(10, TimeUnit.SECONDS)
                 } finally {
                     server.stop().get(10, TimeUnit.SECONDS)
+                    noiseProbePhase("CLEANUP_COMPLETE")
                 }
             }
         }

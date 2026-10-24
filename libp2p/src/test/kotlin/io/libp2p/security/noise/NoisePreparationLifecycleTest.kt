@@ -73,7 +73,7 @@ private fun lifecycleProbe(mode: String) {
             ) + listOfNotNull(peer?.listenAddresses()?.single()?.toString())
             val process = ProcessBuilder(command).redirectErrorStream(true).redirectOutput(output.toFile()).start()
             try {
-                assertTrue(process.waitFor(30, TimeUnit.SECONDS), "Cold lifecycle probe did not finish")
+                assertTrue(awaitNoiseProbe(process, output), "Cold lifecycle probe did not finish")
                 val text = Files.readString(output)
                 print(text)
                 assertEquals(0, process.exitValue(), text)
@@ -109,6 +109,7 @@ object NoisePreparationLifecycleProbe {
         val hosts = mutableListOf<Host>()
         try {
             check(Security.insertProviderAt(provider, 1) == 1)
+            noiseProbePhase("READY")
             val owner = AtomicReference<Host>()
             val pending = loop.submit(
                 Callable {
@@ -211,6 +212,7 @@ object NoisePreparationLifecycleProbe {
                 }
             }
             release.countDown()
+            noiseProbePhase("BODY_COMPLETE")
             println("LIFECYCLE_MODE=$mode PASSED=true")
         } finally {
             release.countDown()
@@ -219,6 +221,7 @@ object NoisePreparationLifecycleProbe {
             } finally {
                 Security.removeProvider(provider.name)
                 loop.shutdownGracefully(0, 5, TimeUnit.SECONDS).sync()
+                noiseProbePhase("CLEANUP_COMPLETE")
             }
         }
     }

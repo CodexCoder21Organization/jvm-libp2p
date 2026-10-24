@@ -27,6 +27,8 @@ class NoiseMatcherReadinessTest {
             peer.start().get(10, TimeUnit.SECONDS)
             val output = Files.createTempFile("matcher-noise-", ".log")
             val process = matcherProcess().redirectErrorStream(true).redirectOutput(output.toFile()).start()
+            val observation = java.util.concurrent.CompletableFuture.supplyAsync { awaitNoiseProbe(process, output) }
+            var primaryFailure: Throwable? = null
             try {
                 val endpointDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30)
                 var endpoint: String? = null
@@ -50,14 +52,29 @@ class NoiseMatcherReadinessTest {
                 }
                 process.outputStream.write(1)
                 process.outputStream.flush()
-                assertTrue(process.waitFor(30, TimeUnit.SECONDS), "Matcher-only readiness probe did not finish")
+                assertTrue(observation.get(30, TimeUnit.SECONDS), "Matcher-only readiness probe did not finish")
                 val text = Files.readString(output)
                 print(text)
                 assertEquals(0, process.exitValue(), text)
+            } catch (failure: Throwable) {
+                primaryFailure = failure
+                throw failure
             } finally {
-                process.descendants().forEach { it.destroyForcibly() }
-                process.destroyForcibly().waitFor(5, TimeUnit.SECONDS)
-                Files.deleteIfExists(output)
+                try {
+                    process.descendants().forEach { it.destroyForcibly() }
+                    process.destroyForcibly().waitFor(5, TimeUnit.SECONDS)
+                } finally {
+                    try {
+                        // Reap the observer before deleting the file it is reading.
+                        observation.get(5, TimeUnit.SECONDS)
+                    } catch (cleanupFailure: Throwable) {
+                        val original = primaryFailure
+                        if (original == null) throw cleanupFailure
+                        if (original !== cleanupFailure) original.addSuppressed(cleanupFailure)
+                    } finally {
+                        Files.deleteIfExists(output)
+                    }
+                }
             }
         } finally {
             peer.stop().get(10, TimeUnit.SECONDS)
@@ -82,6 +99,7 @@ object NoiseMatcherReadinessProbe {
         val provider = NoisePreparationProvider()
         var server: io.libp2p.core.Host? = null
         check(Security.insertProviderAt(provider, 1) == 1)
+        noiseProbePhase("READY")
         try {
             val receiver = host {
                 identity { random(KeyType.ED25519) }
@@ -110,12 +128,14 @@ object NoiseMatcherReadinessProbe {
             System.out.flush()
             java.util.concurrent.CompletableFuture.supplyAsync { System.`in`.read() }.get(20, TimeUnit.SECONDS)
             check(provider.initializations.get() == 1) { "Incoming Noise stream initialized algorithms after readiness" }
+            noiseProbePhase("BODY_COMPLETE")
             println("MATCHER_ONLY_PREPARED_BEFORE_READY=true")
         } finally {
             try {
                 server?.stop()?.get(10, TimeUnit.SECONDS)
             } finally {
                 Security.removeProvider(provider.name)
+                noiseProbePhase("CLEANUP_COMPLETE")
             }
         }
     }

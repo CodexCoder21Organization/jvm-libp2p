@@ -42,7 +42,7 @@ class NoiseAlgorithmReadinessTest {
                     peer.listenAddresses().single().toString()
                 ).redirectErrorStream(true).redirectOutput(output.toFile()).start()
                 try {
-                    assertTrue(process.waitFor(30, TimeUnit.SECONDS), "Cold readiness probe did not finish")
+                    assertTrue(awaitNoiseProbe(process, output), "Cold readiness probe did not finish")
                     val text = Files.readString(output)
                     print(text)
                     assertEquals(0, process.exitValue(), text)
@@ -68,8 +68,12 @@ object NoiseAlgorithmReadinessProbe {
         var client: Host? = null
         val provider = NoisePreparationProvider()
         val recordingFile = Files.createTempFile("first-dial-", ".jfr")
+        var capture: Recording? = null
         try {
+            val activeCapture = Recording()
+            capture = activeCapture
             check(Security.insertProviderAt(provider, 1) == 1) { "Counting SHA-256 provider was not installed first" }
+            noiseProbePhase("READY")
             val local = readinessHost(mode)
             client = local
             check(provider.initializations.get() == 1) { "Host returned before the real SHA-256 provider's first use" }
@@ -83,7 +87,7 @@ object NoiseAlgorithmReadinessProbe {
             check(local.network.connections.isEmpty()) {
                 "Host start must prepare the transport without opening a connection"
             }
-            Recording().use { recording ->
+            activeCapture.use { recording ->
                 recording.enable("jdk.ClassLoad").withThreshold(Duration.ZERO).withStackTrace()
                 recording.start()
                 val opened = local.newStream<PingController>(
@@ -119,12 +123,18 @@ object NoiseAlgorithmReadinessProbe {
             check(loads.isEmpty()) {
                 "Host.start returned before Noise algorithm initialization: ${loads.size} first-dial class-load events: $names"
             }
+            noiseProbePhase("BODY_COMPLETE")
         } finally {
             try {
                 client?.stop()?.get(10, TimeUnit.SECONDS)
             } finally {
                 Security.removeProvider(provider.name)
-                Files.deleteIfExists(recordingFile)
+                try {
+                    capture?.close()
+                } finally {
+                    Files.deleteIfExists(recordingFile)
+                    noiseProbePhase("CLEANUP_COMPLETE")
+                }
             }
         }
     }

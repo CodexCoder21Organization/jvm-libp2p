@@ -32,7 +32,7 @@ class NoisePreparationConcurrencyTest {
             "io.libp2p.security.noise.NoisePreparationConcurrencyProbe"
         ).redirectErrorStream(true).redirectOutput(output.toFile()).start()
         try {
-            assertTrue(process.waitFor(30, TimeUnit.SECONDS), "Concurrent cold builders did not finish")
+            assertTrue(awaitNoiseProbe(process, output), "Concurrent cold builders did not finish")
             val text = Files.readString(output)
             print(text)
             assertEquals(0, process.exitValue(), text)
@@ -75,6 +75,7 @@ object NoisePreparationConcurrencyProbe {
                 "Identity fixture initialized the handshake role factories"
             }
             observe("identity fixture prepared without role allocation")
+            noiseProbePhase("READY")
             repeat(2) {
                 results += CompletableFuture.supplyAsync({
                     observe("builder $it caller entered")
@@ -169,6 +170,7 @@ object NoisePreparationConcurrencyProbe {
             check(!provider.onNettyExecutor.get()) { "Cold concurrent preparation occupied a Netty executor" }
             check(initializationExits.get() == 2) { "Both initialization calls did not finish after release" }
             check(published.get() == 2) { "Both builders did not publish after preparation" }
+            noiseProbePhase("BODY_COMPLETE")
             println("CONCURRENT_BUILDERS=2 INITIALIZATIONS=1 ROLE_ALLOCATIONS=2 MAX_ACTIVE=1")
         } finally {
             allowSecondInitialization.countDown()
@@ -181,6 +183,7 @@ object NoisePreparationConcurrencyProbe {
                 }
             } finally {
                 Security.removeProvider(provider.name)
+                noiseProbePhase("CLEANUP_COMPLETE")
             }
         }
     }

@@ -17,8 +17,8 @@ import java.util.concurrent.CancellationException
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.RejectedExecutionException
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.ThreadFactory
+import java.util.concurrent.TimeUnit
 
 class CompletedNettyFutureConversionTest {
     @ParameterizedTest

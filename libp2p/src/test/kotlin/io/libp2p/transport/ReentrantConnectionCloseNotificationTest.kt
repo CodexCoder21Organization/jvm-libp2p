@@ -44,7 +44,8 @@ class ReentrantConnectionCloseNotificationTest {
             closing.get(5, TimeUnit.SECONDS)
             connection.nettyChannel.eventLoop().submit {}.get(5, TimeUnit.SECONDS)
             assertEquals(
-                listOf("early listener", "later listener", "close operation"), events,
+                listOf("early listener", "later listener", "close operation"),
+                events,
                 "A reentrant close must finish after previously registered physical-close listeners"
             )
         } finally {

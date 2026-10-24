@@ -44,8 +44,13 @@ private fun closeOperation(channel: Channel, retry: Boolean): CompletableFuture<
 private fun requestPhysicalClose(channel: Channel, operation: CompletableFuture<Unit>) {
     try {
         if (channel.closeFuture().isDone) {
-            // An early close observer may run before other physical-close listeners finish.
-            channel.closeFuture().addListener { operation.complete(Unit) }
+            if (channel.eventLoop().inEventLoop()) {
+                // A reentrant close observer must follow the other physical-close listeners.
+                channel.closeFuture().addListener { operation.complete(Unit) }
+            } else {
+                // The terminal result must not depend on another accepted notification task.
+                operation.complete(Unit)
+            }
         } else {
             channel.close().toVoidCompletableFuture().whenComplete { _, failure ->
                 if (failure == null) operation.complete(Unit) else operation.completeExceptionally(failure)

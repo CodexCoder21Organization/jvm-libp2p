@@ -3,6 +3,7 @@ import subprocess,os,shutil,json,hashlib
 r=Path(__file__).resolve().parent;repo=r.parent/'jvm-libp2p';dest=repo/'.review-round8';branch='wip/F68g-20261024'
 if dest.exists():shutil.rmtree(dest)
 dest.mkdir();shutil.copy2(repo.parent.parent.parent/'out/F68g-findings.md',dest/'findings.md')
+(dest/'previous-pr-description.md').write_text(json.loads((r/'pr-initial.json').read_text())['body'])
 allowed={'.log','.xml','.json','.py','.java','.gradle','.diff','.txt'}
 skip_dirs={'gradle-home','control-classes','__pycache__','original-production'}
 for current,dirs,files in os.walk(r,followlinks=False):

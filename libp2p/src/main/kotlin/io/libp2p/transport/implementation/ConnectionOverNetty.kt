@@ -17,6 +17,8 @@ open class ConnectionOverNetty(
     private val nettyTransport: NettyTransport,
     initiator: Boolean
 ) : Connection, P2PChannelOverNetty(ch, initiator) {
+    private val observedCloseFuture by lazy { observeConnectionClose(nettyChannel, super.closeFuture()) }
+
     private lateinit var muxerSession: StreamMuxer.Session
     private lateinit var secureSession: SecureChannel.Session
 
@@ -30,6 +32,8 @@ open class ConnectionOverNetty(
     fun setSecureSession(ss: SecureChannel.Session) {
         secureSession = ss
     }
+
+    override fun closeFuture() = observedCloseFuture
 
     override fun close() = closeNettyChannelOnce(nettyChannel)
 

@@ -51,10 +51,13 @@ private fun bindingProbe(mode: String) {
             "Host start must prepare the transport without opening a connection"
         }
         val output = Files.createTempFile("noise-binding-readiness-", ".log")
+        val classLoads = output.resolveSibling(output.fileName.toString() + ".classes")
         try {
             val process = ProcessBuilder(
                 File(System.getProperty("java.home"), "bin/java").absolutePath,
                 "-Xmx128m",
+                "-Xlog:class+load=info:file=$classLoads:none:filecount=0",
+                "-Dnoise.class.load.log=$classLoads",
                 "-Dio.netty.eventLoopThreads=1",
                 "-cp",
                 System.getProperty("java.class.path"),
@@ -72,7 +75,11 @@ private fun bindingProbe(mode: String) {
                 process.destroyForcibly().waitFor(5, TimeUnit.SECONDS)
             }
         } finally {
-            Files.deleteIfExists(output)
+            try {
+                Files.deleteIfExists(classLoads)
+            } finally {
+                Files.deleteIfExists(output)
+            }
         }
     } finally {
         peer.stop().get(5, TimeUnit.SECONDS)

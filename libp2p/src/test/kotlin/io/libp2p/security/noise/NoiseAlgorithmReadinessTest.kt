@@ -9,15 +9,14 @@ import io.libp2p.core.security.SecureChannel
 import io.libp2p.protocol.Ping
 import io.libp2p.protocol.PingController
 import io.libp2p.transport.ws.WsTransport
-import jdk.jfr.Recording
-import jdk.jfr.consumer.RecordingFile
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.io.File
+import java.io.RandomAccessFile
 import java.nio.file.Files
+import java.nio.file.Path
 import java.security.Security
-import java.time.Duration
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
 
@@ -31,10 +30,13 @@ class NoiseAlgorithmReadinessTest {
                 "Host start must prepare the transport without opening a connection"
             }
             val output = Files.createTempFile("host-transport-readiness-", ".log")
+            val classLoads = output.resolveSibling(output.fileName.toString() + ".classes")
             try {
                 val process = ProcessBuilder(
                     File(System.getProperty("java.home"), "bin/java").absolutePath,
                     "-Xmx128m",
+                    "-Xlog:class+load=info:file=$classLoads:none:filecount=0",
+                    "-Dnoise.class.load.log=$classLoads",
                     "-cp",
                     System.getProperty("java.class.path"),
                     "io.libp2p.security.noise.NoiseAlgorithmReadinessProbe",
@@ -51,7 +53,11 @@ class NoiseAlgorithmReadinessTest {
                     process.destroyForcibly().waitFor(5, TimeUnit.SECONDS)
                 }
             } finally {
-                Files.deleteIfExists(output)
+                try {
+                    Files.deleteIfExists(classLoads)
+                } finally {
+                    Files.deleteIfExists(output)
+                }
             }
         } finally {
             peer.stop().get(5, TimeUnit.SECONDS)
@@ -72,12 +78,8 @@ object NoiseAlgorithmReadinessProbe {
         val address = Multiaddr(args[1])
         var client: Host? = null
         val provider = NoisePreparationProvider()
-        val recordingFile = Files.createTempFile("first-dial-", ".jfr")
-        var capture: Recording? = null
+        val classLoads = Path.of(requireNotNull(System.getProperty("noise.class.load.log")))
         try {
-            val activeCapture = Recording()
-            operation("JFR_CONSTRUCTION_DONE")
-            capture = activeCapture
             check(Security.insertProviderAt(provider, 1) == 1) { "Counting SHA-256 provider was not installed first" }
             noiseProbePhase("READY")
             val local = readinessHost(mode)
@@ -95,44 +97,55 @@ object NoiseAlgorithmReadinessProbe {
             check(local.network.connections.isEmpty()) {
                 "Host start must prepare the transport without opening a connection"
             }
-            activeCapture.use { recording ->
-                recording.enable("jdk.ClassLoad").withThreshold(Duration.ZERO).withStackTrace()
-                recording.start()
-                operation("JFR_START_DONE")
-                val opened = local.newStream<PingController>(
-                    listOf("/ipfs/ping/1.0.0"),
-                    requireNotNull(address.getPeerId()),
-                    address
-                )
-                try {
-                    val controller = opened.controller.get(10, TimeUnit.SECONDS)
-                    operation("STREAM_NEGOTIATED")
-                    recording.stop()
-                    recording.dump(recordingFile)
-                    operation("JFR_WORK_DONE")
-                    check(controller.ping().get(10, TimeUnit.SECONDS) >= 0)
-                    operation("PING_ANSWERED")
-                } finally {
-                    opened.stream.get(10, TimeUnit.SECONDS).close().get(10, TimeUnit.SECONDS)
-                    operation("CLOSURE_DONE")
+            // Unified logging writes synchronously, without rotation. A known preparation
+            // class proves the logger is active before taking the first-stream byte range.
+            // https://docs.oracle.com/en/java/javase/21/docs/specs/man/java.html#enable-logging-with-the-jvm-unified-logging-framework
+            check(
+                Files.readString(classLoads).lineSequence().any {
+                    it.startsWith("com.southernstorm.noise.protocol.HandshakeState source: ")
                 }
+            ) { "Class-load logging did not record Noise preparation before the first stream" }
+            val loadStart = Files.size(classLoads)
+            operation("CLASS_LOG_START_DONE")
+            val opened = local.newStream<PingController>(
+                listOf("/ipfs/ping/1.0.0"),
+                requireNotNull(address.getPeerId()),
+                address
+            )
+            val loadEnd: Long
+            try {
+                val controller = opened.controller.get(10, TimeUnit.SECONDS)
+                operation("STREAM_NEGOTIATED")
+                loadEnd = Files.size(classLoads)
+                operation("CLASS_LOG_END_DONE")
+                check(controller.ping().get(10, TimeUnit.SECONDS) >= 0)
+                operation("PING_ANSWERED")
+            } finally {
+                opened.stream.get(10, TimeUnit.SECONDS).close().get(10, TimeUnit.SECONDS)
+                operation("CLOSURE_DONE")
             }
-            val loads = RecordingFile.readAllEvents(recordingFile).filter { it.eventType.name == "jdk.ClassLoad" }
-                .filter {
-                    val name = it.getClass("loadedClass").name
-                    name.startsWith("com.southernstorm.noise.crypto.") ||
-                        name == "com.southernstorm.noise.protocol.HandshakeState" ||
-                        name == "com.southernstorm.noise.protocol.Pattern" ||
-                        name == "com.southernstorm.noise.protocol.SymmetricState" ||
-                        name == "com.southernstorm.noise.protocol.ChaChaPolyCipherState" ||
-                        name == "com.southernstorm.noise.protocol.DHStateHybrid"
-                }
+            val loads = RandomAccessFile(classLoads.toFile(), "r").use { log ->
+                log.seek(loadStart)
+                val interval = ByteArray(Math.toIntExact(loadEnd - loadStart))
+                log.readFully(interval)
+                interval.toString(Charsets.UTF_8).lineSequence()
+                    .filter { it.contains(" source: ") }
+                    .map { it.substringBefore(" source: ") }
+                    .filter { name ->
+                        name.startsWith("com.southernstorm.noise.crypto.") ||
+                            name == "com.southernstorm.noise.protocol.HandshakeState" ||
+                            name == "com.southernstorm.noise.protocol.Pattern" ||
+                            name == "com.southernstorm.noise.protocol.SymmetricState" ||
+                            name == "com.southernstorm.noise.protocol.ChaChaPolyCipherState" ||
+                            name == "com.southernstorm.noise.protocol.DHStateHybrid"
+                    }.toList()
+            }
             operation("EVENT_PARSING_DONE")
             check(provider.initializations.get() == initializedBeforeStream) {
                 "First real stream initialized the SHA-256 provider after host readiness"
             }
             println("PROVIDER_INITIALIZATIONS_BEFORE_READY=$initializedBeforeStream TEMPORARY_DIGESTS_DESTROYED=2")
-            val names = loads.map { it.getClass("loadedClass").name }.distinct().sorted()
+            val names = loads.distinct().sorted()
             println("FIRST_DIAL_NOISE_ALGORITHM_LOADS=${loads.size}\n${names.joinToString("\n")}")
             check(loads.isEmpty()) {
                 "Host.start returned before Noise algorithm initialization: ${loads.size} first-dial class-load events: $names"
@@ -143,12 +156,7 @@ object NoiseAlgorithmReadinessProbe {
                 client?.stop()?.get(10, TimeUnit.SECONDS)
             } finally {
                 Security.removeProvider(provider.name)
-                try {
-                    capture?.close()
-                } finally {
-                    Files.deleteIfExists(recordingFile)
-                    noiseProbePhase("CLEANUP_COMPLETE")
-                }
+                noiseProbePhase("CLEANUP_COMPLETE")
             }
         }
     }

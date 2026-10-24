@@ -11,12 +11,17 @@ fun ChannelFuture.toVoidCompletableFuture(): CompletableFuture<Unit> = toComplet
 
 fun ChannelFuture.toCompletableFuture(): CompletableFuture<Channel> {
     val ret = CompletableFuture<Channel>()
-    this.addListener {
-        if (it.isSuccess) {
-            ret.complete(this.channel())
-        } else {
-            ret.completeExceptionally(it.cause())
-        }
+    val transfer = {
+        if (isSuccess) ret.complete(channel())
+        else ret.completeExceptionally(cause())
+    }
+    if (isDone) {
+        transfer()
+    } else {
+        addListener { transfer() }
+        // Completion may race registration, and a full or stopped executor can
+        // reject notification without throwing from addListener.
+        if (isDone) transfer()
     }
     return ret
 }
@@ -25,13 +30,15 @@ fun Future<*>.toVoidCompletableFuture(): CompletableFuture<Unit> = toCompletable
 
 fun <T> Future<T>.toCompletableFuture(): CompletableFuture<T> {
     val ret = CompletableFuture<T>()
-    this.addListener {
-        if (it.isSuccess) {
-            @Suppress("UNCHECKED_CAST")
-            ret.complete(it.get() as T)
-        } else {
-            ret.completeExceptionally(it.cause())
-        }
+    val transfer = {
+        if (isSuccess) ret.complete(getNow())
+        else ret.completeExceptionally(cause())
+    }
+    if (isDone) {
+        transfer()
+    } else {
+        addListener { transfer() }
+        if (isDone) transfer()
     }
     return ret
 }

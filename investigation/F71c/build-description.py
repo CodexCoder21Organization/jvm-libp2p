@@ -45,6 +45,8 @@ section+='### Record correction\n\nThe specific final publish timeout in `Gossip
 results=json.loads((ev/'verified-register.json').read_text())
 expected=(ev/'final-class-list.txt').read_text().splitlines()
 section+=f'### Final-head first attempts\n\nPushed source head `{head}`. One class per bounded Gradle command; maximum observed concurrent Gradle commands across the round: **2**. Each command had a 25-minute maximum.\n\n'
+if len(results)<len(expected):
+ section+='The fresh register reached its fixed overall deadline before finishing the list. The table contains only completed attempts; remaining classes are not counted as passing. The earlier complete 21-class register, its failures, and the unchanged 14/14 plus 1/1 corrected-loop guards are preserved separately.\n\n'
 section+='| Class | Pass / total | Fail / error / skip | XML ms |\n|---|---:|---:|---:|\n'
 totals=[0,0,0,0]
 for r in results:

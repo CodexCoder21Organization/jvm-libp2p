@@ -9,8 +9,10 @@ import io.libp2p.core.multiformats.Multiaddr
 import io.libp2p.core.security.SecureChannel
 import io.libp2p.protocol.Ping
 import io.libp2p.protocol.PingController
+import io.libp2p.transport.implementation.ConnectionOverNetty
 import io.netty.channel.ChannelHandlerContext
 import io.netty.channel.ChannelInboundHandlerAdapter
+import io.netty.channel.SingleThreadEventLoop
 import io.netty.util.ReferenceCountUtil
 import io.netty.util.concurrent.SingleThreadEventExecutor
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -105,14 +107,19 @@ object NoiseEstablishedConnectionHarness {
             val gate = gateReady.get(5, TimeUnit.SECONDS)
             gate.frameReady.get(5, TimeUnit.SECONDS)
             val loop = gate.context.channel().eventLoop()
+            assertTrue((established.connection as ConnectionOverNetty).nettyChannel.eventLoop() === loop, "The established RPC and incoming handshake must share the same network loop")
+            val channelCount = CompletableFuture<Int>()
             loop.execute {
                 assertEquals(0, (loop as SingleThreadEventExecutor).pendingTasks(), "The controlled loop must have no queued tasks before release")
+                channelCount.complete((loop as SingleThreadEventLoop).registeredChannels())
                 gate.release()
             }
+            assertEquals(3, channelCount.get(5, TimeUnit.SECONDS), "The loop must own the established connection's two ends and one incoming peer")
             val snapshot = observed.get(5, TimeUnit.SECONDS)
             assertEquals(1, snapshot.pendingHandshakesOnLoop, "Only the remote peer's incoming handshake may be pending on this loop")
+            assertEquals(gate.context.channel().id().asLongText(), snapshot.channelId, "The held computation must belong to the new incoming peer")
             assertFalse(established.connection.closeFuture().isDone, "The original connection must remain established")
-            println("FX39_ESTABLISHED_BEGIN pending=${snapshot.pendingHandshakesOnLoop} onLoop=${snapshot.onEventLoop}")
+            println("FX39_ESTABLISHED_BEGIN pending=${snapshot.pendingHandshakesOnLoop} channels=${channelCount.join()} onLoop=${snapshot.onEventLoop}")
             ping.ping().get(1, TimeUnit.SECONDS)
             assertFalse(snapshot.onEventLoop, "An established connection's loop must stay available while handshake computation is held")
             release.countDown()

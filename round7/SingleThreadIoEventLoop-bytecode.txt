@@ -1,0 +1,490 @@
+Compiled from "SingleThreadIoEventLoop.java"
+public class io.netty.channel.SingleThreadIoEventLoop extends io.netty.channel.SingleThreadEventLoop implements io.netty.channel.IoEventLoop {
+  private static final long DEFAULT_MAX_TASK_PROCESSING_QUANTUM_NS;
+
+  private final long maxTaskProcessingQuantumNs;
+
+  private final io.netty.channel.IoHandlerContext context;
+
+  private final io.netty.channel.IoHandler ioHandler;
+
+  private final java.util.concurrent.atomic.AtomicInteger numRegistrations;
+
+  static final boolean $assertionsDisabled;
+
+  public io.netty.channel.SingleThreadIoEventLoop(io.netty.channel.IoEventLoopGroup, java.util.concurrent.ThreadFactory, io.netty.channel.IoHandlerFactory);
+    Code:
+       0: aload_0
+       1: aload_1
+       2: aload_2
+       3: iconst_0
+       4: aload_3
+       5: ldc           #7                  // String ioHandlerFactory
+       7: invokestatic  #8                  // Method io/netty/util/internal/ObjectUtil.checkNotNull:(Ljava/lang/Object;Ljava/lang/String;)Ljava/lang/Object;
+      10: checkcast     #9                  // class io/netty/channel/IoHandlerFactory
+      13: invokeinterface #10,  1           // InterfaceMethod io/netty/channel/IoHandlerFactory.isChangingThreadSupported:()Z
+      18: invokespecial #11                 // Method io/netty/channel/SingleThreadEventLoop."<init>":(Lio/netty/channel/EventLoopGroup;Ljava/util/concurrent/ThreadFactory;ZZ)V
+      21: aload_0
+      22: new           #12                 // class io/netty/channel/SingleThreadIoEventLoop$1
+      25: dup
+      26: aload_0
+      27: invokespecial #13                 // Method io/netty/channel/SingleThreadIoEventLoop$1."<init>":(Lio/netty/channel/SingleThreadIoEventLoop;)V
+      30: putfield      #14                 // Field context:Lio/netty/channel/IoHandlerContext;
+      33: aload_0
+      34: new           #15                 // class java/util/concurrent/atomic/AtomicInteger
+      37: dup
+      38: invokespecial #16                 // Method java/util/concurrent/atomic/AtomicInteger."<init>":()V
+      41: putfield      #1                  // Field numRegistrations:Ljava/util/concurrent/atomic/AtomicInteger;
+      44: aload_0
+      45: getstatic     #17                 // Field DEFAULT_MAX_TASK_PROCESSING_QUANTUM_NS:J
+      48: putfield      #18                 // Field maxTaskProcessingQuantumNs:J
+      51: aload_0
+      52: aload_3
+      53: aload_0
+      54: invokeinterface #19,  2           // InterfaceMethod io/netty/channel/IoHandlerFactory.newHandler:(Lio/netty/util/concurrent/ThreadAwareExecutor;)Lio/netty/channel/IoHandler;
+      59: putfield      #20                 // Field ioHandler:Lio/netty/channel/IoHandler;
+      62: return
+
+  public io.netty.channel.SingleThreadIoEventLoop(io.netty.channel.IoEventLoopGroup, java.util.concurrent.Executor, io.netty.channel.IoHandlerFactory);
+    Code:
+       0: aload_0
+       1: aload_1
+       2: aload_2
+       3: iconst_0
+       4: aload_3
+       5: ldc           #7                  // String ioHandlerFactory
+       7: invokestatic  #8                  // Method io/netty/util/internal/ObjectUtil.checkNotNull:(Ljava/lang/Object;Ljava/lang/String;)Ljava/lang/Object;
+      10: checkcast     #9                  // class io/netty/channel/IoHandlerFactory
+      13: invokeinterface #10,  1           // InterfaceMethod io/netty/channel/IoHandlerFactory.isChangingThreadSupported:()Z
+      18: invokespecial #21                 // Method io/netty/channel/SingleThreadEventLoop."<init>":(Lio/netty/channel/EventLoopGroup;Ljava/util/concurrent/Executor;ZZ)V
+      21: aload_0
+      22: new           #12                 // class io/netty/channel/SingleThreadIoEventLoop$1
+      25: dup
+      26: aload_0
+      27: invokespecial #13                 // Method io/netty/channel/SingleThreadIoEventLoop$1."<init>":(Lio/netty/channel/SingleThreadIoEventLoop;)V
+      30: putfield      #14                 // Field context:Lio/netty/channel/IoHandlerContext;
+      33: aload_0
+      34: new           #15                 // class java/util/concurrent/atomic/AtomicInteger
+      37: dup
+      38: invokespecial #16                 // Method java/util/concurrent/atomic/AtomicInteger."<init>":()V
+      41: putfield      #1                  // Field numRegistrations:Ljava/util/concurrent/atomic/AtomicInteger;
+      44: aload_0
+      45: getstatic     #17                 // Field DEFAULT_MAX_TASK_PROCESSING_QUANTUM_NS:J
+      48: putfield      #18                 // Field maxTaskProcessingQuantumNs:J
+      51: aload_0
+      52: aload_3
+      53: aload_0
+      54: invokeinterface #19,  2           // InterfaceMethod io/netty/channel/IoHandlerFactory.newHandler:(Lio/netty/util/concurrent/ThreadAwareExecutor;)Lio/netty/channel/IoHandler;
+      59: putfield      #20                 // Field ioHandler:Lio/netty/channel/IoHandler;
+      62: return
+
+  public io.netty.channel.SingleThreadIoEventLoop(io.netty.channel.IoEventLoopGroup, java.util.concurrent.ThreadFactory, io.netty.channel.IoHandlerFactory, int, io.netty.util.concurrent.RejectedExecutionHandler, long);
+    Code:
+       0: aload_0
+       1: aload_1
+       2: aload_2
+       3: iconst_0
+       4: aload_3
+       5: ldc           #7                  // String ioHandlerFactory
+       7: invokestatic  #8                  // Method io/netty/util/internal/ObjectUtil.checkNotNull:(Ljava/lang/Object;Ljava/lang/String;)Ljava/lang/Object;
+      10: checkcast     #9                  // class io/netty/channel/IoHandlerFactory
+      13: invokeinterface #10,  1           // InterfaceMethod io/netty/channel/IoHandlerFactory.isChangingThreadSupported:()Z
+      18: iload         4
+      20: aload         5
+      22: invokespecial #22                 // Method io/netty/channel/SingleThreadEventLoop."<init>":(Lio/netty/channel/EventLoopGroup;Ljava/util/concurrent/ThreadFactory;ZZILio/netty/util/concurrent/RejectedExecutionHandler;)V
+      25: aload_0
+      26: new           #12                 // class io/netty/channel/SingleThreadIoEventLoop$1
+      29: dup
+      30: aload_0
+      31: invokespecial #13                 // Method io/netty/channel/SingleThreadIoEventLoop$1."<init>":(Lio/netty/channel/SingleThreadIoEventLoop;)V
+      34: putfield      #14                 // Field context:Lio/netty/channel/IoHandlerContext;
+      37: aload_0
+      38: new           #15                 // class java/util/concurrent/atomic/AtomicInteger
+      41: dup
+      42: invokespecial #16                 // Method java/util/concurrent/atomic/AtomicInteger."<init>":()V
+      45: putfield      #1                  // Field numRegistrations:Ljava/util/concurrent/atomic/AtomicInteger;
+      48: aload_0
+      49: lload         6
+      51: ldc           #23                 // String maxTaskProcessingQuantumMs
+      53: invokestatic  #24                 // Method io/netty/util/internal/ObjectUtil.checkPositiveOrZero:(JLjava/lang/String;)J
+      56: lconst_0
+      57: lcmp
+      58: ifne          67
+      61: getstatic     #17                 // Field DEFAULT_MAX_TASK_PROCESSING_QUANTUM_NS:J
+      64: goto          75
+      67: getstatic     #25                 // Field java/util/concurrent/TimeUnit.MILLISECONDS:Ljava/util/concurrent/TimeUnit;
+      70: lload         6
+      72: invokevirtual #26                 // Method java/util/concurrent/TimeUnit.toNanos:(J)J
+      75: putfield      #18                 // Field maxTaskProcessingQuantumNs:J
+      78: aload_0
+      79: aload_3
+      80: aload_0
+      81: invokeinterface #19,  2           // InterfaceMethod io/netty/channel/IoHandlerFactory.newHandler:(Lio/netty/util/concurrent/ThreadAwareExecutor;)Lio/netty/channel/IoHandler;
+      86: putfield      #20                 // Field ioHandler:Lio/netty/channel/IoHandler;
+      89: return
+
+  public io.netty.channel.SingleThreadIoEventLoop(io.netty.channel.IoEventLoopGroup, java.util.concurrent.Executor, io.netty.channel.IoHandlerFactory, int, io.netty.util.concurrent.RejectedExecutionHandler, long);
+    Code:
+       0: aload_0
+       1: aload_1
+       2: aload_2
+       3: iconst_0
+       4: aload_3
+       5: ldc           #7                  // String ioHandlerFactory
+       7: invokestatic  #8                  // Method io/netty/util/internal/ObjectUtil.checkNotNull:(Ljava/lang/Object;Ljava/lang/String;)Ljava/lang/Object;
+      10: checkcast     #9                  // class io/netty/channel/IoHandlerFactory
+      13: invokeinterface #10,  1           // InterfaceMethod io/netty/channel/IoHandlerFactory.isChangingThreadSupported:()Z
+      18: iload         4
+      20: aload         5
+      22: invokespecial #27                 // Method io/netty/channel/SingleThreadEventLoop."<init>":(Lio/netty/channel/EventLoopGroup;Ljava/util/concurrent/Executor;ZZILio/netty/util/concurrent/RejectedExecutionHandler;)V
+      25: aload_0
+      26: new           #12                 // class io/netty/channel/SingleThreadIoEventLoop$1
+      29: dup
+      30: aload_0
+      31: invokespecial #13                 // Method io/netty/channel/SingleThreadIoEventLoop$1."<init>":(Lio/netty/channel/SingleThreadIoEventLoop;)V
+      34: putfield      #14                 // Field context:Lio/netty/channel/IoHandlerContext;
+      37: aload_0
+      38: new           #15                 // class java/util/concurrent/atomic/AtomicInteger
+      41: dup
+      42: invokespecial #16                 // Method java/util/concurrent/atomic/AtomicInteger."<init>":()V
+      45: putfield      #1                  // Field numRegistrations:Ljava/util/concurrent/atomic/AtomicInteger;
+      48: aload_0
+      49: lload         6
+      51: ldc           #23                 // String maxTaskProcessingQuantumMs
+      53: invokestatic  #24                 // Method io/netty/util/internal/ObjectUtil.checkPositiveOrZero:(JLjava/lang/String;)J
+      56: lconst_0
+      57: lcmp
+      58: ifne          67
+      61: getstatic     #17                 // Field DEFAULT_MAX_TASK_PROCESSING_QUANTUM_NS:J
+      64: goto          75
+      67: getstatic     #25                 // Field java/util/concurrent/TimeUnit.MILLISECONDS:Ljava/util/concurrent/TimeUnit;
+      70: lload         6
+      72: invokevirtual #26                 // Method java/util/concurrent/TimeUnit.toNanos:(J)J
+      75: putfield      #18                 // Field maxTaskProcessingQuantumNs:J
+      78: aload_0
+      79: aload_3
+      80: aload_0
+      81: invokeinterface #19,  2           // InterfaceMethod io/netty/channel/IoHandlerFactory.newHandler:(Lio/netty/util/concurrent/ThreadAwareExecutor;)Lio/netty/channel/IoHandler;
+      86: putfield      #20                 // Field ioHandler:Lio/netty/channel/IoHandler;
+      89: return
+
+  protected io.netty.channel.SingleThreadIoEventLoop(io.netty.channel.IoEventLoopGroup, java.util.concurrent.Executor, io.netty.channel.IoHandlerFactory, java.util.Queue<java.lang.Runnable>, java.util.Queue<java.lang.Runnable>, io.netty.util.concurrent.RejectedExecutionHandler);
+    Code:
+       0: aload_0
+       1: aload_1
+       2: aload_2
+       3: iconst_0
+       4: aload_3
+       5: ldc           #7                  // String ioHandlerFactory
+       7: invokestatic  #8                  // Method io/netty/util/internal/ObjectUtil.checkNotNull:(Ljava/lang/Object;Ljava/lang/String;)Ljava/lang/Object;
+      10: checkcast     #9                  // class io/netty/channel/IoHandlerFactory
+      13: invokeinterface #10,  1           // InterfaceMethod io/netty/channel/IoHandlerFactory.isChangingThreadSupported:()Z
+      18: aload         4
+      20: aload         5
+      22: aload         6
+      24: invokespecial #28                 // Method io/netty/channel/SingleThreadEventLoop."<init>":(Lio/netty/channel/EventLoopGroup;Ljava/util/concurrent/Executor;ZZLjava/util/Queue;Ljava/util/Queue;Lio/netty/util/concurrent/RejectedExecutionHandler;)V
+      27: aload_0
+      28: new           #12                 // class io/netty/channel/SingleThreadIoEventLoop$1
+      31: dup
+      32: aload_0
+      33: invokespecial #13                 // Method io/netty/channel/SingleThreadIoEventLoop$1."<init>":(Lio/netty/channel/SingleThreadIoEventLoop;)V
+      36: putfield      #14                 // Field context:Lio/netty/channel/IoHandlerContext;
+      39: aload_0
+      40: new           #15                 // class java/util/concurrent/atomic/AtomicInteger
+      43: dup
+      44: invokespecial #16                 // Method java/util/concurrent/atomic/AtomicInteger."<init>":()V
+      47: putfield      #1                  // Field numRegistrations:Ljava/util/concurrent/atomic/AtomicInteger;
+      50: aload_0
+      51: getstatic     #17                 // Field DEFAULT_MAX_TASK_PROCESSING_QUANTUM_NS:J
+      54: putfield      #18                 // Field maxTaskProcessingQuantumNs:J
+      57: aload_0
+      58: aload_3
+      59: aload_0
+      60: invokeinterface #19,  2           // InterfaceMethod io/netty/channel/IoHandlerFactory.newHandler:(Lio/netty/util/concurrent/ThreadAwareExecutor;)Lio/netty/channel/IoHandler;
+      65: putfield      #20                 // Field ioHandler:Lio/netty/channel/IoHandler;
+      68: return
+
+  protected void run();
+    Code:
+       0: getstatic     #29                 // Field $assertionsDisabled:Z
+       3: ifne          21
+       6: aload_0
+       7: invokevirtual #30                 // Method inEventLoop:()Z
+      10: ifne          21
+      13: new           #31                 // class java/lang/AssertionError
+      16: dup
+      17: invokespecial #32                 // Method java/lang/AssertionError."<init>":()V
+      20: athrow
+      21: aload_0
+      22: getfield      #20                 // Field ioHandler:Lio/netty/channel/IoHandler;
+      25: invokeinterface #33,  1           // InterfaceMethod io/netty/channel/IoHandler.initialize:()V
+      30: aload_0
+      31: invokevirtual #34                 // Method runIo:()I
+      34: pop
+      35: aload_0
+      36: invokevirtual #35                 // Method isShuttingDown:()Z
+      39: ifeq          51
+      42: aload_0
+      43: getfield      #20                 // Field ioHandler:Lio/netty/channel/IoHandler;
+      46: invokeinterface #36,  1           // InterfaceMethod io/netty/channel/IoHandler.prepareToDestroy:()V
+      51: aload_0
+      52: aload_0
+      53: getfield      #18                 // Field maxTaskProcessingQuantumNs:J
+      56: invokevirtual #37                 // Method runAllTasks:(J)Z
+      59: pop
+      60: aload_0
+      61: invokevirtual #38                 // Method confirmShutdown:()Z
+      64: ifne          74
+      67: aload_0
+      68: invokevirtual #39                 // Method canSuspend:()Z
+      71: ifeq          30
+      74: return
+
+  protected final io.netty.channel.IoHandler ioHandler();
+    Code:
+       0: aload_0
+       1: getfield      #20                 // Field ioHandler:Lio/netty/channel/IoHandler;
+       4: areturn
+
+  protected boolean canSuspend(int);
+    Code:
+       0: aload_0
+       1: iload_1
+       2: invokespecial #40                 // Method io/netty/channel/SingleThreadEventLoop.canSuspend:(I)Z
+       5: ifeq          22
+       8: aload_0
+       9: getfield      #1                  // Field numRegistrations:Ljava/util/concurrent/atomic/AtomicInteger;
+      12: invokevirtual #41                 // Method java/util/concurrent/atomic/AtomicInteger.get:()I
+      15: ifne          22
+      18: iconst_1
+      19: goto          23
+      22: iconst_0
+      23: ireturn
+
+  protected int runIo();
+    Code:
+       0: getstatic     #29                 // Field $assertionsDisabled:Z
+       3: ifne          21
+       6: aload_0
+       7: invokevirtual #30                 // Method inEventLoop:()Z
+      10: ifne          21
+      13: new           #31                 // class java/lang/AssertionError
+      16: dup
+      17: invokespecial #32                 // Method java/lang/AssertionError."<init>":()V
+      20: athrow
+      21: aload_0
+      22: getfield      #20                 // Field ioHandler:Lio/netty/channel/IoHandler;
+      25: aload_0
+      26: getfield      #14                 // Field context:Lio/netty/channel/IoHandlerContext;
+      29: invokeinterface #42,  2           // InterfaceMethod io/netty/channel/IoHandler.run:(Lio/netty/channel/IoHandlerContext;)I
+      34: ireturn
+
+  public io.netty.channel.IoEventLoop next();
+    Code:
+       0: aload_0
+       1: areturn
+
+  public final io.netty.util.concurrent.Future<io.netty.channel.IoRegistration> register(io.netty.channel.IoHandle);
+    Code:
+       0: aload_0
+       1: invokevirtual #43                 // Method newPromise:()Lio/netty/util/concurrent/Promise;
+       4: astore_2
+       5: aload_0
+       6: invokevirtual #30                 // Method inEventLoop:()Z
+       9: ifeq          21
+      12: aload_0
+      13: aload_1
+      14: aload_2
+      15: invokespecial #44                 // Method registerForIo0:(Lio/netty/channel/IoHandle;Lio/netty/util/concurrent/Promise;)V
+      18: goto          33
+      21: aload_0
+      22: aload_0
+      23: aload_1
+      24: aload_2
+      25: invokedynamic #45,  0             // InvokeDynamic #0:run:(Lio/netty/channel/SingleThreadIoEventLoop;Lio/netty/channel/IoHandle;Lio/netty/util/concurrent/Promise;)Ljava/lang/Runnable;
+      30: invokevirtual #46                 // Method execute:(Ljava/lang/Runnable;)V
+      33: aload_2
+      34: areturn
+
+  protected int getNumOfRegisteredChannels();
+    Code:
+       0: aload_0
+       1: getfield      #1                  // Field numRegistrations:Ljava/util/concurrent/atomic/AtomicInteger;
+       4: invokevirtual #41                 // Method java/util/concurrent/atomic/AtomicInteger.get:()I
+       7: ireturn
+
+  private void registerForIo0(io.netty.channel.IoHandle, io.netty.util.concurrent.Promise<io.netty.channel.IoRegistration>);
+    Code:
+       0: getstatic     #29                 // Field $assertionsDisabled:Z
+       3: ifne          21
+       6: aload_0
+       7: invokevirtual #30                 // Method inEventLoop:()Z
+      10: ifne          21
+      13: new           #31                 // class java/lang/AssertionError
+      16: dup
+      17: invokespecial #32                 // Method java/lang/AssertionError."<init>":()V
+      20: athrow
+      21: aload_0
+      22: getfield      #20                 // Field ioHandler:Lio/netty/channel/IoHandler;
+      25: aload_1
+      26: invokeinterface #47,  2           // InterfaceMethod io/netty/channel/IoHandler.register:(Lio/netty/channel/IoHandle;)Lio/netty/channel/IoRegistration;
+      31: astore_3
+      32: goto          47
+      35: astore        4
+      37: aload_2
+      38: aload         4
+      40: invokeinterface #49,  2           // InterfaceMethod io/netty/util/concurrent/Promise.setFailure:(Ljava/lang/Throwable;)Lio/netty/util/concurrent/Promise;
+      45: pop
+      46: return
+      47: aload_0
+      48: getfield      #1                  // Field numRegistrations:Ljava/util/concurrent/atomic/AtomicInteger;
+      51: invokevirtual #50                 // Method java/util/concurrent/atomic/AtomicInteger.incrementAndGet:()I
+      54: pop
+      55: aload_2
+      56: new           #51                 // class io/netty/channel/SingleThreadIoEventLoop$IoRegistrationWrapper
+      59: dup
+      60: aload_0
+      61: aload_3
+      62: invokespecial #52                 // Method io/netty/channel/SingleThreadIoEventLoop$IoRegistrationWrapper."<init>":(Lio/netty/channel/SingleThreadIoEventLoop;Lio/netty/channel/IoRegistration;)V
+      65: invokeinterface #53,  2           // InterfaceMethod io/netty/util/concurrent/Promise.setSuccess:(Ljava/lang/Object;)Lio/netty/util/concurrent/Promise;
+      70: pop
+      71: return
+    Exception table:
+       from    to  target type
+          21    32    35   Class java/lang/Exception
+
+  protected final void wakeup(boolean);
+    Code:
+       0: aload_0
+       1: getfield      #20                 // Field ioHandler:Lio/netty/channel/IoHandler;
+       4: invokeinterface #54,  1           // InterfaceMethod io/netty/channel/IoHandler.wakeup:()V
+       9: return
+
+  protected final void cleanup();
+    Code:
+       0: getstatic     #29                 // Field $assertionsDisabled:Z
+       3: ifne          21
+       6: aload_0
+       7: invokevirtual #30                 // Method inEventLoop:()Z
+      10: ifne          21
+      13: new           #31                 // class java/lang/AssertionError
+      16: dup
+      17: invokespecial #32                 // Method java/lang/AssertionError."<init>":()V
+      20: athrow
+      21: aload_0
+      22: getfield      #20                 // Field ioHandler:Lio/netty/channel/IoHandler;
+      25: invokeinterface #55,  1           // InterfaceMethod io/netty/channel/IoHandler.destroy:()V
+      30: return
+
+  public boolean isCompatible(java.lang.Class<? extends io.netty.channel.IoHandle>);
+    Code:
+       0: aload_0
+       1: getfield      #20                 // Field ioHandler:Lio/netty/channel/IoHandler;
+       4: aload_1
+       5: invokeinterface #56,  2           // InterfaceMethod io/netty/channel/IoHandler.isCompatible:(Ljava/lang/Class;)Z
+      10: ireturn
+
+  public boolean isIoType(java.lang.Class<? extends io.netty.channel.IoHandler>);
+    Code:
+       0: aload_0
+       1: getfield      #20                 // Field ioHandler:Lio/netty/channel/IoHandler;
+       4: invokevirtual #57                 // Method java/lang/Object.getClass:()Ljava/lang/Class;
+       7: aload_1
+       8: invokevirtual #58                 // Method java/lang/Object.equals:(Ljava/lang/Object;)Z
+      11: ireturn
+
+  protected java.util.Queue<java.lang.Runnable> newTaskQueue(int);
+    Code:
+       0: iload_1
+       1: invokestatic  #59                 // Method newTaskQueue0:(I)Ljava/util/Queue;
+       4: areturn
+
+  protected static java.util.Queue<java.lang.Runnable> newTaskQueue0(int);
+    Code:
+       0: iload_0
+       1: ldc           #61                 // int 2147483647
+       3: if_icmpne     12
+       6: invokestatic  #62                 // Method io/netty/util/internal/PlatformDependent.newMpscQueue:()Ljava/util/Queue;
+       9: goto          16
+      12: iload_0
+      13: invokestatic  #63                 // Method io/netty/util/internal/PlatformDependent.newMpscQueue:(I)Ljava/util/Queue;
+      16: areturn
+
+  public io.netty.channel.EventLoop next();
+    Code:
+       0: aload_0
+       1: invokevirtual #64                 // Method next:()Lio/netty/channel/IoEventLoop;
+       4: areturn
+
+  public io.netty.util.concurrent.EventExecutor next();
+    Code:
+       0: aload_0
+       1: invokevirtual #64                 // Method next:()Lio/netty/channel/IoEventLoop;
+       4: areturn
+
+  private void lambda$register$0(io.netty.channel.IoHandle, io.netty.util.concurrent.Promise);
+    Code:
+       0: aload_0
+       1: aload_1
+       2: aload_2
+       3: invokespecial #44                 // Method registerForIo0:(Lio/netty/channel/IoHandle;Lio/netty/util/concurrent/Promise;)V
+       6: return
+
+  static boolean access$000(io.netty.channel.SingleThreadIoEventLoop);
+    Code:
+       0: aload_0
+       1: invokevirtual #6                  // Method hasScheduledTasks:()Z
+       4: ireturn
+
+  static long access$100(io.netty.channel.SingleThreadIoEventLoop, long);
+    Code:
+       0: aload_0
+       1: lload_1
+       2: invokevirtual #5                  // Method delayNanos:(J)J
+       5: lreturn
+
+  static long access$200(io.netty.channel.SingleThreadIoEventLoop);
+    Code:
+       0: aload_0
+       1: invokevirtual #4                  // Method deadlineNanos:()J
+       4: lreturn
+
+  static void access$300(io.netty.channel.SingleThreadIoEventLoop, long);
+    Code:
+       0: aload_0
+       1: lload_1
+       2: invokevirtual #3                  // Method reportActiveIoTime:(J)V
+       5: return
+
+  static boolean access$400(io.netty.channel.SingleThreadIoEventLoop);
+    Code:
+       0: aload_0
+       1: invokevirtual #2                  // Method isSuspensionSupported:()Z
+       4: ireturn
+
+  static java.util.concurrent.atomic.AtomicInteger access$500(io.netty.channel.SingleThreadIoEventLoop);
+    Code:
+       0: aload_0
+       1: getfield      #1                  // Field numRegistrations:Ljava/util/concurrent/atomic/AtomicInteger;
+       4: areturn
+
+  static {};
+    Code:
+       0: ldc           #65                 // class io/netty/channel/SingleThreadIoEventLoop
+       2: invokevirtual #66                 // Method java/lang/Class.desiredAssertionStatus:()Z
+       5: ifne          12
+       8: iconst_1
+       9: goto          13
+      12: iconst_0
+      13: putstatic     #29                 // Field $assertionsDisabled:Z
+      16: getstatic     #25                 // Field java/util/concurrent/TimeUnit.MILLISECONDS:Ljava/util/concurrent/TimeUnit;
+      19: bipush        100
+      21: ldc           #67                 // String io.netty.eventLoop.maxTaskProcessingQuantumMs
+      23: sipush        1000
+      26: invokestatic  #68                 // Method io/netty/util/internal/SystemPropertyUtil.getInt:(Ljava/lang/String;I)I
+      29: invokestatic  #69                 // Method java/lang/Math.max:(II)I
+      32: i2l
+      33: invokevirtual #26                 // Method java/util/concurrent/TimeUnit.toNanos:(J)J
+      36: putstatic     #17                 // Field DEFAULT_MAX_TASK_PROCESSING_QUANTUM_NS:J
+      39: return
+}

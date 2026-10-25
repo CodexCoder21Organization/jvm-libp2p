@@ -1,0 +1,11 @@
+OBSERVED 2026-10-25 00:42 UTC — 20-minute status: RUNNING.
+Request: complete the three round-six items on https://github.com/CodexCoder21Organization/jvm-libp2p/pull/71, preserve first attempts and evidence, do not merge.
+PR: OPEN; remote head remains 3e1751baddc1e37fc40c51ff1e28b9135c6acc23 (fresh status read recorded separately); local test commit fc3587a1825adfebe341266ff77922d5a6e8bb1f. Evidence checkpoint is https://github.com/CodexCoder21Organization/jvm-libp2p/commit/695e8c85bee21910883b77c8c695d34758aa47a8.
+Progress: main Kotlin compilation completed and Java compilation started in the first red command. No test body has run and no runtime result is claimed. Production remains unchanged. The regression drives three real children through synchronous callback close, then checks zero loop hooks and zero pending-parent callback registrations.
+How the planned fix works: the callback may close its child before returning its parent promise. The post-callback guard will check child openness and outbound-buffer ownership before installing a token. Closed children therefore acquire neither a new hook nor a parent completion listener.
+Delegated work: none; prohibited by brief. Maximum owned Gradle test commands observed: 1.
+Blockers: none. Companion-class clarification is optional; no other class references either exact handshake harness, and the adjacent NoiseAlgorithmReadinessTest is the stated default.
+Plan: continue the first assertion-red, fix/green/reversal/restore, four shutdown classes, README, then the solo and paired deadline investigation. Active compilation is evidenced by generated classes and task progress.
+No unnecessary holds: items follow the user's explicit order. No idle landing gates: merge/approval/closure are prohibited. Owner direction captured: none new.
+Next steps: finish the regression controls and shutdown register, narrow the README, execute the deadline reproduction plan, push evidence and description, and stop owned JVMs.
+Lesson: a callback can invalidate ownership before returning; validate ownership again before registering a resource that outlives the callback. Lesson: an empty-output process deadline identifies the parent's wait, not the child's phase; capture the child before assigning a cause.

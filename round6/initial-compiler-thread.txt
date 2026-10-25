@@ -1,0 +1,288 @@
+3408068:
+2026-10-25 00:35:03
+Full thread dump OpenJDK 64-Bit Server VM (21.0.12.1+1-LTS mixed mode, sharing):
+
+Threads class SMR info:
+_java_thread_list=0x00007e2080002110, length=19, elements={
+0x00007e20ec110af0, 0x00007e20ec112060, 0x00007e20ec1137f0, 0x00007e20ec114e30,
+0x00007e20ec1163d0, 0x00007e20ec117f10, 0x00007e20ec1195d0, 0x00007e20ec158b80,
+0x00007e20ec15b330, 0x00007e20ec32ffe0, 0x00007e20ec34f470, 0x00007e20ec393580,
+0x00007e20ec354eb0, 0x00007e20ec02ca70, 0x00007e205401f360, 0x00007e20640026c0,
+0x00007e204c045ac0, 0x00007e2064001590, 0x00007e2080000ff0
+}
+
+"Reference Handler" #9 [3408083] daemon prio=10 os_prio=0 cpu=3.20ms elapsed=364.46s tid=0x00007e20ec110af0 nid=3408083 waiting on condition  [0x00007e20f1ac3000]
+   java.lang.Thread.State: RUNNABLE
+	at java.lang.ref.Reference.waitForReferencePendingList(java.base@21.0.12.1/Native Method)
+	at java.lang.ref.Reference.processPendingReferences(java.base@21.0.12.1/Reference.java:246)
+	at java.lang.ref.Reference$ReferenceHandler.run(java.base@21.0.12.1/Reference.java:208)
+
+"Finalizer" #10 [3408084] daemon prio=8 os_prio=0 cpu=0.29ms elapsed=364.47s tid=0x00007e20ec112060 nid=3408084 in Object.wait()  [0x00007e20f19c3000]
+   java.lang.Thread.State: WAITING (on object monitor)
+	at java.lang.Object.wait0(java.base@21.0.12.1/Native Method)
+	- waiting on <0x00000007404620f0> (a java.lang.ref.NativeReferenceQueue$Lock)
+	at java.lang.Object.wait(java.base@21.0.12.1/Object.java:366)
+	at java.lang.Object.wait(java.base@21.0.12.1/Object.java:339)
+	at java.lang.ref.NativeReferenceQueue.await(java.base@21.0.12.1/NativeReferenceQueue.java:48)
+	at java.lang.ref.ReferenceQueue.remove0(java.base@21.0.12.1/ReferenceQueue.java:158)
+	at java.lang.ref.NativeReferenceQueue.remove(java.base@21.0.12.1/NativeReferenceQueue.java:89)
+	- locked <0x00000007404620f0> (a java.lang.ref.NativeReferenceQueue$Lock)
+	at java.lang.ref.Finalizer$FinalizerThread.run(java.base@21.0.12.1/Finalizer.java:173)
+
+"Signal Dispatcher" #11 [3408085] daemon prio=9 os_prio=0 cpu=0.75ms elapsed=364.47s tid=0x00007e20ec1137f0 nid=3408085 waiting on condition  [0x0000000000000000]
+   java.lang.Thread.State: RUNNABLE
+
+"Service Thread" #12 [3408086] daemon prio=9 os_prio=0 cpu=6.51ms elapsed=364.46s tid=0x00007e20ec114e30 nid=3408086 runnable  [0x0000000000000000]
+   java.lang.Thread.State: RUNNABLE
+
+"Monitor Deflation Thread" #13 [3408087] daemon prio=9 os_prio=0 cpu=38.65ms elapsed=364.46s tid=0x00007e20ec1163d0 nid=3408087 runnable  [0x0000000000000000]
+   java.lang.Thread.State: RUNNABLE
+
+"C2 CompilerThread0" #14 [3408088] daemon prio=9 os_prio=0 cpu=51813.06ms elapsed=364.46s tid=0x00007e20ec117f10 nid=3408088 runnable  [0x0000000000000000]
+   java.lang.Thread.State: RUNNABLE
+   Compiling: 21882       4       org.jetbrains.kotlin.com.intellij.psi.impl.PsiCachedValue::getTimeStamp (105 bytes)
+
+"C1 CompilerThread0" #15 [3408089] daemon prio=9 os_prio=0 cpu=13821.69ms elapsed=364.45s tid=0x00007e20ec1195d0 nid=3408089 waiting on condition  [0x0000000000000000]
+   java.lang.Thread.State: RUNNABLE
+   No compile task
+
+"Notification Thread" #16 [3408091] daemon prio=9 os_prio=0 cpu=0.12ms elapsed=364.24s tid=0x00007e20ec158b80 nid=3408091 runnable  [0x0000000000000000]
+   java.lang.Thread.State: RUNNABLE
+
+"Common-Cleaner" #17 [3408092] daemon prio=8 os_prio=0 cpu=1.66ms elapsed=364.24s tid=0x00007e20ec15b330 nid=3408092 waiting on condition  [0x00007e20f11f3000]
+   java.lang.Thread.State: TIMED_WAITING (parking)
+	at jdk.internal.misc.Unsafe.park(java.base@21.0.12.1/Native Method)
+	- parking to wait for  <0x0000000740462218> (a java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject)
+	at java.util.concurrent.locks.LockSupport.parkNanos(java.base@21.0.12.1/LockSupport.java:269)
+	at java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.await(java.base@21.0.12.1/AbstractQueuedSynchronizer.java:1886)
+	at java.lang.ref.ReferenceQueue.await(java.base@21.0.12.1/ReferenceQueue.java:71)
+	at java.lang.ref.ReferenceQueue.remove0(java.base@21.0.12.1/ReferenceQueue.java:143)
+	at java.lang.ref.ReferenceQueue.remove(java.base@21.0.12.1/ReferenceQueue.java:218)
+	at jdk.internal.ref.CleanerImpl.run(java.base@21.0.12.1/CleanerImpl.java:140)
+	at java.lang.Thread.runWith(java.base@21.0.12.1/Thread.java:1596)
+	at java.lang.Thread.run(java.base@21.0.12.1/Thread.java:1583)
+	at jdk.internal.misc.InnocuousThread.run(java.base@21.0.12.1/InnocuousThread.java:186)
+
+"Timer-0" #20 [3408157] daemon prio=5 os_prio=0 cpu=173.87ms elapsed=361.50s tid=0x00007e20ec32ffe0 nid=3408157 runnable  [0x00007e20f0fd4000]
+   java.lang.Thread.State: RUNNABLE
+	at java.io.FilterInputStream.read(java.base@21.0.12.1/FilterInputStream.java:95)
+	at org.jetbrains.kotlin.daemon.LazyClasspathWatcherKt.md5Digest(LazyClasspathWatcher.kt:123)
+	at org.jetbrains.kotlin.daemon.LazyClasspathWatcher.isChanged(LazyClasspathWatcher.kt:98)
+	at org.jetbrains.kotlin.daemon.CompileServiceImpl.periodicSeldomCheck(CompileServiceImpl.kt:1019)
+	at org.jetbrains.kotlin.daemon.CompileServiceImplBase$configurePeriodicActivities$$inlined$schedule$2.run(Timer.kt:149)
+	at java.util.TimerThread.mainLoop(java.base@21.0.12.1/Timer.java:566)
+	at java.util.TimerThread.run(java.base@21.0.12.1/Timer.java:516)
+
+"RMI TCP Accept-17735" #21 [3408178] daemon prio=5 os_prio=0 cpu=6.11ms elapsed=361.04s tid=0x00007e20ec34f470 nid=3408178 runnable  [0x00007e20f0ed1000]
+   java.lang.Thread.State: RUNNABLE
+	at sun.nio.ch.Net.accept(java.base@21.0.12.1/Native Method)
+	at sun.nio.ch.NioSocketImpl.accept(java.base@21.0.12.1/NioSocketImpl.java:748)
+	at java.net.ServerSocket.implAccept(java.base@21.0.12.1/ServerSocket.java:698)
+	at java.net.ServerSocket.platformImplAccept(java.base@21.0.12.1/ServerSocket.java:663)
+	at java.net.ServerSocket.implAccept(java.base@21.0.12.1/ServerSocket.java:639)
+	at java.net.ServerSocket.implAccept(java.base@21.0.12.1/ServerSocket.java:585)
+	at java.net.ServerSocket.accept(java.base@21.0.12.1/ServerSocket.java:543)
+	at sun.rmi.transport.tcp.TCPTransport$AcceptLoop.executeAcceptLoop(java.rmi@21.0.12.1/TCPTransport.java:424)
+	at sun.rmi.transport.tcp.TCPTransport$AcceptLoop.run(java.rmi@21.0.12.1/TCPTransport.java:388)
+	at java.lang.Thread.runWith(java.base@21.0.12.1/Thread.java:1596)
+	at java.lang.Thread.run(java.base@21.0.12.1/Thread.java:1583)
+
+"RMI Reaper" #23 [3408185] prio=5 os_prio=0 cpu=0.76ms elapsed=360.67s tid=0x00007e20ec393580 nid=3408185 waiting on condition  [0x00007e20f0cd1000]
+   java.lang.Thread.State: WAITING (parking)
+	at jdk.internal.misc.Unsafe.park(java.base@21.0.12.1/Native Method)
+	- parking to wait for  <0x000000074066b1c0> (a java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject)
+	at java.util.concurrent.locks.LockSupport.park(java.base@21.0.12.1/LockSupport.java:371)
+	at java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionNode.block(java.base@21.0.12.1/AbstractQueuedSynchronizer.java:519)
+	at java.util.concurrent.ForkJoinPool.unmanagedBlock(java.base@21.0.12.1/ForkJoinPool.java:3780)
+	at java.util.concurrent.ForkJoinPool.managedBlock(java.base@21.0.12.1/ForkJoinPool.java:3725)
+	at java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.await(java.base@21.0.12.1/AbstractQueuedSynchronizer.java:1746)
+	at java.lang.ref.ReferenceQueue.await(java.base@21.0.12.1/ReferenceQueue.java:67)
+	at java.lang.ref.ReferenceQueue.remove0(java.base@21.0.12.1/ReferenceQueue.java:158)
+	at java.lang.ref.ReferenceQueue.remove(java.base@21.0.12.1/ReferenceQueue.java:234)
+	at sun.rmi.transport.ObjectTable$Reaper.run(java.rmi@21.0.12.1/ObjectTable.java:352)
+	at java.lang.Thread.runWith(java.base@21.0.12.1/Thread.java:1596)
+	at java.lang.Thread.run(java.base@21.0.12.1/Thread.java:1583)
+
+"RMI GC Daemon" #24 [3408186] daemon prio=2 os_prio=0 cpu=0.32ms elapsed=360.66s tid=0x00007e20ec354eb0 nid=3408186 in Object.wait()  [0x00007e20f0bce000]
+   java.lang.Thread.State: TIMED_WAITING (on object monitor)
+	at java.lang.Object.wait0(java.base@21.0.12.1/Native Method)
+	- waiting on <0x000000074066b2f0> (a sun.rmi.transport.GC$LatencyLock)
+	at java.lang.Object.wait(java.base@21.0.12.1/Object.java:366)
+	at sun.rmi.transport.GC$Daemon.run(java.rmi@21.0.12.1/GC.java:127)
+	- locked <0x000000074066b2f0> (a sun.rmi.transport.GC$LatencyLock)
+	at java.lang.Thread.runWith(java.base@21.0.12.1/Thread.java:1596)
+	at java.lang.Thread.run(java.base@21.0.12.1/Thread.java:1583)
+	at jdk.internal.misc.InnocuousThread.run(java.base@21.0.12.1/InnocuousThread.java:186)
+
+"DestroyJavaVM" #25 [3408071] prio=5 os_prio=0 cpu=678.95ms elapsed=360.60s tid=0x00007e20ec02ca70 nid=3408071 waiting on condition  [0x0000000000000000]
+   java.lang.Thread.State: RUNNABLE
+
+"RMI Scheduler(0)" #27 [3408196] daemon prio=5 os_prio=0 cpu=3.59ms elapsed=359.82s tid=0x00007e205401f360 nid=3408196 waiting on condition  [0x00007e20f09ce000]
+   java.lang.Thread.State: TIMED_WAITING (parking)
+	at jdk.internal.misc.Unsafe.park(java.base@21.0.12.1/Native Method)
+	- parking to wait for  <0x0000000740682a48> (a java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject)
+	at java.util.concurrent.locks.LockSupport.parkNanos(java.base@21.0.12.1/LockSupport.java:269)
+	at java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.awaitNanos(java.base@21.0.12.1/AbstractQueuedSynchronizer.java:1797)
+	at java.util.concurrent.ScheduledThreadPoolExecutor$DelayedWorkQueue.take(java.base@21.0.12.1/ScheduledThreadPoolExecutor.java:1182)
+	at java.util.concurrent.ScheduledThreadPoolExecutor$DelayedWorkQueue.take(java.base@21.0.12.1/ScheduledThreadPoolExecutor.java:899)
+	at java.util.concurrent.ThreadPoolExecutor.getTask(java.base@21.0.12.1/ThreadPoolExecutor.java:1070)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(java.base@21.0.12.1/ThreadPoolExecutor.java:1130)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(java.base@21.0.12.1/ThreadPoolExecutor.java:642)
+	at java.lang.Thread.runWith(java.base@21.0.12.1/Thread.java:1596)
+	at java.lang.Thread.run(java.base@21.0.12.1/Thread.java:1583)
+
+"RMI TCP Connection(2)-127.0.0.1" #28 [3408203] daemon prio=5 os_prio=0 cpu=50908.39ms elapsed=359.43s tid=0x00007e20640026c0 nid=3408203 runnable  [0x00007e20f08c9000]
+   java.lang.Thread.State: RUNNABLE
+	at org.jetbrains.kotlin.resolve.jvm.checkers.JvmModuleAccessibilityChecker.findVirtualFile$getContainingVirtualFile(JvmModuleAccessibilityChecker.kt:100)
+	at org.jetbrains.kotlin.resolve.jvm.checkers.JvmModuleAccessibilityChecker.findVirtualFile(JvmModuleAccessibilityChecker.kt:104)
+	at org.jetbrains.kotlin.resolve.jvm.checkers.JvmModuleAccessibilityChecker.diagnosticFor(JvmModuleAccessibilityChecker.kt:66)
+	at org.jetbrains.kotlin.resolve.jvm.checkers.JvmModuleAccessibilityChecker.check(JvmModuleAccessibilityChecker.kt:57)
+	at org.jetbrains.kotlin.resolve.calls.tower.KotlinToResolvedCallTransformer.runCallCheckers(KotlinToResolvedCallTransformer.kt:251)
+	at org.jetbrains.kotlin.resolve.calls.tower.ResolvedAtomCompleter.completeResolvedCall(ResolvedAtomCompleter.kt:196)
+	at org.jetbrains.kotlin.resolve.calls.tower.KotlinToResolvedCallTransformer.transformAndReport(KotlinToResolvedCallTransformer.kt:139)
+	at org.jetbrains.kotlin.resolve.calls.tower.PSICallResolver.convertToOverloadResolutionResults(PSICallResolver.kt:256)
+	at org.jetbrains.kotlin.resolve.calls.tower.PSICallResolver.runResolutionAndInference(PSICallResolver.kt:126)
+	at org.jetbrains.kotlin.resolve.calls.CallResolver.doResolveCallOrGetCachedResults(CallResolver.java:601)
+	at org.jetbrains.kotlin.resolve.calls.CallResolver.lambda$computeTasksAndResolveCall$0(CallResolver.java:213)
+	at org.jetbrains.kotlin.resolve.calls.CallResolver$$Lambda/0x00007e209a72c5d0.invoke(Unknown Source)
+	at org.jetbrains.kotlin.util.PerformanceCounter.time(PerformanceCounter.kt:101)
+	at org.jetbrains.kotlin.resolve.calls.CallResolver.computeTasksAndResolveCall(CallResolver.java:211)
+	at org.jetbrains.kotlin.resolve.calls.CallResolver.computeTasksAndResolveCall(CallResolver.java:199)
+	at org.jetbrains.kotlin.resolve.calls.CallResolver.resolveFunctionCall(CallResolver.java:329)
+	at org.jetbrains.kotlin.resolve.calls.CallExpressionResolver.getResolvedCallForFunction(CallExpressionResolver.kt:88)
+	at org.jetbrains.kotlin.resolve.calls.CallExpressionResolver.getCallExpressionTypeInfoWithoutFinalTypeCheck(CallExpressionResolver.kt:210)
+	at org.jetbrains.kotlin.resolve.calls.CallExpressionResolver.getCallExpressionTypeInfo(CallExpressionResolver.kt:187)
+	at org.jetbrains.kotlin.types.expressions.BasicExpressionTypingVisitor.visitCallExpression(BasicExpressionTypingVisitor.java:718)
+	at org.jetbrains.kotlin.types.expressions.ExpressionTypingVisitorDispatcher.visitCallExpression(ExpressionTypingVisitorDispatcher.java:388)
+	at org.jetbrains.kotlin.types.expressions.ExpressionTypingVisitorDispatcher$ForBlock.visitCallExpression(ExpressionTypingVisitorDispatcher.java:59)
+	at org.jetbrains.kotlin.psi.KtCallExpression.accept(KtCallExpression.java:35)
+	at org.jetbrains.kotlin.types.expressions.ExpressionTypingVisitorDispatcher.lambda$getTypeInfo$0(ExpressionTypingVisitorDispatcher.java:175)
+	at org.jetbrains.kotlin.types.expressions.ExpressionTypingVisitorDispatcher$$Lambda/0x00007e209a72b128.invoke(Unknown Source)
+	at org.jetbrains.kotlin.util.PerformanceCounter.time(PerformanceCounter.kt:101)
+	at org.jetbrains.kotlin.types.expressions.ExpressionTypingVisitorDispatcher.getTypeInfo(ExpressionTypingVisitorDispatcher.java:164)
+	at org.jetbrains.kotlin.types.expressions.ExpressionTypingVisitorDispatcher.getTypeInfo(ExpressionTypingVisitorDispatcher.java:134)
+	at org.jetbrains.kotlin.types.expressions.ExpressionTypingVisitorForStatements.visitAssignment(ExpressionTypingVisitorForStatements.java:447)
+	at org.jetbrains.kotlin.types.expressions.ExpressionTypingVisitorForStatements.visitBinaryExpression(ExpressionTypingVisitorForStatements.java:185)
+	at org.jetbrains.kotlin.types.expressions.ExpressionTypingVisitorForStatements.visitBinaryExpression(ExpressionTypingVisitorForStatements.java:68)
+	at org.jetbrains.kotlin.psi.KtBinaryExpression.accept(KtBinaryExpression.java:35)
+	at org.jetbrains.kotlin.types.expressions.ExpressionTypingVisitorDispatcher.lambda$getTypeInfo$0(ExpressionTypingVisitorDispatcher.java:175)
+	at org.jetbrains.kotlin.types.expressions.ExpressionTypingVisitorDispatcher$$Lambda/0x00007e209a72b128.invoke(Unknown Source)
+	at org.jetbrains.kotlin.util.PerformanceCounter.time(PerformanceCounter.kt:101)
+	at org.jetbrains.kotlin.types.expressions.ExpressionTypingVisitorDispatcher.getTypeInfo(ExpressionTypingVisitorDispatcher.java:164)
+	at org.jetbrains.kotlin.types.expressions.ExpressionTypingVisitorDispatcher.getTypeInfo(ExpressionTypingVisitorDispatcher.java:147)
+	at org.jetbrains.kotlin.types.expressions.ExpressionTypingServices.getBlockReturnedTypeWithWritableScope(ExpressionTypingServices.java:341)
+	at org.jetbrains.kotlin.types.expressions.ExpressionTypingServices.getBlockReturnedType(ExpressionTypingServices.java:206)
+	at org.jetbrains.kotlin.types.expressions.ExpressionTypingServices.getBlockReturnedType(ExpressionTypingServices.java:183)
+	at org.jetbrains.kotlin.types.expressions.ExpressionTypingVisitorForStatements.visitBlockExpression(ExpressionTypingVisitorForStatements.java:555)
+	at org.jetbrains.kotlin.types.expressions.ExpressionTypingVisitorForStatements.visitBlockExpression(ExpressionTypingVisitorForStatements.java:68)
+	at org.jetbrains.kotlin.psi.KtBlockExpression.accept(KtBlockExpression.java:79)
+	at org.jetbrains.kotlin.types.expressions.ExpressionTypingVisitorDispatcher.lambda$getTypeInfo$0(ExpressionTypingVisitorDispatcher.java:175)
+	at org.jetbrains.kotlin.types.expressions.ExpressionTypingVisitorDispatcher$$Lambda/0x00007e209a72b128.invoke(Unknown Source)
+	at org.jetbrains.kotlin.util.PerformanceCounter.time(PerformanceCounter.kt:101)
+	at org.jetbrains.kotlin.types.expressions.ExpressionTypingVisitorDispatcher.getTypeInfo(ExpressionTypingVisitorDispatcher.java:164)
+	at org.jetbrains.kotlin.types.expressions.ExpressionTypingVisitorDispatcher.getTypeInfo(ExpressionTypingVisitorDispatcher.java:147)
+	at org.jetbrains.kotlin.types.expressions.ExpressionTypingServices.checkFunctionReturnType(ExpressionTypingServices.java:178)
+	at org.jetbrains.kotlin.types.expressions.ExpressionTypingServices.checkFunctionReturnType(ExpressionTypingServices.java:165)
+	at org.jetbrains.kotlin.resolve.BodyResolver.resolveFunctionBody(BodyResolver.java:1048)
+	at org.jetbrains.kotlin.resolve.BodyResolver.resolveFunctionBody(BodyResolver.java:991)
+	at org.jetbrains.kotlin.resolve.BodyResolver.resolveFunctionBodies(BodyResolver.java:976)
+	at org.jetbrains.kotlin.resolve.BodyResolver.resolveBehaviorDeclarationBodies(BodyResolver.java:128)
+	at org.jetbrains.kotlin.resolve.BodyResolver.resolveBodies(BodyResolver.java:255)
+	at org.jetbrains.kotlin.resolve.LazyTopDownAnalyzer.analyzeDeclarations(LazyTopDownAnalyzer.kt:227)
+	at org.jetbrains.kotlin.resolve.LazyTopDownAnalyzer.analyzeDeclarations$default(LazyTopDownAnalyzer.kt:58)
+	at org.jetbrains.kotlin.cli.jvm.compiler.TopDownAnalyzerFacadeForJVM.analyzeFilesWithJavaIntegration(TopDownAnalyzerFacadeForJVM.kt:130)
+	at org.jetbrains.kotlin.cli.jvm.compiler.TopDownAnalyzerFacadeForJVM.analyzeFilesWithJavaIntegration$default(TopDownAnalyzerFacadeForJVM.kt:99)
+	at org.jetbrains.kotlin.cli.jvm.compiler.KotlinToJVMBytecodeCompiler$analyze$1.invoke(KotlinToJVMBytecodeCompiler.kt:301)
+	at org.jetbrains.kotlin.cli.jvm.compiler.KotlinToJVMBytecodeCompiler$analyze$1.invoke(KotlinToJVMBytecodeCompiler.kt:55)
+	at org.jetbrains.kotlin.cli.common.messages.AnalyzerWithCompilerReport.analyzeAndReport(AnalyzerWithCompilerReport.kt:113)
+	at org.jetbrains.kotlin.cli.jvm.compiler.KotlinToJVMBytecodeCompiler.analyze(KotlinToJVMBytecodeCompiler.kt:292)
+	at org.jetbrains.kotlin.cli.jvm.compiler.KotlinToJVMBytecodeCompiler.compileModules$cli(KotlinToJVMBytecodeCompiler.kt:102)
+	at org.jetbrains.kotlin.cli.jvm.compiler.KotlinToJVMBytecodeCompiler.compileModules$cli$default(KotlinToJVMBytecodeCompiler.kt:60)
+	at org.jetbrains.kotlin.cli.jvm.K2JVMCompiler.doExecute(K2JVMCompiler.kt:172)
+	at org.jetbrains.kotlin.cli.jvm.K2JVMCompiler.doExecute(K2JVMCompiler.kt:54)
+	at org.jetbrains.kotlin.cli.common.CLICompiler.execImpl(CLICompiler.kt:91)
+	at org.jetbrains.kotlin.cli.common.CLICompiler.execImpl(CLICompiler.kt:43)
+	at org.jetbrains.kotlin.cli.common.CLITool.exec(CLITool.kt:93)
+	at org.jetbrains.kotlin.incremental.IncrementalJvmCompilerRunner.runCompiler(IncrementalJvmCompilerRunner.kt:471)
+	at org.jetbrains.kotlin.incremental.IncrementalJvmCompilerRunner.runCompiler(IncrementalJvmCompilerRunner.kt:123)
+	at org.jetbrains.kotlin.incremental.IncrementalCompilerRunner.compileIncrementally(IncrementalCompilerRunner.kt:367)
+	at org.jetbrains.kotlin.incremental.IncrementalCompilerRunner.compileIncrementally$default(IncrementalCompilerRunner.kt:309)
+	at org.jetbrains.kotlin.incremental.IncrementalCompilerRunner.compileImpl$rebuild(IncrementalCompilerRunner.kt:115)
+	at org.jetbrains.kotlin.incremental.IncrementalCompilerRunner.compileImpl(IncrementalCompilerRunner.kt:167)
+	at org.jetbrains.kotlin.incremental.IncrementalCompilerRunner.compile(IncrementalCompilerRunner.kt:77)
+	at org.jetbrains.kotlin.daemon.CompileServiceImplBase.execIncrementalCompiler(CompileServiceImpl.kt:623)
+	at org.jetbrains.kotlin.daemon.CompileServiceImplBase.access$execIncrementalCompiler(CompileServiceImpl.kt:101)
+	at org.jetbrains.kotlin.daemon.CompileServiceImpl.compile(CompileServiceImpl.kt:1718)
+	at java.lang.invoke.LambdaForm$DMH/0x00007e209a0a4800.invokeInterface(java.base@21.0.12.1/LambdaForm$DMH)
+	at java.lang.invoke.LambdaForm$MH/0x00007e209a0a9800.invoke(java.base@21.0.12.1/LambdaForm$MH)
+	at java.lang.invoke.Invokers$Holder.invokeExact_MT(java.base@21.0.12.1/Invokers$Holder)
+	at jdk.internal.reflect.DirectMethodHandleAccessor.invokeImpl(java.base@21.0.12.1/DirectMethodHandleAccessor.java:157)
+	at jdk.internal.reflect.DirectMethodHandleAccessor.invoke(java.base@21.0.12.1/DirectMethodHandleAccessor.java:103)
+	at java.lang.reflect.Method.invoke(java.base@21.0.12.1/Method.java:580)
+	at sun.rmi.server.UnicastServerRef.dispatch(java.rmi@21.0.12.1/UnicastServerRef.java:360)
+	at sun.rmi.transport.Transport$1.run(java.rmi@21.0.12.1/Transport.java:200)
+	at sun.rmi.transport.Transport$1.run(java.rmi@21.0.12.1/Transport.java:197)
+	at java.security.AccessController.executePrivileged(java.base@21.0.12.1/AccessController.java:809)
+	at java.security.AccessController.doPrivileged(java.base@21.0.12.1/AccessController.java:714)
+	at sun.rmi.transport.Transport.serviceCall(java.rmi@21.0.12.1/Transport.java:196)
+	at sun.rmi.transport.tcp.TCPTransport.handleMessages(java.rmi@21.0.12.1/TCPTransport.java:598)
+	at sun.rmi.transport.tcp.TCPTransport$ConnectionHandler.run0(java.rmi@21.0.12.1/TCPTransport.java:844)
+	at sun.rmi.transport.tcp.TCPTransport$ConnectionHandler.lambda$run$0(java.rmi@21.0.12.1/TCPTransport.java:721)
+	at sun.rmi.transport.tcp.TCPTransport$ConnectionHandler$$Lambda/0x00007e209a0c3468.run(java.rmi@21.0.12.1/Unknown Source)
+	at java.security.AccessController.executePrivileged(java.base@21.0.12.1/AccessController.java:778)
+	at java.security.AccessController.doPrivileged(java.base@21.0.12.1/AccessController.java:400)
+	at sun.rmi.transport.tcp.TCPTransport$ConnectionHandler.run(java.rmi@21.0.12.1/TCPTransport.java:720)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(java.base@21.0.12.1/ThreadPoolExecutor.java:1144)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(java.base@21.0.12.1/ThreadPoolExecutor.java:642)
+	at java.lang.Thread.runWith(java.base@21.0.12.1/Thread.java:1596)
+	at java.lang.Thread.run(java.base@21.0.12.1/Thread.java:1583)
+
+"RMI RenewClean-[127.0.0.1:40053,org.jetbrains.kotlin.daemon.common.LoopbackNetworkInterface$ClientLoopbackSocketFactory@d5f9a25]" #29 [3408214] daemon prio=5 os_prio=0 cpu=10.47ms elapsed=358.15s tid=0x00007e204c045ac0 nid=3408214 waiting on condition  [0x00007e20f0dd1000]
+   java.lang.Thread.State: TIMED_WAITING (parking)
+	at jdk.internal.misc.Unsafe.park(java.base@21.0.12.1/Native Method)
+	- parking to wait for  <0x000000074074dd48> (a java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject)
+	at java.util.concurrent.locks.LockSupport.parkNanos(java.base@21.0.12.1/LockSupport.java:269)
+	at java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.await(java.base@21.0.12.1/AbstractQueuedSynchronizer.java:1886)
+	at java.lang.ref.ReferenceQueue.await(java.base@21.0.12.1/ReferenceQueue.java:71)
+	at java.lang.ref.ReferenceQueue.remove0(java.base@21.0.12.1/ReferenceQueue.java:143)
+	at java.lang.ref.ReferenceQueue.remove(java.base@21.0.12.1/ReferenceQueue.java:218)
+	at sun.rmi.transport.DGCClient$EndpointEntry$RenewCleanThread.run(java.rmi@21.0.12.1/DGCClient.java:567)
+	at java.lang.Thread.runWith(java.base@21.0.12.1/Thread.java:1596)
+	at java.lang.Thread.run(java.base@21.0.12.1/Thread.java:1583)
+
+"RMI TCP Connection(idle)" #30 [3415935] daemon prio=5 os_prio=0 cpu=8.58ms elapsed=59.26s tid=0x00007e2064001590 nid=3415935 waiting on condition  [0x00007e20f0ace000]
+   java.lang.Thread.State: TIMED_WAITING (parking)
+	at jdk.internal.misc.Unsafe.park(java.base@21.0.12.1/Native Method)
+	- parking to wait for  <0x0000000740682d00> (a java.util.concurrent.SynchronousQueue$Transferer)
+	at java.util.concurrent.locks.LockSupport.parkNanos(java.base@21.0.12.1/LockSupport.java:410)
+	at java.util.concurrent.LinkedTransferQueue$DualNode.await(java.base@21.0.12.1/LinkedTransferQueue.java:452)
+	at java.util.concurrent.SynchronousQueue$Transferer.xferLifo(java.base@21.0.12.1/SynchronousQueue.java:194)
+	at java.util.concurrent.SynchronousQueue.xfer(java.base@21.0.12.1/SynchronousQueue.java:235)
+	at java.util.concurrent.SynchronousQueue.poll(java.base@21.0.12.1/SynchronousQueue.java:338)
+	at java.util.concurrent.ThreadPoolExecutor.getTask(java.base@21.0.12.1/ThreadPoolExecutor.java:1069)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(java.base@21.0.12.1/ThreadPoolExecutor.java:1130)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(java.base@21.0.12.1/ThreadPoolExecutor.java:642)
+	at java.lang.Thread.runWith(java.base@21.0.12.1/Thread.java:1596)
+	at java.lang.Thread.run(java.base@21.0.12.1/Thread.java:1583)
+
+"Attach Listener" #31 [3416972] daemon prio=9 os_prio=0 cpu=0.81ms elapsed=0.15s tid=0x00007e2080000ff0 nid=3416972 waiting on condition  [0x0000000000000000]
+   java.lang.Thread.State: RUNNABLE
+
+"GC Thread#1" os_prio=0 cpu=909.43ms elapsed=362.32s tid=0x00007e2090006130 nid=3408150 runnable  
+
+"VM Thread" os_prio=0 cpu=156.96ms elapsed=364.52s tid=0x00007e20ec106480 nid=3408082 runnable  
+
+"VM Periodic Task Thread" os_prio=0 cpu=206.46ms elapsed=364.53s tid=0x00007e20ec0f47b0 nid=3408081 waiting on condition  
+
+"G1 Service" os_prio=0 cpu=19.21ms elapsed=364.58s tid=0x00007e20ec0e3b30 nid=3408078 runnable  
+
+"G1 Refine#0" os_prio=0 cpu=322.65ms elapsed=364.59s tid=0x00007e20ec0e2b70 nid=3408077 runnable  
+
+"G1 Conc#0" os_prio=0 cpu=997.68ms elapsed=364.59s tid=0x00007e20ec090fb0 nid=3408076 runnable  
+
+"G1 Main Marker" os_prio=0 cpu=2.45ms elapsed=364.59s tid=0x00007e20ec090010 nid=3408075 runnable  
+
+"GC Thread#0" os_prio=0 cpu=1094.69ms elapsed=364.61s tid=0x00007e20ec082a40 nid=3408074 runnable  
+
+JNI global refs: 19, weak refs: 9
+

@@ -18,33 +18,50 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.RepeatedTest
+import org.junit.jupiter.api.Test
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
-import java.util.concurrent.atomic.AtomicBoolean
 
 class NoiseEstablishedConnectionTest {
     @RepeatedTest(20)
     fun `established reply progresses while one incoming handshake computation is held`() {
-        val child = ProcessBuilder(
-            System.getProperty("java.home") + "/bin/java",
-            "-Dio.netty.eventLoopThreads=1", "-cp", System.getProperty("java.class.path"),
-            "io.libp2p.security.noise.NoiseEstablishedConnectionHarness"
-        ).redirectErrorStream(true).start()
-        val output = CompletableFuture.supplyAsync { child.inputStream.bufferedReader().use { it.readText() } }
-        try {
-            assertTrue(child.waitFor(30, TimeUnit.SECONDS), "The controlled incoming-handshake child must finish")
-            val text = output.get(5, TimeUnit.SECONDS)
-            print(text)
-            assertEquals(0, child.exitValue(), text)
-        } finally {
-            if (child.isAlive) {
-                child.destroyForcibly()
-                assertTrue(child.waitFor(5, TimeUnit.SECONDS), "The controlled child must stop during cleanup")
-            }
+        runEstablishedConnectionHarness("reply")
+    }
+}
+
+class NoiseEstablishedConnectionLifecycleTest {
+    @Test
+    fun `closing a pending connection completes while its computation is held`() {
+        runEstablishedConnectionHarness("close")
+    }
+
+    @Test
+    fun `closing the last established connection restores the isolated inline path`() {
+        runEstablishedConnectionHarness("closed")
+    }
+}
+
+private fun runEstablishedConnectionHarness(mode: String) {
+    val child = ProcessBuilder(
+        System.getProperty("java.home") + "/bin/java",
+        "-Dio.netty.eventLoopThreads=1", "-cp", System.getProperty("java.class.path"),
+        "io.libp2p.security.noise.NoiseEstablishedConnectionHarness", mode
+    ).redirectErrorStream(true).start()
+    val output = CompletableFuture.supplyAsync { child.inputStream.bufferedReader().use { it.readText() } }
+    try {
+        assertTrue(child.waitFor(30, TimeUnit.SECONDS), "The controlled incoming-handshake child must finish")
+        val text = output.get(5, TimeUnit.SECONDS)
+        print(text)
+        assertEquals(0, child.exitValue(), text)
+    } finally {
+        if (child.isAlive) {
+            child.destroyForcibly()
+            assertTrue(child.waitFor(5, TimeUnit.SECONDS), "The controlled child must stop during cleanup")
         }
     }
 }
@@ -52,6 +69,7 @@ class NoiseEstablishedConnectionTest {
 object NoiseEstablishedConnectionHarness {
     @JvmStatic
     fun main(args: Array<String>) {
+        val mode = args.single()
         val hosts = ArrayList<Host>()
         val armed = AtomicBoolean()
         val heldOnce = AtomicBoolean()
@@ -107,6 +125,11 @@ object NoiseEstablishedConnectionHarness {
             val ping = primary.controller.get(5, TimeUnit.SECONDS)
             ping.ping().get(5, TimeUnit.SECONDS)
             val established = primary.stream.get(5, TimeUnit.SECONDS)
+            val serverEstablished = server.network.connections.single() as ConnectionOverNetty
+            if (mode == "closed") {
+                established.connection.close().get(5, TimeUnit.SECONDS)
+                serverEstablished.closeFuture().get(5, TimeUnit.SECONDS)
+            }
             armed.set(true)
             remote = ProcessBuilder(
                 System.getProperty("java.home") + "/bin/java",
@@ -125,39 +148,65 @@ object NoiseEstablishedConnectionHarness {
                 loopThread.set(Thread.currentThread())
                 assertEquals(0, (loop as SingleThreadEventExecutor).pendingTasks(), "The controlled loop must have no queued tasks before release")
                 val physicalChannels = listOf(
-                    (caller.network.connections.single() as ConnectionOverNetty).nettyChannel,
-                    (server.network.connections.single() as ConnectionOverNetty).nettyChannel,
+                    (established.connection as ConnectionOverNetty).nettyChannel,
+                    serverEstablished.nettyChannel,
                     gate.context.channel()
                 )
-                assertTrue(physicalChannels.all { it.eventLoop() === loop && it.isActive }, "All three live physical connections must share the controlled loop")
-                channelCount.complete(physicalChannels.toSet().size)
+                assertEquals(3, physicalChannels.toSet().size, "The fixture must own three distinct physical connections")
+                assertTrue(physicalChannels.all { it.eventLoop() === loop }, "All three physical connections must share the controlled loop")
+                channelCount.complete(physicalChannels.count { it.isActive })
                 gate.release()
             }
-            assertEquals(3, channelCount.get(5, TimeUnit.SECONDS), "The loop must own the established connection's two ends and one incoming peer")
+            val expectedChannels = if (mode == "closed") 1 else 3
+            assertEquals(expectedChannels, channelCount.get(5, TimeUnit.SECONDS), "The loop must own the exact expected live physical connections")
             val snapshot = observed.get(5, TimeUnit.SECONDS)
             assertEquals(1, snapshot.pendingHandshakesOnLoop, "Only the remote peer's incoming handshake may be pending on this loop")
             assertEquals(gate.context.channel().id().asLongText(), snapshot.channelId, "The held computation must belong to the new incoming peer")
-            assertFalse(established.connection.closeFuture().isDone, "The original connection must remain established")
+            assertEquals(mode == "closed", established.connection.closeFuture().isDone, "The original connection must retain its expected close state")
             println("FX39_ESTABLISHED_BEGIN pending=${snapshot.pendingHandshakesOnLoop} channels=${channelCount.join()} onLoop=${snapshot.onEventLoop}")
             assertEquals(loopThread.get() === computationThread.get(), snapshot.onEventLoop, "The observer thread must match the reported loop ownership")
-            val sentAt = System.nanoTime()
-            val reply = ping.ping()
-            var deadlineFailure: TimeoutException? = null
-            try {
-                reply.get(1, TimeUnit.SECONDS)
-            } catch (failure: TimeoutException) {
-                deadlineFailure = failure
+            when (mode) {
+                "reply" -> {
+                    val sentAt = System.nanoTime()
+                    val reply = ping.ping()
+                    var deadlineFailure: TimeoutException? = null
+                    try {
+                        reply.get(1, TimeUnit.SECONDS)
+                    } catch (failure: TimeoutException) {
+                        deadlineFailure = failure
+                    }
+                    val releasedAt = System.nanoTime()
+                    release.countDown()
+                    reply.get(5, TimeUnit.SECONDS)
+                    val repliedAt = System.nanoTime()
+                    println("FX39_TIMING loopThread=${loopThread.get().name} computationThread=${computationThread.get().name} loopIdentity=${System.identityHashCode(loop)} entered=${computationEntered.get()} exited=${computationExited.get()} sent=$sentAt release=$releasedAt reply=$repliedAt deadlineFailed=${deadlineFailure != null}")
+                    if (deadlineFailure != null) throw deadlineFailure
+                    assertFalse(snapshot.onEventLoop, "An established connection's loop must stay available while handshake computation is held")
+                }
+                "close" -> {
+                    try {
+                        gate.context.channel().close().get(1, TimeUnit.SECONDS)
+                    } finally {
+                        release.countDown()
+                    }
+                    assertFalse(snapshot.onEventLoop, "Closing a pending connection must not wait for its held computation")
+                    assertEquals(1, server.network.connections.size, "The closed incoming handshake must not publish a connection")
+                    ping.ping().get(1, TimeUnit.SECONDS)
+                }
+                "closed" -> {
+                    assertTrue(snapshot.onEventLoop, "After both established ends close, one isolated incoming handshake must stay inline")
+                    release.countDown()
+                }
+                else -> error("Unknown established-connection harness mode: $mode")
             }
-            val releasedAt = System.nanoTime()
-            release.countDown()
-            reply.get(5, TimeUnit.SECONDS)
-            val repliedAt = System.nanoTime()
-            println("FX39_TIMING loopThread=${loopThread.get().name} computationThread=${computationThread.get().name} loopIdentity=${System.identityHashCode(loop)} entered=${computationEntered.get()} exited=${computationExited.get()} sent=$sentAt release=$releasedAt reply=$repliedAt deadlineFailed=${deadlineFailure != null}")
-            if (deadlineFailure != null) throw deadlineFailure
-            assertFalse(snapshot.onEventLoop, "An established connection's loop must stay available while handshake computation is held")
             peerProcess.outputStream.close()
             assertTrue(peerProcess.waitFor(10, TimeUnit.SECONDS), "The incoming peer must finish after release")
-            assertEquals(0, peerProcess.exitValue(), remoteOutput.get(5, TimeUnit.SECONDS))
+            val peerText = remoteOutput.get(5, TimeUnit.SECONDS)
+            if (mode == "close") {
+                assertTrue(peerProcess.exitValue() != 0, "Closing the held incoming handshake must fail the peer connect: $peerText")
+            } else {
+                assertEquals(0, peerProcess.exitValue(), peerText)
+            }
             println("FX39_ESTABLISHED_PASS")
         } finally {
             release.countDown()

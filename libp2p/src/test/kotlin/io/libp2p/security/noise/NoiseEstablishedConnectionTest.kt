@@ -20,8 +20,10 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.RepeatedTest
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.ExecutionException
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicBoolean
@@ -87,6 +89,8 @@ object NoiseEstablishedConnectionHarness {
         val release = CountDownLatch(1)
         val computationEntered = AtomicLong()
         val computationExited = AtomicLong()
+        val computationDone = CompletableFuture<Unit>()
+        val heldSession = CompletableFuture<CompletableFuture<SecureChannel.Session>>()
         val computationThread = AtomicReference<Thread>()
         val loopThread = AtomicReference<Thread>()
         var remote: Process? = null
@@ -106,6 +110,7 @@ object NoiseEstablishedConnectionHarness {
                                     check(release.await(5, TimeUnit.SECONDS)) { "Held computation was not released within 5 seconds" }
                                 } finally {
                                     computationExited.set(System.nanoTime())
+                                    computationDone.complete(Unit)
                                 }
                             }
                         }
@@ -116,6 +121,9 @@ object NoiseEstablishedConnectionHarness {
                                     val gate = EstablishedHandshakeGate()
                                     ch.pushHandler(gate)
                                     gateReady.complete(gate)
+                                    val session = noise.initChannel(ch, selectedProtocol)
+                                    heldSession.complete(session)
+                                    return session
                                 }
                                 return noise.initChannel(ch, selectedProtocol)
                             }
@@ -165,20 +173,25 @@ object NoiseEstablishedConnectionHarness {
             assertTrue((established.connection as ConnectionOverNetty).nettyChannel.eventLoop() === loop, "The established RPC and incoming handshake must share the same network loop")
             val channelCount = CompletableFuture<Int>()
             loop.execute {
-                loopThread.set(Thread.currentThread())
-                assertEquals(0, (loop as SingleThreadEventExecutor).pendingTasks(), "The controlled loop must have no queued tasks before release")
-                val physicalChannels = listOf(
-                    (established.connection as ConnectionOverNetty).nettyChannel,
-                    serverEstablished.nettyChannel,
-                    gate.context.channel()
-                )
-                assertEquals(3, physicalChannels.toSet().size, "The fixture must own three distinct physical connections")
-                assertTrue(physicalChannels.all { it.eventLoop() === loop }, "All three physical connections must share the controlled loop")
-                channelCount.complete(physicalChannels.count { it.isActive })
-                gate.release()
+                try {
+                    loopThread.set(Thread.currentThread())
+                    assertEquals(0, (loop as SingleThreadEventExecutor).pendingTasks(), "The controlled loop must have no queued tasks before release")
+                    val physicalChannels = listOf(
+                        (established.connection as ConnectionOverNetty).nettyChannel,
+                        serverEstablished.nettyChannel,
+                        gate.context.channel()
+                    )
+                    assertEquals(3, physicalChannels.toSet().size, "The fixture must own three distinct physical connections")
+                    assertTrue(physicalChannels.all { it.eventLoop() === loop }, "All three physical connections must share the controlled loop")
+                    channelCount.complete(physicalChannels.count { it.isActive })
+                    gate.release()
+                } catch (failure: Throwable) {
+                    // Report the loop-side assertion message on the test thread instead of a timeout.
+                    channelCount.completeExceptionally(failure)
+                }
             }
             val expectedChannels = if (mode == "closed") 1 else 3
-            assertEquals(expectedChannels, channelCount.get(5, TimeUnit.SECONDS), "The loop must own the exact expected live physical connections")
+            assertEquals(expectedChannels, awaitLoopResult(channelCount), "The loop must own the exact expected live physical connections")
             val snapshot = observed.get(5, TimeUnit.SECONDS)
             assertEquals(1, snapshot.pendingHandshakesOnLoop, "Only the remote peer's incoming handshake may be pending on this loop")
             assertEquals(gate.context.channel().id().asLongText(), snapshot.channelId, "The held computation must belong to the new incoming peer")
@@ -210,6 +223,14 @@ object NoiseEstablishedConnectionHarness {
                         release.countDown()
                     }
                     assertFalse(snapshot.onEventLoop, "Closing a pending connection must not wait for its held computation")
+                    // Check publication only after the released computation has returned and the
+                    // closed channel's session has terminally failed, so a late publish cannot be missed.
+                    computationDone.get(5, TimeUnit.SECONDS)
+                    val sessionFailure = assertThrows<ExecutionException>("The closed incoming handshake's session must fail") {
+                        heldSession.get(5, TimeUnit.SECONDS).get(5, TimeUnit.SECONDS)
+                    }
+                    println("FX39_CLOSE_SESSION_FAILED ${sessionFailure.cause}")
+                    loop.submit {}.get(5, TimeUnit.SECONDS)
                     assertEquals(1, server.network.connections.size, "The closed incoming handshake must not publish a connection")
                     ping.ping().get(1, TimeUnit.SECONDS)
                 }
@@ -241,6 +262,13 @@ object NoiseEstablishedConnectionHarness {
         }
     }
 }
+
+private fun <T> awaitLoopResult(result: CompletableFuture<T>): T =
+    try {
+        result.get(5, TimeUnit.SECONDS)
+    } catch (failure: ExecutionException) {
+        throw failure.cause ?: failure
+    }
 
 object NoiseEstablishedConnectionPeer {
     @JvmStatic

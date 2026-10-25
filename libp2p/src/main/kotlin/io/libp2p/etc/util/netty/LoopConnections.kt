@@ -19,9 +19,11 @@ internal fun trackConnectionOnLoop(channel: Channel) {
     }
 }
 
-internal fun hasOtherConnectionsOnLoop(channel: Channel): Boolean {
-    val loop = channel.eventLoop()
-    if (loop !is SingleThreadEventExecutor) return false
-    check(loop.inEventLoop()) { "Connection scheduling must run on its event loop: $channel" }
+/**
+ * [loop] is the executor the caller is scheduling on (its handler context's executor),
+ * so the registry reads the same loop the caller already checked.
+ */
+internal fun hasOtherConnectionsOnLoop(loop: SingleThreadEventExecutor, channel: Channel): Boolean {
+    check(loop.inEventLoop()) { "Connection scheduling must run on its event loop ($loop): $channel" }
     return connectionsOnLoop.get().any { it !== channel }
 }

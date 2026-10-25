@@ -535,7 +535,7 @@ class NoiseIoHandshake internal constructor(
         // Once queued, keep this channel on the same FIFO for the rest of its handshake.
         val loopExecutor = ctx.executor() as? SingleThreadEventExecutor
         offloadCrypto = offloadCrypto ||
-            (loopExecutor != null && (pendingOnLoop > 1 || loopExecutor.pendingTasks() > 0 || hasOtherConnectionsOnLoop(ctx.channel())))
+            (loopExecutor != null && (pendingOnLoop > 1 || loopExecutor.pendingTasks() > 0 || hasOtherConnectionsOnLoop(loopExecutor, ctx.channel())))
         if (!executionObserved) {
             executionObserved = true
             NoiseHandshakeExecutionTestHook.handshakeObserver?.invoke(offloadCrypto)

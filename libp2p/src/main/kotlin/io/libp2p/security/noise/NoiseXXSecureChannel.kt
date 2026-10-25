@@ -21,6 +21,7 @@ import io.libp2p.etc.types.toByteBuf
 import io.libp2p.etc.types.toUShortBigEndian
 import io.libp2p.etc.types.uShortToBytesBigEndian
 import io.libp2p.etc.util.netty.SplitEncoder
+import io.libp2p.etc.util.netty.hasOtherConnectionsOnLoop
 import io.libp2p.security.InvalidRemotePubKey
 import io.libp2p.security.SecureHandshakeError
 import io.netty.buffer.ByteBuf
@@ -529,11 +530,12 @@ class NoiseIoHandshake internal constructor(
         if (terminal.get()) return
 
         val pendingOnLoop = loopHandshakes?.size ?: 1
-        // This loop owns both its pending handshakes and the tasks waiting for it.
+        // Other connections can receive I/O immediately after admission, even when
+        // their handshakes have finished and no task is queued yet.
         // Once queued, keep this channel on the same FIFO for the rest of its handshake.
         val loopExecutor = ctx.executor() as? SingleThreadEventExecutor
         offloadCrypto = offloadCrypto ||
-            (loopExecutor != null && (pendingOnLoop > 1 || loopExecutor.pendingTasks() > 0))
+            (loopExecutor != null && (pendingOnLoop > 1 || loopExecutor.pendingTasks() > 0 || hasOtherConnectionsOnLoop(loopExecutor, ctx.channel())))
         if (!executionObserved) {
             executionObserved = true
             NoiseHandshakeExecutionTestHook.handshakeObserver?.invoke(offloadCrypto)

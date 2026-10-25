@@ -1,0 +1,22 @@
+diff --git a/libp2p/src/main/kotlin/io/libp2p/etc/util/netty/mux/MuxChannel.kt b/libp2p/src/main/kotlin/io/libp2p/etc/util/netty/mux/MuxChannel.kt
+index bf8f13d7..91965c9e 100644
+--- a/libp2p/src/main/kotlin/io/libp2p/etc/util/netty/mux/MuxChannel.kt
++++ b/libp2p/src/main/kotlin/io/libp2p/etc/util/netty/mux/MuxChannel.kt
+@@ -117,7 +117,7 @@ class MuxChannel<TData>(
+     private fun retireAcceptedWriteOwnerIfDrained() {
+         // isEmpty counts flushed entries; private buffer promises also track unflushed entries.
+         val buf = unsafe().outboundBuffer()
+-        if (buf == null || (retainedWriteCount == 0 && buf.isEmpty)) {
++        if ((buf?.totalPendingWriteBytes() ?: 0L) == 0L) {
+             cancelAcceptedWriteTerminationOwner()
+         }
+     }
+@@ -133,7 +133,7 @@ class MuxChannel<TData>(
+         val buf = unsafe().outboundBuffer() ?: return
+         cancelAcceptedWriteTerminationOwner()
+         // A cancelled hook may already be in the executor's current shutdown batch.
+-        if (retainedWriteCount == 0 && buf.isEmpty && pendingParentWrite == null) return
++        if (buf.totalPendingWriteBytes() == 0L && pendingParentWrite == null) return
+         localDisconnected = true
+         parentWriteCompletion?.settleBeforeClose?.run()
+         closeImpl()

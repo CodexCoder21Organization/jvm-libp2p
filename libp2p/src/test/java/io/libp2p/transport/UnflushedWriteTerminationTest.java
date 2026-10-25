@@ -119,7 +119,9 @@ public class UnflushedWriteTerminationTest {
           notifiedOnOwner.get(5, TimeUnit.SECONDS),
           "Termination must notify accepted writes on their owning loop");
       assertEquals(
-          0, payload.refCnt(), "Termination must release the accepted payload exactly once: " + state);
+          0,
+          payload.refCnt(),
+          "Termination must release the accepted payload exactly once: " + state);
     } finally {
       if (!loop.isShuttingDown()) {
         if (child != null) child.close().await(5, TimeUnit.SECONDS);

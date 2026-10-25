@@ -1,6 +1,7 @@
 package io.libp2p.transport;
 
 import static org.junit.jupiter.api.Assertions.*;
+
 import io.libp2p.etc.util.netty.mux.*;
 import io.netty.bootstrap.*;
 import io.netty.buffer.*;
@@ -28,20 +29,40 @@ public class QueuedParentCompletionShutdownTest {
     try {
       CompletingMux mux = new CompletingMux(external);
       LocalAddress address = new LocalAddress("queued-completion-shutdown");
-      server = new ServerBootstrap().group(loop).channel(LocalServerChannel.class)
-          .childHandler(new ChannelInitializer<LocalChannel>() {
-            protected void initChannel(LocalChannel ch) {}
-          }).bind(address).sync().channel();
-      parent = new Bootstrap().group(loop).channel(LocalChannel.class).handler(mux)
-          .connect(address).sync().channel();
-      MuxChannel<ByteBuf> child = mux.newStream(ch -> {
-        ch.pipeline().addLast(new ChannelOutboundHandlerAdapter() {
-          public void close(ChannelHandlerContext ctx, ChannelPromise promise) {
-            promise.setFailure(new IOException("The application close handler refused closure"));
-          }
-        });
-        return Unit.INSTANCE;
-      }).get(5, TimeUnit.SECONDS);
+      server =
+          new ServerBootstrap()
+              .group(loop)
+              .channel(LocalServerChannel.class)
+              .childHandler(
+                  new ChannelInitializer<LocalChannel>() {
+                    protected void initChannel(LocalChannel ch) {}
+                  })
+              .bind(address)
+              .sync()
+              .channel();
+      parent =
+          new Bootstrap()
+              .group(loop)
+              .channel(LocalChannel.class)
+              .handler(mux)
+              .connect(address)
+              .sync()
+              .channel();
+      MuxChannel<ByteBuf> child =
+          mux.newStream(
+                  ch -> {
+                    ch.pipeline()
+                        .addLast(
+                            new ChannelOutboundHandlerAdapter() {
+                              public void close(ChannelHandlerContext ctx, ChannelPromise promise) {
+                                promise.setFailure(
+                                    new IOException(
+                                        "The application close handler refused closure"));
+                              }
+                            });
+                    return Unit.INSTANCE;
+                  })
+              .get(5, TimeUnit.SECONDS);
       firstPayload = Unpooled.buffer(1).writeByte(1);
       ChannelFuture first = child.writeAndFlush(firstPayload);
       ChannelPromise source = mux.pending.get(5, TimeUnit.SECONDS);
@@ -52,36 +73,52 @@ public class QueuedParentCompletionShutdownTest {
       loop.submit(() -> {}).get(5, TimeUnit.SECONDS);
       assertFalse(first.isDone(), "The first write must await the foreign parent promise");
       assertFalse(queued.isDone(), "The next accepted write must await the first parent result");
-      loop.execute(() -> {
-        entered.countDown();
-        try { assertTrue(release.await(5, TimeUnit.SECONDS), "Release the owner task"); }
-        catch (InterruptedException failure) { throw new RuntimeException(failure); }
-      });
+      loop.execute(
+          () -> {
+            entered.countDown();
+            try {
+              assertTrue(release.await(5, TimeUnit.SECONDS), "Release the owner task");
+            } catch (InterruptedException failure) {
+              throw new RuntimeException(failure);
+            }
+          });
       assertTrue(entered.await(5, TimeUnit.SECONDS), "The owner must enter its controlled task");
       IOException expectedFailure = new IOException("The completed parent write failed");
-      external.submit(() -> {
-        if (outcome.equals("success")) source.setSuccess();
-        else if (outcome.equals("failure")) source.setFailure(expectedFailure);
-        else assertTrue(source.cancel(false), "The pending parent promise must cancel");
-      }).get(5, TimeUnit.SECONDS);
+      external
+          .submit(
+              () -> {
+                if (outcome.equals("success")) source.setSuccess();
+                else if (outcome.equals("failure")) source.setFailure(expectedFailure);
+                else assertTrue(source.cancel(false), "The pending parent promise must cancel");
+              })
+          .get(5, TimeUnit.SECONDS);
       external.submit(() -> {}).get(5, TimeUnit.SECONDS);
-      assertFalse(first.isDone(), "The completed parent result must still be queued on the held owner");
+      assertFalse(
+          first.isDone(), "The completed parent result must still be queued on the held owner");
       loop.shutdownGracefully(0, 5, TimeUnit.SECONDS);
       assertTrue(loop.isShuttingDown(), "Shutdown must begin before the queued completion can run");
       release.countDown();
       assertTrue(loop.terminationFuture().await(5, TimeUnit.SECONDS), "The owner must terminate");
       assertTrue(loop.isTerminated(), "Observe only after owner termination");
-      if (outcome.equals("success")) assertTrue(first.isSuccess(), "Preserve the original parent success");
-      else assertSame(outcome.equals("failure") ? expectedFailure : source.cause(), first.cause(),
-          "Preserve the identical original parent failure or cancellation");
+      if (outcome.equals("success"))
+        assertTrue(first.isSuccess(), "Preserve the original parent success");
+      else
+        assertSame(
+            outcome.equals("failure") ? expectedFailure : source.cause(),
+            first.cause(),
+            "Preserve the identical original parent failure or cancellation");
       assertTrue(queued.isDone(), "The queued write must settle before owner termination");
-      assertFalse(queued.isSuccess(),
-          "A parent completion queued before shutdown must not send the next accepted write: " + outcome);
+      assertFalse(
+          queued.isSuccess(),
+          "A parent completion queued before shutdown must not send the next accepted write: "
+              + outcome);
       assertInstanceOf(RejectedExecutionException.class, queued.cause());
-      assertEquals("The child event loop terminated before pending writes could complete: " + child.getId(),
+      assertEquals(
+          "The child event loop terminated before pending writes could complete: " + child.getId(),
           queued.cause().getMessage());
       assertTrue(notifiedOnOwner.get(5, TimeUnit.SECONDS), "Notify the queued write on its owner");
-      assertEquals(0, firstPayload.refCnt(), "Release the first payload before observing termination");
+      assertEquals(
+          0, firstPayload.refCnt(), "Release the first payload before observing termination");
       assertEquals(0, queuedPayload.refCnt(), "Release the queued payload exactly once");
     } finally {
       release.countDown();
@@ -95,6 +132,7 @@ public class QueuedParentCompletionShutdownTest {
       if (queuedPayload != null && queuedPayload.refCnt() > 0) queuedPayload.release();
     }
   }
+
   static final class Id extends MuxId {
     Id(ChannelId parent) {
       super(parent, 1);

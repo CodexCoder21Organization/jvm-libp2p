@@ -3,13 +3,13 @@ package io.libp2p.etc.util.netty.mux
 import io.libp2p.core.ConnectionClosedException
 import io.libp2p.etc.util.netty.AbstractChildChannel
 import io.netty.channel.Channel
-import io.netty.channel.DefaultChannelPromise
 import io.netty.channel.ChannelFuture
 import io.netty.channel.ChannelHandlerContext
 import io.netty.channel.ChannelMetadata
 import io.netty.channel.ChannelOutboundBuffer
 import io.netty.channel.ChannelOutboundHandlerAdapter
 import io.netty.channel.ChannelPromise
+import io.netty.channel.DefaultChannelPromise
 import io.netty.channel.EventLoop
 import io.netty.util.ReferenceCountUtil
 import io.netty.util.concurrent.GlobalEventExecutor
@@ -36,6 +36,7 @@ class MuxChannel<TData>(
     private var waitingForParentWrite = false
     private var pendingParentWrite: ChannelFuture? = null
     private var parentWriteCompletion: ChildLoopCompletion? = null
+
     @Volatile
     private var acceptedWriteShutdown: ChildLoopCompletion? = null
     private val retainedWriteCount = AtomicInteger()

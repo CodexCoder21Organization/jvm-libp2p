@@ -6,7 +6,7 @@ Started: 2026-10-25 00:23 UTC. Hard wall limit: 90 minutes.
 Plan:
 - [done] Item 1: read production/test fixtures, write invariant table; add public callback regression; record red; fix; green; reversal; restore; four shutdown classes first attempt; push.
 - [done] Item 2: narrow README guarantee and mention old unflushed-only limitation; push.
-- [in progress] Item 3: inspect two original failures and child harness; record mechanism or unknown before edits; three solo runs and one overlapping harness-class pair; classify honestly; push.
+- [done] Item 3: inspect two original failures and child harness; record mechanism or unknown before edits; three solo runs and one overlapping harness-class pair; classify honestly; push.
 - [pending] Review code and coverage independently; publish round6 evidence on evidence/pr71-20261024; REST description update; stop owned JVMs; final audit.
 
 OBSERVED: Initial gh pr view matched required head 3e1751baddc1e37fc40c51ff1e28b9135c6acc23, OPEN, base develop. Fresh clone under workspace. No subagents will run. Base develop overrides generic main instructions. Evidence remains outside PR tree and will be appended under round6 on evidence branch.
@@ -78,3 +78,16 @@ OBSERVED 2026-10-25T00:59:13.867025+00:00: Item 3 solo 1 FIRST ATTEMPT: [{"name"
 OBSERVED 2026-10-25T00:59:56.152337+00:00: Item 3 solo 2 FIRST ATTEMPT: [{"name": "io.libp2p.security.noise.NoiseHandshakeOffEventLoopTest", "tests": "29", "skipped": "0", "failures": "0", "errors": "0", "timestamp": "2026-10-25T00:59:18.761Z", "hostname": "8bf01af06d2e", "time": "36.855"}]; command exit 0. This is planned reproduction, not an asserted fix.
 
 OBSERVED 2026-10-25T01:00:40.058018+00:00: Item 3 solo 3 FIRST ATTEMPT: [{"name": "io.libp2p.security.noise.NoiseHandshakeOffEventLoopTest", "tests": "29", "skipped": "0", "failures": "0", "errors": "0", "timestamp": "2026-10-25T01:00:00.991Z", "hostname": "8bf01af06d2e", "time": "38.547"}]; command exit 0. This is planned reproduction, not an asserted fix.
+
+OBSERVED 01:03 UTC: Required concurrent run FIRST ATTEMPT passed: NoiseHandshakeOffEventLoopTest 29/0/0/0, XML 38669ms; NoiseAlgorithmReadinessTest 1/0/0/0, XML 4741ms. Public Gradle beforeTest/afterTest timestamps prove 4.728875 seconds of test-body overlap (round6/pair-overlap.json). Maximum owned concurrent Gradle test commands = 2; all commands finished.
+OBSERVED: Three solo Noise class first attempts each 29/0, XML 36131ms / 36855ms / 38547ms. Paired Noise class 29/0; total four planned first attempts, 116/116 checks, 0 errors/skips. Adjacent companion 1/1. Exact commands and original Gradle Test configuration (74 classpath entries) are recorded in result/process JSON and round6/tools. No failed runtime test was rerun into green; these unchanged planned repetitions were the requested reproduction experiment.
+INFER: Final Item 3 mechanism sentence: "Unknown; the historical child JVMs' active waits were not recorded, and neither deadline failure recurred in the planned solo and concurrent runs." Outcome NOT_REACHED. The original parent process-exit waits and empty child output do not distinguish startup, host preparation, connection or cleanup, so no pre-existing or PR-specific cause is claimed. No Noise code, child harness, deadline, iteration count, assertion or existing test was edited. No sleep or artificial workload was added to a test.
+OBSERVED: External child observation saw no process reach its diagnostic dump threshold; no SIGQUIT request was needed. Observer stopped after the final pair. Original historical emitted failures remain preserved, not replaced by these passes. All Item 3 outcomes allowed by the brief were considered; the evidence supports only NOT_REACHED.
+
+OBSERVED 2026-10-25 01:03 UTC — status RUNNING (final metadata and cleanup).
+Original request: finish round six of https://github.com/CodexCoder21Organization/jvm-libp2p/pull/71 without merge/approval/closure. Fresh PR read: OPEN, CLEAN, head 85b4297856d09df89816bc571137bd392dc498ff.
+Item 1: red 3733ms, green 4098ms, reversal red 4822ms, restored green 903ms; four first-attempt shutdown classes 6/0, 4/0, 6/0, 3/0. Item 2 README scope correction pushed. Item 3 NOT_REACHED: 116/116 Noise checks plus 1/1 adjacent readiness check, actual paired body overlap, maximum two Gradle test commands.
+The fix rechecks child ownership after the callback. A closed child receives no new completion token, hook or listener. The README states the active-hook guarantee and the older unflushed-only limitation.
+Delegated work: none. Blockers: none. No unnecessary holds. No idle landing gates (no merge authorized). Owner direction captured: none new.
+Next steps: push final evidence, update and verify the PR description through REST, stop owned JVMs and complete the final audit.
+Lessons: validate ownership again after foreign callbacks; preserve historical failures separately from non-reproduction runs; verify test-body overlap rather than assuming simultaneous commands ran their tests concurrently.

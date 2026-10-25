@@ -12,7 +12,6 @@ import io.libp2p.protocol.PingController
 import io.libp2p.transport.implementation.ConnectionOverNetty
 import io.netty.channel.ChannelHandlerContext
 import io.netty.channel.ChannelInboundHandlerAdapter
-import io.netty.channel.SingleThreadEventLoop
 import io.netty.util.ReferenceCountUtil
 import io.netty.util.concurrent.SingleThreadEventExecutor
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -125,7 +124,13 @@ object NoiseEstablishedConnectionHarness {
             loop.execute {
                 loopThread.set(Thread.currentThread())
                 assertEquals(0, (loop as SingleThreadEventExecutor).pendingTasks(), "The controlled loop must have no queued tasks before release")
-                channelCount.complete((loop as SingleThreadEventLoop).registeredChannels())
+                val physicalChannels = listOf(
+                    (caller.network.connections.single() as ConnectionOverNetty).nettyChannel,
+                    (server.network.connections.single() as ConnectionOverNetty).nettyChannel,
+                    gate.context.channel()
+                )
+                assertTrue(physicalChannels.all { it.eventLoop() === loop && it.isActive }, "All three live physical connections must share the controlled loop")
+                channelCount.complete(physicalChannels.toSet().size)
                 gate.release()
             }
             assertEquals(3, channelCount.get(5, TimeUnit.SECONDS), "The loop must own the established connection's two ends and one incoming peer")

@@ -55,8 +55,11 @@ class NoiseEstablishedConnectionLifecycleTest {
 private fun runEstablishedConnectionHarness(mode: String) {
     val child = ProcessBuilder(
         System.getProperty("java.home") + "/bin/java",
-        "-Dio.netty.eventLoopThreads=1", "-cp", System.getProperty("java.class.path"),
-        "io.libp2p.security.noise.NoiseEstablishedConnectionHarness", mode
+        "-Dio.netty.eventLoopThreads=1",
+        "-cp",
+        System.getProperty("java.class.path"),
+        "io.libp2p.security.noise.NoiseEstablishedConnectionHarness",
+        mode
     ).redirectErrorStream(true).start()
     val output = CompletableFuture.supplyAsync { child.inputStream.bufferedReader().use { it.readText() } }
     try {
@@ -132,7 +135,9 @@ object NoiseEstablishedConnectionHarness {
             }.also { hosts.add(it) }
             CompletableFuture.allOf(*hosts.map { it.start() }.toTypedArray()).get(5, TimeUnit.SECONDS)
             val primary = caller.newStream<PingController>(
-                listOf("/ipfs/ping/1.0.0"), server.peerId, server.listenAddresses().single()
+                listOf("/ipfs/ping/1.0.0"),
+                server.peerId,
+                server.listenAddresses().single()
             )
             val ping = primary.controller.get(5, TimeUnit.SECONDS)
             ping.ping().get(5, TimeUnit.SECONDS)
@@ -145,9 +150,12 @@ object NoiseEstablishedConnectionHarness {
             armed.set(true)
             remote = ProcessBuilder(
                 System.getProperty("java.home") + "/bin/java",
-                "-Dio.netty.eventLoopThreads=1", "-cp", System.getProperty("java.class.path"),
+                "-Dio.netty.eventLoopThreads=1",
+                "-cp",
+                System.getProperty("java.class.path"),
                 "io.libp2p.security.noise.NoiseEstablishedConnectionPeer",
-                server.peerId.toBase58(), server.listenAddresses().single().toString()
+                server.peerId.toBase58(),
+                server.listenAddresses().single().toString()
             ).redirectErrorStream(true).start()
             val peerProcess = remote
             val remoteOutput = CompletableFuture.supplyAsync { peerProcess.inputStream.bufferedReader().use { it.readText() } }
@@ -253,9 +261,13 @@ private class EstablishedHandshakeGate : ChannelInboundHandlerAdapter() {
     val frameReady = CompletableFuture<Unit>()
     private val frames = java.util.ArrayDeque<Any>()
     private var released = false
-    override fun handlerAdded(ctx: ChannelHandlerContext) { context = ctx }
+    override fun handlerAdded(ctx: ChannelHandlerContext) {
+        context = ctx
+    }
     override fun channelRead(ctx: ChannelHandlerContext, msg: Any) {
-        if (released) ctx.fireChannelRead(msg) else {
+        if (released) {
+            ctx.fireChannelRead(msg)
+        } else {
             frames.addLast(msg)
             frameReady.complete(Unit)
         }

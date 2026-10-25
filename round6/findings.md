@@ -7,7 +7,7 @@ Plan:
 - [done] Item 1: read production/test fixtures, write invariant table; add public callback regression; record red; fix; green; reversal; restore; four shutdown classes first attempt; push.
 - [done] Item 2: narrow README guarantee and mention old unflushed-only limitation; push.
 - [done] Item 3: inspect two original failures and child harness; record mechanism or unknown before edits; three solo runs and one overlapping harness-class pair; classify honestly; push.
-- [pending] Review code and coverage independently; publish round6 evidence on evidence/pr71-20261024; REST description update; stop owned JVMs; final audit.
+- [done] Review code and coverage independently; publish round6 evidence on evidence/pr71-20261024; REST description update; stop owned JVMs; final audit.
 
 OBSERVED: Initial gh pr view matched required head 3e1751baddc1e37fc40c51ff1e28b9135c6acc23, OPEN, base develop. Fresh clone under workspace. No subagents will run. Base develop overrides generic main instructions. Evidence remains outside PR tree and will be appended under round6 on evidence branch.
 OBSERVED: Read F71f-final.md and R71adv5-findings.md. Prior failures were empty-output whole-process deadline assertions (10s inline; 15s responsiveness), with no child stack. Historical wait mechanism is not established by those logs.
@@ -91,3 +91,16 @@ The fix rechecks child ownership after the callback. A closed child receives no 
 Delegated work: none. Blockers: none. No unnecessary holds. No idle landing gates (no merge authorized). Owner direction captured: none new.
 Next steps: push final evidence, update and verify the PR description through REST, stop owned JVMs and complete the final audit.
 Lessons: validate ownership again after foreign callbacks; preserve historical failures separately from non-reproduction runs; verify test-body overlap rather than assuming simultaneous commands ran their tests concurrently.
+
+OBSERVED 01:07 UTC: REST PATCH completed and GET body readback matched exactly. The opening why and handoff link were preserved, one Round 6 section was added, existing-test edits are explicitly none, and the exact Claude Code footer remains last. All description/audit files stay on the evidence branch.
+OBSERVED: Final Java formatting check passed after fresh fetch/rebase, with no changed base or source. One earlier final formatting command was launched before that fresh preflight because of a local working-directory mistake; it also passed and is retained separately rather than represented as the preflighted check. No runtime test was changed or rerun for that correction.
+OBSERVED: Private-home Gradle --stop reported one daemon stopped. All PIDs named by its daemon logs and the tracked compiler are gone; the owned-Java scan is empty, all test commands ended, and the observer exited. Cleanup audit records both process checks. Production checkout is clean; remote PR branch matches 85b4297856d09df89816bc571137bd392dc498ff.
+
+Brief completion audit:
+- Required starting head / develop / fresh clone: DONE, initial 3e1751baddc1e37fc40c51ff1e28b9135c6acc23 verified; final remote head 85b4297856d09df89816bc571137bd392dc498ff.
+- Item 1: DONE, public regression fc3587a1825adfebe341266ff77922d5a6e8bb1f red exact zero-hook assertion 3733ms; fix d6ad370b740f28c6d382535c673499b94db019c5 green 4098ms; one reversal same red 4822ms; restored/formatted green 903ms. Four first-attempt shutdown classes 6/0, 4/0, 6/0, 3/0, no errors/skips. Separate own coverage/code reviews recorded.
+- Item 2: DONE, README-only 85b4297856d09df89816bc571137bd392dc498ff conditions the guarantee on an active hook and adds the one-sentence old limitation.
+- Item 3: DONE under allowed NOT_REACHED outcome, three solo first attempts 87/87 and paired Noise 29/29, companion 1/1, 4.728875 seconds body overlap. Historical active child waits remain unknown. Shared-harness companion premise REFUTED by complete reference search; announced adjacent readiness class used for real concurrent workload.
+- Existing tests, assertions, bounds and iteration counts: DONE, unchanged. No reflection, mocks, artificial test load, skipped or deleted test/assertion. Tree audit contains only the new test, Mux and README changes from required head.
+- Evidence / REST description / cleanup: DONE, all evidence under round6 on evidence/pr71-20261024 and off PR branch; opening why/handoff/footer retained; exact readback verified. MAX_CONCURRENT_COMMANDS_OBSERVED 2; no owned JVM, worker, observer or nested agent remains. No merge, approval, closure, publication or deployment performed.
+INCOMPLETE: none. No claim is made to have explained the historical deadlines or obtained CI runtime verification.

@@ -8,22 +8,24 @@ import io.netty.buffer.*;
 import io.netty.channel.*;
 import io.netty.channel.local.*;
 import io.netty.util.ReferenceCountUtil;
+import io.netty.util.concurrent.DefaultEventExecutor;
 import java.io.IOException;
 import java.util.concurrent.*;
 import kotlin.Unit;
 import kotlin.jvm.functions.Function1;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.CsvSource;
 
 public class UnflushedWriteTerminationTest {
   @ParameterizedTest
-  @ValueSource(booleans = {true, false})
-  public void acceptedUnflushedWriteKeepsItsTerminationOwner(boolean earlierDelivery) throws Exception {
+  @CsvSource({"true, false", "false, false", "true, true", "false, true"})
+  public void acceptedUnflushedWriteKeepsItsTerminationOwner(boolean earlierDelivery, boolean cancelBeforeShutdown) throws Exception {
     DefaultEventLoop loop = new DefaultEventLoop();
     Channel server = null, parent = null;
     MuxChannel<ByteBuf> child = null;
     ByteBuf payload = null;
-    CompletingMux mux = new CompletingMux();
+    DefaultEventExecutor external = new DefaultEventExecutor();
+    CompletingMux mux = new CompletingMux(external);
     try {
       LocalAddress address = new LocalAddress("unflushed-write-termination");
       server = new ServerBootstrap().group(loop).channel(LocalServerChannel.class)
@@ -43,7 +45,9 @@ public class UnflushedWriteTerminationTest {
       if (earlierDelivery) {
         ByteBuf earlier = Unpooled.buffer(1).writeByte(1);
         ChannelFuture delivered = child.writeAndFlush(earlier);
-        mux.pending.get(5, TimeUnit.SECONDS).setSuccess();
+        ChannelPromise source = mux.pending.get(5, TimeUnit.SECONDS);
+        external.submit(() -> source.setSuccess()).get(5, TimeUnit.SECONDS);
+        external.submit(() -> {}).get(5, TimeUnit.SECONDS);
         assertTrue(delivered.await(5, TimeUnit.SECONDS), "The earlier delivery must complete");
         assertTrue(delivered.isSuccess(), "The earlier delivery must succeed");
         loop.submit(() -> {}).get(5, TimeUnit.SECONDS);
@@ -56,10 +60,15 @@ public class UnflushedWriteTerminationTest {
       loop.submit(() -> {}).get(5, TimeUnit.SECONDS);
       assertFalse(accepted.isDone(), "The unflushed write must be accepted and pending");
       assertEquals(1, payload.refCnt(), "The outbound buffer must own the accepted payload");
+      if (cancelBeforeShutdown) {
+        assertTrue(accepted.cancel(false), "The caller must cancel its accepted promise");
+      }
       parent.close().sync();
       loop.submit(() -> {}).get(5, TimeUnit.SECONDS);
       assertTrue(child.isOpen(), "The application handler must refuse child closure");
-      assertFalse(accepted.isDone(), "Parent close alone must leave this write pending");
+      if (!cancelBeforeShutdown) {
+        assertFalse(accepted.isDone(), "Parent close alone must leave this write pending");
+      }
       server.close().sync();
       loop.shutdownGracefully(0, 5, TimeUnit.SECONDS).sync();
       assertTrue(loop.isTerminated(), "The owning loop must terminate before observation");
@@ -68,9 +77,13 @@ public class UnflushedWriteTerminationTest {
           + " payloadRefCnt=" + payload.refCnt());
       assertTrue(accepted.isDone(),
           "An accepted unflushed write after earlier delivery must settle before owner termination");
-      assertInstanceOf(RejectedExecutionException.class, accepted.cause());
-      assertEquals("The child event loop terminated before pending writes could complete: "
-          + child.getId(), accepted.cause().getMessage());
+      if (cancelBeforeShutdown) {
+        assertTrue(accepted.isCancelled(), "Termination must preserve caller cancellation");
+      } else {
+        assertInstanceOf(RejectedExecutionException.class, accepted.cause());
+        assertEquals("The child event loop terminated before pending writes could complete: "
+            + child.getId(), accepted.cause().getMessage());
+      }
       assertTrue(notifiedOnOwner.get(5, TimeUnit.SECONDS),
           "Termination must notify accepted writes on their owning loop");
       assertEquals(0, payload.refCnt(), "Termination must release the accepted payload exactly once");
@@ -81,6 +94,7 @@ public class UnflushedWriteTerminationTest {
         if (server != null) server.close().await(5, TimeUnit.SECONDS);
       }
       loop.shutdownGracefully(0, 5, TimeUnit.SECONDS).await(5, TimeUnit.SECONDS);
+      external.shutdownGracefully(0, 5, TimeUnit.SECONDS).await(5, TimeUnit.SECONDS);
       // The baseline has no termination owner; reclaim its payload after recording the failure.
       if (payload != null && payload.refCnt() > 0) payload.release();
     }
@@ -96,13 +110,14 @@ public class UnflushedWriteTerminationTest {
 
   static final class CompletingMux extends AbstractMuxHandler<ByteBuf> {
     final CompletableFuture<ChannelPromise> pending = new CompletableFuture<>();
-    CompletingMux() { super(512); }
+    final DefaultEventExecutor external;
+    CompletingMux(DefaultEventExecutor external) { super(512); this.external = external; }
     protected Function1<MuxChannel<ByteBuf>, Unit> getInboundInitializer() {
       return ch -> Unit.INSTANCE;
     }
     public ChannelFuture onChildWrite(MuxChannel<ByteBuf> child, ByteBuf data) {
       ReferenceCountUtil.release(data);
-      ChannelPromise result = new DefaultChannelPromise(getChannelHandlerContext().channel());
+      ChannelPromise result = new DefaultChannelPromise(getChannelHandlerContext().channel(), external);
       pending.complete(result);
       return result;
     }

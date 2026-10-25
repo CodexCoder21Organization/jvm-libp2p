@@ -1,0 +1,26 @@
+plugins { id 'java' }
+def c=new groovy.json.JsonSlurper().parse(new File(project.property('capturedConfig')))
+test {
+ testClassesDirs=files(c.classes)
+ classpath=files(c.classpath)
+ workingDir=c.workingDir
+ if(c.executable) executable=c.executable
+ if(c.minHeap) minHeapSize=c.minHeap
+ if(c.maxHeap) maxHeapSize=c.maxHeap
+ jvmArgs=c.jvmArgs
+ systemProperties=c.systemProperties
+ enableAssertions=c.assertions
+ defaultCharacterEncoding=c.encoding
+ includes=c.includes as Set
+ excludes=c.excludes as Set
+ maxParallelForks=c.maxParallelForks
+ forkEvery=c.forkEvery
+ useJUnitPlatform {
+  if(c.includeTags) includeTags(c.includeTags as String[])
+  if(c.excludeTags) excludeTags(c.excludeTags as String[])
+ }
+ outputs.upToDateWhen { false }
+ testLogging { events 'FAILED'; exceptionFormat 'full' }
+ beforeTest { desc -> println "ROUND8_TEST_START ${java.time.Instant.now()} ${desc.className}.${desc.name}" }
+ afterTest { desc,result -> println "ROUND8_TEST_END ${java.time.Instant.now()} ${desc.className}.${desc.name} ${result.resultType}" }
+}

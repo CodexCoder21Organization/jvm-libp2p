@@ -1,0 +1,13 @@
+diff --git a/libp2p/src/main/kotlin/io/libp2p/etc/util/netty/mux/MuxChannel.kt b/libp2p/src/main/kotlin/io/libp2p/etc/util/netty/mux/MuxChannel.kt
+index b29cff88..2aeb4df2 100644
+--- a/libp2p/src/main/kotlin/io/libp2p/etc/util/netty/mux/MuxChannel.kt
++++ b/libp2p/src/main/kotlin/io/libp2p/etc/util/netty/mux/MuxChannel.kt
+@@ -106,8 +106,6 @@ class MuxChannel<TData>(
+                 ReferenceCountUtil.retain(msg)
+                 @Suppress("UNCHECKED_CAST")
+                 val parentFuture = parent.onChildWrite(this, msg as TData)
+-                // The callback may synchronously close this child and release its buffer.
+-                if (!isOpen || unsafe().outboundBuffer() !== buf) return
+                 if (parentFuture.isDone) {
+                     removeParentWrite(buf, parentFuture.causeOrNull())
+                 } else {

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.libp2p.security.noise.NoiseEstablishedConnectionLifecycleTest" tests="2" skipped="0" failures="1" errors="0" timestamp="2026-10-25T05:22:39.256Z" hostname="runnervmtai0g" time="10.535">
+  <properties/>
+  <testcase name="closing a pending connection completes while its computation is held()" classname="io.libp2p.security.noise.NoiseEstablishedConnectionLifecycleTest" time="5.01">
+    <failure message="org.opentest4j.AssertionFailedError: FX39_ESTABLISHED_BEGIN pending=1 channels=3 onLoop=true&#10;Exception in thread &quot;main&quot; java.util.concurrent.TimeoutException: timeout after 1 seconds&#10;&#9;at io.netty.util.concurrent.DefaultPromise.get(DefaultPromise.java:374)&#10;&#9;at io.libp2p.security.noise.NoiseEstablishedConnectionHarness.main(NoiseEstablishedConnectionTest.kt:188)&#10; ==&gt; expected: &lt;0&gt; but was: &lt;1&gt;" type="org.opentest4j.AssertionFailedError">org.opentest4j.AssertionFailedError: FX39_ESTABLISHED_BEGIN pending=1 channels=3 onLoop=true
+Exception in thread &quot;main&quot; java.util.concurrent.TimeoutException: timeout after 1 seconds
+	at io.netty.util.concurrent.DefaultPromise.get(DefaultPromise.java:374)
+	at io.libp2p.security.noise.NoiseEstablishedConnectionHarness.main(NoiseEstablishedConnectionTest.kt:188)
+ ==&gt; expected: &lt;0&gt; but was: &lt;1&gt;
+	at app//org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+	at app//org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+	at app//org.junit.jupiter.api.AssertEquals.failNotEqual(AssertEquals.java:197)
+	at app//org.junit.jupiter.api.AssertEquals.assertEquals(AssertEquals.java:150)
+	at app//org.junit.jupiter.api.Assertions.assertEquals(Assertions.java:563)
+	at app//io.libp2p.security.noise.NoiseEstablishedConnectionTestKt.runEstablishedConnectionHarness(NoiseEstablishedConnectionTest.kt:60)
+	at app//io.libp2p.security.noise.NoiseEstablishedConnectionTestKt.access$runEstablishedConnectionHarness(NoiseEstablishedConnectionTest.kt:1)
+	at app//io.libp2p.security.noise.NoiseEstablishedConnectionLifecycleTest.closing a pending connection completes while its computation is held(NoiseEstablishedConnectionTest.kt:40)
+	at java.base@21.0.12.1/java.lang.reflect.Method.invoke(Method.java:580)
+	at java.base@21.0.12.1/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at java.base@21.0.12.1/java.util.ArrayList.forEach(ArrayList.java:1596)
+</failure>
+  </testcase>
+  <testcase name="closing the last established connection restores the isolated inline path()" classname="io.libp2p.security.noise.NoiseEstablishedConnectionLifecycleTest" time="5.524"/>
+  <system-out><![CDATA[FX39_ESTABLISHED_BEGIN pending=1 channels=3 onLoop=true
+Exception in thread "main" java.util.concurrent.TimeoutException: timeout after 1 seconds
+	at io.netty.util.concurrent.DefaultPromise.get(DefaultPromise.java:374)
+	at io.libp2p.security.noise.NoiseEstablishedConnectionHarness.main(NoiseEstablishedConnectionTest.kt:188)
+FX39_ESTABLISHED_BEGIN pending=1 channels=1 onLoop=true
+FX39_ESTABLISHED_PASS
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

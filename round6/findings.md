@@ -5,8 +5,8 @@ Started: 2026-10-25 00:23 UTC. Hard wall limit: 90 minutes.
 
 Plan:
 - [done] Item 1: read production/test fixtures, write invariant table; add public callback regression; record red; fix; green; reversal; restore; four shutdown classes first attempt; push.
-- [in progress] Item 2: narrow README guarantee and mention old unflushed-only limitation; push.
-- [pending] Item 3: inspect two original failures and child harness; record mechanism or unknown before edits; three solo runs and one overlapping harness-class pair; classify honestly; push.
+- [done] Item 2: narrow README guarantee and mention old unflushed-only limitation; push.
+- [in progress] Item 3: inspect two original failures and child harness; record mechanism or unknown before edits; three solo runs and one overlapping harness-class pair; classify honestly; push.
 - [pending] Review code and coverage independently; publish round6 evidence on evidence/pr71-20261024; REST description update; stop owned JVMs; final audit.
 
 OBSERVED: Initial gh pr view matched required head 3e1751baddc1e37fc40c51ff1e28b9135c6acc23, OPEN, base develop. Fresh clone under workspace. No subagents will run. Base develop overrides generic main instructions. Evidence remains outside PR tree and will be appended under round6 on evidence branch.
@@ -69,3 +69,6 @@ OBSERVED 2026-10-25T00:57:11.681038+00:00: FIRST ATTEMPT ReviewCompletedShutdown
 OBSERVED 2026-10-25T00:57:23.991979+00:00: FIRST ATTEMPT ReviewChildLoopAffinityTest: [{"name": "io.libp2p.transport.ReviewChildLoopAffinityTest", "tests": "3", "skipped": "0", "failures": "0", "errors": "0", "timestamp": "2026-10-25T00:57:17.496Z", "hostname": "8bf01af06d2e", "time": "6.214"}]; command exit 0.
 
 OBSERVED 00:57 UTC: Item 1 complete. Required four first attempts passed: OffLoopParentWriteNotificationTest 6/0 (12671ms), ReviewTerminalWriteConversionTest 4/0 (16794ms), ReviewCompletedShutdownTest 6/0 (13041ms), ReviewChildLoopAffinityTest 3/0 (6214ms); 19/19 total, 0 errors/skips. Test/fix/format commits are pushed; no existing test edited. Item 2 begins with the documentation-update skill. Scope decision: this is a new PR-local README guarantee, not a new system architecture or deployed behavior; the phrase search found no central-document copy to amend. The user's requested one-sentence limitation remains the explicit boundary of this documentation change.
+
+OBSERVED 00:58 UTC: Item 2 README-only commit 85b4297856d09df89816bc571137bd392dc498ff is pushed. It conditions settlement on an active parent-write completion hook and includes one sentence explaining that an accepted unflushed write without a pending parent write can remain pending and retain payload after termination when close is refused. No production behavior or test changed for this item. Item 3 begins with unchanged child deadlines and iteration counts.
+OBSERVED: No answer to the optional companion clarification after more than 20 minutes; proceeding with the stated adjacent NoiseAlgorithmReadinessTest for the concurrent run. REFUTED premise: no other class in this exact checkout shares NoiseHandshakePathHarness or NoiseHandshakeStarvationHarness (round6/harness-reference-search.txt); the concurrent companion uses its own Noise child harness. This does not change the original NoiseHandshakeOffEventLoopTest or its 29 checks.

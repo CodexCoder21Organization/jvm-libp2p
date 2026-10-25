@@ -93,7 +93,7 @@ public class UnflushedWriteTerminationTest {
       server.close().sync();
       loop.shutdownGracefully(0, 5, TimeUnit.SECONDS).sync();
       assertTrue(loop.isTerminated(), "The owning loop must terminate before observation");
-      System.out.println(
+      String state =
           "earlierDelivery="
               + earlierDelivery
               + " ownerTerminated="
@@ -101,10 +101,11 @@ public class UnflushedWriteTerminationTest {
               + " acceptedDone="
               + accepted.isDone()
               + " payloadRefCnt="
-              + payload.refCnt());
+              + payload.refCnt();
       assertTrue(
           accepted.isDone(),
-          "An accepted unflushed write after earlier delivery must settle before owner termination");
+          "An accepted unflushed write after earlier delivery must settle before owner termination: "
+              + state);
       if (cancelBeforeShutdown) {
         assertTrue(accepted.isCancelled(), "Termination must preserve caller cancellation");
       } else {
@@ -118,7 +119,7 @@ public class UnflushedWriteTerminationTest {
           notifiedOnOwner.get(5, TimeUnit.SECONDS),
           "Termination must notify accepted writes on their owning loop");
       assertEquals(
-          0, payload.refCnt(), "Termination must release the accepted payload exactly once");
+          0, payload.refCnt(), "Termination must release the accepted payload exactly once: " + state);
     } finally {
       if (!loop.isShuttingDown()) {
         if (child != null) child.close().await(5, TimeUnit.SECONDS);

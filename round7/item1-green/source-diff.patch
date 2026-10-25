@@ -1,0 +1,125 @@
+diff --git a/libp2p/src/main/kotlin/io/libp2p/etc/util/netty/mux/MuxChannel.kt b/libp2p/src/main/kotlin/io/libp2p/etc/util/netty/mux/MuxChannel.kt
+index b29cff88..ad32a3ec 100644
+--- a/libp2p/src/main/kotlin/io/libp2p/etc/util/netty/mux/MuxChannel.kt
++++ b/libp2p/src/main/kotlin/io/libp2p/etc/util/netty/mux/MuxChannel.kt
+@@ -33,6 +33,7 @@ class MuxChannel<TData>(
+     private var waitingForParentWrite = false
+     private var pendingParentWrite: ChannelFuture? = null
+     private var parentWriteCompletion: ParentWriteCompletion? = null
++    private var acceptedWriteShutdown: Runnable? = null
+ 
+     internal fun resetForCapacity(): ChannelFuture = parent.resetForCapacity(this)
+ 
+@@ -67,7 +68,9 @@ class MuxChannel<TData>(
+             val data = msg as TData
+             val dataSize = parent.pendingChildWriteSize(data)
+             if (dataSize == null) {
++                ensureAcceptedWriteTerminationOwner()
+                 ctx.write(msg, promise)
++                retireAcceptedWriteOwnerIfDrained()
+                 return
+             }
+             val writePromise = promise.unvoid()
+@@ -81,7 +84,59 @@ class MuxChannel<TData>(
+             writePromise.addListener {
+                 parent.onPendingChildWriteComplete(this@MuxChannel, data, dataSize)
+             }
++            ensureAcceptedWriteTerminationOwner()
+             ctx.write(msg, writePromise)
++            retireAcceptedWriteOwnerIfDrained()
++        }
++
++        override fun flush(ctx: ChannelHandlerContext) {
++            ctx.flush()
++            retireAcceptedWriteOwnerIfDrained()
++        }
++    }
++
++    private fun ensureAcceptedWriteTerminationOwner() {
++        // Accounting callbacks may close the child before its write reaches the buffer.
++        if (!isOpen || unsafe().outboundBuffer() == null || acceptedWriteShutdown != null) return
++        val executor = eventLoop() as? SingleThreadEventExecutor ?: return
++        val shutdown = Runnable { settleWritesBeforeTermination() }
++        acceptedWriteShutdown = shutdown
++        executor.addShutdownHook(shutdown)
++    }
++
++    private fun retireAcceptedWriteOwnerIfDrained() {
++        // Cancellation can finish a promise while its unflushed payload is still buffered.
++        if ((unsafe().outboundBuffer()?.totalPendingWriteBytes() ?: 0L) == 0L) {
++            cancelAcceptedWriteTerminationOwner()
++        }
++    }
++
++    private fun cancelAcceptedWriteTerminationOwner() {
++        val shutdown = acceptedWriteShutdown ?: return
++        acceptedWriteShutdown = null
++        val executor = eventLoop() as? SingleThreadEventExecutor ?: return
++        if (!executor.isTerminated) executor.removeShutdownHook(shutdown)
++    }
++
++    private fun settleWritesBeforeTermination() {
++        val buf = unsafe().outboundBuffer() ?: return
++        cancelAcceptedWriteTerminationOwner()
++        // A cancelled hook may already be in the executor's current shutdown batch.
++        if (buf.totalPendingWriteBytes() == 0L && pendingParentWrite == null) return
++        localDisconnected = true
++        parentWriteCompletion?.settleBeforeClose?.run()
++        closeImpl()
++        if (unsafe().outboundBuffer() === buf) {
++            pendingParentWrite = null
++            waitingForParentWrite = false
++            parentWriteCompletion?.let(::cancelParentWriteCompletion)
++            parentWriteCompletion = null
++            val failure = RejectedExecutionException(
++                "The child event loop terminated before pending writes could complete: $id"
++            )
++            // Include accepted writes which the caller has not flushed.
++            buf.addFlush()
++            while (buf.current() != null) buf.remove(failure)
+         }
+     }
+ 
+@@ -139,25 +194,7 @@ class MuxChannel<TData>(
+                     val completion = ParentWriteCompletion(
+                         eventLoop(),
+                         completeWrite,
+-                        Runnable {
+-                            // Finish accepted writes while their notification executor still runs,
+-                            // even when an application handler refuses the normal close request.
+-                            localDisconnected = true
+-                            settleBeforeClose.run()
+-                            closeImpl()
+-                            if (unsafe().outboundBuffer() === buf) {
+-                                pendingParentWrite = null
+-                                waitingForParentWrite = false
+-                                parentWriteCompletion?.let(::cancelParentWriteCompletion)
+-                                parentWriteCompletion = null
+-                                val failure = RejectedExecutionException(
+-                                    "The child event loop terminated before pending writes could complete: $id"
+-                                )
+-                                // Include accepted writes which the caller has not flushed.
+-                                buf.addFlush()
+-                                while (buf.current() != null) buf.remove(failure)
+-                            }
+-                        },
++                        Runnable { settleWritesBeforeTermination() },
+                         settleBeforeClose
+                     )
+                     parentWriteCompletion = completion
+@@ -174,6 +211,7 @@ class MuxChannel<TData>(
+             }
+         }
+         disconnectIfDrained()
++        retireAcceptedWriteOwnerIfDrained()
+     }
+ 
+     private fun removeParentWrite(buf: ChannelOutboundBuffer, cause: Throwable?) {
+@@ -224,6 +262,7 @@ class MuxChannel<TData>(
+         // A completed parent outcome belongs to the accepted write even if delivery was rejected.
+         // Set the write-side state before notifying callers, whose callbacks may reenter close.
+         localDisconnected = true
++        cancelAcceptedWriteTerminationOwner()
+         parentWriteCompletion?.settleBeforeClose?.run()
+         pendingParentWrite = null
+         parentWriteCompletion?.let(::cancelParentWriteCompletion)

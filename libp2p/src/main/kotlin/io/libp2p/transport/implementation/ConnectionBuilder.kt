@@ -7,6 +7,7 @@ import io.libp2p.core.P2PChannel
 import io.libp2p.core.PeerId
 import io.libp2p.etc.REMOTE_PEER_ID
 import io.libp2p.etc.types.forward
+import io.libp2p.etc.util.netty.trackConnectionOnLoop
 import io.libp2p.transport.ConnectionUpgrader
 import io.netty.channel.Channel
 import io.netty.channel.ChannelInitializer
@@ -23,6 +24,7 @@ class ConnectionBuilder(
     val connectionEstablished = CompletableFuture<Connection>()
 
     override fun initChannel(ch: Channel) {
+        trackConnectionOnLoop(ch)
         remotePeerId?.also { ch.attr(REMOTE_PEER_ID).set(it) }
         val connection = ConnectionOverNetty(ch, transport, initiator)
 

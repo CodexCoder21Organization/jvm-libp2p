@@ -1,0 +1,31 @@
+plugins { id 'java' }
+def c=new groovy.json.JsonSlurper().parse(file(project.property('capturedConfig')))
+tasks.named('test', Test) {
+ testClassesDirs=files(c.classes)
+ classpath=files(c.classpath)
+ workingDir=c.workingDir
+ if(c.executable) executable=c.executable
+ jvmArgs(c.jvmArgs)
+ systemProperties(c.systemProperties)
+ if(c.minHeap) minHeapSize=c.minHeap
+ if(c.maxHeap) maxHeapSize=c.maxHeap
+ enableAssertions=c.assertions
+ if(c.encoding) defaultCharacterEncoding=c.encoding
+ maxParallelForks=c.maxParallelForks
+ forkEvery=c.forkEvery
+ if(c.includes) include(c.includes as String[])
+ if(c.excludes) exclude(c.excludes as String[])
+ useJUnitPlatform {
+  if(c.includeTags) includeTags(c.includeTags as String[])
+  if(c.excludeTags) excludeTags(c.excludeTags as String[])
+  if(c.includeEngines) includeEngines(c.includeEngines as String[])
+  if(c.excludeEngines) excludeEngines(c.excludeEngines as String[])
+ }
+ testLogging { events 'FAILED'; exceptionFormat='FULL'; showCauses=true; showExceptions=true; showStackTraces=true }
+}
+tasks.named('test', Test) { outputs.upToDateWhen { false } }
+
+tasks.named('test', Test) {
+ beforeTest { desc -> println "ROUND7_TEST_START ${java.time.Instant.now()} ${desc.className}.${desc.name}" }
+ afterTest { desc, result -> println "ROUND7_TEST_END ${java.time.Instant.now()} ${desc.className}.${desc.name} ${result.resultType}" }
+}

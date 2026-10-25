@@ -9,6 +9,7 @@ import io.libp2p.core.multiformats.Multiaddr
 import io.libp2p.core.security.SecureChannel
 import io.libp2p.protocol.Ping
 import io.libp2p.protocol.PingController
+import io.libp2p.security.plaintext.PlaintextInsecureChannel
 import io.libp2p.transport.implementation.ConnectionOverNetty
 import io.netty.channel.ChannelHandlerContext
 import io.netty.channel.ChannelInboundHandlerAdapter
@@ -35,6 +36,11 @@ class NoiseEstablishedConnectionTest {
 }
 
 class NoiseEstablishedConnectionLifecycleTest {
+    @Test
+    fun `a connection using another secure protocol stays responsive during Noise setup`() {
+        runEstablishedConnectionHarness("mixed")
+    }
+
     @Test
     fun `closing a pending connection completes while its computation is held`() {
         runEstablishedConnectionHarness("close")
@@ -112,11 +118,17 @@ object NoiseEstablishedConnectionHarness {
                             }
                         }
                     }
+                    if (mode == "mixed") {
+                        add { key, _ -> PlaintextInsecureChannel(key) }
+                    }
                 }
             }.also { hosts.add(it) }
             val caller = host {
                 identity { random(KeyType.ED25519) }
                 protocols { +Ping() }
+                if (mode == "mixed") {
+                    secureChannels { add { key, _ -> PlaintextInsecureChannel(key) } }
+                }
             }.also { hosts.add(it) }
             CompletableFuture.allOf(*hosts.map { it.start() }.toTypedArray()).get(5, TimeUnit.SECONDS)
             val primary = caller.newStream<PingController>(
@@ -166,7 +178,7 @@ object NoiseEstablishedConnectionHarness {
             println("FX39_ESTABLISHED_BEGIN pending=${snapshot.pendingHandshakesOnLoop} channels=${channelCount.join()} onLoop=${snapshot.onEventLoop}")
             assertEquals(loopThread.get() === computationThread.get(), snapshot.onEventLoop, "The observer thread must match the reported loop ownership")
             when (mode) {
-                "reply" -> {
+                "reply", "mixed" -> {
                     val sentAt = System.nanoTime()
                     val reply = ping.ping()
                     var deadlineFailure: TimeoutException? = null

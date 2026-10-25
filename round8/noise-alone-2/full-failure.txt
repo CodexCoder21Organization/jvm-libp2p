@@ -1,0 +1,15 @@
+established connection stays responsive during concurrent Noise handshakes()
+java.lang.AssertionError: Noise handshake starvation child JVM failed:
+Noise handshake storm: peers=160 pingLatenciesMs=[1, 4, 4, 5, 6, 7, 7, 8, 8, 8, 8, 8, 9, 11, 11, 12, 16, 59, 586, 722] p95Ms=586 elapsedMs=9197 execution=NoiseHandshakeExecutionSnapshot(inlineHandshakes=0, offloadedHandshakes=322, inlineCryptoTasks=0, inlineCryptoTasksOffEventLoop=0, offloadedCryptoTasks=644, offloadedCryptoTasksOnEventLoop=0)
+Exception in thread "main" java.lang.IllegalStateException: Established ping p95 was 586ms during 160 concurrent Noise handshakes; handshake crypto must not block the shared Netty worker
+	at io.libp2p.security.noise.NoiseHandshakeStarvationHarness.main(NoiseHandshakeOffEventLoopTest.kt:505)
+
+java.lang.AssertionError: Noise handshake starvation child JVM failed:
+Noise handshake storm: peers=160 pingLatenciesMs=[1, 4, 4, 5, 6, 7, 7, 8, 8, 8, 8, 8, 9, 11, 11, 12, 16, 59, 586, 722] p95Ms=586 elapsedMs=9197 execution=NoiseHandshakeExecutionSnapshot(inlineHandshakes=0, offloadedHandshakes=322, inlineCryptoTasks=0, inlineCryptoTasksOffEventLoop=0, offloadedCryptoTasks=644, offloadedCryptoTasksOnEventLoop=0)
+Exception in thread "main" java.lang.IllegalStateException: Established ping p95 was 586ms during 160 concurrent Noise handshakes; handshake crypto must not block the shared Netty worker
+	at io.libp2p.security.noise.NoiseHandshakeStarvationHarness.main(NoiseHandshakeOffEventLoopTest.kt:505)
+
+	at io.libp2p.security.noise.NoiseHandshakeOffEventLoopTest.established connection stays responsive during concurrent Noise handshakes(NoiseHandshakeOffEventLoopTest.kt:86)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)

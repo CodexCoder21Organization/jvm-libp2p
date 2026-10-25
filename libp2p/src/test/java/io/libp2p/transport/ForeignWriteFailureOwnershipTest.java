@@ -50,7 +50,7 @@ public class ForeignWriteFailureOwnershipTest {
       parent = new Bootstrap().group(loop).channel(LocalChannel.class).handler(mux)
           .connect(address).sync().channel();
       MuxChannel<ByteBuf> child = mux.newStream(ch -> {
-        ch.pipeline().addFirst(foreign, "foreign-write-handler", new ChannelOutboundHandlerAdapter() {
+        ch.pipeline().addFirst("foreign-write-handler", new ChannelOutboundHandlerAdapter() {
           public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) {
             heldPayload.complete((ByteBuf) msg);
             heldPromise.complete(promise);

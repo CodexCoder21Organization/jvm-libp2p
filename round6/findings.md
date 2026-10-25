@@ -4,8 +4,8 @@ PR: https://github.com/CodexCoder21Organization/jvm-libp2p/pull/71
 Started: 2026-10-25 00:23 UTC. Hard wall limit: 90 minutes.
 
 Plan:
-- [in progress] Item 1: read production/test fixtures, write invariant table; add public callback regression; record red; fix; green; reversal; restore; four shutdown classes first attempt; push.
-- [pending] Item 2: narrow README guarantee and mention old unflushed-only limitation; push.
+- [done] Item 1: read production/test fixtures, write invariant table; add public callback regression; record red; fix; green; reversal; restore; four shutdown classes first attempt; push.
+- [in progress] Item 2: narrow README guarantee and mention old unflushed-only limitation; push.
 - [pending] Item 3: inspect two original failures and child harness; record mechanism or unknown before edits; three solo runs and one overlapping harness-class pair; classify honestly; push.
 - [pending] Review code and coverage independently; publish round6 evidence on evidence/pr71-20261024; REST description update; stop owned JVMs; final audit.
 
@@ -61,3 +61,11 @@ OBSERVED 00:53 UTC: One required reversal removed only the two added production 
 OBSERVED 00:56 UTC: Java formatting and Kotlin formatting check passed (round6/format.log). Formatting changed only the new ReentrantChildWriteCloseTest.java; committed as 50bb3a2c805a6d6e96ddaf35b271d0641cb6de47. All tests that existed at the required initial head remain byte-identical. The restored production Mux file is byte-identical to the fix commit. Restored regression followed by the four shutdown classes is running sequentially, one class per Gradle command, first attempts only for the shutdown register.
 
 OBSERVED 2026-10-25T00:56:29.226402+00:00: FIRST ATTEMPT OffLoopParentWriteNotificationTest: [{"name": "io.libp2p.transport.OffLoopParentWriteNotificationTest", "tests": "6", "skipped": "0", "failures": "0", "errors": "0", "timestamp": "2026-10-25T00:56:16.325Z", "hostname": "8bf01af06d2e", "time": "12.671"}]; command exit 0.
+
+OBSERVED 2026-10-25T00:56:52.502324+00:00: FIRST ATTEMPT ReviewTerminalWriteConversionTest: [{"name": "io.libp2p.transport.ReviewTerminalWriteConversionTest", "tests": "4", "skipped": "0", "failures": "0", "errors": "0", "timestamp": "2026-10-25T00:56:35.500Z", "hostname": "8bf01af06d2e", "time": "16.794"}]; command exit 0.
+
+OBSERVED 2026-10-25T00:57:11.681038+00:00: FIRST ATTEMPT ReviewCompletedShutdownTest: [{"name": "io.libp2p.transport.ReviewCompletedShutdownTest", "tests": "6", "skipped": "0", "failures": "0", "errors": "0", "timestamp": "2026-10-25T00:56:58.430Z", "hostname": "8bf01af06d2e", "time": "13.041"}]; command exit 0.
+
+OBSERVED 2026-10-25T00:57:23.991979+00:00: FIRST ATTEMPT ReviewChildLoopAffinityTest: [{"name": "io.libp2p.transport.ReviewChildLoopAffinityTest", "tests": "3", "skipped": "0", "failures": "0", "errors": "0", "timestamp": "2026-10-25T00:57:17.496Z", "hostname": "8bf01af06d2e", "time": "6.214"}]; command exit 0.
+
+OBSERVED 00:57 UTC: Item 1 complete. Required four first attempts passed: OffLoopParentWriteNotificationTest 6/0 (12671ms), ReviewTerminalWriteConversionTest 4/0 (16794ms), ReviewCompletedShutdownTest 6/0 (13041ms), ReviewChildLoopAffinityTest 3/0 (6214ms); 19/19 total, 0 errors/skips. Test/fix/format commits are pushed; no existing test edited. Item 2 begins with the documentation-update skill. Scope decision: this is a new PR-local README guarantee, not a new system architecture or deployed behavior; the phrase search found no central-document copy to amend. The user's requested one-sentence limitation remains the explicit boundary of this documentation change.

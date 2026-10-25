@@ -18,14 +18,17 @@ import io.netty.util.concurrent.SingleThreadEventExecutor
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.RepeatedTest
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
+import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.atomic.AtomicBoolean
 
 class NoiseEstablishedConnectionTest {
-    @Test
+    @RepeatedTest(20)
     fun `established reply progresses while one incoming handshake computation is held`() {
         val child = ProcessBuilder(
             System.getProperty("java.home") + "/bin/java",
@@ -56,6 +59,10 @@ object NoiseEstablishedConnectionHarness {
         val gateReady = CompletableFuture<EstablishedHandshakeGate>()
         val observed = CompletableFuture<NoiseHandshakeComputation>()
         val release = CountDownLatch(1)
+        val computationEntered = AtomicLong()
+        val computationExited = AtomicLong()
+        val computationThread = AtomicReference<Thread>()
+        val loopThread = AtomicReference<Thread>()
         var remote: Process? = null
         try {
             val server = host {
@@ -66,8 +73,14 @@ object NoiseEstablishedConnectionHarness {
                     add { key, _ ->
                         val noise = NoiseXXSecureChannel(key) { snapshot ->
                             if (armed.get() && heldOnce.compareAndSet(false, true)) {
+                                computationThread.set(Thread.currentThread())
+                                computationEntered.set(System.nanoTime())
                                 observed.complete(snapshot)
-                                check(release.await(5, TimeUnit.SECONDS)) { "Held computation was not released within 5 seconds" }
+                                try {
+                                    check(release.await(5, TimeUnit.SECONDS)) { "Held computation was not released within 5 seconds" }
+                                } finally {
+                                    computationExited.set(System.nanoTime())
+                                }
                             }
                         }
                         object : SecureChannel {
@@ -110,6 +123,7 @@ object NoiseEstablishedConnectionHarness {
             assertTrue((established.connection as ConnectionOverNetty).nettyChannel.eventLoop() === loop, "The established RPC and incoming handshake must share the same network loop")
             val channelCount = CompletableFuture<Int>()
             loop.execute {
+                loopThread.set(Thread.currentThread())
                 assertEquals(0, (loop as SingleThreadEventExecutor).pendingTasks(), "The controlled loop must have no queued tasks before release")
                 channelCount.complete((loop as SingleThreadEventLoop).registeredChannels())
                 gate.release()
@@ -120,9 +134,22 @@ object NoiseEstablishedConnectionHarness {
             assertEquals(gate.context.channel().id().asLongText(), snapshot.channelId, "The held computation must belong to the new incoming peer")
             assertFalse(established.connection.closeFuture().isDone, "The original connection must remain established")
             println("FX39_ESTABLISHED_BEGIN pending=${snapshot.pendingHandshakesOnLoop} channels=${channelCount.join()} onLoop=${snapshot.onEventLoop}")
-            ping.ping().get(1, TimeUnit.SECONDS)
-            assertFalse(snapshot.onEventLoop, "An established connection's loop must stay available while handshake computation is held")
+            assertEquals(loopThread.get() === computationThread.get(), snapshot.onEventLoop, "The observer thread must match the reported loop ownership")
+            val sentAt = System.nanoTime()
+            val reply = ping.ping()
+            var deadlineFailure: TimeoutException? = null
+            try {
+                reply.get(1, TimeUnit.SECONDS)
+            } catch (failure: TimeoutException) {
+                deadlineFailure = failure
+            }
+            val releasedAt = System.nanoTime()
             release.countDown()
+            reply.get(5, TimeUnit.SECONDS)
+            val repliedAt = System.nanoTime()
+            println("FX39_TIMING loopThread=${loopThread.get().name} computationThread=${computationThread.get().name} loopIdentity=${System.identityHashCode(loop)} entered=${computationEntered.get()} exited=${computationExited.get()} sent=$sentAt release=$releasedAt reply=$repliedAt deadlineFailed=${deadlineFailure != null}")
+            if (deadlineFailure != null) throw deadlineFailure
+            assertFalse(snapshot.onEventLoop, "An established connection's loop must stay available while handshake computation is held")
             peerProcess.outputStream.close()
             assertTrue(peerProcess.waitFor(10, TimeUnit.SECONDS), "The incoming peer must finish after release")
             assertEquals(0, peerProcess.exitValue(), remoteOutput.get(5, TimeUnit.SECONDS))

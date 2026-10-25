@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.libp2p.transport.ForeignWriteFailureOwnershipTest" tests="1" skipped="0" failures="1" errors="0" timestamp="2026-10-25T05:45:07.151Z" hostname="8bf01af06d2e" time="9.896">
+  <properties/>
+  <testcase name="foreignFailureRetiresItsOwnerAfterAFullQueueRecovers()" classname="io.libp2p.transport.ForeignWriteFailureOwnershipTest" time="9.896">
+    <failure message="org.opentest4j.AssertionFailedError: Exception in thread &quot;main&quot; org.opentest4j.AssertionFailedError: Owner retirement must not escape from a foreign write failure ==&gt; Unexpected exception thrown: java.util.concurrent.ExecutionException: java.util.concurrent.RejectedExecutionException&#10;&#9;at org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:152)&#10;&#9;at org.junit.jupiter.api.AssertDoesNotThrow.createAssertionFailedError(AssertDoesNotThrow.java:84)&#10;&#9;at org.junit.jupiter.api.AssertDoesNotThrow.assertDoesNotThrow(AssertDoesNotThrow.java:75)&#10;&#9;at org.junit.jupiter.api.AssertDoesNotThrow.assertDoesNotThrow(AssertDoesNotThrow.java:62)&#10;&#9;at org.junit.jupiter.api.Assertions.assertDoesNotThrow(Assertions.java:3280)&#10;&#9;at io.libp2p.transport.ForeignWriteFailureOwnershipTest.main(ForeignWriteFailureOwnershipTest.java:78)&#10;Caused by: java.util.concurrent.ExecutionException: java.util.concurrent.RejectedExecutionException&#10;&#9;at io.netty.util.concurrent.DefaultPromise.get(DefaultPromise.java:388)&#10;&#9;at io.libp2p.transport.ForeignWriteFailureOwnershipTest.lambda$main$6(ForeignWriteFailureOwnershipTest.java:81)&#10;&#9;at org.junit.jupiter.api.AssertDoesNotThrow.assertDoesNotThrow(AssertDoesNotThrow.java:71)&#10;&#9;... 3 more&#10;Caused by: java.util.concurrent.RejectedExecutionException&#10;&#9;at io.netty.util.concurrent.RejectedExecutionHandlers$1.rejected(RejectedExecutionHandlers.java:31)&#10;&#9;at io.netty.util.concurrent.SingleThreadEventExecutor.reject(SingleThreadEventExecutor.java:1134)&#10;&#9;at io.netty.util.concurrent.SingleThreadEventExecutor.addTask(SingleThreadEventExecutor.java:407)&#10;&#9;at io.netty.util.concurrent.SingleThreadEventExecutor.execute(SingleThreadEventExecutor.java:1027)&#10;&#9;at io.netty.util.concurrent.SingleThreadEventExecutor.execute0(SingleThreadEventExecutor.java:993)&#10;&#9;at io.netty.util.concurrent.SingleThreadEventExecutor.execute(SingleThreadEventExecutor.java:983)&#10;&#9;at io.netty.util.concurrent.SingleThreadEventExecutor.removeShutdownHook(SingleThreadEventExecutor.java:740)&#10;&#9;at io.libp2p.transport.ForeignWriteFailureOwnershipTest$TrackingLoop.removeShutdownHook(ForeignWriteFailureOwnershipTest.java:102)&#10;&#9;at io.libp2p.etc.util.netty.mux.MuxChannel.cancelAcceptedWriteTerminationOwner(MuxChannel.kt:129)&#10;&#9;at io.libp2p.etc.util.netty.mux.MuxChannel.retireAcceptedWriteOwnerIfDrained(MuxChannel.kt:121)&#10;&#9;at io.libp2p.etc.util.netty.mux.MuxChannel.access$retireAcceptedWriteOwnerIfDrained(MuxChannel.kt:25)&#10;&#9;at io.libp2p.etc.util.netty.mux.MuxChannel$writeAccepted$bufferPromise$1.invoke(MuxChannel.kt:102)&#10;&#9;at io.libp2p.etc.util.netty.mux.MuxChannel$writeAccepted$bufferPromise$1.invoke(MuxChannel.kt:100)&#10;&#9;at io.libp2p.etc.util.netty.mux.RetainedWritePromise.setFailure(MuxChannel.kt:333)&#10;&#9;at io.libp2p.transport.ForeignWriteFailureOwnershipTest.lambda$main$5(ForeignWriteFailureOwnershipTest.java:80)&#10;&#9;at io.netty.util.concurrent.PromiseTask.runTask(PromiseTask.java:98)&#10;&#9;at io.netty.util.concurrent.PromiseTask.run(PromiseTask.java:106)&#10;&#9;at io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:148)&#10;&#9;at io.netty.util.concurrent.DefaultEventExecutor.run(DefaultEventExecutor.java:66)&#10;&#9;at io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:1195)&#10;&#9;at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)&#10;&#9;at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)&#10;&#9;at java.base/java.lang.Thread.run(Thread.java:1583)&#10; ==&gt; expected: &lt;0&gt; but was: &lt;1&gt;" type="org.opentest4j.AssertionFailedError">org.opentest4j.AssertionFailedError: Exception in thread &quot;main&quot; org.opentest4j.AssertionFailedError: Owner retirement must not escape from a foreign write failure ==&gt; Unexpected exception thrown: java.util.concurrent.ExecutionException: java.util.concurrent.RejectedExecutionException
+	at org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:152)
+	at org.junit.jupiter.api.AssertDoesNotThrow.createAssertionFailedError(AssertDoesNotThrow.java:84)
+	at org.junit.jupiter.api.AssertDoesNotThrow.assertDoesNotThrow(AssertDoesNotThrow.java:75)
+	at org.junit.jupiter.api.AssertDoesNotThrow.assertDoesNotThrow(AssertDoesNotThrow.java:62)
+	at org.junit.jupiter.api.Assertions.assertDoesNotThrow(Assertions.java:3280)
+	at io.libp2p.transport.ForeignWriteFailureOwnershipTest.main(ForeignWriteFailureOwnershipTest.java:78)
+Caused by: java.util.concurrent.ExecutionException: java.util.concurrent.RejectedExecutionException
+	at io.netty.util.concurrent.DefaultPromise.get(DefaultPromise.java:388)
+	at io.libp2p.transport.ForeignWriteFailureOwnershipTest.lambda$main$6(ForeignWriteFailureOwnershipTest.java:81)
+	at org.junit.jupiter.api.AssertDoesNotThrow.assertDoesNotThrow(AssertDoesNotThrow.java:71)
+	... 3 more
+Caused by: java.util.concurrent.RejectedExecutionException
+	at io.netty.util.concurrent.RejectedExecutionHandlers$1.rejected(RejectedExecutionHandlers.java:31)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.reject(SingleThreadEventExecutor.java:1134)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.addTask(SingleThreadEventExecutor.java:407)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.execute(SingleThreadEventExecutor.java:1027)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.execute0(SingleThreadEventExecutor.java:993)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.execute(SingleThreadEventExecutor.java:983)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.removeShutdownHook(SingleThreadEventExecutor.java:740)
+	at io.libp2p.transport.ForeignWriteFailureOwnershipTest$TrackingLoop.removeShutdownHook(ForeignWriteFailureOwnershipTest.java:102)
+	at io.libp2p.etc.util.netty.mux.MuxChannel.cancelAcceptedWriteTerminationOwner(MuxChannel.kt:129)
+	at io.libp2p.etc.util.netty.mux.MuxChannel.retireAcceptedWriteOwnerIfDrained(MuxChannel.kt:121)
+	at io.libp2p.etc.util.netty.mux.MuxChannel.access$retireAcceptedWriteOwnerIfDrained(MuxChannel.kt:25)
+	at io.libp2p.etc.util.netty.mux.MuxChannel$writeAccepted$bufferPromise$1.invoke(MuxChannel.kt:102)
+	at io.libp2p.etc.util.netty.mux.MuxChannel$writeAccepted$bufferPromise$1.invoke(MuxChannel.kt:100)
+	at io.libp2p.etc.util.netty.mux.RetainedWritePromise.setFailure(MuxChannel.kt:333)
+	at io.libp2p.transport.ForeignWriteFailureOwnershipTest.lambda$main$5(ForeignWriteFailureOwnershipTest.java:80)
+	at io.netty.util.concurrent.PromiseTask.runTask(PromiseTask.java:98)
+	at io.netty.util.concurrent.PromiseTask.run(PromiseTask.java:106)
+	at io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:148)
+	at io.netty.util.concurrent.DefaultEventExecutor.run(DefaultEventExecutor.java:66)
+	at io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:1195)
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+ ==&gt; expected: &lt;0&gt; but was: &lt;1&gt;
+	at app//org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+	at app//org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+	at app//org.junit.jupiter.api.AssertEquals.failNotEqual(AssertEquals.java:197)
+	at app//org.junit.jupiter.api.AssertEquals.assertEquals(AssertEquals.java:150)
+	at app//org.junit.jupiter.api.Assertions.assertEquals(Assertions.java:563)
+	at app//io.libp2p.transport.ForeignWriteFailureOwnershipTest.foreignFailureRetiresItsOwnerAfterAFullQueueRecovers(ForeignWriteFailureOwnershipTest.java:28)
+	at java.base@21.0.12.1/java.lang.reflect.Method.invoke(Method.java:580)
+	at java.base@21.0.12.1/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at java.base@21.0.12.1/java.util.ArrayList.forEach(ArrayList.java:1596)
+</failure>
+  </testcase>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

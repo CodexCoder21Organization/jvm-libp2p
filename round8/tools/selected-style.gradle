@@ -1,0 +1,11 @@
+gradle.projectsEvaluated {
+ def p=gradle.rootProject.project(':libp2p')
+ p.spotless {
+  kotlin {
+   target 'src/main/kotlin/io/libp2p/etc/util/netty/mux/MuxChannel.kt', 'src/test/kotlin/io/libp2p/transport/CompletedStreamWriteNotificationTest.kt', 'src/test/kotlin/io/libp2p/transport/CapacityResetQueueOccupancyTest.kt'
+  }
+  java {
+   target 'src/test/java/io/libp2p/transport/UnflushedWriteTerminationTest.java', 'src/test/java/io/libp2p/transport/ZeroLengthUnflushedWriteTerminationTest.java', 'src/test/java/io/libp2p/transport/QueuedParentCompletionShutdownTest.java', 'src/test/java/io/libp2p/transport/DrainedWriteTerminationBatchTest.java', 'src/test/java/io/libp2p/transport/ForeignWriteFailureOwnershipTest.java'
+  }
+ }
+}

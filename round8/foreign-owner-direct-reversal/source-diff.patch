@@ -1,0 +1,19 @@
+diff --git a/libp2p/src/main/kotlin/io/libp2p/etc/util/netty/mux/MuxChannel.kt b/libp2p/src/main/kotlin/io/libp2p/etc/util/netty/mux/MuxChannel.kt
+index 18e4ffb3..13348b77 100644
+--- a/libp2p/src/main/kotlin/io/libp2p/etc/util/netty/mux/MuxChannel.kt
++++ b/libp2p/src/main/kotlin/io/libp2p/etc/util/netty/mux/MuxChannel.kt
+@@ -100,12 +100,8 @@ class MuxChannel<TData>(
+         ensureAcceptedWriteTerminationOwner()
+         retainedWriteCount.incrementAndGet()
+         val bufferPromise = RetainedWritePromise(this, promise.unvoid()) {
+-            val remaining = retainedWriteCount.decrementAndGet()
+-            if (eventLoop().inEventLoop()) {
+-                retireAcceptedWriteOwnerIfDrained()
+-            } else if (remaining == 0) {
+-                acceptedWriteShutdown?.let(::dispatchLoopCompletion)
+-            }
++            retainedWriteCount.decrementAndGet()
++            retireAcceptedWriteOwnerIfDrained()
+         }
+         ctx.write(msg, bufferPromise)
+         retireAcceptedWriteOwnerIfDrained()

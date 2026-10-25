@@ -1,0 +1,875 @@
+diff --git a/libp2p/src/main/kotlin/io/libp2p/etc/util/netty/mux/MuxChannel.kt b/libp2p/src/main/kotlin/io/libp2p/etc/util/netty/mux/MuxChannel.kt
+index 18e4ffb3..afe15487 100644
+--- a/libp2p/src/main/kotlin/io/libp2p/etc/util/netty/mux/MuxChannel.kt
++++ b/libp2p/src/main/kotlin/io/libp2p/etc/util/netty/mux/MuxChannel.kt
+@@ -3,13 +3,13 @@ package io.libp2p.etc.util.netty.mux
+ import io.libp2p.core.ConnectionClosedException
+ import io.libp2p.etc.util.netty.AbstractChildChannel
+ import io.netty.channel.Channel
+-import io.netty.channel.DefaultChannelPromise
+ import io.netty.channel.ChannelFuture
+ import io.netty.channel.ChannelHandlerContext
+ import io.netty.channel.ChannelMetadata
+ import io.netty.channel.ChannelOutboundBuffer
+ import io.netty.channel.ChannelOutboundHandlerAdapter
+ import io.netty.channel.ChannelPromise
++import io.netty.channel.DefaultChannelPromise
+ import io.netty.channel.EventLoop
+ import io.netty.util.ReferenceCountUtil
+ import io.netty.util.concurrent.GlobalEventExecutor
+@@ -36,6 +36,7 @@ class MuxChannel<TData>(
+     private var waitingForParentWrite = false
+     private var pendingParentWrite: ChannelFuture? = null
+     private var parentWriteCompletion: ChildLoopCompletion? = null
++
+     @Volatile
+     private var acceptedWriteShutdown: ChildLoopCompletion? = null
+     private val retainedWriteCount = AtomicInteger()
+diff --git a/libp2p/src/test/java/io/libp2p/transport/DrainedWriteTerminationBatchTest.java b/libp2p/src/test/java/io/libp2p/transport/DrainedWriteTerminationBatchTest.java
+index 340bd119..9568150d 100644
+--- a/libp2p/src/test/java/io/libp2p/transport/DrainedWriteTerminationBatchTest.java
++++ b/libp2p/src/test/java/io/libp2p/transport/DrainedWriteTerminationBatchTest.java
+@@ -1,6 +1,7 @@
+ package io.libp2p.transport;
+ 
+ import static org.junit.jupiter.api.Assertions.*;
++
+ import io.libp2p.etc.util.netty.mux.*;
+ import io.netty.bootstrap.*;
+ import io.netty.buffer.*;
+@@ -9,8 +10,8 @@ import io.netty.channel.local.*;
+ import io.netty.util.ReferenceCountUtil;
+ import java.io.IOException;
+ import java.util.concurrent.*;
+-import java.util.concurrent.atomic.AtomicReference;
+ import java.util.concurrent.atomic.AtomicBoolean;
++import java.util.concurrent.atomic.AtomicReference;
+ import kotlin.Unit;
+ import kotlin.jvm.functions.Function1;
+ import org.junit.jupiter.api.Test;
+@@ -26,30 +27,56 @@ public class DrainedWriteTerminationBatchTest {
+     try {
+       CompletingMux mux = new CompletingMux();
+       LocalAddress address = new LocalAddress("drained-shutdown-batch");
+-      server = new ServerBootstrap().group(loop).channel(LocalServerChannel.class)
+-          .childHandler(new ChannelInitializer<LocalChannel>() {
+-            protected void initChannel(LocalChannel ch) {}
+-          }).bind(address).sync().channel();
+-      parent = new Bootstrap().group(loop).channel(LocalChannel.class).handler(mux)
+-          .connect(address).sync().channel();
+-      MuxChannel<ByteBuf> child = mux.newStream(ch -> {
+-        ch.pipeline().addLast(new ChannelOutboundHandlerAdapter() {
+-          public void close(ChannelHandlerContext ctx, ChannelPromise promise) {
+-            promise.setFailure(new IOException("The application close handler refused closure"));
+-          }
+-        });
+-        return Unit.INSTANCE;
+-      }).get(5, TimeUnit.SECONDS);
++      server =
++          new ServerBootstrap()
++              .group(loop)
++              .channel(LocalServerChannel.class)
++              .childHandler(
++                  new ChannelInitializer<LocalChannel>() {
++                    protected void initChannel(LocalChannel ch) {}
++                  })
++              .bind(address)
++              .sync()
++              .channel();
++      parent =
++          new Bootstrap()
++              .group(loop)
++              .channel(LocalChannel.class)
++              .handler(mux)
++              .connect(address)
++              .sync()
++              .channel();
++      MuxChannel<ByteBuf> child =
++          mux.newStream(
++                  ch -> {
++                    ch.pipeline()
++                        .addLast(
++                            new ChannelOutboundHandlerAdapter() {
++                              public void close(ChannelHandlerContext ctx, ChannelPromise promise) {
++                                promise.setFailure(
++                                    new IOException(
++                                        "The application close handler refused closure"));
++                              }
++                            });
++                    return Unit.INSTANCE;
++                  })
++              .get(5, TimeUnit.SECONDS);
+       IllegalStateException estimationFailure =
+           new IllegalStateException("The message-size estimator refused its payload");
+       AtomicBoolean failNextEstimate = new AtomicBoolean(true);
+-      MessageSizeEstimator.Handle defaultEstimator = child.config().getMessageSizeEstimator().newHandle();
+-      child.config().setMessageSizeEstimator(() -> msg -> {
+-        if (failNextEstimate.getAndSet(false)) throw estimationFailure;
+-        return defaultEstimator.size(msg);
+-      });
++      MessageSizeEstimator.Handle defaultEstimator =
++          child.config().getMessageSizeEstimator().newHandle();
++      child
++          .config()
++          .setMessageSizeEstimator(
++              () ->
++                  msg -> {
++                    if (failNextEstimate.getAndSet(false)) throw estimationFailure;
++                    return defaultEstimator.size(msg);
++                  });
+       ByteBuf rejectedPayload = Unpooled.buffer(1).writeByte(3);
+-      ChannelFuture rejected = loop.submit(() -> child.write(rejectedPayload)).get(5, TimeUnit.SECONDS);
++      ChannelFuture rejected =
++          loop.submit(() -> child.write(rejectedPayload)).get(5, TimeUnit.SECONDS);
+       assertTrue(rejected.isDone(), "The estimator rejection must settle without buffering");
+       assertSame(estimationFailure, rejected.cause(), "Preserve the original estimator failure");
+       assertEquals(0, rejectedPayload.refCnt(), "Rejected writes must release their payloads");
+@@ -59,7 +86,8 @@ public class DrainedWriteTerminationBatchTest {
+         if (i % 2 == 0) bytes.writeByte(i);
+         ChannelFuture write = child.writeAndFlush(bytes);
+         assertTrue(write.await(5, TimeUnit.SECONDS), "Drain/refill cycle must finish: " + i);
+-        assertTrue(write.isSuccess(), "Drain/refill cycle must succeed: " + i + "; " + write.cause());
++        assertTrue(
++            write.isSuccess(), "Drain/refill cycle must succeed: " + i + "; " + write.cause());
+         assertEquals(0, bytes.refCnt(), "Drain/refill cycle must release its payload: " + i);
+       }
+       loop.submit(() -> loop.addShutdownHook(child::flush)).get(5, TimeUnit.SECONDS);
+@@ -68,20 +96,31 @@ public class DrainedWriteTerminationBatchTest {
+       ChannelFuture pending = child.write(initial);
+       loop.submit(() -> {}).get(5, TimeUnit.SECONDS);
+       assertFalse(pending.isDone(), "The initial entry must retain an unflushed batch hook");
+-      loop.submit(() -> loop.addShutdownHook(() -> {
+-        try {
+-          assertTrue(pending.isSuccess(), "The earlier batch hook must drain the initial entry");
+-          assertEquals(0, initial.refCnt(), "The initial payload must already be released");
+-          ByteBuf later = Unpooled.buffer(1).writeByte(2);
+-          laterPayload.set(later);
+-          ChannelFuture write = child.writeAndFlush(later);
+-          assertTrue(write.isSuccess(),
+-              "A retired shutdown-batch hook must leave a drained child's write side usable: "
+-                  + write.cause());
+-          assertEquals(0, later.refCnt(), "The later write must release its payload");
+-          observed.complete(null);
+-        } catch (Throwable failure) { observed.completeExceptionally(failure); }
+-      })).get(5, TimeUnit.SECONDS);
++      loop.submit(
++              () ->
++                  loop.addShutdownHook(
++                      () -> {
++                        try {
++                          assertTrue(
++                              pending.isSuccess(),
++                              "The earlier batch hook must drain the initial entry");
++                          assertEquals(
++                              0, initial.refCnt(), "The initial payload must already be released");
++                          ByteBuf later = Unpooled.buffer(1).writeByte(2);
++                          laterPayload.set(later);
++                          ChannelFuture write = child.writeAndFlush(later);
++                          assertTrue(
++                              write.isSuccess(),
++                              "A retired shutdown-batch hook must leave a drained child's write side usable: "
++                                  + write.cause());
++                          assertEquals(
++                              0, later.refCnt(), "The later write must release its payload");
++                          observed.complete(null);
++                        } catch (Throwable failure) {
++                          observed.completeExceptionally(failure);
++                        }
++                      }))
++          .get(5, TimeUnit.SECONDS);
+       parent.close().sync();
+       server.close().sync();
+       loop.shutdownGracefully(0, 5, TimeUnit.SECONDS).sync();
+@@ -93,10 +132,13 @@ public class DrainedWriteTerminationBatchTest {
+         if (server != null) server.close().await(5, TimeUnit.SECONDS);
+       }
+       loop.shutdownGracefully(0, 5, TimeUnit.SECONDS).await(5, TimeUnit.SECONDS);
+-      if (initialPayload.get() != null && initialPayload.get().refCnt() > 0) initialPayload.get().release();
+-      if (laterPayload.get() != null && laterPayload.get().refCnt() > 0) laterPayload.get().release();
++      if (initialPayload.get() != null && initialPayload.get().refCnt() > 0)
++        initialPayload.get().release();
++      if (laterPayload.get() != null && laterPayload.get().refCnt() > 0)
++        laterPayload.get().release();
+     }
+   }
++
+   static final class Id extends MuxId {
+     Id(ChannelId parent) {
+       super(parent, 1);
+@@ -120,18 +162,37 @@ public class DrainedWriteTerminationBatchTest {
+   }
+ 
+   static final class CompletingMux extends AbstractMuxHandler<ByteBuf> {
+-    CompletingMux() { super(512); }
+-    protected Function1<MuxChannel<ByteBuf>, Unit> getInboundInitializer() { return ch -> Unit.INSTANCE; }
++    CompletingMux() {
++      super(512);
++    }
++
++    protected Function1<MuxChannel<ByteBuf>, Unit> getInboundInitializer() {
++      return ch -> Unit.INSTANCE;
++    }
++
+     public ChannelFuture onChildWrite(MuxChannel<ByteBuf> child, ByteBuf data) {
+       ReferenceCountUtil.release(data);
+       return getChannelHandlerContext().channel().newSucceededFuture();
+     }
+-    public void releaseMessage(ByteBuf msg) { ReferenceCountUtil.release(msg); }
+-    public void channelRead(ChannelHandlerContext ctx, Object msg) { ReferenceCountUtil.release(msg); }
++
++    public void releaseMessage(ByteBuf msg) {
++      ReferenceCountUtil.release(msg);
++    }
++
++    public void channelRead(ChannelHandlerContext ctx, Object msg) {
++      ReferenceCountUtil.release(msg);
++    }
++
+     protected void onLocalOpen(MuxChannel<ByteBuf> child) {}
++
+     protected void onLocalClose(MuxChannel<ByteBuf> child) {}
++
+     protected void onLocalDisconnect(MuxChannel<ByteBuf> child) {}
++
+     protected void onChildClosed(MuxChannel<ByteBuf> child) {}
+-    protected MuxId generateNextId() { return new Id(getChannelHandlerContext().channel().id()); }
++
++    protected MuxId generateNextId() {
++      return new Id(getChannelHandlerContext().channel().id());
++    }
+   }
+ }
+diff --git a/libp2p/src/test/java/io/libp2p/transport/ForeignWriteFailureOwnershipTest.java b/libp2p/src/test/java/io/libp2p/transport/ForeignWriteFailureOwnershipTest.java
+index 5a5a7964..f453f216 100644
+--- a/libp2p/src/test/java/io/libp2p/transport/ForeignWriteFailureOwnershipTest.java
++++ b/libp2p/src/test/java/io/libp2p/transport/ForeignWriteFailureOwnershipTest.java
+@@ -1,6 +1,7 @@
+ package io.libp2p.transport;
+ 
+ import static org.junit.jupiter.api.Assertions.*;
++
+ import io.libp2p.etc.util.netty.mux.*;
+ import io.netty.bootstrap.*;
+ import io.netty.buffer.*;
+@@ -21,10 +22,19 @@ public class ForeignWriteFailureOwnershipTest {
+     Path output = Files.createTempFile("foreign-write-owner", ".log");
+     Process process = null;
+     try {
+-      process = new ProcessBuilder(System.getProperty("java.home") + "/bin/java", "-Xmx128m",
+-          "-Dio.netty.eventLoop.maxPendingTasks=16", "-cp", System.getProperty("java.class.path"),
+-          getClass().getName()).redirectErrorStream(true).redirectOutput(output.toFile()).start();
+-      assertTrue(process.waitFor(30, TimeUnit.SECONDS), "The foreign-write owner probe must finish");
++      process =
++          new ProcessBuilder(
++                  System.getProperty("java.home") + "/bin/java",
++                  "-Xmx128m",
++                  "-Dio.netty.eventLoop.maxPendingTasks=16",
++                  "-cp",
++                  System.getProperty("java.class.path"),
++                  getClass().getName())
++              .redirectErrorStream(true)
++              .redirectOutput(output.toFile())
++              .start();
++      assertTrue(
++          process.waitFor(30, TimeUnit.SECONDS), "The foreign-write owner probe must finish");
+       assertEquals(0, process.exitValue(), Files.readString(output));
+     } finally {
+       if (process != null) process.destroyForcibly().waitFor(5, TimeUnit.SECONDS);
+@@ -43,51 +53,91 @@ public class ForeignWriteFailureOwnershipTest {
+     try {
+       CompletingMux mux = new CompletingMux();
+       LocalAddress address = new LocalAddress("foreign-write-owner");
+-      server = new ServerBootstrap().group(loop).channel(LocalServerChannel.class)
+-          .childHandler(new ChannelInitializer<LocalChannel>() {
+-            protected void initChannel(LocalChannel ch) {}
+-          }).bind(address).sync().channel();
+-      parent = new Bootstrap().group(loop).channel(LocalChannel.class).handler(mux)
+-          .connect(address).sync().channel();
+-      MuxChannel<ByteBuf> child = mux.newStream(ch -> {
+-        ch.pipeline().addFirst("foreign-write-handler", new ChannelOutboundHandlerAdapter() {
+-          public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) {
+-            heldPayload.complete((ByteBuf) msg);
+-            heldPromise.complete(promise);
+-          }
+-        });
+-        return Unit.INSTANCE;
+-      }).get(5, TimeUnit.SECONDS);
++      server =
++          new ServerBootstrap()
++              .group(loop)
++              .channel(LocalServerChannel.class)
++              .childHandler(
++                  new ChannelInitializer<LocalChannel>() {
++                    protected void initChannel(LocalChannel ch) {}
++                  })
++              .bind(address)
++              .sync()
++              .channel();
++      parent =
++          new Bootstrap()
++              .group(loop)
++              .channel(LocalChannel.class)
++              .handler(mux)
++              .connect(address)
++              .sync()
++              .channel();
++      MuxChannel<ByteBuf> child =
++          mux.newStream(
++                  ch -> {
++                    ch.pipeline()
++                        .addFirst(
++                            "foreign-write-handler",
++                            new ChannelOutboundHandlerAdapter() {
++                              public void write(
++                                  ChannelHandlerContext ctx, Object msg, ChannelPromise promise) {
++                                heldPayload.complete((ByteBuf) msg);
++                                heldPromise.complete(promise);
++                              }
++                            });
++                    return Unit.INSTANCE;
++                  })
++              .get(5, TimeUnit.SECONDS);
+       payload = Unpooled.buffer(1).writeByte(1);
+       ChannelFuture write = child.write(payload);
+       ChannelPromise held = heldPromise.get(5, TimeUnit.SECONDS);
+-      loop.execute(() -> {
+-        entered.countDown();
+-        try { assertTrue(release.await(10, TimeUnit.SECONDS), "Release the held owner"); }
+-        catch (InterruptedException failure) { throw new RuntimeException(failure); }
+-      });
++      loop.execute(
++          () -> {
++            entered.countDown();
++            try {
++              assertTrue(release.await(10, TimeUnit.SECONDS), "Release the held owner");
++            } catch (InterruptedException failure) {
++              throw new RuntimeException(failure);
++            }
++          });
+       assertTrue(entered.await(5, TimeUnit.SECONDS), "The owner must enter its controlled task");
+       int admitted = 0;
+       while (admitted < 65536) {
+-        try { loop.execute(() -> {}); admitted++; }
+-        catch (RejectedExecutionException full) { break; }
++        try {
++          loop.execute(() -> {});
++          admitted++;
++        } catch (RejectedExecutionException full) {
++          break;
++        }
+       }
+       assertTrue(admitted > 0 && admitted < 65536, "The live owner queue must fill");
+       assertThrows(RejectedExecutionException.class, () -> loop.execute(() -> {}));
+       IOException expected = new IOException("The foreign write handler refused its payload");
+-      assertDoesNotThrow(() -> foreign.submit(() -> {
+-        heldPayload.getNow(null).release();
+-        held.setFailure(expected);
+-      }).get(5, TimeUnit.SECONDS), "Owner retirement must not escape from a foreign write failure");
+-      assertTrue(write.isDone(), "A foreign failure must settle the caller's write despite a full owner queue");
++      assertDoesNotThrow(
++          () ->
++              foreign
++                  .submit(
++                      () -> {
++                        heldPayload.getNow(null).release();
++                        held.setFailure(expected);
++                      })
++                  .get(5, TimeUnit.SECONDS),
++          "Owner retirement must not escape from a foreign write failure");
++      assertTrue(
++          write.isDone(),
++          "A foreign failure must settle the caller's write despite a full owner queue");
+       assertSame(expected, write.cause(), "Preserve the identical foreign handler failure");
+-      assertEquals(0, payload.refCnt(), "The refusing handler must release its payload exactly once");
++      assertEquals(
++          0, payload.refCnt(), "The refusing handler must release its payload exactly once");
+       release.countDown();
+-      assertTrue(loop.removalOnOwner.get(5, TimeUnit.SECONDS), "Retire the accepted-write hook on its owner");
++      assertTrue(
++          loop.removalOnOwner.get(5, TimeUnit.SECONDS),
++          "Retire the accepted-write hook on its owner");
+       loop.submit(() -> {}).get(5, TimeUnit.SECONDS);
+     } finally {
+       release.countDown();
+-      if (heldPayload.isDone() && heldPayload.getNow(null).refCnt() > 0) heldPayload.getNow(null).release();
++      if (heldPayload.isDone() && heldPayload.getNow(null).refCnt() > 0)
++        heldPayload.getNow(null).release();
+       if (parent != null) parent.close().await(5, TimeUnit.SECONDS);
+       if (server != null) server.close().await(5, TimeUnit.SECONDS);
+       loop.shutdownGracefully(0, 5, TimeUnit.SECONDS).await(5, TimeUnit.SECONDS);
+@@ -97,12 +147,14 @@ public class ForeignWriteFailureOwnershipTest {
+ 
+   static final class TrackingLoop extends DefaultEventLoop {
+     final CompletableFuture<Boolean> removalOnOwner = new CompletableFuture<>();
++
+     @Override
+     public void removeShutdownHook(Runnable hook) {
+       super.removeShutdownHook(hook);
+       removalOnOwner.complete(inEventLoop());
+     }
+   }
++
+   static final class Id extends MuxId {
+     Id(ChannelId parent) {
+       super(parent, 1);
+@@ -126,18 +178,37 @@ public class ForeignWriteFailureOwnershipTest {
+   }
+ 
+   static final class CompletingMux extends AbstractMuxHandler<ByteBuf> {
+-    CompletingMux() { super(512); }
+-    protected Function1<MuxChannel<ByteBuf>, Unit> getInboundInitializer() { return ch -> Unit.INSTANCE; }
++    CompletingMux() {
++      super(512);
++    }
++
++    protected Function1<MuxChannel<ByteBuf>, Unit> getInboundInitializer() {
++      return ch -> Unit.INSTANCE;
++    }
++
+     public ChannelFuture onChildWrite(MuxChannel<ByteBuf> child, ByteBuf data) {
+       ReferenceCountUtil.release(data);
+       return getChannelHandlerContext().channel().newSucceededFuture();
+     }
+-    public void releaseMessage(ByteBuf msg) { ReferenceCountUtil.release(msg); }
+-    public void channelRead(ChannelHandlerContext ctx, Object msg) { ReferenceCountUtil.release(msg); }
++
++    public void releaseMessage(ByteBuf msg) {
++      ReferenceCountUtil.release(msg);
++    }
++
++    public void channelRead(ChannelHandlerContext ctx, Object msg) {
++      ReferenceCountUtil.release(msg);
++    }
++
+     protected void onLocalOpen(MuxChannel<ByteBuf> child) {}
++
+     protected void onLocalClose(MuxChannel<ByteBuf> child) {}
++
+     protected void onLocalDisconnect(MuxChannel<ByteBuf> child) {}
++
+     protected void onChildClosed(MuxChannel<ByteBuf> child) {}
+-    protected MuxId generateNextId() { return new Id(getChannelHandlerContext().channel().id()); }
++
++    protected MuxId generateNextId() {
++      return new Id(getChannelHandlerContext().channel().id());
++    }
+   }
+ }
+diff --git a/libp2p/src/test/java/io/libp2p/transport/QueuedParentCompletionShutdownTest.java b/libp2p/src/test/java/io/libp2p/transport/QueuedParentCompletionShutdownTest.java
+index 766b2af1..9e5fce98 100644
+--- a/libp2p/src/test/java/io/libp2p/transport/QueuedParentCompletionShutdownTest.java
++++ b/libp2p/src/test/java/io/libp2p/transport/QueuedParentCompletionShutdownTest.java
+@@ -1,6 +1,7 @@
+ package io.libp2p.transport;
+ 
+ import static org.junit.jupiter.api.Assertions.*;
++
+ import io.libp2p.etc.util.netty.mux.*;
+ import io.netty.bootstrap.*;
+ import io.netty.buffer.*;
+@@ -28,20 +29,40 @@ public class QueuedParentCompletionShutdownTest {
+     try {
+       CompletingMux mux = new CompletingMux(external);
+       LocalAddress address = new LocalAddress("queued-completion-shutdown");
+-      server = new ServerBootstrap().group(loop).channel(LocalServerChannel.class)
+-          .childHandler(new ChannelInitializer<LocalChannel>() {
+-            protected void initChannel(LocalChannel ch) {}
+-          }).bind(address).sync().channel();
+-      parent = new Bootstrap().group(loop).channel(LocalChannel.class).handler(mux)
+-          .connect(address).sync().channel();
+-      MuxChannel<ByteBuf> child = mux.newStream(ch -> {
+-        ch.pipeline().addLast(new ChannelOutboundHandlerAdapter() {
+-          public void close(ChannelHandlerContext ctx, ChannelPromise promise) {
+-            promise.setFailure(new IOException("The application close handler refused closure"));
+-          }
+-        });
+-        return Unit.INSTANCE;
+-      }).get(5, TimeUnit.SECONDS);
++      server =
++          new ServerBootstrap()
++              .group(loop)
++              .channel(LocalServerChannel.class)
++              .childHandler(
++                  new ChannelInitializer<LocalChannel>() {
++                    protected void initChannel(LocalChannel ch) {}
++                  })
++              .bind(address)
++              .sync()
++              .channel();
++      parent =
++          new Bootstrap()
++              .group(loop)
++              .channel(LocalChannel.class)
++              .handler(mux)
++              .connect(address)
++              .sync()
++              .channel();
++      MuxChannel<ByteBuf> child =
++          mux.newStream(
++                  ch -> {
++                    ch.pipeline()
++                        .addLast(
++                            new ChannelOutboundHandlerAdapter() {
++                              public void close(ChannelHandlerContext ctx, ChannelPromise promise) {
++                                promise.setFailure(
++                                    new IOException(
++                                        "The application close handler refused closure"));
++                              }
++                            });
++                    return Unit.INSTANCE;
++                  })
++              .get(5, TimeUnit.SECONDS);
+       firstPayload = Unpooled.buffer(1).writeByte(1);
+       ChannelFuture first = child.writeAndFlush(firstPayload);
+       ChannelPromise source = mux.pending.get(5, TimeUnit.SECONDS);
+@@ -52,36 +73,52 @@ public class QueuedParentCompletionShutdownTest {
+       loop.submit(() -> {}).get(5, TimeUnit.SECONDS);
+       assertFalse(first.isDone(), "The first write must await the foreign parent promise");
+       assertFalse(queued.isDone(), "The next accepted write must await the first parent result");
+-      loop.execute(() -> {
+-        entered.countDown();
+-        try { assertTrue(release.await(5, TimeUnit.SECONDS), "Release the owner task"); }
+-        catch (InterruptedException failure) { throw new RuntimeException(failure); }
+-      });
++      loop.execute(
++          () -> {
++            entered.countDown();
++            try {
++              assertTrue(release.await(5, TimeUnit.SECONDS), "Release the owner task");
++            } catch (InterruptedException failure) {
++              throw new RuntimeException(failure);
++            }
++          });
+       assertTrue(entered.await(5, TimeUnit.SECONDS), "The owner must enter its controlled task");
+       IOException expectedFailure = new IOException("The completed parent write failed");
+-      external.submit(() -> {
+-        if (outcome.equals("success")) source.setSuccess();
+-        else if (outcome.equals("failure")) source.setFailure(expectedFailure);
+-        else assertTrue(source.cancel(false), "The pending parent promise must cancel");
+-      }).get(5, TimeUnit.SECONDS);
++      external
++          .submit(
++              () -> {
++                if (outcome.equals("success")) source.setSuccess();
++                else if (outcome.equals("failure")) source.setFailure(expectedFailure);
++                else assertTrue(source.cancel(false), "The pending parent promise must cancel");
++              })
++          .get(5, TimeUnit.SECONDS);
+       external.submit(() -> {}).get(5, TimeUnit.SECONDS);
+-      assertFalse(first.isDone(), "The completed parent result must still be queued on the held owner");
++      assertFalse(
++          first.isDone(), "The completed parent result must still be queued on the held owner");
+       loop.shutdownGracefully(0, 5, TimeUnit.SECONDS);
+       assertTrue(loop.isShuttingDown(), "Shutdown must begin before the queued completion can run");
+       release.countDown();
+       assertTrue(loop.terminationFuture().await(5, TimeUnit.SECONDS), "The owner must terminate");
+       assertTrue(loop.isTerminated(), "Observe only after owner termination");
+-      if (outcome.equals("success")) assertTrue(first.isSuccess(), "Preserve the original parent success");
+-      else assertSame(outcome.equals("failure") ? expectedFailure : source.cause(), first.cause(),
+-          "Preserve the identical original parent failure or cancellation");
++      if (outcome.equals("success"))
++        assertTrue(first.isSuccess(), "Preserve the original parent success");
++      else
++        assertSame(
++            outcome.equals("failure") ? expectedFailure : source.cause(),
++            first.cause(),
++            "Preserve the identical original parent failure or cancellation");
+       assertTrue(queued.isDone(), "The queued write must settle before owner termination");
+-      assertFalse(queued.isSuccess(),
+-          "A parent completion queued before shutdown must not send the next accepted write: " + outcome);
++      assertFalse(
++          queued.isSuccess(),
++          "A parent completion queued before shutdown must not send the next accepted write: "
++              + outcome);
+       assertInstanceOf(RejectedExecutionException.class, queued.cause());
+-      assertEquals("The child event loop terminated before pending writes could complete: " + child.getId(),
++      assertEquals(
++          "The child event loop terminated before pending writes could complete: " + child.getId(),
+           queued.cause().getMessage());
+       assertTrue(notifiedOnOwner.get(5, TimeUnit.SECONDS), "Notify the queued write on its owner");
+-      assertEquals(0, firstPayload.refCnt(), "Release the first payload before observing termination");
++      assertEquals(
++          0, firstPayload.refCnt(), "Release the first payload before observing termination");
+       assertEquals(0, queuedPayload.refCnt(), "Release the queued payload exactly once");
+     } finally {
+       release.countDown();
+@@ -95,6 +132,7 @@ public class QueuedParentCompletionShutdownTest {
+       if (queuedPayload != null && queuedPayload.refCnt() > 0) queuedPayload.release();
+     }
+   }
++
+   static final class Id extends MuxId {
+     Id(ChannelId parent) {
+       super(parent, 1);
+diff --git a/libp2p/src/test/java/io/libp2p/transport/UnflushedWriteTerminationTest.java b/libp2p/src/test/java/io/libp2p/transport/UnflushedWriteTerminationTest.java
+index 432de483..3ef4e0ca 100644
+--- a/libp2p/src/test/java/io/libp2p/transport/UnflushedWriteTerminationTest.java
++++ b/libp2p/src/test/java/io/libp2p/transport/UnflushedWriteTerminationTest.java
+@@ -119,7 +119,9 @@ public class UnflushedWriteTerminationTest {
+           notifiedOnOwner.get(5, TimeUnit.SECONDS),
+           "Termination must notify accepted writes on their owning loop");
+       assertEquals(
+-          0, payload.refCnt(), "Termination must release the accepted payload exactly once: " + state);
++          0,
++          payload.refCnt(),
++          "Termination must release the accepted payload exactly once: " + state);
+     } finally {
+       if (!loop.isShuttingDown()) {
+         if (child != null) child.close().await(5, TimeUnit.SECONDS);
+diff --git a/libp2p/src/test/java/io/libp2p/transport/ZeroLengthUnflushedWriteTerminationTest.java b/libp2p/src/test/java/io/libp2p/transport/ZeroLengthUnflushedWriteTerminationTest.java
+index 863d5a33..667a69c1 100644
+--- a/libp2p/src/test/java/io/libp2p/transport/ZeroLengthUnflushedWriteTerminationTest.java
++++ b/libp2p/src/test/java/io/libp2p/transport/ZeroLengthUnflushedWriteTerminationTest.java
+@@ -1,6 +1,7 @@
+ package io.libp2p.transport;
+ 
+ import static org.junit.jupiter.api.Assertions.*;
++
+ import io.libp2p.etc.util.netty.mux.*;
+ import io.netty.bootstrap.*;
+ import io.netty.buffer.*;
+@@ -24,15 +25,25 @@ public class ZeroLengthUnflushedWriteTerminationTest {
+     Path output = Files.createTempFile("zero-byte-termination", ".log");
+     Process process = null;
+     try {
+-      process = new ProcessBuilder(
+-          System.getProperty("java.home") + "/bin/java", "-Xmx128m",
+-          "-Dio.netty.transport.outboundBufferEntrySizeOverhead=0", "-cp",
+-          System.getProperty("java.class.path"), getClass().getName(),
+-          Boolean.toString(refillInBatch), Boolean.toString(cancelled))
+-          .redirectErrorStream(true).redirectOutput(output.toFile()).start();
+-      assertTrue(process.waitFor(30, TimeUnit.SECONDS),
++      process =
++          new ProcessBuilder(
++                  System.getProperty("java.home") + "/bin/java",
++                  "-Xmx128m",
++                  "-Dio.netty.transport.outboundBufferEntrySizeOverhead=0",
++                  "-cp",
++                  System.getProperty("java.class.path"),
++                  getClass().getName(),
++                  Boolean.toString(refillInBatch),
++                  Boolean.toString(cancelled))
++              .redirectErrorStream(true)
++              .redirectOutput(output.toFile())
++              .start();
++      assertTrue(
++          process.waitFor(30, TimeUnit.SECONDS),
+           () -> "Zero-byte termination child must exit within 30 seconds: " + readOutput(output));
+-      assertEquals(0, process.exitValue(),
++      assertEquals(
++          0,
++          process.exitValue(),
+           () -> "Zero-byte termination child failed: " + readOutput(output));
+     } finally {
+       if (process != null) {
+@@ -44,8 +55,11 @@ public class ZeroLengthUnflushedWriteTerminationTest {
+   }
+ 
+   private static String readOutput(Path path) {
+-    try { return Files.readString(path); }
+-    catch (IOException failure) { throw new java.io.UncheckedIOException(failure); }
++    try {
++      return Files.readString(path);
++    } catch (IOException failure) {
++      throw new java.io.UncheckedIOException(failure);
++    }
+   }
+ 
+   public static void main(String[] args) throws Exception {
+@@ -61,38 +75,65 @@ public class ZeroLengthUnflushedWriteTerminationTest {
+     try {
+       CompletingMux mux = new CompletingMux();
+       LocalAddress address = new LocalAddress("zero-byte-termination");
+-      server = new ServerBootstrap().group(loop).channel(LocalServerChannel.class)
+-          .childHandler(new ChannelInitializer<LocalChannel>() {
+-            protected void initChannel(LocalChannel ch) {}
+-          }).bind(address).sync().channel();
+-      parent = new Bootstrap().group(loop).channel(LocalChannel.class).handler(mux)
+-          .connect(address).sync().channel();
+-      MuxChannel<ByteBuf> child = mux.newStream(ch -> {
+-        ch.pipeline().addLast(new ChannelOutboundHandlerAdapter() {
+-          public void close(ChannelHandlerContext ctx, ChannelPromise promise) {
+-            promise.setFailure(new IOException("The application close handler refused closure"));
+-          }
+-        });
+-        return Unit.INSTANCE;
+-      }).get(5, TimeUnit.SECONDS);
+-      Runnable acceptZero = () -> {
+-        ByteBuf bytes = Unpooled.buffer(1);
+-        payload.set(bytes);
+-        ChannelFuture write = child.write(bytes);
+-        accepted.set(write);
+-        write.addListener(done -> notifiedOnOwner.complete(loop.inEventLoop()));
+-        assertFalse(write.isDone(), "The zero-byte write must be accepted and pending");
+-        assertEquals(1, bytes.refCnt(), "The buffer must retain the zero-byte payload");
+-        if (cancelled) assertTrue(write.cancel(false), "Caller cancellation must succeed");
+-      };
++      server =
++          new ServerBootstrap()
++              .group(loop)
++              .channel(LocalServerChannel.class)
++              .childHandler(
++                  new ChannelInitializer<LocalChannel>() {
++                    protected void initChannel(LocalChannel ch) {}
++                  })
++              .bind(address)
++              .sync()
++              .channel();
++      parent =
++          new Bootstrap()
++              .group(loop)
++              .channel(LocalChannel.class)
++              .handler(mux)
++              .connect(address)
++              .sync()
++              .channel();
++      MuxChannel<ByteBuf> child =
++          mux.newStream(
++                  ch -> {
++                    ch.pipeline()
++                        .addLast(
++                            new ChannelOutboundHandlerAdapter() {
++                              public void close(ChannelHandlerContext ctx, ChannelPromise promise) {
++                                promise.setFailure(
++                                    new IOException(
++                                        "The application close handler refused closure"));
++                              }
++                            });
++                    return Unit.INSTANCE;
++                  })
++              .get(5, TimeUnit.SECONDS);
++      Runnable acceptZero =
++          () -> {
++            ByteBuf bytes = Unpooled.buffer(1);
++            payload.set(bytes);
++            ChannelFuture write = child.write(bytes);
++            accepted.set(write);
++            write.addListener(done -> notifiedOnOwner.complete(loop.inEventLoop()));
++            assertFalse(write.isDone(), "The zero-byte write must be accepted and pending");
++            assertEquals(1, bytes.refCnt(), "The buffer must retain the zero-byte payload");
++            if (cancelled) assertTrue(write.cancel(false), "Caller cancellation must succeed");
++          };
+       if (refillInBatch) {
+-        loop.submit(() -> loop.addShutdownHook(() -> {
+-          try {
+-            child.flush();
+-            acceptZero.run();
+-            batchCompleted.complete(null);
+-          } catch (Throwable failure) { batchCompleted.completeExceptionally(failure); }
+-        })).get(5, TimeUnit.SECONDS);
++        loop.submit(
++                () ->
++                    loop.addShutdownHook(
++                        () -> {
++                          try {
++                            child.flush();
++                            acceptZero.run();
++                            batchCompleted.complete(null);
++                          } catch (Throwable failure) {
++                            batchCompleted.completeExceptionally(failure);
++                          }
++                        }))
++            .get(5, TimeUnit.SECONDS);
+         ByteBuf first = Unpooled.buffer(1).writeByte(1);
+         ChannelFuture initial = child.write(first);
+         loop.submit(() -> {}).get(5, TimeUnit.SECONDS);
+@@ -107,20 +148,38 @@ public class ZeroLengthUnflushedWriteTerminationTest {
+       loop.shutdownGracefully(0, 5, TimeUnit.SECONDS).sync();
+       assertTrue(loop.isTerminated(), "Observe only after owner termination");
+       if (refillInBatch) batchCompleted.get(5, TimeUnit.SECONDS);
+-      String state = "refillInBatch=" + refillInBatch + " cancelled=" + cancelled
+-          + " ownerTerminated=" + loop.isTerminated() + " acceptedDone=" + accepted.get().isDone()
+-          + " payloadRefCnt=" + payload.get().refCnt();
+-      assertTrue(accepted.get().isDone(),
+-          (refillInBatch ? "A zero-byte shutdown-batch refill must settle before owner termination: "
+-              : "An accepted zero-byte unflushed write must settle before owner termination: ") + state);
+-      if (cancelled) assertTrue(accepted.get().isCancelled(), "Preserve caller cancellation: " + state);
++      String state =
++          "refillInBatch="
++              + refillInBatch
++              + " cancelled="
++              + cancelled
++              + " ownerTerminated="
++              + loop.isTerminated()
++              + " acceptedDone="
++              + accepted.get().isDone()
++              + " payloadRefCnt="
++              + payload.get().refCnt();
++      assertTrue(
++          accepted.get().isDone(),
++          (refillInBatch
++                  ? "A zero-byte shutdown-batch refill must settle before owner termination: "
++                  : "An accepted zero-byte unflushed write must settle before owner termination: ")
++              + state);
++      if (cancelled)
++        assertTrue(accepted.get().isCancelled(), "Preserve caller cancellation: " + state);
+       else {
+         assertInstanceOf(RejectedExecutionException.class, accepted.get().cause(), state);
+-        assertEquals("The child event loop terminated before pending writes could complete: "
+-            + child.getId(), accepted.get().cause().getMessage(), state);
++        assertEquals(
++            "The child event loop terminated before pending writes could complete: "
++                + child.getId(),
++            accepted.get().cause().getMessage(),
++            state);
+       }
+       assertTrue(notifiedOnOwner.get(5, TimeUnit.SECONDS), "Notify on owner: " + state);
+-      assertEquals(0, payload.get().refCnt(), "Release the retained zero-byte payload exactly once: " + state);
++      assertEquals(
++          0,
++          payload.get().refCnt(),
++          "Release the retained zero-byte payload exactly once: " + state);
+     } finally {
+       if (!loop.isShuttingDown()) {
+         if (parent != null) parent.close().await(5, TimeUnit.SECONDS);
+@@ -130,6 +189,7 @@ public class ZeroLengthUnflushedWriteTerminationTest {
+       if (payload.get() != null && payload.get().refCnt() > 0) payload.get().release();
+     }
+   }
++
+   static final class Id extends MuxId {
+     Id(ChannelId parent) {
+       super(parent, 1);
+@@ -153,18 +213,37 @@ public class ZeroLengthUnflushedWriteTerminationTest {
+   }
+ 
+   static final class CompletingMux extends AbstractMuxHandler<ByteBuf> {
+-    CompletingMux() { super(512); }
+-    protected Function1<MuxChannel<ByteBuf>, Unit> getInboundInitializer() { return ch -> Unit.INSTANCE; }
++    CompletingMux() {
++      super(512);
++    }
++
++    protected Function1<MuxChannel<ByteBuf>, Unit> getInboundInitializer() {
++      return ch -> Unit.INSTANCE;
++    }
++
+     public ChannelFuture onChildWrite(MuxChannel<ByteBuf> child, ByteBuf data) {
+       ReferenceCountUtil.release(data);
+       return getChannelHandlerContext().channel().newSucceededFuture();
+     }
+-    public void releaseMessage(ByteBuf msg) { ReferenceCountUtil.release(msg); }
+-    public void channelRead(ChannelHandlerContext ctx, Object msg) { ReferenceCountUtil.release(msg); }
++
++    public void releaseMessage(ByteBuf msg) {
++      ReferenceCountUtil.release(msg);
++    }
++
++    public void channelRead(ChannelHandlerContext ctx, Object msg) {
++      ReferenceCountUtil.release(msg);
++    }
++
+     protected void onLocalOpen(MuxChannel<ByteBuf> child) {}
++
+     protected void onLocalClose(MuxChannel<ByteBuf> child) {}
++
+     protected void onLocalDisconnect(MuxChannel<ByteBuf> child) {}
++
+     protected void onChildClosed(MuxChannel<ByteBuf> child) {}
+-    protected MuxId generateNextId() { return new Id(getChannelHandlerContext().channel().id()); }
++
++    protected MuxId generateNextId() {
++      return new Id(getChannelHandlerContext().channel().id());
++    }
+   }
+ }

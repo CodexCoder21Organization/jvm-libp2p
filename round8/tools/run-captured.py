@@ -2,6 +2,7 @@ from pathlib import Path
 import subprocess,time,json,shutil,os,signal,sys,xml.etree.ElementTree as ET,fcntl
 w=Path(__file__).resolve().parent; repo=w/'jvm-libp2p'; ev=w/'round8'; config=ev/'captured-test-config.json'
 label,cls,lane=sys.argv[1:4]
+if len(sys.argv)>4: config=Path(sys.argv[4]).resolve()
 e=ev/label;e.mkdir(exist_ok=False);d=w/('runner-'+lane);(d/'libp2p').mkdir(parents=True,exist_ok=True)
 (d/'settings.gradle').write_text("rootProject.name='F71i-"+lane+"'\ninclude 'libp2p'\n")
 shutil.copy2(w/'captured-build.gradle',d/'libp2p/build.gradle')

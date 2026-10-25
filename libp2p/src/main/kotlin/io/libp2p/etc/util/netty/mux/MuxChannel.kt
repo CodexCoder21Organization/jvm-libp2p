@@ -106,6 +106,8 @@ class MuxChannel<TData>(
                 ReferenceCountUtil.retain(msg)
                 @Suppress("UNCHECKED_CAST")
                 val parentFuture = parent.onChildWrite(this, msg as TData)
+                // The callback may synchronously close this child and release its buffer.
+                if (!isOpen || unsafe().outboundBuffer() !== buf) return
                 if (parentFuture.isDone) {
                     removeParentWrite(buf, parentFuture.causeOrNull())
                 } else {

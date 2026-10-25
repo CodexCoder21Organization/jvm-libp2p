@@ -1,0 +1,10 @@
+FIX: PR71-ROUND-7  
+PR: https://github.com/CodexCoder21Organization/jvm-libp2p/pull/71  
+HEAD: [01c16ae9db8c1aa09a5b1cd0fa040c4bbd32f018](https://github.com/CodexCoder21Organization/jvm-libp2p/commit/01c16ae9db8c1aa09a5b1cd0fa040c4bbd32f018)  
+ITEM_1_UNFLUSHED_AFTER_DELIVERY: test [5dfaaff7](https://github.com/CodexCoder21Organization/jvm-libp2p/commit/5dfaaff7c36d50c664f46ceda76852f04637b5bc) red “An accepted unflushed write after earlier delivery must settle before owner termination ==> expected: <true> but was: <false>” 3222 ms; fix [4320368a](https://github.com/CodexCoder21Organization/jvm-libp2p/commit/4320368aae65b86d2e5defd3232e09cc17c3db01) green 8116 ms; reversal red 4299 ms; five shutdown classes: ReentrantChildWriteCloseTest 1/0, OffLoopParentWriteNotificationTest 6/0, ReviewTerminalWriteConversionTest 4/0, ReviewCompletedShutdownTest 6/0, ReviewChildLoopAffinityTest 3/0.  
+ITEM_2_STREAM_OPEN_TIMEOUT: mechanism “Unknown: controller setup awaited TCP/Noise, mux activation and protocol selection through changed negotiation-write paths; no historical phase state was captured.” Reproduction: `python3 workspace/run-stream-open.py` 18/18; `python3 workspace/run-pair.py` 6/6; `python3 workspace/run-pair-warm.py` 6/6; `python3 workspace/run-pair-barrier.py` 6/6, with 30.401 seconds of actual overlap. Outcome NOT_REACHED: 36/36 target checks. Companion 5/6 passed; one PRE_EXISTING queue-fill-assumption failure, demonstrated with one queued barrier leaving room for only 2047 fillers.  
+ITEM_3_README: [01c16ae9](https://github.com/CodexCoder21Organization/jvm-libp2p/commit/01c16ae9db8c1aa09a5b1cd0fa040c4bbd32f018)  
+EVIDENCE: [evidence/pr71-20261024@55cdc83c63aecdcce226a85f047912df0dab584d](https://github.com/CodexCoder21Organization/jvm-libp2p/tree/55cdc83c63aecdcce226a85f047912df0dab584d/round7)  
+MAX_CONCURRENT_COMMANDS_OBSERVED: 2  
+DESCRIPTION: updated and verified; no existing test edits; zero owned JVMs remain.  
+INCOMPLETE: none

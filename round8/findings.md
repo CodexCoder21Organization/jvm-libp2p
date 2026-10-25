@@ -1,0 +1,26 @@
+# F71i Round 8
+OBSERVED: Started 2026-10-25 UTC. PR OPEN, base develop, head exactly 01c16ae9db8c1aa09a5b1cd0fa040c4bbd32f018. No delegation. No merge/enqueue/approval/closure authorized.
+Plan:
+- IN PROGRESS: Read instructions/reviews/docs; fresh checkout; inspect retained-entry API and test harness.
+- TODO: Add zero-overhead unflushed and shutdown-batch zero-byte refill tests; capture red, fix, green, reversal, restore.
+- TODO: Remove println and retain assertion state.
+- TODO: Run five shutdown classes first attempt; Noise class solo twice and concurrent once with load records.
+- TODO: Fold completed coverage review findings test-first with reversal.
+- TODO: Review final diff/tests; rebase develop only if behind; push PR and round8 evidence; update description via REST; stop all owned JVMs.
+OBSERVED: R71tc6-final.md absent at start; interim findings identify zero-byte cancelled payload coverage and queue-fill setup defect as well as zero-byte ownership. Will recheck final before finishing. Diagnostic print is confirmed by both reviews. Noise reviewer p95=687ms; baseline direct harness p95=1001ms but wrapper baseline passed, so attribution remains unknown. No host-load measurement in the first reviewer record.
+OBSERVED: Status-report skill read. No general scheduling tool is available; progress reports will be emitted during active work. User's narrow scope and explicit no-subagent rule supersede skill's delegation/merge instructions.
+OBSERVED 04:37 UTC: New sibling ZeroLengthUnflushedWriteTerminationTest has four forked-JVM cases: direct accepted unflushed zero-byte write / zero-byte refill inside a real shutdown batch, each pending and caller-cancelled. The child JVM pins entry overhead=0 before Netty loads. All assertions include captured state and no diagnostics print. First red Gradle command running in fresh clone with copied dependency caches (no compiled project outputs reused).
+OBSERVED: Netty 4.2.10 ChannelOutboundBuffer.isEmpty() reads only `flushed`; size() also reads only `flushed`; no public unflushed-entry inspection API exists (javap retained). Thus the brief's suggestion that isEmpty alone detects retained entries is refuted by dependency bytecode. Correct retirement must combine isEmpty() for flushed entries with child-owned knowledge of writes not yet flushed. No reflection required.
+INFER: Mechanism to fix: totalPendingWriteBytes can equal zero while an accepted unflushed entry owns a payload; byte-based retirement removes its shutdown owner, and the same byte-based shutdown guard skips a zero-byte refill already in the shutdown batch. Reproducer: four public channel-write/close/worker-termination scenarios above.
+
+Invariant table before production edits:
+| Resource | Creates / owns / closes | Terminal and reentry expectations | Public scenario |
+| --- | --- | --- | --- |
+| Unflushed entry | Accepted child write; child loop; flush/close/shutdown releases | Zero length/zero overhead and cancellation still retain ownership; callback flush updates unflushed state before invoking callbacks | direct pending/cancelled zero-byte cases |
+| Flushed entries | Child flush; ChannelOutboundBuffer; parent result or shutdown | isEmpty() means no flushed entries; completed parent delivery retires ownership only if no later unflushed entry | existing unflushed after delivery and shutdown classes |
+| Accepted-write hook | Child loop installs; removes only after all entries drain or child closes | Retired hook copied into shutdown batch must ignore drained child, but settle any refill; callbacks run on owner loop | batch refill pending/cancelled cases; lifecycle controls |
+| Rejected/closed write | Pipeline/Netty rejects before retaining | Must not leave false unflushed state that shuts down an otherwise empty child | synchronous close class and planned rejection controls |
+| Parent delivery token | Child loop; foreign executor only dispatches | Original result preserved before remaining entries fail; stale task does not mutate next write | five named shutdown classes |
+| Persistence | None | No restart state added | not applicable |
+INFER: A bare unflushed flag needs careful rollback on rejected writes and cannot use the caller's promise completion as removal: cancellation/completion does not release an unflushed entry. The chosen design will give the buffer its own private promise, forward its outcome to the caller, and count entries until Netty settles that private promise. Its setUncancellable delegates caller cancellation so Netty still drops cancelled entries at flush. Retirement combines that retained-entry count with ChannelOutboundBuffer.isEmpty(). This avoids relying on a nonexistent public unflushed-entry query and handles caller mutation independently from buffer ownership.
+OBSERVED: Tests committed as 385adbf2; println-to-assertion-state change committed as 15465659. No production edits yet; first red command is still compiling.

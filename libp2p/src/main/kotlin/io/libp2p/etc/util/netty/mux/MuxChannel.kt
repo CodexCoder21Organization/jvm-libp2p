@@ -182,7 +182,9 @@ class MuxChannel<TData>(
                     val completeWrite = Runnable {
                         // Retained delivery and an accepted listener task can both reach this point.
                         // Close also clears ownership before disposing the outbound buffer.
-                        if (pendingParentWrite === parentFuture) {
+                        if (pendingParentWrite === parentFuture && eventLoop().isShuttingDown) {
+                            settleWritesBeforeTermination()
+                        } else if (pendingParentWrite === parentFuture) {
                             pendingParentWrite = null
                             parentWriteCompletion?.let(::cancelParentWriteCompletion)
                             parentWriteCompletion = null

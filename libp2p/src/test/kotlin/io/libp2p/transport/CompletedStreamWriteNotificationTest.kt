@@ -15,8 +15,10 @@ import io.netty.buffer.Unpooled
 import io.netty.channel.ChannelHandlerContext
 import io.netty.channel.ChannelOutboundHandlerAdapter
 import io.netty.channel.ChannelPromise
+import io.netty.channel.EventLoop
 import io.netty.util.ReferenceCountUtil
 import io.netty.util.concurrent.DefaultPromise
+import io.netty.util.concurrent.SingleThreadEventExecutor
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
@@ -29,6 +31,7 @@ import java.util.concurrent.ExecutionException
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 
 class CompletedStreamWriteNotificationTest {
     @ParameterizedTest
@@ -69,7 +72,6 @@ private fun runWriteNotificationProbe(mode: String, yamux: Boolean) {
     try {
         assertTrue(process.waitFor(45, TimeUnit.SECONDS), "The isolated stream-write probe must finish")
         val text = Files.readString(output)
-        print(text)
         assertEquals(0, process.exitValue(), text)
     } finally {
         process.destroyForcibly().waitFor(5, TimeUnit.SECONDS)
@@ -164,12 +166,13 @@ object CompletedStreamWriteProbe {
             }
             check(entered.await(5, TimeUnit.SECONDS)) { "The event loop must enter its controlled wait" }
             if (queuedBeforeFill) loop.execute {}
-            repeat(2048) { loop.execute { drained.countDown() } }
+            val (admittedFillers, completedFillers) = enqueueFillAttempts(loop, drained)
             assertThrows(RejectedExecutionException::class.java) { loop.execute {} }
             assertFalse(loop.isShuttingDown)
             if (!parentMode) writing = stream.writeAndFlushWithFuture(payload)
             release.countDown()
             check(drained.await(5, TimeUnit.SECONDS)) { "The full event-loop queue must drain" }
+            assertEquals(admittedFillers, completedFillers.get(), "Every admitted filler must run before result observation")
             loop.submit {}.get(5, TimeUnit.SECONDS)
             if (parentMode) forwarded.get(5, TimeUnit.SECONDS)
             val result = checkNotNull(writing)
@@ -231,16 +234,39 @@ private fun checkCompletedCapacityReset(stream: Stream, queuedBeforeFill: Boolea
         }
         check(entered.await(5, TimeUnit.SECONDS)) { "The event loop must enter its controlled wait" }
         if (queuedBeforeFill) loop.execute {}
-        repeat(2048) { loop.execute { drained.countDown() } }
+        val (admittedFillers, completedFillers) = enqueueFillAttempts(loop, drained)
         assertThrows(RejectedExecutionException::class.java) { loop.execute {} }
         assertFalse(loop.isShuttingDown)
         release.countDown()
         val reset = observed.get(5, TimeUnit.SECONDS)
         check(drained.await(5, TimeUnit.SECONDS)) { "The full event-loop queue must drain" }
+        assertEquals(admittedFillers, completedFillers.get(), "Every admitted filler must run before result observation")
         loop.submit {}.get(5, TimeUnit.SECONDS)
         assertTrue(reset.isDone, "An already-closed stream must complete capacity reset after the event loop recovers")
         reset.get(1, TimeUnit.SECONDS)
     } finally {
         release.countDown()
     }
+}
+
+private fun enqueueFillAttempts(loop: EventLoop, drained: CountDownLatch): Pair<Int, AtomicInteger> {
+    var admitted = 0
+    val completed = AtomicInteger()
+    repeat(2048) {
+        try {
+            loop.execute {
+                completed.incrementAndGet()
+                drained.countDown()
+            }
+            admitted++
+        } catch (rejected: RejectedExecutionException) {
+            assertNull(rejected.message, "A full live queue must retain the original rejection message")
+            // An ordinary queued task can already occupy a slot. This attempt was rejected,
+            // so it owns no runnable to wait for; every admitted filler is counted separately.
+            drained.countDown()
+        }
+    }
+    assertTrue(admitted > 0, "The controlled queue fill must admit filler tasks")
+    assertEquals(2048, (loop as SingleThreadEventExecutor).pendingTasks(), "The held owner queue must be full after all 2048 attempts")
+    return admitted to completed
 }

@@ -1,0 +1,62 @@
+diff --git a/src/foundation/url/resolver/UrlResolver.kt b/src/foundation/url/resolver/UrlResolver.kt
+index 060dd98954..9d5442b6a5 100644
+--- a/src/foundation/url/resolver/UrlResolver.kt
++++ b/src/foundation/url/resolver/UrlResolver.kt
+@@ -1,5 +1,6 @@
+ package foundation.url.resolver
+ 
++import foundation.url.protocol.Fx39Trace
+ import foundation.url.protocol.AdmissionOrderedRpcStream
+ import foundation.url.protocol.AdmissionOrderedServiceClientConnection
+ 
+@@ -499,6 +500,7 @@ private class RelayBackedRpcController(
+         try {
+             while (!closed) {
+                 val requestJson = Libp2pRpcProtocol.readMessage(requestInput)
++                Fx39Trace.mark("adapter.request.read id=${requestJson.optString("id")}")
+                 val requestId = requestJson.optString("id", Libp2pRpcProtocol.nextRequestId())
+                 val responseJson = try {
+                     val requestBudget = requestBudgets.remove(requestId)
+@@ -507,7 +509,8 @@ private class RelayBackedRpcController(
+                                 "has no caller deadline at dispatch.",
+                             definitelyNotDispatched = true,
+                         )
+-                    forward(requestJson, requestBudget)
++                    Fx39Trace.mark("adapter.forward.start id=$requestId")
++                    forward(requestJson, requestBudget).also { Fx39Trace.mark("adapter.forward.end id=$requestId") }
+                 } catch (e: Exception) {
+                     val notDispatched = e is RelayForwardingException && e.definitelyNotDispatched
+                     val errorCode = if (notDispatched) "RELAY_FORWARD_RETRYABLE" else "RELAY_FORWARD_FAILED"
+@@ -15456,6 +15459,7 @@ class UrlProtocol2 : ProjectedPeerExchangeHandler, RelayIngressGossipHandler, Se
+             }
+             try {
+                 registerCircuitRelayCandidateForUse(candidate)
++                Fx39Trace.mark("resolver.sendViaRelay.start relay=${candidate.peerId}")
+                 val responseBytes = service.sendViaRelay(
+                     relayPeerId = candidate.peerId,
+                     targetPeerId = targetPeerId,
+@@ -20972,6 +20976,7 @@ class UrlProtocol2 : ProjectedPeerExchangeHandler, RelayIngressGossipHandler, Se
+      * and returns the response.
+      */
+     private fun handleRelayedRequest(request: RelayProtocol.RelayRequest): RelayProtocol.RelayResponse {
++        Fx39Trace.mark("resolver.handler.enqueue id=${request.requestId}")
+         val task = synchronized(relayRequestHandlerTaskLock) {
+             if (closed.get()) {
+                 return RelayProtocol.RelayResponse.error(
+@@ -20981,7 +20986,7 @@ class UrlProtocol2 : ProjectedPeerExchangeHandler, RelayIngressGossipHandler, Se
+                     errorMessage = "The target resolver closed after accepting this relay request"
+                 )
+             }
+-            rpcReadExecutor.submit(Callable { handleRelayedRequestOnWorker(request) }).also {
++            rpcReadExecutor.submit(Callable { Fx39Trace.mark("resolver.handler.worker id=${request.requestId}"); handleRelayedRequestOnWorker(request) }).also {
+                 relayRequestHandlerTasks.add(it)
+             }
+         }
+@@ -31696,6 +31701,7 @@ class PersistentRpcConnection(
+                         val pendingRequest = readerTransport.pendingRequests.remove(id)
+                         if (pendingRequest != null) {
+                             pendingRequest.deliveryFailure = deliveryFailure
++                            Fx39Trace.mark("caller.response.correlated id=$id")
+                             pendingRequest.responseFuture.complete(json)
+                             // Schedule idle close for a healthy published transport. A retired
+                             // transport instead closes only after its final written request drains.

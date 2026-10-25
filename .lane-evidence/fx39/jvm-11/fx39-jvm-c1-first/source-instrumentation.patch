@@ -1,0 +1,391 @@
+diff --git a/src/foundation/url/resolver/EffectAwareServiceHandler.kt b/src/foundation/url/resolver/EffectAwareServiceHandler.kt
+index 5d6638e80b..cad777bf45 100644
+--- a/src/foundation/url/resolver/EffectAwareServiceHandler.kt
++++ b/src/foundation/url/resolver/EffectAwareServiceHandler.kt
+@@ -1,5 +1,6 @@
+ package foundation.url.resolver
+ 
++import foundation.url.protocol.Fx39Trace
+ import community.kotlin.clocks.simple.Clock
+ import community.kotlin.clocks.simple.Scheduled
+ import community.kotlin.clocks.simple.SystemClock
+@@ -564,7 +565,9 @@ class EffectAwareServiceHandler private constructor(
+         metadata: Map<String, String>,
+         connection: ServiceClientConnection?
+     ): Any? {
++        Fx39Trace.mark("effect.session.start path=$path")
+         val session = HandlerSession(path, clock.currentTimeMillis(), handlerResultClock, resultCleanup)
++        Fx39Trace.mark("effect.session.ready path=$path")
+         val isProgressRequest = isHandlerProgressPath(path)
+         val isLongPoll = !isProgressRequest && isLongPollPath(path)
+         // Released exactly once after producer cleanup: before a normal outcome (so
+@@ -593,6 +596,7 @@ class EffectAwareServiceHandler private constructor(
+         // Every outcome is published after Effective restores its scope, including
+         // failures installing that scope, so no response wait is left without an owner.
+         val task = Runnable {
++            Fx39Trace.mark("effect.worker.start path=$path")
+             val worker = Thread.currentThread()
+             val idleName = worker.name
+             var workerFailure: Throwable? = null
+@@ -603,6 +607,7 @@ class EffectAwareServiceHandler private constructor(
+             worker.name = "effect-handler-$path-${session.id.take(8)}"
+             try {
+                 try {
++                    Fx39Trace.mark("effect.scope.start path=$path")
+                     Effective {
+                         handler { e: NotificationEffect ->
+                             session.queueNotification(serializeEffect(e))
+@@ -626,6 +631,7 @@ class EffectAwareServiceHandler private constructor(
+                             )
+                         }
+                         try {
++                            Fx39Trace.mark("effect.delegate.start path=$path")
+                             result = runBlocking(session.resultResources) {
+                                 forwardRequestWithConnection(
+                                     delegate, path, params, metadata, connection
+@@ -650,6 +656,7 @@ class EffectAwareServiceHandler private constructor(
+                 // discarded registration's release failure reaches a real reporter.
+                 // Its worker stays owned through cleanup. Partial-result failures may
+                 // reach their caller first; a normal result follows physical slot release.
++                Fx39Trace.mark("effect.delegate.end path=$path")
+                 val failure = resultFailure
+                 if (failure == null) session.completeWithResult(result, workerSlot::release)
+                 else session.completeWithException(failure, workerSlot::release)
+@@ -688,6 +695,7 @@ class EffectAwareServiceHandler private constructor(
+                             session.prepareResponseDeadline(handlerResultClock)
+                             executionReady.complete(Unit)
+                             if (!acceptedTask.isCancelled) {
++                                Fx39Trace.mark("effect.worker.enqueue path=$path")
+                                 (if (isProgressRequest) progressExecutor else handlerExecutor).execute(acceptedTask)
+                             } else {
+                                 // Cancellation may have won while schedule was held,
+diff --git a/src/foundation/url/resolver/UrlResolver.kt b/src/foundation/url/resolver/UrlResolver.kt
+index 060dd98954..eed113a705 100644
+--- a/src/foundation/url/resolver/UrlResolver.kt
++++ b/src/foundation/url/resolver/UrlResolver.kt
+@@ -1,5 +1,6 @@
+ package foundation.url.resolver
+ 
++import foundation.url.protocol.Fx39Trace
+ import foundation.url.protocol.AdmissionOrderedRpcStream
+ import foundation.url.protocol.AdmissionOrderedServiceClientConnection
+ 
+@@ -499,6 +500,7 @@ private class RelayBackedRpcController(
+         try {
+             while (!closed) {
+                 val requestJson = Libp2pRpcProtocol.readMessage(requestInput)
++                Fx39Trace.mark("adapter.request.read id=${requestJson.optString("id")}")
+                 val requestId = requestJson.optString("id", Libp2pRpcProtocol.nextRequestId())
+                 val responseJson = try {
+                     val requestBudget = requestBudgets.remove(requestId)
+@@ -507,7 +509,8 @@ private class RelayBackedRpcController(
+                                 "has no caller deadline at dispatch.",
+                             definitelyNotDispatched = true,
+                         )
+-                    forward(requestJson, requestBudget)
++                    Fx39Trace.mark("adapter.forward.start id=$requestId")
++                    forward(requestJson, requestBudget).also { Fx39Trace.mark("adapter.forward.end id=$requestId") }
+                 } catch (e: Exception) {
+                     val notDispatched = e is RelayForwardingException && e.definitelyNotDispatched
+                     val errorCode = if (notDispatched) "RELAY_FORWARD_RETRYABLE" else "RELAY_FORWARD_FAILED"
+@@ -531,7 +534,9 @@ private class RelayBackedRpcController(
+                 // ByteArrays as 1.1.0 binary attachments before handing it to the persistent
+                 // connection's reader. Base64 JSON would make a 1 MiB value a ~1.4 MiB frame,
+                 // whose conservative 7x parse footprint exceeds the protocol's 8 MiB budget.
++                Fx39Trace.mark("adapter.response.decode.start")
+                 val response = Libp2pRpcProtocol.RpcResponse.fromJson(responseJson)
++                Fx39Trace.mark("adapter.response.decode.end")
+                 val responseAttachments = mutableListOf<ByteArray>()
+                 Libp2pRpcProtocol.writeMessage(
+                     responseOutput,
+@@ -4086,6 +4091,8 @@ class UrlProtocol2 : ProjectedPeerExchangeHandler, RelayIngressGossipHandler, Se
+         persist: Boolean = true,
+         replaceServices: Boolean = false
+     ): BootstrapPeer? {
++        val fx39Started = Fx39Trace.begin()
++        try {
+         val acceptedPeer = peerWithoutNestedCircuitAddresses(
+             peer,
+             acceptanceContext = "during resolver peer acceptance",
+@@ -4113,6 +4120,7 @@ class UrlProtocol2 : ProjectedPeerExchangeHandler, RelayIngressGossipHandler, Se
+         }
+         if (rotateDialLifecycle) currentPeerDialLifecycle(acceptedPeer.peerId)
+         return existingPeer
++        } finally { Fx39Trace.end("addPeerWithEvidence", fx39Started) }
+     }
+ 
+     /** Removes nested-circuit addresses that an older UrlProtocol may already have merged. */
+@@ -15456,6 +15464,7 @@ class UrlProtocol2 : ProjectedPeerExchangeHandler, RelayIngressGossipHandler, Se
+             }
+             try {
+                 registerCircuitRelayCandidateForUse(candidate)
++                Fx39Trace.mark("resolver.sendViaRelay.start relay=${candidate.peerId}")
+                 val responseBytes = service.sendViaRelay(
+                     relayPeerId = candidate.peerId,
+                     targetPeerId = targetPeerId,
+@@ -20972,6 +20981,7 @@ class UrlProtocol2 : ProjectedPeerExchangeHandler, RelayIngressGossipHandler, Se
+      * and returns the response.
+      */
+     private fun handleRelayedRequest(request: RelayProtocol.RelayRequest): RelayProtocol.RelayResponse {
++        Fx39Trace.mark("resolver.handler.enqueue id=${request.requestId}")
+         val task = synchronized(relayRequestHandlerTaskLock) {
+             if (closed.get()) {
+                 return RelayProtocol.RelayResponse.error(
+@@ -20981,7 +20991,7 @@ class UrlProtocol2 : ProjectedPeerExchangeHandler, RelayIngressGossipHandler, Se
+                     errorMessage = "The target resolver closed after accepting this relay request"
+                 )
+             }
+-            rpcReadExecutor.submit(Callable { handleRelayedRequestOnWorker(request) }).also {
++            rpcReadExecutor.submit(Callable { Fx39Trace.mark("resolver.handler.worker id=${request.requestId}"); handleRelayedRequestOnWorker(request) }).also {
+                 relayRequestHandlerTasks.add(it)
+             }
+         }
+@@ -21169,6 +21179,7 @@ class UrlProtocol2 : ProjectedPeerExchangeHandler, RelayIngressGossipHandler, Se
+                 // likewise stamp its error responses (not only its successes).
+                 val registeredRelayAtStart = getConnectedRelayPeerId()
+                 var handlerError: Exception? = null
++                Fx39Trace.mark("resolver.service.start")
+                 val result: Any? = try {
+                     kotlinx.coroutines.runBlocking {
+                         service.handleRequest(path, paramsMap, metadataMap)
+@@ -21199,6 +21210,7 @@ class UrlProtocol2 : ProjectedPeerExchangeHandler, RelayIngressGossipHandler, Se
+                 // mint it performed is reflected. Attached to BOTH the success and the
+                 // error reply — a stamped clock-timestamp is meaningful even on an error.
+                 // Clock-less services contribute nothing.
++                Fx39Trace.mark("resolver.service.end")
+                 val clockMetadata = servingClockResponseMetadata(serviceIdentifier, metadataMap)
+                 fun relayPayload(fill: JSONObject.() -> Unit): String = JSONObject().apply {
+                     fill()
+@@ -21238,7 +21250,9 @@ class UrlProtocol2 : ProjectedPeerExchangeHandler, RelayIngressGossipHandler, Se
+                             put("error", "${Libp2pRpcProtocol.ERROR_INTERNAL} - $reportedReason")
+                         }
+                     }
++                    Fx39Trace.mark("resolver.result.check.start")
+                     val problem = unencodableValueProblem(result)
++                    Fx39Trace.mark("resolver.result.check.end")
+                     if (problem != null) unencodableReply(
+                         unencodableResultMessage(method, problem.description),
+                         problem.diagnosticFailure,
+@@ -21260,6 +21274,7 @@ class UrlProtocol2 : ProjectedPeerExchangeHandler, RelayIngressGossipHandler, Se
+                         )
+                     }
+                 }
++                Fx39Trace.mark("resolver.result.encoded")
+                 val responsePayload = responseText.toByteArray(Charsets.UTF_8)
+                 return RelayProtocol.RelayResponse(
+                     requestId = request.requestId,
+@@ -22946,6 +22961,8 @@ class UrlProtocol2 : ProjectedPeerExchangeHandler, RelayIngressGossipHandler, Se
+         }!!
+ 
+     override fun onServiceAnnouncement(announcement: GossipProtocol.ServiceAnnouncement) {
++        val fx39Started = Fx39Trace.begin()
++        try {
+         val rebroadcastOptions = receivedGossipOptions()
+         val traceAnnouncement = isGossipTraceEnabledFor(announcement.serviceIdentifier)
+         if (traceAnnouncement) {
+@@ -23363,6 +23380,7 @@ class UrlProtocol2 : ProjectedPeerExchangeHandler, RelayIngressGossipHandler, Se
+         } finally {
+             announcementWaitersToComplete.forEach(::publishDiscoverySuccess)
+         }
++        } finally { Fx39Trace.end("onServiceAnnouncement", fx39Started) }
+     }
+ 
+     override fun onServiceWithdrawal(withdrawal: GossipProtocol.ServiceWithdrawal) {
+@@ -23923,6 +23941,8 @@ class UrlProtocol2 : ProjectedPeerExchangeHandler, RelayIngressGossipHandler, Se
+     private fun activelyConnectedPeerIds(
+         measuredWorks: List<GossipWorkMeasurementScope> = emptyList()
+     ): Set<String> {
++        val fx39Started = Fx39Trace.begin()
++        try {
+         val host = localHost ?: return emptySet()
+         gossipWorkDiagnostics.activeConnectionScans.incrementAndGet()
+         measuredWorks.forEach { scope ->
+@@ -23970,6 +23990,7 @@ class UrlProtocol2 : ProjectedPeerExchangeHandler, RelayIngressGossipHandler, Se
+         } catch (_: Exception) {
+             emptySet()
+         }
++        } finally { Fx39Trace.end("activelyConnectedPeerIds", fx39Started) }
+     }
+ 
+     /**
+@@ -23980,6 +24001,8 @@ class UrlProtocol2 : ProjectedPeerExchangeHandler, RelayIngressGossipHandler, Se
+      * loopback addresses out of cross-host dials (see [scopeLoopbackDirectAddresses]).
+      */
+     private fun isSameHostPeer(peerId: String): Boolean {
++        val fx39Started = Fx39Trace.begin()
++        try {
+         val host = localHost ?: return false
+         return try {
+             host.network.connections.any { conn ->
+@@ -23995,6 +24018,7 @@ class UrlProtocol2 : ProjectedPeerExchangeHandler, RelayIngressGossipHandler, Se
+         } catch (_: Exception) {
+             false
+         }
++        } finally { Fx39Trace.end("isSameHostPeer", fx39Started) }
+     }
+ 
+     /**
+@@ -24025,6 +24049,8 @@ class UrlProtocol2 : ProjectedPeerExchangeHandler, RelayIngressGossipHandler, Se
+         localHost != null || (injectedNetwork != null && providerListenInfo.get() != null)
+ 
+     override fun onPeersReceived(peers: List<PeerInfo>) {
++        val fx39Started = Fx39Trace.begin()
++        try {
+         callerBootstrapInboundRequestsAppliedForTest.incrementAndGet()
+         if (closed.get()) return
+         val acceptedPeers = peers.mapNotNull { peerInfo ->
+@@ -24218,6 +24244,7 @@ class UrlProtocol2 : ProjectedPeerExchangeHandler, RelayIngressGossipHandler, Se
+                 }
+             }
+         }
++        } finally { Fx39Trace.end("onPeersReceived", fx39Started) }
+     }
+ 
+     override fun onAuthenticatedInteraction(
+@@ -24992,6 +25019,8 @@ class UrlProtocol2 : ProjectedPeerExchangeHandler, RelayIngressGossipHandler, Se
+     }
+ 
+     override fun onPeerAnnouncement(announcement: GossipProtocol.PeerAnnouncement) {
++        val fx39Started = Fx39Trace.begin()
++        try {
+         val rebroadcastOptions = receivedGossipOptions()
+         if (closed.get()) return
+         val acceptedPeer = peerWithoutNestedCircuitAddresses(
+@@ -25149,9 +25178,12 @@ class UrlProtocol2 : ProjectedPeerExchangeHandler, RelayIngressGossipHandler, Se
+                     "${announcement.peerId.takeLast(8)}; late joiners receive the current snapshot directly"
+             }
+         }
++        } finally { Fx39Trace.end("onPeerAnnouncement", fx39Started) }
+     }
+ 
+     override fun onRelayAnnouncement(announcement: RelayProtocol.RelayAnnouncement) {
++        val fx39Started = Fx39Trace.begin()
++        try {
+         if (closed.get()) return
+         val acceptedPeer = peerWithoutNestedCircuitAddresses(
+             Libp2pPeer.remote(
+@@ -25215,6 +25247,7 @@ class UrlProtocol2 : ProjectedPeerExchangeHandler, RelayIngressGossipHandler, Se
+             val forwarded = effectiveAnnouncement.withDecrementedTtl()
+             broadcastOwnedGossipMessage(forwarded.toJson(), GossipBroadcastOptions(locallyOriginated = false))
+         }
++        } finally { Fx39Trace.end("onRelayAnnouncement", fx39Started) }
+     }
+ 
+     override fun onRelayWithdrawal(withdrawal: RelayProtocol.RelayWithdrawal) {
+@@ -25499,6 +25532,8 @@ class UrlProtocol2 : ProjectedPeerExchangeHandler, RelayIngressGossipHandler, Se
+         message: JSONObject,
+         options: GossipBroadcastOptions
+     ): Int {
++        val fx39Started = Fx39Trace.begin()
++        try {
+         // Don't broadcast if server is shutting down
+         if (!serverRunning.get()) {
+             if (isGossipTraceEnabled()) {
+@@ -25739,6 +25774,7 @@ class UrlProtocol2 : ProjectedPeerExchangeHandler, RelayIngressGossipHandler, Se
+         }
+ 
+         return count.get()
++        } finally { Fx39Trace.end("broadcastGossipMessage", fx39Started) }
+     }
+ 
+     /**
+@@ -27309,6 +27345,8 @@ class UrlProtocol2 : ProjectedPeerExchangeHandler, RelayIngressGossipHandler, Se
+         }
+ 
+     private fun encodeGossipMessageForTransport(message: JSONObject): ByteArray {
++        val fx39Started = Fx39Trace.begin()
++        try {
+         val encoded = serializedGossipFrame(message)
+         gossipWorkDiagnostics.transportMessagesWritten.incrementAndGet()
+         gossipWorkDiagnostics.transportBytesWritten.addAndGet(encoded.size.toLong())
+@@ -27329,6 +27367,7 @@ class UrlProtocol2 : ProjectedPeerExchangeHandler, RelayIngressGossipHandler, Se
+             "peer_announce" -> gossipWorkDiagnostics.peerAnnouncementsWritten.incrementAndGet()
+         }
+         return encoded
++        } finally { Fx39Trace.end("encodeGossipMessageForTransport", fx39Started) }
+     }
+ 
+     private suspend fun writeGossipMessagesAwaitingFlush(stream: Stream, messages: List<JSONObject>) {
+@@ -27960,6 +27999,8 @@ class UrlProtocol2 : ProjectedPeerExchangeHandler, RelayIngressGossipHandler, Se
+          * simultaneously for a peer that will ultimately be added.
+          */
+         private fun verify(peerId: String) {
++            val fx39Started = Fx39Trace.begin()
++            try {
+             val entry = pendingPeers[peerId] ?: return
+             if (closed.get() || isExpired(entry)) {
+                 removePending(peerId, entry)
+@@ -28012,6 +28053,7 @@ class UrlProtocol2 : ProjectedPeerExchangeHandler, RelayIngressGossipHandler, Se
+             } finally {
+                 lifecycleGate?.completed?.countDown()
+             }
++            } finally { Fx39Trace.end("verify", fx39Started) }
+         }
+ 
+         private fun isExpired(entry: PendingPeerEntry): Boolean =
+@@ -28372,6 +28414,8 @@ class UrlProtocol2 : ProjectedPeerExchangeHandler, RelayIngressGossipHandler, Se
+         dialLifecycleToken: PeerDialLifecycle?,
+         onFailure: (Throwable) -> Unit
+     ): PeerReachabilityVerification {
++        val fx39Started = Fx39Trace.begin()
++        try {
+         if (injectedNetwork != null) {
+             if (timeoutMs <= 0L) return PeerReachabilityVerification.Incomplete
+             val directAddresses = multiaddresses.filter { addr ->
+@@ -28530,6 +28574,7 @@ class UrlProtocol2 : ProjectedPeerExchangeHandler, RelayIngressGossipHandler, Se
+         } else {
+             PeerReachabilityVerification.Unreachable
+         }
++        } finally { Fx39Trace.end("verifyPeerReachabilityAttempts", fx39Started) }
+     }
+ 
+     private data class ReachabilityDialAttempt(
+@@ -30818,7 +30863,8 @@ private class PersistentRpcResponseReader(
+ 
+ /** Wait for a transport I/O task without forwarding the caller's interrupt to its writer. */
+ private fun runRpcFrameIo(writer: ExecutorService, operation: () -> Unit) {
+-    val task = writer.submit(Callable { operation() })
++    Fx39Trace.mark("frameIo.submit")
++    val task = writer.submit(Callable { Fx39Trace.mark("frameIo.worker"); operation(); Fx39Trace.mark("frameIo.done") })
+     var interrupted = false
+     try {
+         while (true) {
+@@ -31696,6 +31742,7 @@ class PersistentRpcConnection(
+                         val pendingRequest = readerTransport.pendingRequests.remove(id)
+                         if (pendingRequest != null) {
+                             pendingRequest.deliveryFailure = deliveryFailure
++                            Fx39Trace.mark("caller.response.correlated id=$id")
+                             pendingRequest.responseFuture.complete(json)
+                             // Schedule idle close for a healthy published transport. A retired
+                             // transport instead closes only after its final written request drains.
+@@ -32726,6 +32773,7 @@ class PersistentRpcConnection(
+             requestMetadata[CLOCKPAD_KEY] = ambientPad.toClockPadMetadataString()
+         }
+         requestMetadata.putAll(extraMetadata)
++        Fx39Trace.mark("caller.metadata.ready")
+         val request = Libp2pRpcProtocol.RpcRequest(
+             id = requestId,
+             method = fullMethod,
+@@ -32784,18 +32832,22 @@ class PersistentRpcConnection(
+                     } else {
+                         null
+                     }
++                    Fx39Trace.mark("caller.toJson.start")
+                     val requestJson = request.toJson(requestAttachments)
++                    Fx39Trace.mark("caller.toJson.end")
+                     if (
+                         selectedTransport.controller.negotiatedProtocolId ==
+                         Libp2pRpcProtocol.PROTOCOL_ID_V11
+                     ) {
+                         requestJson.put(INTERLEAVED_RESPONSE_CAPABILITY_FIELD, true)
+                     }
++                    Fx39Trace.mark("caller.encode.start")
+                     val encodedRequest = Libp2pRpcProtocol.encodeMessage(
+                         requestJson,
+                         requestAttachments ?: emptyList(),
+                     )
+ 
++                    Fx39Trace.mark("caller.encode.end")
+                     val registered = synchronized(reconnectLock) {
+                         if (
+                             !closed &&

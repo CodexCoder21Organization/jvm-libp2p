@@ -1,0 +1,252 @@
+diff --git a/src/foundation/url/protocol/RelayService.kt b/src/foundation/url/protocol/RelayService.kt
+index c1ae9132c..2310b9391 100644
+--- a/src/foundation/url/protocol/RelayService.kt
++++ b/src/foundation/url/protocol/RelayService.kt
+@@ -289,7 +289,9 @@ private fun readForwardedResponse(
+     clock: Clock,
+     deadlineMs: Long,
+ ): JSONObject? {
++    Fx39Trace.mark("forwardResponse.read.start")
+     val message = connection.readMessage(timeout, timeout, timeoutUnit, clock, deadlineMs)
++    Fx39Trace.mark("forwardResponse.read.end id=${message?.optString("requestId")}")
+     if (Thread.currentThread().isInterrupted) {
+         throw RelayException("Interrupted while waiting for forwarded response")
+     }
+@@ -9388,6 +9390,7 @@ class RelayService(
+         if (closed.get()) {
+             throw RelayRequestNotDispatchedException("Cannot send via relay because RelayService is closed")
+         }
++        Fx39Trace.mark("sendViaRelay.start relay=$relayPeerId target=$targetPeerId")
+         val totalStart = System.currentTimeMillis()
+         // Every refused fetch shares the caller's original budget, including time already
+         // spent dialing, sending application work and receiving earlier response chunks.
+@@ -9426,8 +9429,9 @@ class RelayService(
+             raceLifecycleLock.withLock { inFlightRaceDials.remove(completed) }
+             raceDialWorkerReleaseSeam?.invoke(completed)
+         }
+-        val directDialer = Callable { dial { connectDirectlyToRoutableTarget(targetPeerId, requestDialClock) } }
++        val directDialer = Callable { Fx39Trace.mark("directDial.start target=$targetPeerId"); dial { connectDirectlyToRoutableTarget(targetPeerId, requestDialClock) }.also { Fx39Trace.mark("directDial.end target=$targetPeerId found=${it != null}") } }
+         val relayDialer = Callable {
++            Fx39Trace.mark("relayDial.start relay=$relayPeerId")
+             dial {
+                 try {
+                     val relayPeer = peerRegistry.getPeer(relayPeerId)
+@@ -9444,6 +9448,7 @@ class RelayService(
+                 }
+             }
+         }
++        Fx39Trace.mark("dialTasks.constructed relay=$relayPeerId")
+         var directTask = CompletionQueueFutureTask(directDialer, completions, onTaskDone)
+         var relayTask = CompletionQueueFutureTask(relayDialer, completions, onTaskDone)
+ 
+@@ -9465,6 +9470,7 @@ class RelayService(
+                 inFlightRaceDials.add(directTask)
+                 inFlightRaceDials.add(relayTask)
+                 try {
++                    Fx39Trace.mark("dialTasks.enqueue relay=$relayPeerId")
+                     raceDialExecutor.execute(directTask)
+                     directAdmitted = true
+                     raceDialExecutor.execute(relayTask)
+@@ -9581,6 +9587,7 @@ class RelayService(
+             abandonDials(failure)
+             throw failure
+         }
++        Fx39Trace.mark("dialTasks.finished relay=$relayPeerId")
+         val connection = directReady ?: relayReady
+         if (connection == null) {
+             if (closed.get()) {
+@@ -9642,7 +9649,9 @@ class RelayService(
+                 val json = buildRequest().toJson()
+                 if (!admitRelayCallMessage(clock, responseDeadlineMs, WRITE_BACKPRESSURE_WAIT_MS, connection::isClosed,
+                     { relayCallParkedWriteBudget(connection.controller.diagnosticStream) }) {
++                    Fx39Trace.mark("request.write.start id=${json.optString("requestId")}")
+                     connection.sendMessage(json, 0L)
++                    Fx39Trace.mark("request.write.end id=${json.optString("requestId")}")
+                 }) throw RelayException(relayMessageNotAdmittedMessage(WRITE_BACKPRESSURE_WAIT_MS))
+             } catch (e: RelayRequestNotDispatchedException) {
+                 throw e
+@@ -10257,6 +10266,7 @@ class RelayService(
+      */
+     fun handleIncomingStream(stream: Stream): RelayMessageSender {
+         debugLog { "[RELAY-DEBUG] RelayService.handleIncomingStream called, remotePeer=${stream.remotePeerId()}" }
++        Fx39Trace.mark("relay.incoming.stream peer=${stream.remotePeerId()}")
+         val sender = StreamRelayMessageSender(stream)
+         debugLog { "[RELAY-DEBUG] StreamRelayMessageSender created for peer=${stream.remotePeerId()}" }
+         // Set up NIO pipeline: ReadTimeoutHandler → LengthFieldBasedFrameDecoder → RelayServerMessageHandler
+@@ -10342,6 +10352,7 @@ class RelayService(
+         publicationCompletionSink: IdentityPublicationCompletionSink? = null,
+         streamGeneration: Long? = null
+     ): RelayMessageProcessingOutcome {
++        Fx39Trace.mark("relay.process type=${json.optString("type")} id=${json.optString("requestId")}")
+         debugLog { "[RELAY-DEBUG] Received message: ${json.toString().take(200)}" }
+ 
+         // Try to parse the message, handling unknown message types gracefully
+@@ -11755,6 +11766,7 @@ class RelayService(
+             return null
+         }
+ 
++        Fx39Trace.mark("relay.handle.request id=${request.requestId}")
+         debugLog { "[RELAY-DEBUG] handleRelayRequest called, target=${request.targetPeerId}, source=${request.sourcePeerId}" }
+ 
+         // CRITICAL: Check if WE are the target peer - handle locally. Local handling is
+@@ -11969,6 +11981,7 @@ class RelayService(
+             // AWAITED forward: ride out a transient stall and surface a genuine drop (throw) rather
+             // than best-effort dropping at 200ms and leaving the source to hang on the missing reply.
+             // A throw here lands in the catch below, which sends an error reply back to the source.
++            Fx39Trace.mark("relay.forward.write.start id=${request.requestId} forward=$forwardRequestId")
+             registered.controller.sendMessageAwaited(
+                 request.withDecrementedHopLimit().copy(requestId = forwardRequestId).toJson()
+             )
+@@ -12004,6 +12017,7 @@ class RelayService(
+             )
+         }
+ 
++        Fx39Trace.mark("relay.forward.write.end id=${request.requestId} forward=$forwardRequestId")
+         // Send succeeded — schedule async reply. Inform the inflight sink BEFORE
+         // scheduling whenCompleteAsync so the per-stream pending count includes this
+         // forward's heap-pinned state (request, sourceController, captured lambda).
+@@ -12013,6 +12027,7 @@ class RelayService(
+         debugLog { "[RELAY-DEBUG] Request sent to target, scheduling async reply" }
+         future.orTimeout(REGISTERED_FORWARD_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+             .whenCompleteAsync { targetResponse, throwable ->
++                Fx39Trace.mark("relay.reply.callback id=${request.requestId} forward=$forwardRequestId")
+                 val report = throwable?.let {
+                     if (closed.get()) diagnostic.prepareShutdown()
+                     else diagnostic.prepareProviderFailure(unwrapCompletionException(it) ?: it)
+@@ -12210,7 +12225,7 @@ class RelayService(
+         try {
+             when (
+                 sourceController.sendAwaitedResponseWithOutbox(
+-                    reply.toJson(),
++                    reply.toJson().also { Fx39Trace.mark("relay.reply.write id=${reply.requestId}") },
+                     failureReservation,
+                     diagnostic?.let { record -> { cause: Throwable? -> record.responseWriteCompleted(cause) } },
+                 )
+@@ -12321,6 +12336,7 @@ class RelayService(
+     }
+ 
+     internal fun handleRelayResponse(response: RelayProtocol.RelayResponse) {
++        Fx39Trace.mark("relay.response.received id=${response.requestId}")
+         pendingRequests[response.requestId]?.future?.complete(response)
+     }
+ 
+@@ -12388,6 +12404,7 @@ class RelayService(
+     }
+ 
+     private fun connectToRelay(peer: BootstrapPeer, dialClock: Clock = clock): RelayConnection {
++        Fx39Trace.mark("connectToRelay.start peer=${peer.peerId}")
+         debugLog { "[RELAY-DEBUG] connectToRelay called, peer=${peer.peerId}, addresses=${peer.multiaddresses}" }
+         val remotePeerId = PeerId.fromBase58(peer.peerId)
+ 
+@@ -12408,7 +12425,9 @@ class RelayService(
+                 val addr = existingConn.remoteAddress()
+                 debugLog { "[RELAY-DEBUG] Fast path: found existing connection to ${peer.peerId} at $addr" }
+                 val fastStartTime = System.currentTimeMillis()
++                Fx39Trace.mark("connectToRelay.fast.open peer=${peer.peerId}")
+                 val streamFuture = openRelayDialStream(host, remotePeerId, addr, dialClock)
++                Fx39Trace.mark("connectToRelay.fast.wait peer=${peer.peerId}")
+                 // Cast is safe: initiator always gets a RelayStreamController from UnifiedRelayProtocol.
+                 // If the caller is cancelled while waiting, close the underlying stream even when
+                 // protocol negotiation completes later; falling through to the slow path would turn
+@@ -12427,6 +12446,7 @@ class RelayService(
+                     }
+                     throw e
+                 }
++                Fx39Trace.mark("connectToRelay.fast.ready peer=${peer.peerId}")
+                 val fastElapsed = System.currentTimeMillis() - fastStartTime
+                 debugLog { "[RELAY-DEBUG] Fast path: opened relay stream in ${fastElapsed}ms" }
+                 return RelayConnection(peer.peerId, controller)
+@@ -12490,6 +12510,7 @@ class RelayService(
+         val connectionTimeout = 30L        // seconds — generous; covers a slow handshake
+ 
+         debugLog { "[RELAY-DEBUG] Slow path: dialing ${addresses.size} addresses (reachability ${reachabilityTimeoutMs}ms, handshake budget ${connectionTimeout}s)" }
++        Fx39Trace.mark("connectToRelay.slow.start peer=${peer.peerId}")
+         val startTime = System.currentTimeMillis()
+ 
+         // Exactly one connection survives: the first to complete wins and is returned;
+@@ -12521,6 +12542,7 @@ class RelayService(
+             }
+             val attempt: CompletableFuture<RelayConnection> =
+                 probeReachableAsync(multiaddr, reachabilityTimeoutMs, dialClock).thenCompose { reachable ->
++                    Fx39Trace.mark("connectToRelay.probe.end peer=${peer.peerId} reachable=$reachable")
+                     if (!reachable) {
+                         debugLog { "[RELAY-DEBUG] Address not reachable within ${reachabilityTimeoutMs}ms: $multiaddr" }
+                         CompletableFuture<RelayConnection>().also {
+@@ -12542,6 +12564,7 @@ class RelayService(
+                                 closeAttemptStream(streamPromise.stream)
+                             }
+                             streamPromise.controller.thenApply { controller ->
++                                Fx39Trace.mark("connectToRelay.slow.ready peer=${peer.peerId}")
+                                 // Cast is safe: initiator always gets a RelayStreamController from UnifiedRelayProtocol
+                                 RelayConnection(peer.peerId, controller as RelayStreamController)
+                             }
+@@ -12775,7 +12798,9 @@ class RelayService(
+     ): Boolean {
+         val permit = checkNotNull(failureReservation.requestPermit)
+         try {
++            Fx39Trace.mark("target.handler.enqueue id=${message.requestId}")
+             relayedRequestHandlerExecutor.execute {
++                Fx39Trace.mark("target.handler.worker id=${message.requestId}")
+                 // Each task runs on its own single-use virtual thread, so interrupting a thread
+                 // found in this map can only ever reach the handler it was registered for.
+                 val handlerThread = Thread.currentThread()
+@@ -12832,7 +12857,9 @@ class RelayService(
+             val handler = requestHandler
+             val response = try {
+                 if (handler != null) {
++                    Fx39Trace.mark("target.handler.start id=${message.requestId}")
+                     val result = handler(message).withoutNotDispatchedMarker()
++                    Fx39Trace.mark("target.handler.end id=${message.requestId}")
+                     debugLog {
+                         "[RELAY-CLIENT] Handler returned: " +
+                             "success=${result.success}, " +
+@@ -13275,6 +13302,7 @@ class RelayService(
+                             continue
+                         }
+                         val messageType = json.optString("type", "unknown")
++                        Fx39Trace.mark("target.listener.received type=$messageType id=${json.optString("requestId")}")
+                         debugLog { "[RELAY-LISTENER-$listenerId] Received message of type: $messageType" }
+ 
+                         // Check for stop signal or interruption after blocking read
+@@ -13318,6 +13346,7 @@ class RelayService(
+                             }
+                             else -> Unit
+                         }
++                        Fx39Trace.mark("target.callbackAdmission.start type=$messageType")
+                         if (!callbackAdmission.submit {
+                             enqueueRelayMessageCallbacks(
+                                 connection,
+@@ -13326,6 +13355,7 @@ class RelayService(
+                                 estimateJsonRetentionBytes(json),
+                             )
+                         }) break
++                        Fx39Trace.mark("target.callbackAdmission.end type=$messageType")
+ 
+                         when (message) {
+                             is RelayProtocol.RelayRegisterAck,
+@@ -15458,6 +15488,7 @@ class RelayServerMessageHandler(
+             }
+             return
+         }
++        Fx39Trace.mark("relay.frame.received type=${json.optString("type")} id=${json.optString("requestId")} depth=$depthBeforeAccept")
+         val depthAfterAccept = pendingProcessing.incrementAndGet()
+         if (
+             useReceiveWindowBackpressure &&
+@@ -15472,7 +15503,9 @@ class RelayServerMessageHandler(
+             var admissionFailureReport: (() -> Unit)? = null
+             try {
+                 try {
++                    Fx39Trace.mark("relay.frame.worker type=${json.optString("type")} id=${json.optString("requestId")}")
+                     messageProcessingMutex.withLock {
++                        Fx39Trace.mark("relay.frame.locked type=${json.optString("type")} id=${json.optString("requestId")}")
+                         val outcome = relayService.processIncomingMessage(
+                             json,
+                             sender,
+@@ -15482,6 +15515,7 @@ class RelayServerMessageHandler(
+                             publicationCompletionSink,
+                             streamGeneration
+                         )
++                        Fx39Trace.mark("relay.frame.processed type=${json.optString("type")} id=${json.optString("requestId")}")
+                         registeredPeerId = outcome.registeredPeerId
+                         synchronousFailure = outcome.synchronousFailure
+                     }

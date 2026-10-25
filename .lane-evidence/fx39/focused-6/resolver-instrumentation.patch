@@ -1,0 +1,208 @@
+diff --git a/src/foundation/url/resolver/EffectAwareServiceHandler.kt b/src/foundation/url/resolver/EffectAwareServiceHandler.kt
+index 5d6638e80b..cad777bf45 100644
+--- a/src/foundation/url/resolver/EffectAwareServiceHandler.kt
++++ b/src/foundation/url/resolver/EffectAwareServiceHandler.kt
+@@ -1,5 +1,6 @@
+ package foundation.url.resolver
+ 
++import foundation.url.protocol.Fx39Trace
+ import community.kotlin.clocks.simple.Clock
+ import community.kotlin.clocks.simple.Scheduled
+ import community.kotlin.clocks.simple.SystemClock
+@@ -564,7 +565,9 @@ class EffectAwareServiceHandler private constructor(
+         metadata: Map<String, String>,
+         connection: ServiceClientConnection?
+     ): Any? {
++        Fx39Trace.mark("effect.session.start path=$path")
+         val session = HandlerSession(path, clock.currentTimeMillis(), handlerResultClock, resultCleanup)
++        Fx39Trace.mark("effect.session.ready path=$path")
+         val isProgressRequest = isHandlerProgressPath(path)
+         val isLongPoll = !isProgressRequest && isLongPollPath(path)
+         // Released exactly once after producer cleanup: before a normal outcome (so
+@@ -593,6 +596,7 @@ class EffectAwareServiceHandler private constructor(
+         // Every outcome is published after Effective restores its scope, including
+         // failures installing that scope, so no response wait is left without an owner.
+         val task = Runnable {
++            Fx39Trace.mark("effect.worker.start path=$path")
+             val worker = Thread.currentThread()
+             val idleName = worker.name
+             var workerFailure: Throwable? = null
+@@ -603,6 +607,7 @@ class EffectAwareServiceHandler private constructor(
+             worker.name = "effect-handler-$path-${session.id.take(8)}"
+             try {
+                 try {
++                    Fx39Trace.mark("effect.scope.start path=$path")
+                     Effective {
+                         handler { e: NotificationEffect ->
+                             session.queueNotification(serializeEffect(e))
+@@ -626,6 +631,7 @@ class EffectAwareServiceHandler private constructor(
+                             )
+                         }
+                         try {
++                            Fx39Trace.mark("effect.delegate.start path=$path")
+                             result = runBlocking(session.resultResources) {
+                                 forwardRequestWithConnection(
+                                     delegate, path, params, metadata, connection
+@@ -650,6 +656,7 @@ class EffectAwareServiceHandler private constructor(
+                 // discarded registration's release failure reaches a real reporter.
+                 // Its worker stays owned through cleanup. Partial-result failures may
+                 // reach their caller first; a normal result follows physical slot release.
++                Fx39Trace.mark("effect.delegate.end path=$path")
+                 val failure = resultFailure
+                 if (failure == null) session.completeWithResult(result, workerSlot::release)
+                 else session.completeWithException(failure, workerSlot::release)
+@@ -688,6 +695,7 @@ class EffectAwareServiceHandler private constructor(
+                             session.prepareResponseDeadline(handlerResultClock)
+                             executionReady.complete(Unit)
+                             if (!acceptedTask.isCancelled) {
++                                Fx39Trace.mark("effect.worker.enqueue path=$path")
+                                 (if (isProgressRequest) progressExecutor else handlerExecutor).execute(acceptedTask)
+                             } else {
+                                 // Cancellation may have won while schedule was held,
+diff --git a/src/foundation/url/resolver/UrlResolver.kt b/src/foundation/url/resolver/UrlResolver.kt
+index 060dd98954..34a3293182 100644
+--- a/src/foundation/url/resolver/UrlResolver.kt
++++ b/src/foundation/url/resolver/UrlResolver.kt
+@@ -1,5 +1,6 @@
+ package foundation.url.resolver
+ 
++import foundation.url.protocol.Fx39Trace
+ import foundation.url.protocol.AdmissionOrderedRpcStream
+ import foundation.url.protocol.AdmissionOrderedServiceClientConnection
+ 
+@@ -499,6 +500,7 @@ private class RelayBackedRpcController(
+         try {
+             while (!closed) {
+                 val requestJson = Libp2pRpcProtocol.readMessage(requestInput)
++                Fx39Trace.mark("adapter.request.read id=${requestJson.optString("id")}")
+                 val requestId = requestJson.optString("id", Libp2pRpcProtocol.nextRequestId())
+                 val responseJson = try {
+                     val requestBudget = requestBudgets.remove(requestId)
+@@ -507,7 +509,8 @@ private class RelayBackedRpcController(
+                                 "has no caller deadline at dispatch.",
+                             definitelyNotDispatched = true,
+                         )
+-                    forward(requestJson, requestBudget)
++                    Fx39Trace.mark("adapter.forward.start id=$requestId")
++                    forward(requestJson, requestBudget).also { Fx39Trace.mark("adapter.forward.end id=$requestId") }
+                 } catch (e: Exception) {
+                     val notDispatched = e is RelayForwardingException && e.definitelyNotDispatched
+                     val errorCode = if (notDispatched) "RELAY_FORWARD_RETRYABLE" else "RELAY_FORWARD_FAILED"
+@@ -531,7 +534,9 @@ private class RelayBackedRpcController(
+                 // ByteArrays as 1.1.0 binary attachments before handing it to the persistent
+                 // connection's reader. Base64 JSON would make a 1 MiB value a ~1.4 MiB frame,
+                 // whose conservative 7x parse footprint exceeds the protocol's 8 MiB budget.
++                Fx39Trace.mark("adapter.response.decode.start")
+                 val response = Libp2pRpcProtocol.RpcResponse.fromJson(responseJson)
++                Fx39Trace.mark("adapter.response.decode.end")
+                 val responseAttachments = mutableListOf<ByteArray>()
+                 Libp2pRpcProtocol.writeMessage(
+                     responseOutput,
+@@ -15456,6 +15461,7 @@ class UrlProtocol2 : ProjectedPeerExchangeHandler, RelayIngressGossipHandler, Se
+             }
+             try {
+                 registerCircuitRelayCandidateForUse(candidate)
++                Fx39Trace.mark("resolver.sendViaRelay.start relay=${candidate.peerId}")
+                 val responseBytes = service.sendViaRelay(
+                     relayPeerId = candidate.peerId,
+                     targetPeerId = targetPeerId,
+@@ -20972,6 +20978,7 @@ class UrlProtocol2 : ProjectedPeerExchangeHandler, RelayIngressGossipHandler, Se
+      * and returns the response.
+      */
+     private fun handleRelayedRequest(request: RelayProtocol.RelayRequest): RelayProtocol.RelayResponse {
++        Fx39Trace.mark("resolver.handler.enqueue id=${request.requestId}")
+         val task = synchronized(relayRequestHandlerTaskLock) {
+             if (closed.get()) {
+                 return RelayProtocol.RelayResponse.error(
+@@ -20981,7 +20988,7 @@ class UrlProtocol2 : ProjectedPeerExchangeHandler, RelayIngressGossipHandler, Se
+                     errorMessage = "The target resolver closed after accepting this relay request"
+                 )
+             }
+-            rpcReadExecutor.submit(Callable { handleRelayedRequestOnWorker(request) }).also {
++            rpcReadExecutor.submit(Callable { Fx39Trace.mark("resolver.handler.worker id=${request.requestId}"); handleRelayedRequestOnWorker(request) }).also {
+                 relayRequestHandlerTasks.add(it)
+             }
+         }
+@@ -21169,6 +21176,7 @@ class UrlProtocol2 : ProjectedPeerExchangeHandler, RelayIngressGossipHandler, Se
+                 // likewise stamp its error responses (not only its successes).
+                 val registeredRelayAtStart = getConnectedRelayPeerId()
+                 var handlerError: Exception? = null
++                Fx39Trace.mark("resolver.service.start")
+                 val result: Any? = try {
+                     kotlinx.coroutines.runBlocking {
+                         service.handleRequest(path, paramsMap, metadataMap)
+@@ -21199,6 +21207,7 @@ class UrlProtocol2 : ProjectedPeerExchangeHandler, RelayIngressGossipHandler, Se
+                 // mint it performed is reflected. Attached to BOTH the success and the
+                 // error reply — a stamped clock-timestamp is meaningful even on an error.
+                 // Clock-less services contribute nothing.
++                Fx39Trace.mark("resolver.service.end")
+                 val clockMetadata = servingClockResponseMetadata(serviceIdentifier, metadataMap)
+                 fun relayPayload(fill: JSONObject.() -> Unit): String = JSONObject().apply {
+                     fill()
+@@ -21238,7 +21247,9 @@ class UrlProtocol2 : ProjectedPeerExchangeHandler, RelayIngressGossipHandler, Se
+                             put("error", "${Libp2pRpcProtocol.ERROR_INTERNAL} - $reportedReason")
+                         }
+                     }
++                    Fx39Trace.mark("resolver.result.check.start")
+                     val problem = unencodableValueProblem(result)
++                    Fx39Trace.mark("resolver.result.check.end")
+                     if (problem != null) unencodableReply(
+                         unencodableResultMessage(method, problem.description),
+                         problem.diagnosticFailure,
+@@ -21260,6 +21271,7 @@ class UrlProtocol2 : ProjectedPeerExchangeHandler, RelayIngressGossipHandler, Se
+                         )
+                     }
+                 }
++                Fx39Trace.mark("resolver.result.encoded")
+                 val responsePayload = responseText.toByteArray(Charsets.UTF_8)
+                 return RelayProtocol.RelayResponse(
+                     requestId = request.requestId,
+@@ -30818,7 +30830,8 @@ private class PersistentRpcResponseReader(
+ 
+ /** Wait for a transport I/O task without forwarding the caller's interrupt to its writer. */
+ private fun runRpcFrameIo(writer: ExecutorService, operation: () -> Unit) {
+-    val task = writer.submit(Callable { operation() })
++    Fx39Trace.mark("frameIo.submit")
++    val task = writer.submit(Callable { Fx39Trace.mark("frameIo.worker"); operation(); Fx39Trace.mark("frameIo.done") })
+     var interrupted = false
+     try {
+         while (true) {
+@@ -31696,6 +31709,7 @@ class PersistentRpcConnection(
+                         val pendingRequest = readerTransport.pendingRequests.remove(id)
+                         if (pendingRequest != null) {
+                             pendingRequest.deliveryFailure = deliveryFailure
++                            Fx39Trace.mark("caller.response.correlated id=$id")
+                             pendingRequest.responseFuture.complete(json)
+                             // Schedule idle close for a healthy published transport. A retired
+                             // transport instead closes only after its final written request drains.
+@@ -32726,6 +32740,7 @@ class PersistentRpcConnection(
+             requestMetadata[CLOCKPAD_KEY] = ambientPad.toClockPadMetadataString()
+         }
+         requestMetadata.putAll(extraMetadata)
++        Fx39Trace.mark("caller.metadata.ready")
+         val request = Libp2pRpcProtocol.RpcRequest(
+             id = requestId,
+             method = fullMethod,
+@@ -32784,18 +32799,22 @@ class PersistentRpcConnection(
+                     } else {
+                         null
+                     }
++                    Fx39Trace.mark("caller.toJson.start")
+                     val requestJson = request.toJson(requestAttachments)
++                    Fx39Trace.mark("caller.toJson.end")
+                     if (
+                         selectedTransport.controller.negotiatedProtocolId ==
+                         Libp2pRpcProtocol.PROTOCOL_ID_V11
+                     ) {
+                         requestJson.put(INTERLEAVED_RESPONSE_CAPABILITY_FIELD, true)
+                     }
++                    Fx39Trace.mark("caller.encode.start")
+                     val encodedRequest = Libp2pRpcProtocol.encodeMessage(
+                         requestJson,
+                         requestAttachments ?: emptyList(),
+                     )
+ 
++                    Fx39Trace.mark("caller.encode.end")
+                     val registered = synchronized(reconnectLock) {
+                         if (
+                             !closed &&

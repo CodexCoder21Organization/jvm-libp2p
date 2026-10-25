@@ -2,6 +2,8 @@ package io.libp2p.etc.util.netty.mux
 
 import io.libp2p.core.ConnectionClosedException
 import io.libp2p.etc.util.netty.AbstractChildChannel
+import io.netty.channel.Channel
+import io.netty.channel.DefaultChannelPromise
 import io.netty.channel.ChannelFuture
 import io.netty.channel.ChannelHandlerContext
 import io.netty.channel.ChannelMetadata
@@ -34,6 +36,7 @@ class MuxChannel<TData>(
     private var pendingParentWrite: ChannelFuture? = null
     private var parentWriteCompletion: ParentWriteCompletion? = null
     private var acceptedWriteShutdown: Runnable? = null
+    private var retainedWriteCount = 0
 
     internal fun resetForCapacity(): ChannelFuture = parent.resetForCapacity(this)
 
@@ -68,9 +71,7 @@ class MuxChannel<TData>(
             val data = msg as TData
             val dataSize = parent.pendingChildWriteSize(data)
             if (dataSize == null) {
-                ensureAcceptedWriteTerminationOwner()
-                ctx.write(msg, promise)
-                retireAcceptedWriteOwnerIfDrained()
+                writeAccepted(ctx, msg, promise)
                 return
             }
             val writePromise = promise.unvoid()
@@ -84,15 +85,24 @@ class MuxChannel<TData>(
             writePromise.addListener {
                 parent.onPendingChildWriteComplete(this@MuxChannel, data, dataSize)
             }
-            ensureAcceptedWriteTerminationOwner()
-            ctx.write(msg, writePromise)
-            retireAcceptedWriteOwnerIfDrained()
+            writeAccepted(ctx, msg, writePromise)
         }
 
         override fun flush(ctx: ChannelHandlerContext) {
             ctx.flush()
             retireAcceptedWriteOwnerIfDrained()
         }
+    }
+
+    private fun writeAccepted(ctx: ChannelHandlerContext, msg: Any, promise: ChannelPromise) {
+        ensureAcceptedWriteTerminationOwner()
+        retainedWriteCount++
+        val bufferPromise = RetainedWritePromise(this, promise.unvoid()) {
+            retainedWriteCount--
+            retireAcceptedWriteOwnerIfDrained()
+        }
+        ctx.write(msg, bufferPromise)
+        retireAcceptedWriteOwnerIfDrained()
     }
 
     private fun ensureAcceptedWriteTerminationOwner() {
@@ -105,8 +115,9 @@ class MuxChannel<TData>(
     }
 
     private fun retireAcceptedWriteOwnerIfDrained() {
-        // Cancellation can finish a promise while its unflushed payload is still buffered.
-        if ((unsafe().outboundBuffer()?.totalPendingWriteBytes() ?: 0L) == 0L) {
+        // isEmpty counts flushed entries; private buffer promises also track unflushed entries.
+        val buf = unsafe().outboundBuffer()
+        if (buf == null || (retainedWriteCount == 0 && buf.isEmpty)) {
             cancelAcceptedWriteTerminationOwner()
         }
     }
@@ -122,7 +133,7 @@ class MuxChannel<TData>(
         val buf = unsafe().outboundBuffer() ?: return
         cancelAcceptedWriteTerminationOwner()
         // A cancelled hook may already be in the executor's current shutdown batch.
-        if (buf.totalPendingWriteBytes() == 0L && pendingParentWrite == null) return
+        if (retainedWriteCount == 0 && buf.isEmpty && pendingParentWrite == null) return
         localDisconnected = true
         parentWriteCompletion?.settleBeforeClose?.run()
         closeImpl()
@@ -285,6 +296,57 @@ class MuxChannel<TData>(
 
     private fun closeIfBothDisconnected() {
         if (remoteDisconnected && localDisconnected) closeImpl()
+    }
+}
+
+/** Netty settles this promise when it removes an entry, independently of caller completion. */
+private class RetainedWritePromise(
+    channel: Channel,
+    private val caller: ChannelPromise,
+    private val onSettled: () -> Unit
+) : DefaultChannelPromise(channel) {
+    override fun trySuccess(result: Void?): Boolean {
+        if (!super.trySuccess(result)) return false
+        onSettled()
+        caller.trySuccess()
+        return true
+    }
+
+    override fun setSuccess(result: Void?): ChannelPromise {
+        super.setSuccess(result)
+        onSettled()
+        caller.trySuccess()
+        return this
+    }
+
+    override fun tryFailure(cause: Throwable): Boolean {
+        if (!super.tryFailure(cause)) return false
+        onSettled()
+        caller.tryFailure(cause)
+        return true
+    }
+
+    override fun setFailure(cause: Throwable): ChannelPromise {
+        super.setFailure(cause)
+        onSettled()
+        caller.tryFailure(cause)
+        return this
+    }
+
+    override fun cancel(mayInterruptIfRunning: Boolean): Boolean {
+        if (!super.cancel(mayInterruptIfRunning)) return false
+        onSettled()
+        caller.cancel(mayInterruptIfRunning)
+        return true
+    }
+
+    override fun setUncancellable(): Boolean {
+        if (!caller.setUncancellable()) {
+            // Netty will release this cancelled entry during addFlush().
+            cancel(false)
+            return false
+        }
+        return super.setUncancellable()
     }
 }
 

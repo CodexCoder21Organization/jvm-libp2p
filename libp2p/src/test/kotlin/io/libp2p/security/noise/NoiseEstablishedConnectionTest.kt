@@ -55,7 +55,6 @@ object NoiseEstablishedConnectionHarness {
         val observed = CompletableFuture<NoiseHandshakeComputation>()
         val release = CountDownLatch(1)
         var remote: Process? = null
-        var remoteOutput: CompletableFuture<String>? = null
         try {
             val server = host {
                 identity { random(KeyType.ED25519) }
@@ -102,7 +101,7 @@ object NoiseEstablishedConnectionHarness {
                 server.peerId.toBase58(), server.listenAddresses().single().toString()
             ).redirectErrorStream(true).start()
             val peerProcess = remote
-            remoteOutput = CompletableFuture.supplyAsync { peerProcess.inputStream.bufferedReader().use { it.readText() } }
+            val remoteOutput = CompletableFuture.supplyAsync { peerProcess.inputStream.bufferedReader().use { it.readText() } }
             val gate = gateReady.get(5, TimeUnit.SECONDS)
             gate.frameReady.get(5, TimeUnit.SECONDS)
             val loop = gate.context.channel().eventLoop()

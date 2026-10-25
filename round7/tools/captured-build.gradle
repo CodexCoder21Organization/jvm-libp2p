@@ -29,3 +29,17 @@ tasks.named('test', Test) {
  beforeTest { desc -> println "ROUND7_TEST_START ${java.time.Instant.now()} ${desc.className}.${desc.name}" }
  afterTest { desc, result -> println "ROUND7_TEST_END ${java.time.Instant.now()} ${desc.className}.${desc.name} ${result.resultType}" }
 }
+
+tasks.named('test', Test) {
+ if(project.hasProperty('round7PairBarrier')) {
+  doFirst {
+   def socket = new java.net.Socket('127.0.0.1', project.property('round7PairBarrier').toString().toInteger())
+   try {
+    socket.soTimeout=180000
+    socket.outputStream.write(1)
+    socket.outputStream.flush()
+    if(socket.inputStream.read()!=1) throw new GradleException('Pair launch barrier closed before both tasks arrived')
+   } finally { socket.close() }
+  }
+ }
+}

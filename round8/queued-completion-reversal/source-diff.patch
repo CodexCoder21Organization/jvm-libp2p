@@ -1,0 +1,47 @@
+diff --git a/libp2p/src/main/kotlin/io/libp2p/etc/util/netty/mux/MuxChannel.kt b/libp2p/src/main/kotlin/io/libp2p/etc/util/netty/mux/MuxChannel.kt
+index 26c98e22..bf8f13d7 100644
+--- a/libp2p/src/main/kotlin/io/libp2p/etc/util/netty/mux/MuxChannel.kt
++++ b/libp2p/src/main/kotlin/io/libp2p/etc/util/netty/mux/MuxChannel.kt
+@@ -182,9 +182,7 @@ class MuxChannel<TData>(
+                     val completeWrite = Runnable {
+                         // Retained delivery and an accepted listener task can both reach this point.
+                         // Close also clears ownership before disposing the outbound buffer.
+-                        if (pendingParentWrite === parentFuture && eventLoop().isShuttingDown) {
+-                            settleWritesBeforeTermination()
+-                        } else if (pendingParentWrite === parentFuture) {
++                        if (pendingParentWrite === parentFuture) {
+                             pendingParentWrite = null
+                             parentWriteCompletion?.let(::cancelParentWriteCompletion)
+                             parentWriteCompletion = null
+diff --git a/libp2p/src/test/kotlin/io/libp2p/transport/CompletedStreamWriteNotificationTest.kt b/libp2p/src/test/kotlin/io/libp2p/transport/CompletedStreamWriteNotificationTest.kt
+index f6e5a7a1..7f650821 100644
+--- a/libp2p/src/test/kotlin/io/libp2p/transport/CompletedStreamWriteNotificationTest.kt
++++ b/libp2p/src/test/kotlin/io/libp2p/transport/CompletedStreamWriteNotificationTest.kt
+@@ -117,8 +117,8 @@ object CompletedStreamWriteProbe {
+                 .controller.get(5, TimeUnit.SECONDS)
+             val parent = (stream.connection as P2PChannelOverNetty).nettyChannel
+             val loop = parent.eventLoop()
+-            if (args[0] == "capacity") {
+-                checkCompletedCapacityReset(stream)
++            if (args[0] == "capacity" || args[0] == "capacity-queued") {
++                checkCompletedCapacityReset(stream, args[0] == "capacity-queued")
+                 return
+             }
+             loop.submit {
+@@ -203,7 +203,7 @@ object CompletedStreamWriteProbe {
+     }
+ }
+ 
+-private fun checkCompletedCapacityReset(stream: Stream) {
++private fun checkCompletedCapacityReset(stream: Stream, queuedBeforeFill: Boolean = false) {
+     stream.close().get(5, TimeUnit.SECONDS)
+     val loop = (stream as P2PChannelOverNetty).nettyChannel.eventLoop()
+     loop.submit {}.get(5, TimeUnit.SECONDS)
+@@ -227,6 +227,7 @@ private fun checkCompletedCapacityReset(stream: Stream) {
+             }
+         }
+         check(entered.await(5, TimeUnit.SECONDS)) { "The event loop must enter its controlled wait" }
++        if (queuedBeforeFill) loop.execute {}
+         repeat(2048) { loop.execute { drained.countDown() } }
+         assertThrows(RejectedExecutionException::class.java) { loop.execute {} }
+         assertFalse(loop.isShuttingDown)

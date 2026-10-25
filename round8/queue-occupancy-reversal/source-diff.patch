@@ -1,0 +1,16 @@
+diff --git a/libp2p/src/test/kotlin/io/libp2p/transport/CompletedStreamWriteNotificationTest.kt b/libp2p/src/test/kotlin/io/libp2p/transport/CompletedStreamWriteNotificationTest.kt
+index f7870275..98095ca8 100644
+--- a/libp2p/src/test/kotlin/io/libp2p/transport/CompletedStreamWriteNotificationTest.kt
++++ b/libp2p/src/test/kotlin/io/libp2p/transport/CompletedStreamWriteNotificationTest.kt
+@@ -260,10 +260,7 @@ private fun enqueueFillAttempts(loop: EventLoop, drained: CountDownLatch): Pair<
+             }
+             admitted++
+         } catch (rejected: RejectedExecutionException) {
+-            assertNull(rejected.message, "A full live queue must retain the original rejection message")
+-            // An ordinary queued task can already occupy a slot. This attempt was rejected,
+-            // so it owns no runnable to wait for; every admitted filler is counted separately.
+-            drained.countDown()
++            throw rejected
+         }
+     }
+     assertTrue(admitted > 0, "The controlled queue fill must admit filler tasks")

@@ -1,4 +1,6 @@
 # V71 findings
+CURRENT 18:47 UTC: Complete native run ID f0f67dc5. Initial client session 67172 ended by itself with exit 2 while last reported service phase was BUILDING. No native artifact or final XML returned. Remote completion is UNKNOWN; do not submit another complete suite. Read-only status and supported attach recovery are in progress.
+
 Started 2026-10-26 17:31 UTC.
 
 Plan:
@@ -59,3 +61,11 @@ OBSERVED 18:21 UTC: Fourth run progressed through provisioning and installation 
 STATUS: RUNNING. Fresh-context review is complete, no demonstrated PR finding. Local producer compilation, embedded archive decoding, report reader, and combined artifact/test request checks pass. Remaining work is the native result, any base comparison it requires, and PR description update. No unnecessary holds; no active delegate; no user decision required for numbered objectives. The optional consumer-PR scope check received no answer, so the numbered library objectives remain the working scope.
 
 OBSERVED 18:26 UTC: Same fourth client remains in BUILDING, with no returned report artifact. Read-only manager 0.0.209 inspection confirms canonicalBuildRuleKey normalizes the positional rule and the WithArtifact rule to the same librarySuite() key, and both use the same declared-rule fingerprint. The successful producer result is therefore shared with the reader dependency; no second native execution is requested by the wrapper. No product source changed.
+
+OBSERVED 18:32 UTC: Same complete-run client remains active in BUILDING. No native artifact or outer XML has returned. Client connection notices continue in its saved log; these do not supply a native test outcome. The complete run is left running under the explicit waiting exception. No new product change or additional run.
+
+OBSERVED 18:38 UTC: Client still active; last reported service phase BUILDING. No artifact or final XML. Connection closures continue; no native outcome is inferred from those notices. Read-only monitoring research is checking whether the active run ID can be recovered through a supported API, without starting or changing any run.
+
+OBSERVED 18:41 UTC: Read-only run-list discovery via https://buildtest.kotlin.build/api/runs returned HTTP 503 with no body after an earlier no-data probe. No active run ID recovered. This frontend response does not establish native executor state. The documented buildtest-cli list path is being located; no run is changed. Client continues awaiting the same fourth run.
+
+OBSERVED 18:47 UTC: Client wait ended with exit 2 and a connection-closed report, with f0f67dc5 now visible in terminal metadata. This is not a native Gradle result and does not show whether the remote job ended. BuildTestCli source supplies read-only status/log/results commands through url://buildtest/, distinct from the HTTP frontend. A capped status probe is active; source review is confirming an attach-only command to wait for the same run and retrieve its existing artifact. No new suite submission.

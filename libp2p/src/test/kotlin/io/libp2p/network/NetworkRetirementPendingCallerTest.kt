@@ -55,7 +55,7 @@ class NetworkRetirementPendingCallerTest {
 private fun verifyPendingRetirementCaller(parentCloses: Boolean = false, endRequest: (Stream) -> Unit) {
     val request = CompletableFuture<Stream>()
     val parents = CopyOnWriteArrayList<Connection>()
-    val children = CopyOnWriteArrayList<Stream>()
+    val children = CopyOnWriteArrayList<CompletableFuture<Unit>>()
     val replyGate = CompletableFuture<Unit>()
     val releaseExecutor = Executors.newSingleThreadExecutor()
     val b = host {
@@ -105,13 +105,13 @@ private fun verifyPendingRetirementCaller(parentCloses: Boolean = false, endRequ
     }
     a.addConnectionHandler(ConnectionHandler.create { parents.add(it) })
     b.addConnectionHandler(ConnectionHandler.create { parents.add(it) })
-    b.addStreamVisitor(ChannelVisitor { children.add(it) })
+    b.addStreamVisitor(ChannelVisitor { children.add(it.closeFuture()) })
     val controlTerminated = CompletableFuture<Unit>()
     val parentTerminated = CompletableFuture<Unit>()
     val control = CompletableFuture<Stream>()
     a.addStreamVisitor(
         ChannelVisitor { stream ->
-            children.add(stream)
+            children.add(stream.closeFuture())
             if (transport.first.isDone && stream.connection === transport.first.get()) {
                 control.complete(stream)
                 stream.pushHandler(object : ChannelInboundHandlerAdapter() {
@@ -204,8 +204,14 @@ private fun verifyPendingRetirementCaller(parentCloses: Boolean = false, endRequ
                 b.stop().get(10, TimeUnit.SECONDS)
             }
         }
-        parents.forEach { assertThat(it.closeFuture().isDone).isTrue() }
-        children.forEach { assertThat(it.closeFuture().isDone).isTrue() }
+        parents.forEach {
+            it.closeFuture().get(10, TimeUnit.SECONDS)
+            assertThat(it.closeFuture().isDone).isTrue()
+        }
+        children.forEach {
+            it.get(10, TimeUnit.SECONDS)
+            assertThat(it.isDone).isTrue()
+        }
         (a.network.transports + b.network.transports).forEach {
             assertThat(it.activeConnections).isZero()
             assertThat(it.activeListeners).isZero()

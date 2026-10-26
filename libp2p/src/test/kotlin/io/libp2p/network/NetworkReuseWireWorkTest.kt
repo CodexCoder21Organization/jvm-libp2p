@@ -41,7 +41,7 @@ class NetworkReuseWireWorkTest {
         val b = wireCountedHost(muxer, opensB, framesB)
         val inbound = CompletableFuture<Connection>()
         val parents = CopyOnWriteArrayList<Connection>()
-        val children = CopyOnWriteArrayList<Stream>()
+        val children = CopyOnWriteArrayList<CompletableFuture<Unit>>()
         val childrenA = LinkedBlockingQueue<Stream>()
         val childrenB = LinkedBlockingQueue<Stream>()
         a.addConnectionHandler(ConnectionHandler.create { parents.add(it) })
@@ -53,13 +53,13 @@ class NetworkReuseWireWorkTest {
         )
         a.addStreamVisitor(
             ChannelVisitor {
-                children.add(it)
+                children.add(it.closeFuture())
                 childrenA.add(it)
             }
         )
         b.addStreamVisitor(
             ChannelVisitor {
-                children.add(it)
+                children.add(it.closeFuture())
                 childrenB.add(it)
             }
         )
@@ -136,8 +136,14 @@ class NetworkReuseWireWorkTest {
                     b.stop().get(10, TimeUnit.SECONDS)
                 }
             }
-            parents.forEach { assertThat(it.closeFuture().isDone).isTrue() }
-            children.forEach { assertThat(it.closeFuture().isDone).isTrue() }
+            parents.forEach {
+                it.closeFuture().get(10, TimeUnit.SECONDS)
+                assertThat(it.closeFuture().isDone).isTrue()
+            }
+            children.forEach {
+                it.get(10, TimeUnit.SECONDS)
+                assertThat(it.isDone).isTrue()
+            }
             (a.network.transports + b.network.transports).forEach {
                 assertThat(it.activeConnections).isZero()
                 assertThat(it.activeListeners).isZero()

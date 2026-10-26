@@ -23,8 +23,8 @@ class NetworkInboundReservationTest {
     fun `inbound reuse survives the remote pending outbound result`() {
         lateinit var at: InboundCallbackTransport
         lateinit var bt: InboundCallbackTransport
-        val a = r77Host { InboundCallbackTransport(it).also { at = it } }
-        val b = r77Host { InboundCallbackTransport(it).also { bt = it } }
+        val a = inboundSelectionHost { InboundCallbackTransport(it).also { at = it } }
+        val b = inboundSelectionHost { InboundCallbackTransport(it).also { bt = it } }
         val aInbound = CompletableFuture<Connection>()
         val bInbound = CompletableFuture<Connection>()
         a.addConnectionHandler(ConnectionHandler.create { if (!it.isInitiator) aInbound.complete(it) })
@@ -76,7 +76,7 @@ class NetworkInboundReservationTest {
     }
 }
 
-private fun r77Host(factory: (ConnectionUpgrader) -> TcpTransport): Host = host {
+private fun inboundSelectionHost(factory: (ConnectionUpgrader) -> TcpTransport): Host = host {
     network { listen("/ip4/127.0.0.1/tcp/0") }
     transports { add(factory) }
     secureChannels { add(::NoiseXXSecureChannel) }

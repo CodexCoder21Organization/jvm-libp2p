@@ -14,9 +14,14 @@ import io.libp2p.protocol.PingController
 import io.libp2p.protocol.ProtocolHandler
 import io.libp2p.protocol.ProtocolMessageHandler
 import io.libp2p.security.noise.NoiseXXSecureChannel
+import io.libp2p.tools.Echo
+import io.libp2p.tools.EchoController
 import io.libp2p.transport.ConnectionUpgrader
 import io.libp2p.transport.tcp.TcpTransport
 import io.netty.buffer.ByteBuf
+import io.netty.buffer.Unpooled
+import io.netty.channel.ChannelHandlerContext
+import io.netty.channel.ChannelInboundHandlerAdapter
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CompletableFuture
@@ -26,6 +31,12 @@ import java.util.concurrent.atomic.AtomicInteger
 private const val RETIREMENT_PROTOCOL = "/libp2p/connection-selection/1.0.0"
 
 class NetworkRetirementTerminationTest {
+    @Test
+    fun `a denied retirement preserves eligibility of its live parent`() =
+        verifyRetirementTermination {
+            it.writeAndFlushWithFuture(Unpooled.buffer(1).writeByte(0)).thenCompose { _ -> it.closeWrite() }
+        }
+
     @Test
     fun `retirement reaches a terminal outcome when the peer ends writing without a reply`() =
         verifyRetirementTermination { it.closeWrite() }
@@ -71,19 +82,35 @@ private fun verifyRetirementTermination(parentCloses: Boolean = false, endReques
                 }
             )
         }
-        protocols { add(Ping()) }
+        protocols {
+            add(Ping())
+            add(Echo())
+        }
     }
     lateinit var transport: DelayedRetirementTransport
     val a = host {
         transports { add { upgrader -> DelayedRetirementTransport(upgrader).also { transport = it } } }
         secureChannels { add(::NoiseXXSecureChannel) }
         muxers { add(StreamMuxerProtocol.getYamux()) }
-        protocols { add(Ping()) }
+        protocols {
+            add(Ping())
+            add(Echo())
+        }
     }
+    val controlTerminated = CompletableFuture<Unit>()
+    val parentTerminated = CompletableFuture<Unit>()
     val control = CompletableFuture<Stream>()
     a.addStreamVisitor(
         ChannelVisitor { stream ->
-            if (transport.first.isDone && stream.connection === transport.first.get()) control.complete(stream)
+            if (transport.first.isDone && stream.connection === transport.first.get()) {
+                control.complete(stream)
+                stream.pushHandler(object : ChannelInboundHandlerAdapter() {
+                    override fun channelUnregistered(ctx: ChannelHandlerContext) {
+                        ctx.fireChannelUnregistered()
+                        ctx.executor().execute { controlTerminated.complete(Unit) }
+                    }
+                })
+            }
         }
     )
     try {
@@ -93,12 +120,19 @@ private fun verifyRetirementTermination(parentCloses: Boolean = false, endReques
         val selected = connect.get(10, TimeUnit.SECONDS)
         val unused = transport.first.get(10, TimeUnit.SECONDS)
         assertThat(selected).isNotSameAs(unused)
+        unused.pushHandler(object : ChannelInboundHandlerAdapter() {
+            override fun channelUnregistered(ctx: ChannelHandlerContext) {
+                ctx.fireChannelUnregistered()
+                ctx.executor().execute { parentTerminated.complete(Unit) }
+            }
+        })
         val listenersBefore = unused.closeFuture().numberOfDependents
         transport.releaseFirst.complete(Unit)
         val remoteChild = request.get(10, TimeUnit.SECONDS)
         val localChild = control.get(10, TimeUnit.SECONDS)
         localChild.closeFuture().get(10, TimeUnit.SECONDS)
         remoteChild.closeFuture().get(10, TimeUnit.SECONDS)
+        controlTerminated.get(10, TimeUnit.SECONDS)
         assertThat(connect.isDone).isTrue()
         assertThat(a.network.connect(b.peerId).get(10, TimeUnit.SECONDS)).isSameAs(selected)
         val ping = a.newStream<PingController>(listOf("/ipfs/ping/1.0.0"), selected)
@@ -107,6 +141,7 @@ private fun verifyRetirementTermination(parentCloses: Boolean = false, endReques
         assertThat(unused.closeFuture().numberOfDependents).isLessThanOrEqualTo(listenersBefore)
         if (parentCloses) {
             unused.closeFuture().get(10, TimeUnit.SECONDS)
+            parentTerminated.get(10, TimeUnit.SECONDS)
             assertThat(a.network.connections).doesNotContain(unused)
             assertThat(transport.activeConnections).isEqualTo(1)
         } else {
@@ -116,9 +151,10 @@ private fun verifyRetirementTermination(parentCloses: Boolean = false, endReques
             // A failed retirement cannot exclude a live, possibly published remote parent.
             selected.close().get(10, TimeUnit.SECONDS)
             assertThat(a.network.connect(b.peerId).get(10, TimeUnit.SECONDS)).isSameAs(unused)
-            val recovered = a.newStream<PingController>(listOf("/ipfs/ping/1.0.0"), unused)
+            val recovered = a.newStream<EchoController>(listOf("/test/echo"), unused)
                 .controller.get(10, TimeUnit.SECONDS)
-            recovered.ping().get(10, TimeUnit.SECONDS)
+            assertThat(recovered.echo("recovered retirement parent").get(10, TimeUnit.SECONDS))
+                .isEqualTo("recovered retirement parent")
         }
     } finally {
         transport.start.complete(Unit)

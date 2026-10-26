@@ -10,6 +10,8 @@ import io.libp2p.core.mux.StreamMuxerProtocol
 import io.libp2p.protocol.Ping
 import io.libp2p.protocol.PingController
 import io.libp2p.security.noise.NoiseXXSecureChannel
+import io.libp2p.tools.Echo
+import io.libp2p.tools.EchoController
 import io.libp2p.transport.ConnectionUpgrader
 import io.libp2p.transport.tcp.TcpTransport
 import io.netty.channel.ChannelHandlerContext
@@ -39,7 +41,10 @@ class NetworkLegacyPublishedParentTest {
                     }
                 )
             }
-            protocols { add(Ping()) }
+            protocols {
+                add(Ping())
+                add(Echo())
+            }
         }
         val accepted = CompletableFuture<Connection>()
         b.addConnectionHandler(ConnectionHandler.create { accepted.complete(it) })
@@ -48,7 +53,10 @@ class NetworkLegacyPublishedParentTest {
             transports { add { upgrader -> LegacyPublishedTransport(upgrader).also { transport = it } } }
             secureChannels { add(::NoiseXXSecureChannel) }
             muxers { add(StreamMuxerProtocol.getYamux()) }
-            protocols { add(Ping()) }
+            protocols {
+                add(Ping())
+                add(Echo())
+            }
         }
         val controlClosed = CompletableFuture<Unit>()
         a.addStreamVisitor(
@@ -90,9 +98,10 @@ class NetworkLegacyPublishedParentTest {
             assertThat(transport.activeConnections).isEqualTo(2)
             selected.close().get(10, TimeUnit.SECONDS)
             assertThat(a.network.connect(b.peerId).get(10, TimeUnit.SECONDS)).isSameAs(unused)
-            val localPing = a.newStream<PingController>(listOf("/ipfs/ping/1.0.0"), unused)
+            val recovered = a.newStream<EchoController>(listOf("/test/echo"), unused)
                 .controller.get(10, TimeUnit.SECONDS)
-            localPing.ping().get(10, TimeUnit.SECONDS)
+            assertThat(recovered.echo("remote published parent").get(10, TimeUnit.SECONDS))
+                .isEqualTo("remote published parent")
         } finally {
             transport.start.complete(Unit)
             transport.releaseFirst.complete(Unit)

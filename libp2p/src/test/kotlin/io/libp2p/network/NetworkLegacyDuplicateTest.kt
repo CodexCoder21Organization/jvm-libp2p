@@ -48,6 +48,7 @@ class NetworkLegacyDuplicateTest {
             muxers { add(StreamMuxerProtocol.getYamux()) }
             protocols { add(Ping()) }
         }
+        val parentClosed = CompletableFuture<Unit>()
         val controlClosed = CompletableFuture<Unit>()
         a.addStreamVisitor(
             ChannelVisitor { stream ->
@@ -68,6 +69,12 @@ class NetworkLegacyDuplicateTest {
             val selected = a.network.connect(b.peerId, *b.listenAddresses().toTypedArray()).get(10, TimeUnit.SECONDS)
             val unused = transport.first.get(10, TimeUnit.SECONDS)
             assertThat(selected).isNotSameAs(unused)
+            unused.pushHandler(object : ChannelInboundHandlerAdapter() {
+                override fun channelUnregistered(ctx: ChannelHandlerContext) {
+                    ctx.fireChannelUnregistered()
+                    ctx.executor().execute { parentClosed.complete(Unit) }
+                }
+            })
             val ping = a.newStream<PingController>(listOf("/ipfs/ping/1.0.0"), selected)
                 .controller.get(10, TimeUnit.SECONDS)
             ping.ping().get(10, TimeUnit.SECONDS)
@@ -81,6 +88,7 @@ class NetworkLegacyDuplicateTest {
             }
             remoteSurplus.close().get(10, TimeUnit.SECONDS)
             unused.closeFuture().get(10, TimeUnit.SECONDS)
+            parentClosed.get(10, TimeUnit.SECONDS)
             ping.ping().get(10, TimeUnit.SECONDS)
             println("unused duplicate close complete=${unused.closeFuture().isDone}; local sockets=${transport.activeConnections}")
             assertThat(unused.closeFuture().isDone)

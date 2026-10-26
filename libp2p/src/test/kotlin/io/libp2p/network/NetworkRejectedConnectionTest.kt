@@ -25,9 +25,9 @@ import java.util.concurrent.atomic.AtomicInteger
 class NetworkRejectedConnectionTest {
     @Test
     fun `reuse excludes a duplicate whose physical close is pending`() {
-        val server = r77ClosingHost(true)
+        val server = closingSelectionHost(true)
         lateinit var transport: CallbackResultTransport
-        val client = r77ClosingHost(false) { CallbackResultTransport(it).also { transport = it } }
+        val client = closingSelectionHost(false) { CallbackResultTransport(it).also { transport = it } }
         val closeGate = HeldPhysicalClose()
         val visits = AtomicInteger()
         try {
@@ -69,7 +69,7 @@ class NetworkRejectedConnectionTest {
     }
 }
 
-private fun r77ClosingHost(listen: Boolean, factory: ((ConnectionUpgrader) -> TcpTransport)? = null): Host = host {
+private fun closingSelectionHost(listen: Boolean, factory: ((ConnectionUpgrader) -> TcpTransport)? = null): Host = host {
     if (listen) {
         network {
             listen("/ip4/127.0.0.1/tcp/0")

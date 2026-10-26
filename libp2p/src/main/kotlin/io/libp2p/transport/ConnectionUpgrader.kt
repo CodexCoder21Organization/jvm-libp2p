@@ -21,6 +21,8 @@ open class ConnectionUpgrader(
     private val muxerMultistream: MultistreamProtocol,
     private val muxers: List<StreamMuxer>,
 ) {
+    internal var connectionSelectionEnabled = false
+
     private val startupPreparations = mutableListOf<() -> Unit>()
 
     // Builder finishes this list before constructing the network and its transports.

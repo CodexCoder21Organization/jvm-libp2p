@@ -5,6 +5,7 @@ import io.libp2p.core.multiformats.Multiaddr
 import io.libp2p.core.mux.StreamMuxer
 import io.libp2p.core.security.SecureChannel
 import io.libp2p.etc.CONNECTION
+import io.libp2p.network.ConnectionSelection
 import io.netty.channel.Channel
 
 /**
@@ -17,6 +18,31 @@ open class ConnectionOverNetty(
     private val nettyTransport: NettyTransport,
     initiator: Boolean
 ) : Connection, P2PChannelOverNetty(ch, initiator) {
+    @Volatile
+    internal var selection: ConnectionSelection? = null
+        private set
+
+    // Set by an application close at any time, including before the selection state exists,
+    // so that a close requested from a pre-upgrade handler is never lost.
+    @Volatile
+    private var closeWasRequested = false
+
+    internal fun closeWasRequested(): Boolean = closeWasRequested
+
+    internal fun enableConnectionSelection(session: StreamMuxer.Session) {
+        val created = ConnectionSelection(this, session)
+        selection = created
+        muxerSession = created
+        // Read after publishing the selection: a concurrent close either sees the selection
+        // or has already set the flag, so the request is recorded in both orders.
+        if (closeWasRequested) created.closeRequested()
+    }
+
+    private fun recordCloseRequest() {
+        closeWasRequested = true
+        selection?.closeRequested()
+    }
+
     private lateinit var muxerSession: StreamMuxer.Session
     private lateinit var secureSession: SecureChannel.Session
 
@@ -31,9 +57,15 @@ open class ConnectionOverNetty(
         secureSession = ss
     }
 
-    override fun close() = closeNettyChannelOnce(nettyChannel)
+    override fun close(): java.util.concurrent.CompletableFuture<Unit> {
+        recordCloseRequest()
+        return closeNettyChannelOnce(nettyChannel)
+    }
 
-    override fun retryClose() = retryNettyChannelClose(nettyChannel)
+    override fun retryClose(): java.util.concurrent.CompletableFuture<Unit> {
+        recordCloseRequest()
+        return retryNettyChannelClose(nettyChannel)
+    }
 
     override fun muxerSession() = muxerSession
     override fun secureSession() = secureSession

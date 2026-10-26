@@ -67,7 +67,11 @@ class NetworkInboundReservationTest {
             bt.start.complete(Unit)
             at.forwardCallback.complete(Unit)
             bt.forwardCallback.complete(Unit)
-            try { a.stop().get(10, TimeUnit.SECONDS) } finally { b.stop().get(10, TimeUnit.SECONDS) }
+            try {
+                a.stop().get(10, TimeUnit.SECONDS)
+            } finally {
+                b.stop().get(10, TimeUnit.SECONDS)
+            }
         }
     }
 }

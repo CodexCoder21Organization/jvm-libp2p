@@ -34,9 +34,13 @@ class NetworkRejectedConnectionTest {
             server.start().get(10, TimeUnit.SECONDS)
             client.start().get(10, TimeUnit.SECONDS)
             val addresses = server.listenAddresses().toTypedArray()
-            val winner = client.network.connect(server.peerId, ChannelVisitor {
-                if (visits.incrementAndGet() == 1) it.pushHandler(closeGate)
-            }, *addresses).get(10, TimeUnit.SECONDS)
+            val winner = client.network.connect(
+                server.peerId,
+                ChannelVisitor {
+                    if (visits.incrementAndGet() == 1) it.pushHandler(closeGate)
+                },
+                *addresses
+            ).get(10, TimeUnit.SECONDS)
             transport.releaseFirst.complete(Unit)
             closeGate.requested.get(10, TimeUnit.SECONDS)
             // The first parent is already rejected, but its channel close is not complete.
@@ -56,15 +60,21 @@ class NetworkRejectedConnectionTest {
         } finally {
             transport.releaseFirst.complete(Unit)
             closeGate.release.complete(Unit)
-            try { client.stop().get(10, TimeUnit.SECONDS) } finally { server.stop().get(10, TimeUnit.SECONDS) }
+            try {
+                client.stop().get(10, TimeUnit.SECONDS)
+            } finally {
+                server.stop().get(10, TimeUnit.SECONDS)
+            }
         }
     }
 }
 
 private fun r77ClosingHost(listen: Boolean, factory: ((ConnectionUpgrader) -> TcpTransport)? = null): Host = host {
-    if (listen) network {
-        listen("/ip4/127.0.0.1/tcp/0")
-        listen("/ip4/127.0.0.2/tcp/0")
+    if (listen) {
+        network {
+            listen("/ip4/127.0.0.1/tcp/0")
+            listen("/ip4/127.0.0.2/tcp/0")
+        }
     }
     factory?.let { transports { add(it) } }
     secureChannels { add(::NoiseXXSecureChannel) }

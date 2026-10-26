@@ -23,6 +23,7 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.Executors
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
@@ -39,11 +40,29 @@ class NetworkReuseWireWorkTest {
         val a = wireCountedHost(muxer, opensA, framesA)
         val b = wireCountedHost(muxer, opensB, framesB)
         val inbound = CompletableFuture<Connection>()
+        val parents = CopyOnWriteArrayList<Connection>()
+        val children = CopyOnWriteArrayList<Stream>()
         val childrenA = LinkedBlockingQueue<Stream>()
         val childrenB = LinkedBlockingQueue<Stream>()
-        b.addConnectionHandler(ConnectionHandler.create { inbound.complete(it) })
-        a.addStreamVisitor(ChannelVisitor { childrenA.add(it) })
-        b.addStreamVisitor(ChannelVisitor { childrenB.add(it) })
+        a.addConnectionHandler(ConnectionHandler.create { parents.add(it) })
+        b.addConnectionHandler(
+            ConnectionHandler.create {
+                parents.add(it)
+                inbound.complete(it)
+            }
+        )
+        a.addStreamVisitor(
+            ChannelVisitor {
+                children.add(it)
+                childrenA.add(it)
+            }
+        )
+        b.addStreamVisitor(
+            ChannelVisitor {
+                children.add(it)
+                childrenB.add(it)
+            }
+        )
         val callers = Executors.newFixedThreadPool(32)
         try {
             a.start().get(10, TimeUnit.SECONDS)
@@ -66,10 +85,16 @@ class NetworkReuseWireWorkTest {
 
             // Sequential reuse is a separate public contract from simultaneous calls.
             repeat(32) { index ->
-                val resultA = if (index % 2 == 0) a.network.connect(b.peerId) else
+                val resultA = if (index % 2 == 0) {
+                    a.network.connect(b.peerId)
+                } else {
                     a.network.connect(b.peerId, b.listenAddresses().single())
-                val resultB = if (index % 2 == 0) b.network.connect(a.peerId) else
+                }
+                val resultB = if (index % 2 == 0) {
+                    b.network.connect(a.peerId)
+                } else {
                     b.network.connect(a.peerId, outbound.localAddress())
+                }
                 assertThat(resultA.get(10, TimeUnit.SECONDS)).isSameAs(outbound)
                 assertThat(resultB.get(10, TimeUnit.SECONDS)).isSameAs(remote)
             }
@@ -101,13 +126,18 @@ class NetworkReuseWireWorkTest {
             assertThat(remote.closeFuture().isDone).isFalse()
             countedEcho(a, outbound, childrenA, childrenB, "complete Echo after reuse")
         } finally {
-            callers.shutdownNow()
-            assertThat(callers.awaitTermination(10, TimeUnit.SECONDS)).isTrue()
             try {
-                a.stop().get(10, TimeUnit.SECONDS)
+                callers.shutdownNow()
+                assertThat(callers.awaitTermination(10, TimeUnit.SECONDS)).isTrue()
             } finally {
-                b.stop().get(10, TimeUnit.SECONDS)
+                try {
+                    a.stop().get(10, TimeUnit.SECONDS)
+                } finally {
+                    b.stop().get(10, TimeUnit.SECONDS)
+                }
             }
+            parents.forEach { assertThat(it.closeFuture().isDone).isTrue() }
+            children.forEach { assertThat(it.closeFuture().isDone).isTrue() }
             (a.network.transports + b.network.transports).forEach {
                 assertThat(it.activeConnections).isZero()
                 assertThat(it.activeListeners).isZero()
@@ -120,29 +150,34 @@ private fun wireCountedHost(muxer: String, opens: AtomicInteger, frames: AtomicI
     network { listen("/ip4/127.0.0.1/tcp/0") }
     secureChannels { add(::NoiseXXSecureChannel) }
     muxers {
-        add(StreamMuxerProtocol { multistream, protocols ->
-            val real = (if (muxer == "yamux") StreamMuxerProtocol.getYamux() else StreamMuxerProtocol.Mplex)
-                .createMuxer(multistream, protocols)
-            (real as StreamMuxerDebug).muxFramesDebugHandler = ChannelVisitor { connection ->
-                connection.pushHandler(object : ChannelOutboundHandlerAdapter() {
-                    override fun write(ctx: ChannelHandlerContext, msg: Any, promise: ChannelPromise) {
-                        frames.incrementAndGet()
-                        ctx.write(msg, promise)
-                    }
-                })
-            }
-            object : StreamMuxer by real {
-                override fun initChannel(ch: P2PChannel, selectedProtocol: String): CompletableFuture<out StreamMuxer.Session> =
-                    real.initChannel(ch, selectedProtocol).thenApply { session ->
-                        object : StreamMuxer.Session by session {
-                            override fun <T> createStream(protocols: List<ProtocolBinding<T>>): StreamPromise<T> {
-                                opens.incrementAndGet()
-                                return session.createStream(protocols)
+        add(
+            StreamMuxerProtocol { multistream, protocols ->
+                val real = (if (muxer == "yamux") StreamMuxerProtocol.getYamux() else StreamMuxerProtocol.Mplex)
+                    .createMuxer(multistream, protocols)
+                (real as StreamMuxerDebug).muxFramesDebugHandler = ChannelVisitor { connection ->
+                    connection.pushHandler(object : ChannelOutboundHandlerAdapter() {
+                        override fun write(ctx: ChannelHandlerContext, msg: Any, promise: ChannelPromise) {
+                            frames.incrementAndGet()
+                            ctx.write(msg, promise)
+                        }
+                    })
+                }
+                object : StreamMuxer by real {
+                    override fun initChannel(ch: P2PChannel, selectedProtocol: String): CompletableFuture<out StreamMuxer.Session> =
+                        real.initChannel(ch, selectedProtocol).thenApply { session ->
+                            object : StreamMuxer.Session by session {
+                                override fun <T> createStream(protocol: ProtocolBinding<T>): StreamPromise<T> =
+                                    createStream(listOf(protocol))
+
+                                override fun <T> createStream(protocols: List<ProtocolBinding<T>>): StreamPromise<T> {
+                                    opens.incrementAndGet()
+                                    return session.createStream(protocols)
+                                }
                             }
                         }
-                    }
+                }
             }
-        })
+        )
     }
     protocols { add(Echo()) }
 }

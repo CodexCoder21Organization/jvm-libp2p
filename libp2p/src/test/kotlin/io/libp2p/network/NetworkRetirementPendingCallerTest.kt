@@ -25,6 +25,7 @@ import io.netty.channel.ChannelInboundHandlerAdapter
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
@@ -53,6 +54,8 @@ class NetworkRetirementPendingCallerTest {
 
 private fun verifyPendingRetirementCaller(parentCloses: Boolean = false, endRequest: (Stream) -> Unit) {
     val request = CompletableFuture<Stream>()
+    val parents = CopyOnWriteArrayList<Connection>()
+    val children = CopyOnWriteArrayList<Stream>()
     val replyGate = CompletableFuture<Unit>()
     val releaseExecutor = Executors.newSingleThreadExecutor()
     val b = host {
@@ -100,11 +103,15 @@ private fun verifyPendingRetirementCaller(parentCloses: Boolean = false, endRequ
             add(Echo())
         }
     }
+    a.addConnectionHandler(ConnectionHandler.create { parents.add(it) })
+    b.addConnectionHandler(ConnectionHandler.create { parents.add(it) })
+    b.addStreamVisitor(ChannelVisitor { children.add(it) })
     val controlTerminated = CompletableFuture<Unit>()
     val parentTerminated = CompletableFuture<Unit>()
     val control = CompletableFuture<Stream>()
     a.addStreamVisitor(
         ChannelVisitor { stream ->
+            children.add(stream)
             if (transport.first.isDone && stream.connection === transport.first.get()) {
                 control.complete(stream)
                 stream.pushHandler(object : ChannelInboundHandlerAdapter() {
@@ -137,6 +144,11 @@ private fun verifyPendingRetirementCaller(parentCloses: Boolean = false, endRequ
         val released = CompletableFuture.runAsync({ transport.releaseFirst.complete(Unit) }, releaseExecutor)
         val remoteChild = request.get(10, TimeUnit.SECONDS)
         val localChild = control.get(10, TimeUnit.SECONDS)
+        assertThat(localChild.closeFuture().isDone).isFalse()
+        assertThat(remoteChild.closeFuture().isDone).isFalse()
+        assertThat(replyGate.isDone).isFalse()
+        assertThat(remoteChild.connection.localAddress()).isEqualTo(unused.remoteAddress())
+        assertThat(remoteChild.connection.remoteAddress()).isEqualTo(unused.localAddress())
         assertThat(lateOnly.get(10, TimeUnit.SECONDS)).isSameAs(selected)
         released.get(10, TimeUnit.SECONDS)
         assertThat(a.network.connect(b.peerId).get(10, TimeUnit.SECONDS)).isSameAs(selected)
@@ -182,13 +194,18 @@ private fun verifyPendingRetirementCaller(parentCloses: Boolean = false, endRequ
         replyGate.complete(Unit)
         transport.start.complete(Unit)
         transport.releaseFirst.complete(Unit)
-        releaseExecutor.shutdown()
-        assertThat(releaseExecutor.awaitTermination(10, TimeUnit.SECONDS)).isTrue()
         try {
-            a.stop().get(10, TimeUnit.SECONDS)
+            releaseExecutor.shutdown()
+            assertThat(releaseExecutor.awaitTermination(10, TimeUnit.SECONDS)).isTrue()
         } finally {
-            b.stop().get(10, TimeUnit.SECONDS)
+            try {
+                a.stop().get(10, TimeUnit.SECONDS)
+            } finally {
+                b.stop().get(10, TimeUnit.SECONDS)
+            }
         }
+        parents.forEach { assertThat(it.closeFuture().isDone).isTrue() }
+        children.forEach { assertThat(it.closeFuture().isDone).isTrue() }
         (a.network.transports + b.network.transports).forEach {
             assertThat(it.activeConnections).isZero()
             assertThat(it.activeListeners).isZero()

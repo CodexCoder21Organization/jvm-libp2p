@@ -2,10 +2,10 @@
 Started 2026-10-26 17:31 UTC.
 
 Plan:
-- IN PROGRESS: Read prior findings and repository guidance; verify the exact PR head and complete-suite entry point.
-- TODO: Run the single complete native Gradle suite through the saved remote bridge; record native counts and first-attempt outcomes. Compare any test errors with the base.
-- TODO: Complete a fresh-context correctness review of result delivery, object retention, and ordering. Add a public-API test before any product correction.
-- TODO: Save verification evidence on a V71 branch, update the existing PR description, and finish without merge, queue entry, publication, deployment, or CI watching.
+- DONE: Read prior findings and repository guidance; verify the exact PR head and complete-suite entry point.
+- IN PROGRESS: Run the single complete native Gradle suite through the saved remote bridge; record native counts and first-attempt outcomes. Compare any test errors with the base.
+- DONE: Complete a fresh-context correctness review of result delivery, object retention, and ordering. Add a public-API test before any product correction.
+- IN PROGRESS: Save verification evidence on a V71 branch, update the existing PR description, and finish without merge, queue entry, publication, deployment, or CI watching.
 
 OBSERVED: The existing PR is OPEN at 587aad5f1c7fda72a561f0f7bb09dfd8f63b8939, with base develop. There is no main branch. Fetch and rebase on origin/develop retained the exact requested head.
 OBSERVED: F71 recorded 31 focused checks and ten first-attempt consumer passes; no native complete suite executed because remote allocation ended earlier. The complete-suite rule at the end of this brief requires remote execution and overrides the earlier local request. The repository uses Gradle and has no kompile suite script at its product head.
@@ -52,3 +52,10 @@ OBSERVED 18:12 UTC: git check-ignore confirms the source archive matched the rep
 Tooling edits only: undefined __FILE__ became a normal project path, then embedded archive bytes; the generated wrapper body moved into a test function; test stdout report emission was replaced by a requested output artifact; producer now preserves native XML and its complete Gradle log on nonzero native exit. Product code and native tests remain unchanged. Challenge recording through the automatic-merge CLI is not used because this lane forbids merges.
 
 OBSERVED 18:13 UTC: Self-contained embedded archive probe passed (exit 0) with the separate ZIP removed. It compiled the 1,358,590-byte generated buildscript and decoded more than 600 source entries without running Gradle. The deterministic embedded archive SHA256 is 478e5a57b8effd9c434d00cb92668b36a5f0adb9d6fd77e3a4d80701ac191129. Product revision remains exactly 587aad5f1c7fda72a561f0f7bb09dfd8f63b8939. Fourth client will request both the native report artifact and the reader test in one run.
+
+OBSERVED 18:15 UTC: Fourth complete-suite client is active (tracked session 67172), currently provisioning. Command requests V71-native-reports.jar plus V71-library-suite-04.xml from the same run. The first three setup submissions all ended before any native test execution. The embedded archive is independent of the repository ZIP ignore rule; its local decode/compile probe passed. No additional product change or review finding.
+
+OBSERVED 18:21 UTC: Fourth run progressed through provisioning and installation to BUILDING. It remains active with client reconnection notices; no terminal result or report artifact yet. The native producer now writes Gradle output into the returned archive, so absence of streamed task lines is not a native result. Same submission continues; no interruption or additional submission.
+STATUS: RUNNING. Fresh-context review is complete, no demonstrated PR finding. Local producer compilation, embedded archive decoding, report reader, and combined artifact/test request checks pass. Remaining work is the native result, any base comparison it requires, and PR description update. No unnecessary holds; no active delegate; no user decision required for numbered objectives. The optional consumer-PR scope check received no answer, so the numbered library objectives remain the working scope.
+
+OBSERVED 18:26 UTC: Same fourth client remains in BUILDING, with no returned report artifact. Read-only manager 0.0.209 inspection confirms canonicalBuildRuleKey normalizes the positional rule and the WithArtifact rule to the same librarySuite() key, and both use the same declared-rule fingerprint. The successful producer result is therefore shared with the reader dependency; no second native execution is requested by the wrapper. No product source changed.

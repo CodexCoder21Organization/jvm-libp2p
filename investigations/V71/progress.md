@@ -1,13 +1,13 @@
 # V71 findings
-CURRENT 19:22 UTC: Native report recovered for f0f67dc5. Exact head587aad5f:1437 passed,5 failing cases,2 skipped,1444 total,204 XML, Gradle exit1 in17m48s. Baseline targeted controls at395e0c72 are IN PROGRESS. No second complete run is needed; earlier local-full clarification is no longer needed.
+CURRENT 19:56 UTC: Numbered validation objectives complete. Native suite NOT GREEN:1437 passed,5 failed,2 skipped. Two failure patterns reproduce on exact base395e0c72; three other cases pass isolated controls on both commits and remain unattributed in full-suite context. PR description updated; product head remains587aad5f.
 
 Started 2026-10-26 17:31 UTC.
 
 Plan:
 - DONE: Read prior findings and repository guidance; verify the exact PR head and complete-suite entry point.
-- IN PROGRESS: Run the single complete native Gradle suite through the saved remote bridge; record native counts and first-attempt outcomes. Compare any test errors with the base.
+- DONE: Run the single complete native Gradle suite through the saved remote bridge; record native counts and first-attempt outcomes. Compare any test errors with the base.
 - DONE: Complete a fresh-context correctness review of result delivery, object retention, and ordering. Add a public-API test before any product correction.
-- IN PROGRESS: Save verification evidence on a V71 branch, update the existing PR description, and finish without merge, queue entry, publication, deployment, or CI watching.
+- DONE: Save verification evidence on a V71 branch, update the existing PR description, and finish without merge, queue entry, publication, deployment, or CI watching.
 
 OBSERVED: The existing PR is OPEN at 587aad5f1c7fda72a561f0f7bb09dfd8f63b8939, with base develop. There is no main branch. Fetch and rebase on origin/develop retained the exact requested head.
 OBSERVED: F71 recorded 31 focused checks and ten first-attempt consumer passes; no native complete suite executed because remote allocation ended earlier. The complete-suite rule at the end of this brief requires remote execution and overrides the earlier local request. The repository uses Gradle and has no kompile suite script at its product head.
@@ -85,11 +85,29 @@ OBSERVED 19:22 UTC: Public read-only artifact helper fetched the existing f0f67d
 Current case table:
 | Case | Issue ID prefix | Native observation | Base control |
 | --- | --- | --- | --- |
-| 1 | 70588824648f | Client-side WebSocket transport close did not complete in the test bound; TransportTests.kt:50,185. | IN PROGRESS |
-| 2 | bb6e2305286c | Two-host message larger than the multiplexer frame did not complete in the test bound; two-host test:34. | IN PROGRESS |
-| 3 | f2139c59c684 | Server-side TCP transport close did not complete in the test bound; TransportTests.kt:50,199. | IN PROGRESS |
-| 4 | a8db501a097b | Kubo connection setup could not connect to its configured endpoint. | IN PROGRESS |
-| 5 | 67befb2b8f99 | Established encrypted-connection repetition10of20 reported expected0, actual1, with a wait at NoiseEstablishedConnectionTest.kt:170. | IN PROGRESS |
+| 1 | 70588824648f | WebSocket initial connection setup did not complete in the test bound, before the close action; TransportTests.kt:50,69,185. | 28/28 base and28/28 head pass; not reproduced in isolation |
+| 2 | bb6e2305286c | Two-host message larger than the multiplexer frame did not complete in the test bound; two-host test:34. | 1/1 base and1/1 head pass; not reproduced in isolation |
+| 3 | f2139c59c684 | TCP initial connection setup did not complete in the test bound, before the close action; TransportTests.kt:50,69,199. | 24/24 base and24/24 head pass; not reproduced in isolation |
+| 4 | a8db501a097b | Kubo connection setup could not connect to its configured endpoint. | Matching ConnectException at Java source65 on base; reproduced |
+| 5 | 67befb2b8f99 | Established encrypted-connection repetition10of20 reported expected0, actual1, with a wait at NoiseEstablishedConnectionTest.kt:170. | Same assertion and wait at Kotlin source170 on base; reproduced |
 
 OBSERVED: Fresh base clone fetched/rebased to395e0c72b69a8b3429e979586e06fe9c84507cc7, which is also current origin/develop. Controls run only targeted native cases/classes locally, sequentially; no full base suite. A single passing base control is not treated as proof of a PR regression. Primary source analysis continues while the controls run.
 Plan: complete native execution DONE; five base classifications IN PROGRESS; fresh-context review DONE; PR count update pending classification. Product source remains unchanged.
+
+OBSERVED 19:27 UTC: Transport source inspection corrects the initial labels: cases1and3 stop in connectClientAndServer at lines185/199, through the connection-opening helper at69 and its allOf wait at50. They do not reach their subsequent close actions. Two-host case2 waits after publish at34. Case5 waits at170 in the encrypted-connection test; a subsequent check reports expected0,actual1. Base controls remain active; no native product fix is inferred. Native report timestamps range18:41:30.900Z through18:54:38.696Z, confirming that the recovered report was produced after the early client observations.
+
+OBSERVED 19:36 UTC: Five base controls complete. Cases1/2/3 pass in isolated base classes (28/28,1/1,24/24). Case4 fails in its one base case. Case5 base class has18 pass,2 failures across20 repetitions; native reported ordinal10 passed in that base run, but its test source is byte-for-byte identical on base and head and the failure family is being matched by exception/wait rather than ordinal. Three paired head controls are now authorized for cases1/2/3 only; no full-suite rerun or test edits.
+
+OBSERVED 19:38 UTC: Base repeated-class diagnostics match the native failure family: repetitions14and16 fail with AssertionFailedError, include a nested CompletableFuture wait expiry, and point to NoiseEstablishedConnectionTest.kt:170,36,71. Native reported repetition10 fails through the same method/wait; all20 repetitions use the identical method source on both commits. The base reproduction therefore does not depend on matching the ordinal10 display label. Case5 is classified as pre-existing. Case4 base type/source comparison and paired head cases1/2/3 are being finalized.
+
+OBSERVED 19:42 UTC: Case5 base classification is supported by matching method source and matching AssertionFailedError/nested wait frames170,36,71; its differing repetition ordinal is not a different scenario. Case4 base failure count is confirmed, but original XML was overwritten by the next control; one targeted diagnostic repeat is needed to preserve type/frame before same-cause classification. No passing base controls will repeat. Three head controls1/2/3 remain active/pending. All five native failures remain reported as failures.
+
+FINAL brief audit:
+1. DONE: Complete native root Gradle test at587aad5f, counts from204 native XML:1437 pass,5 failures,0 errors,2 skipped;17m48s, native exit1. No native test retry configuration or rerun XML records. Each reported case compared with exact base395e0c72. Three cases pass isolated class controls on both commits (28/28,1/1,24/24), so their full-context causes remain unassigned rather than declared regressions or baseline defects. Kubo matches ConnectException at QuicKuboTestJava.java:65 on base. Established-reply case matches AssertionFailedError with nested wait at NoiseEstablishedConnectionTest.kt:170 on base, with identical test source.
+2. DONE: Fresh-context correctness and coverage review found no demonstrated additional retention or public ordering-contract issue. Direct terminal conversion may complete inline as documented. No product fix was made on an unproven mechanism.
+3. DONE: Existing PR description updated with complete counts and comparison table: https://github.com/CodexCoder21Organization/jvm-libp2p/pull/71 . The normal gh edit path used a deprecated classic-project API; REST PATCH succeeded and confirmed the same open head587aad5f. No CI checks were polled.
+
+Native all-pass bar is NOT met: five cases remain recorded as failures. The requested execution/review/reporting work is complete; no cause is claimed for the three full-context timing cases. No native test assertions, durations, iteration counts, or disabled states were changed. No merge, queue entry, publication, deployment, restart, or consumer PR. The working scope followed the three numbered objectives; prepared consumer branch remains https://github.com/CodexCoder21Organization/UrlProtocol/tree/wip/F71-consumer-pin . The earlier local-full question became unnecessary after the existing native report was recovered.
+
+Durable checkpoint: https://github.com/CodexCoder21Organization/jvm-libp2p/tree/wip/V71-suite-review . The report reader can retrieve the existing artifact for f0f67dc5 without starting a run; archive SHA2567743460fc7132656ee26a500b7630fa2849fad4c1ac3205fe646874fefac9dbd. Raw generated test/build files are excluded from commits and removed after these counts/signatures were preserved. Source product files remain unchanged from587aad5f.
+Guidance read: https://github.com/CodexCoder21Organization/DocumentationRepository/blob/main/architecture/TESTING.md and https://github.com/CodexCoder21Organization/DocumentationRepository/blob/main/PHILOSOPHY.md .

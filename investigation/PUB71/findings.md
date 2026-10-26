@@ -232,3 +232,6 @@ INCOMPLETE: both complete-suite preparation clients ended without XML: local exi
 INCOMPLETE: the existing PR branch and description were not updated, and no required-CI watch was started because the complete-suite prerequisite has no verdict.
 NOT DONE: no merge, queue entry, production deployment, production restart, CI rerun, or additional Maven publication.
 OBSERVED: generated untracked compatibility jar removed; abandoned transfer-only checkout removed. Both remaining source checkouts are clean apart from newly prepared evidence records in the evidence branch. The linked handoff format still describes a former git publication step; the current create-handoff skill directs use of the central service and no PR. This lane follows the current service process.
+
+## Handoff 2026-10-26T20:37:15.291729+00:00
+The work is blocked on a complete-suite result under the one-race limit. A second race was proposed to the owner but has not been authorized. No further suite was started. Central handoff: url://handoff/handoffs/hf-2026-10-26-complete-urlprotocol-snapshot-41-suite-verification-and-update-the-open-pr ; browser view: https://www.handoff.wasmserver.com/handoffs/hf-2026-10-26-complete-urlprotocol-snapshot-41-suite-verification-and-update-the-open-pr . All source work and measured results are remote.

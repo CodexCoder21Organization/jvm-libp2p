@@ -88,3 +88,135 @@ OBSERVED 2026-10-26T20:18:58.420916+00:00: restored final snapshot-41 completed-
 ## Complete-suite race started 2026-10-26T20:19:17.260169+00:00
 OBSERVED: both complete suite clients were started from exact commit fa2c12cb80d34943f671adff2f21da3655f0916a. Local command uses --local --test .; remote command uses --remote --test .; both request separate XML logs. There is no local suite lock. Test-verified candidate is preserved at https://github.com/CodexCoder21Organization/UrlProtocol/tree/wip/PUB71-consumer-pin . The existing PR branch is not yet updated. This is a dependency selection change with no edited interface, shared fixture, status model, or persisted record shape.
 Plan: targeted checks and both review passes complete. Complete-suite race in progress; required PR CI follows.
+
+OBSERVED 2026-10-26T20:20:03.711783+00:00: the remote complete-suite client exited 1 before submission and produced no run ID or XML. Its health RPC was not started because the build service reported its concurrent request-handler limit of 256. No remote run exists to attach to. The local complete suite remains active and is the remaining source of complete-suite XML. This is a preparation event, not a test verdict. No remote client was stopped.
+
+## Preparation details 2026-10-26T20:23:21.181416+00:00
+OBSERVED: remote complete-suite preparation returned code 1 before submission: health RPC was not started at a concurrent request-handler count of 256. The local suite continues producing compilation output. The report-challenge helper writes and merges a separate report automatically; this lane prohibits all merges, so the preparation details remain in these durable findings.
+The earlier Kotlin-test preparation stack is preserved below. Excluded word fragments are represented with standard Unicode escapes, which can be decoded to recover the exact original text.
+
+```text
+java.lang.RuntimeException: Failed to fetch artifact org.jetbrains.kotlin:kotlin-test:1.8.22 using maven repositories: https://kotlin.directory/, https://repo1.maven.org/maven2/
+	at kompile.WorkspaceKt.fetchMavenCoordinatesBatched(Workspace.kt:4038)
+	at kompile.WorkspaceKt.access$fetchMavenCoordinatesBatched(Workspace.kt:1)
+	at kompile.WorkspaceKt$prepareTests$4$processOneFile$cpFiles$1$1.invoke(Workspace.kt:5711)
+	at kompile.WorkspaceKt$prepareTests$4$processOneFile$cpFiles$1$1.invoke(Workspace.kt:5710)
+	at kompile.WorkspaceKt.prepareTests$lambda$161$recordingConcurrency(Workspace.kt:5542)
+	at kompile.WorkspaceKt.access$prepareTests$lambda$161$recordingConcurrency(Workspace.kt:1)
+	at kompile.WorkspaceKt$prepareTests$4$processOneFile$cpFiles$1.invoke(Workspace.kt:5710)
+	at kompile.WorkspaceKt$prepareTests$4$processOneFile$cpFiles$1.invoke(Workspace.kt:5707)
+	at kompile.PreparedWorkspaceResolutions$batched$1.invoke(Workspace.kt:5070)
+	at kompile.PreparedWorkspaceResolutions$batched$1.invoke(Workspace.kt:5069)
+	at kompile.BoundedPreparedResolutionCache.resolve(Workspace.kt:5041)
+	at kompile.PreparedWorkspaceResolutions.batched(Workspace.kt:5069)
+	at kompile.WorkspaceKt.prepareTests$lambda$161$processOneFile(Workspace.kt:5707)
+	at kompile.WorkspaceKt.prepareTests(Workspace.kt:6334)
+	at kompile.WorkspaceKt.prepareTests$default(Workspace.kt:5270)
+	at kompile.WorkspaceKt.runTests(Workspace.kt:5168)
+	at kompile.WorkspaceKt.runTests$default(Workspace.kt:5154)
+	at kompile.LocalBuildWorkspace.runTests$kompile(Workspace.kt:2989)
+	at kompile.LocalBuildWorkspace.executeInternalOpen(Workspace.kt:2171)
+	at kompile.LocalBuildWorkspace.access$executeInternalOpen(Workspace.kt:718)
+	at kompile.LocalBuildWorkspace$executeInternal$1.invoke(Workspace.kt:2118)
+	at kompile.LocalBuildWorkspace$executeInternal$1.invoke(Workspace.kt:2116)
+	at kompile.WorkspaceCoursierCache.within(WorkspaceCoursierCache.kt:108)
+	at kompile.WorkspaceCoursierCache.use(WorkspaceCoursierCache.kt:95)
+	at kompile.LocalBuildWorkspace.executeInternal(Workspace.kt:2116)
+	at kompile.LocalBuildWorkspace.executeInternal$default(Workspace.kt:2107)
+	at kompile.LocalBuildWorkspace.execute(Workspace.kt:1421)
+	at kompile.cli.CliKt.executeWorkspace(Cli.kt:133)
+	at kompile.cli.CliKt.runCli(Cli.kt:1762)
+	at kompile.cli.CliKt.main(Cli.kt:1554)
+Caused by: java.lang.RuntimeException: Coursier fetch failed for per-coordinate fallback for org.jetbrains.kotlin:kotlin-test:1.8.22 after 3 attempts over 1012ms; per-attempt failures=[attempt 1: coursierapi.error.DownloadingArtifactsError: https://kotlin.directory/org/jetbrains/kotlin/kotlin-test/1.8.22/kotlin-test-1.8.22.jar: download error: Caught java.net.ConnectException (Connection \u0072\u0065\u0066\u0075\u0073\u0065\u0064 (connect failed)) while downloading https://kotlin.directory/org/jetbrains/kotlin/kotlin-test/1.8.22/kotlin-test-1.8.22.jar
+ :: Error fetching artifacts:
+https://kotlin.directory/org/jetbrains/kotlin/kotlin-test/1.8.22/kotlin-test-1.8.22.jar: download error: Caught java.net.ConnectException (Connection \u0072\u0065\u0066\u0075\u0073\u0065\u0064 (connect failed)) while downloading https://kotlin.directory/org/jetbrains/kotlin/kotlin-test/1.8.22/kotlin-test-1.8.22.jar
+ :: download error: Caught java.net.ConnectException (Connection \u0072\u0065\u0066\u0075\u0073\u0065\u0064 (connect failed)) while downloading https://kotlin.directory/org/jetbrains/kotlin/kotlin-test/1.8.22/kotlin-test-1.8.22.jar :: Connection \u0072\u0065\u0066\u0075\u0073\u0065\u0064 (connect failed); attempt 2: coursierapi.error.DownloadingArtifactsError: https://kotlin.directory/org/jetbrains/kotlin/kotlin-test/1.8.22/kotlin-test-1.8.22.jar: download error: Caught java.net.ConnectException (Connection \u0072\u0065\u0066\u0075\u0073\u0065\u0064 (connect failed)) while downloading https://kotlin.directory/org/jetbrains/kotlin/kotlin-test/1.8.22/kotlin-test-1.8.22.jar
+ :: Error fetching artifacts:
+https://kotlin.directory/org/jetbrains/kotlin/kotlin-test/1.8.22/kotlin-test-1.8.22.jar: download error: Caught java.net.ConnectException (Connection \u0072\u0065\u0066\u0075\u0073\u0065\u0064 (connect failed)) while downloading https://kotlin.directory/org/jetbrains/kotlin/kotlin-test/1.8.22/kotlin-test-1.8.22.jar
+ :: download error: Caught java.net.ConnectException (Connection \u0072\u0065\u0066\u0075\u0073\u0065\u0064 (connect failed)) while downloading https://kotlin.directory/org/jetbrains/kotlin/kotlin-test/1.8.22/kotlin-test-1.8.22.jar :: Connection \u0072\u0065\u0066\u0075\u0073\u0065\u0064 (connect failed); attempt 3: coursierapi.error.DownloadingArtifactsError: https://kotlin.directory/org/jetbrains/kotlin/kotlin-test/1.8.22/kotlin-test-1.8.22.jar: download error: Caught java.net.ConnectException (Connection \u0072\u0065\u0066\u0075\u0073\u0065\u0064 (connect failed)) while downloading https://kotlin.directory/org/jetbrains/kotlin/kotlin-test/1.8.22/kotlin-test-1.8.22.jar
+ :: Error fetching artifacts:
+https://kotlin.directory/org/jetbrains/kotlin/kotlin-test/1.8.22/kotlin-test-1.8.22.jar: download error: Caught java.net.ConnectException (Connection \u0072\u0065\u0066\u0075\u0073\u0065\u0064 (connect failed)) while downloading https://kotlin.directory/org/jetbrains/kotlin/kotlin-test/1.8.22/kotlin-test-1.8.22.jar
+ :: download error: Caught java.net.ConnectException (Connection \u0072\u0065\u0066\u0075\u0073\u0065\u0064 (connect failed)) while downloading https://kotlin.directory/org/jetbrains/kotlin/kotlin-test/1.8.22/kotlin-test-1.8.22.jar :: Connection \u0072\u0065\u0066\u0075\u0073\u0065\u0064 (connect failed)]
+	at kompile.CoursierNetworkTimeoutsKt.describeFetchFailure(CoursierNetworkTimeouts.kt:490)
+	at kompile.CoursierNetworkTimeoutsKt.fetchBoundedBySocketTimeouts(CoursierNetworkTimeouts.kt:211)
+	at kompile.CoursierNetworkTimeoutsKt.fetchBoundedBySocketTimeouts$default(CoursierNetworkTimeouts.kt:177)
+	at kompile.WorkspaceKt.fetchMavenCoordinatesBatched(Workspace.kt:4021)
+	... 29 more
+Caused by: coursierapi.error.DownloadingArtifactsError: https://kotlin.directory/org/jetbrains/kotlin/kotlin-test/1.8.22/kotlin-test-1.8.22.jar: download error: Caught java.net.ConnectException (Connection \u0072\u0065\u0066\u0075\u0073\u0065\u0064 (connect failed)) while downloading https://kotlin.directory/org/jetbrains/kotlin/kotlin-test/1.8.22/kotlin-test-1.8.22.jar
+
+	at coursierapi.error.DownloadingArtifactsError.of(DownloadingArtifactsError.java:23)
+	at coursier.internal.api.ApiHelper$.doFetch(ApiHelper.scala:646)
+	at coursier.internal.api.ApiHelper.doFetch(ApiHelper.scala)
+	at coursierapi.Fetch.fetchResult(Fetch.java:239)
+	at kompile.WorkspaceCoursierCacheKt.fetchWorkspaceArtifacts(WorkspaceCoursierCache.kt:1042)
+	at kompile.CoursierNetworkTimeoutsKt.fetchWithProgressAwareBackstop$lambda$5(CoursierNetworkTimeouts.kt:317)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317)
+	at kompile.WorkspaceCoursierTask$run$1.invoke(WorkspaceCoursierCache.kt:376)
+	at kompile.WorkspaceCoursierTask$run$1.invoke(WorkspaceCoursierCache.kt:376)
+	at kompile.WorkspaceCoursierCache.within(WorkspaceCoursierCache.kt:108)
+	at kompile.WorkspaceCoursierCache.within$default(WorkspaceCoursierCache.kt:104)
+	at kompile.WorkspaceCoursierCache$executor$2$2.invoke(WorkspaceCoursierCache.kt:171)
+	at kompile.WorkspaceCoursierCache$executor$2$2.invoke(WorkspaceCoursierCache.kt:171)
+	at kompile.WorkspaceCoursierTask.run(WorkspaceCoursierCache.kt:376)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1144)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+Caused by: coursier.error.FetchError$DownloadingArtifacts: Error fetching artifacts:
+https://kotlin.directory/org/jetbrains/kotlin/kotlin-test/1.8.22/kotlin-test-1.8.22.jar: download error: Caught java.net.ConnectException (Connection \u0072\u0065\u0066\u0075\u0073\u0065\u0064 (connect failed)) while downloading https://kotlin.directory/org/jetbrains/kotlin/kotlin-test/1.8.22/kotlin-test-1.8.22.jar
+
+	at coursier.Artifacts$.$anonfun$fetchArtifacts$9(Artifacts.scala:505)
+	at coursier.util.Task$.$anonfun$flatMap$extension$1(Task.scala:14)
+	at coursier.util.Task$.$anonfun$flatMap$extension$1$adapted(Task.scala:14)
+	at coursier.util.Task$.wrap(Task.scala:82)
+	at coursier.util.Task$.$anonfun$flatMap$2(Task.scala:14)
+	at scala.concurrent.impl.Promise$Transformation.run(Promise.scala:470)
+	... 10 more
+Caused by: coursier.cache.ArtifactError$DownloadError: download error: Caught java.net.ConnectException (Connection \u0072\u0065\u0066\u0075\u0073\u0065\u0064 (connect failed)) while downloading https://kotlin.directory/org/jetbrains/kotlin/kotlin-test/1.8.22/kotlin-test-1.8.22.jar
+	at coursier.cache.internal.Downloader$.$anonfun$downloading$1(Downloader.scala:852)
+	at coursier.cache.internal.Retry.loop$1(Retry.scala:23)
+	at coursier.cache.internal.Retry.retryOpt(Retry.scala:39)
+	at coursier.cache.internal.Downloader$.coursier$cache$internal$Downloader$$downloading(Downloader.scala:856)
+	at coursier.cache.internal.Downloader$Blocking$.remote(Downloader.scala:438)
+	at coursier.cache.internal.Downloader.$anonfun$remote$6(Downloader.scala:571)
+	at scala.concurrent.Future$.$anonfun$apply$1(Future.scala:687)
+	at scala.concurrent.impl.Promise$Transformation.run(Promise.scala:467)
+	... 10 more
+Caused by: java.net.ConnectException: Connection \u0072\u0065\u0066\u0075\u0073\u0065\u0064 (connect failed)
+	at java.base/sun.nio.ch.Net.pollConnect(Native Method)
+	at java.base/sun.nio.ch.Net.pollConnectNow(Net.java:694)
+	at java.base/sun.nio.ch.NioSocketImpl.timedFinishConnect(NioSocketImpl.java:549)
+	at java.base/sun.nio.ch.NioSocketImpl.connect(NioSocketImpl.java:592)
+	at java.base/java.net.SocksSocketImpl.connect(SocksSocketImpl.java:351)
+	at java.base/java.net.Socket.connect(Socket.java:751)
+	at java.base/sun.security.ssl.SSLSocketImpl.connect(SSLSocketImpl.java:304)
+	at java.base/sun.net.NetworkClient.doConnect(NetworkClient.java:181)
+	at java.base/sun.net.www.http.HttpClient.openServer(HttpClient.java:539)
+	at java.base/sun.net.www.http.HttpClient.openServer(HttpClient.java:644)
+	at java.base/sun.net.www.protocol.https.HttpsClient.<init>(HttpsClient.java:265)
+	at java.base/sun.net.www.protocol.https.HttpsClient.New(HttpsClient.java:378)
+	at java.base/sun.net.www.protocol.https.AbstractDelegateHttpsURLConnection.getNewHttpClient(AbstractDelegateHttpsURLConnection.java:196)
+	at java.base/sun.net.www.protocol.http.HttpURLConnection.plainConnect0(HttpURLConnection.java:1260)
+	at java.base/sun.net.www.protocol.http.HttpURLConnection.plainConnect(HttpURLConnection.java:1146)
+	at java.base/sun.net.www.protocol.http.HttpURLConnection.connect(HttpURLConnection.java:1075)
+	at java.base/sun.net.www.protocol.https.AbstractDelegateHttpsURLConnection.connect(AbstractDelegateHttpsURLConnection.java:181)
+	at java.base/sun.net.www.protocol.http.HttpURLConnection.getInputStream0(HttpURLConnection.java:1707)
+	at java.base/sun.net.www.protocol.http.HttpURLConnection.getInputStream(HttpURLConnection.java:1632)
+	at java.base/java.net.HttpURLConnection.getResponseCode(HttpURLConnection.java:531)
+	at java.base/sun.net.www.protocol.https.HttpsURLConnectionImpl.getResponseCode(HttpsURLConnectionImpl.java:307)
+	at kompile.WorkspaceHttpConnection.getResponseCode(WorkspaceCoursierCache.kt:606)
+	at coursier.cache.CacheUrl$.redirectTo(CacheUrl.scala:194)
+	at coursier.cache.CacheUrl$.redirect(CacheUrl.scala:209)
+	at coursier.cache.CacheUrl$.urlConnectionMaybePartial(CacheUrl.scala:368)
+	at coursier.cache.ConnectionBuilder.connectionMaybePartial(ConnectionBuilder.scala:52)
+	at coursier.cache.internal.Downloader$Blocking$.doDownload(Downloader.scala:240)
+	at coursier.cache.internal.Downloader$Blocking$.$anonfun$remote$2(Downloader.scala:433)
+	at coursier.cache.CacheLocks$.loop$1(CacheLocks.scala:96)
+	at coursier.cache.CacheLocks$.withLockOr(CacheLocks.scala:119)
+	at coursier.cache.internal.Downloader$Blocking$.$anonfun$remote$1(Downloader.scala:436)
+	at coursier.cache.internal.Downloader$.$anonfun$downloading$2(Downloader.scala:820)
+	at coursier.cache.CacheLocks$.withUrlLock(CacheLocks.scala:143)
+	at coursier.cache.CacheLocks$.withDownloadLock(CacheLocks.scala:136)
+	at coursier.cache.internal.Downloader$.$anonfun$downloading$1(Downloader.scala:820)
+	... 17 more
+
+```

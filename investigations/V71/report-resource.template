@@ -1,0 +1,21 @@
+@KotlinBuildScript("https://tools.kotlin.build/")
+@file:WithArtifact("org.jetbrains.kotlin:kotlin-stdlib:1.8.22")
+package lane.v71probe
+import build.kotlin.withartifact.WithArtifact
+import java.io.File
+import java.nio.file.Files
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
+fun metadataJar(): File {
+ println("V71_BUILD_SUMMARY count=1")
+ val artifact = Files.createTempFile("v71-metadata", ".jar").toFile()
+ ZipOutputStream(artifact.outputStream()).use { output ->
+  output.putNextEntry(ZipEntry("f71-native-suite.properties"))
+  output.write("tests=1\nfiles=1\nnativeExit=0\nreports=example.xml\n".toByteArray())
+  output.closeEntry()
+  output.putNextEntry(ZipEntry("f71-native-results/example.xml"))
+  output.write("<testsuite tests=\"1\" skipped=\"0\" errors=\"0\" failures=\"0\"><testcase name=\"example\" classname=\"Example\"/></testsuite>".toByteArray())
+  output.closeEntry()
+ }
+ return artifact
+}

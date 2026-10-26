@@ -222,6 +222,11 @@ whose close future has completed are removed and skipped during selection, even 
 asynchronous table-removal continuation has not run yet. A request made in that interval therefore
 starts a fresh transport dial instead of receiving a connection whose muxer is already closed.
 
+Connection reuse and completed transport dials share one per-peer selection. Selecting an upgraded
+connection while its original dial result is still pending reserves that same connection for later
+callers. Later duplicate dial results on that host cannot retire the selected parent or its working
+streams.
+
 Connection close and transport shutdown share one physical close operation for each Netty
 parent channel. Repeated calls wait for that operation and report its original failure if it
 fails; they do not issue another close. Completing or cancelling one caller's returned future

@@ -35,14 +35,19 @@ class NetworkPublishedConnectionTest {
             server.start().get(10, TimeUnit.SECONDS)
             client.start().get(10, TimeUnit.SECONDS)
             val addresses = server.listenAddresses().toTypedArray()
-            client.addConnectionHandler(ConnectionHandler.create {
-                if (firstCallback.compareAndSet(true, false)) {
-                    client.network.connect(server.peerId, *addresses).whenComplete { connection, error ->
-                        if (error == null) selectedFromCallback.complete(connection)
-                        else selectedFromCallback.completeExceptionally(error)
+            client.addConnectionHandler(
+                ConnectionHandler.create {
+                    if (firstCallback.compareAndSet(true, false)) {
+                        client.network.connect(server.peerId, *addresses).whenComplete { connection, error ->
+                            if (error == null) {
+                                selectedFromCallback.complete(connection)
+                            } else {
+                                selectedFromCallback.completeExceptionally(error)
+                            }
+                        }
                     }
                 }
-            })
+            )
 
             val settled = client.network.connect(server.peerId, *addresses).get(10, TimeUnit.SECONDS)
             transport.releaseFirst.complete(Unit)

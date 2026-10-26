@@ -50,3 +50,26 @@ Existing-test edit inventory: each selected existing test changes only its libp2
 Plan: baseline complete, published comparison running, ten original-consumer repetitions next, then targeted neighbors and the mandatory complete-suite race.
 
 OBSERVED 2026-10-26T20:13:00.089723+00:00: published snapshot-41 completed-close scenario passes on attempt 1; [{'success': 'true', 'attempts': 1, 'time': '2063'}]. Existing scripts checked individually: all 2696 tracked Kotlin changes are libp2p coordinate text only.
+OBSERVED 2026-10-26T20:13:18.022332+00:00: consumer-1 exit 1, first-attempt False, attempts [1].
+
+OBSERVED 2026-10-26T20:13:57.016544+00:00: the first consumer invocation did not execute its test body (XML time 0). Dependency preparation could not establish a connection for org.jetbrains.kotlin:kotlin-test:1.8.22 from kotlin.directory. This is not counted as a runtime test attempt. Full preparation stack trace is retained locally at consumer-1-preparation-stack.txt.
+OBSERVED 2026-10-26T20:14:08.095057+00:00: direct request for the exact Kotlin test jar returns HTTP 200. Measured consumer runs restarted only after this availability check. The lane does not change dependency versions or test behavior to address this preparation event.
+OBSERVED 2026-10-26T20:14:28.798075+00:00: consumer-1 exit 0, first-attempt True, attempts [1].
+OBSERVED 2026-10-26T20:14:40.119316+00:00: consumer-2 exit 0, first-attempt True, attempts [1].
+OBSERVED 2026-10-26T20:14:51.975689+00:00: consumer-3 exit 0, first-attempt True, attempts [1].
+OBSERVED 2026-10-26T20:15:03.908279+00:00: consumer-4 exit 0, first-attempt True, attempts [1].
+OBSERVED 2026-10-26T20:15:17.483258+00:00: consumer-5 exit 0, first-attempt True, attempts [1].
+OBSERVED 2026-10-26T20:15:30.281496+00:00: consumer-6 exit 0, first-attempt True, attempts [1].
+
+## Independent test coverage pass
+OBSERVED: the added completed-close test first confirms a completed physical root close, holds its real event loop while filling its bounded queue, converts the completed close result, releases accepted tasks, crosses an executor barrier, and then checks result visibility. It preserves all eight source assertions and thirteen existing time-bound calls from the supplied branch. Both hosts and the held loop are released in finally paths. It uses real localhost hosts and public channel/result APIs, with no substitute network service.
+Resource table: hosts are created and owned by the scenario and closed in finally; the root channel is created by its host and closed through the protocol root API; its close result is terminal once complete; queued work belongs to the event loop and is allowed to finish before host cleanup. The test only observes the returned close result and never changes it.
+OBSERVED: all 2696 changed existing scripts preserve their entire text after normalizing the libp2p coordinate. No implementation, interface, persisted format, or test fixture is changed. The production pin and test annotations select the same published version.
+INFER: the new scenario directly covers the consumer result-delivery condition. Upstream pending-result and cancellation behavior remains covered by the already-reviewed upstream implementation and its tests; this consumer proposal adds no such implementation.
+OBSERVED 2026-10-26T20:15:41.746284+00:00: consumer-7 exit 0, first-attempt True, attempts [1].
+OBSERVED 2026-10-26T20:15:53.406958+00:00: consumer-8 exit 0, first-attempt True, attempts [1].
+OBSERVED 2026-10-26T20:16:06.863082+00:00: consumer-9 exit 0, first-attempt True, attempts [1].
+OBSERVED 2026-10-26T20:16:18.454393+00:00: consumer-10 exit 0, first-attempt True, attempts [1].
+OBSERVED 2026-10-26T20:16:36.835935+00:00: pr-target-1 exit 0, first-attempt True, attempts [1].
+
+OBSERVED 2026-10-26T20:16:44.573254+00:00: original cleanup scenario passes 10/10 measured runs on attempt 1, with no second attempts. The earlier preparation-only invocation is retained separately and is not represented as a runtime pass. The completed-close published comparison also passed attempt 1.

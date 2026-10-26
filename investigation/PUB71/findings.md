@@ -224,3 +224,11 @@ Caused by: java.net.ConnectException: Connection \u0072\u0065\u0066\u0075\u0073\
 OBSERVED 2026-10-26T20:27:13.738448+00:00: local complete suite remains active at its original candidate; last observed runner CPU is 278 percent and the log contains 29 finished script-compilation events. No XML is available yet. No source was changed while the suite runs.
 
 OBSERVED 2026-10-26T20:30:01.436140+00:00: local complete-suite process 69491 exited 137 during preparation; no XML was written. The cgroup memory limit is 10737418240 bytes and its recorded peak is 10740391936 bytes. Current usage after exit is 9722646528 bytes. These counters cover concurrent lanes and alone do not identify which process triggered a limit event. There is no full-suite test verdict. The remote client also ended before submission, so neither client remains active.
+
+## Brief audit 2026-10-26T20:33:58.168644+00:00
+DONE: upstream merge confirmed, free snapshot-41 checked, merged source built, artifact published once, jar and POM byte-verified, clean-cache retrieval checked.
+DONE: consumer candidate rebased and pins applied, original cleanup body preserved, ten first-attempt runs and targeted neighbors pass, exact-condition baseline and reversal recorded, both independent review passes recorded. Candidate is durable.
+INCOMPLETE: both complete-suite preparation clients ended without XML: local exit 137, remote exit 1 before submission. There is no complete-suite verdict. The brief authorizes one race; the question of another race is pending with the owner. No second race was started.
+INCOMPLETE: the existing PR branch and description were not updated, and no required-CI watch was started because the complete-suite prerequisite has no verdict.
+NOT DONE: no merge, queue entry, production deployment, production restart, CI rerun, or additional Maven publication.
+OBSERVED: generated untracked compatibility jar removed; abandoned transfer-only checkout removed. Both remaining source checkouts are clean apart from newly prepared evidence records in the evidence branch. The linked handoff format still describes a former git publication step; the current create-handoff skill directs use of the central service and no PR. This lane follows the current service process.

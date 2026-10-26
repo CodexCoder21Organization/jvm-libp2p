@@ -230,8 +230,13 @@ physical dial initiator retires an unused duplicate, and it closes that parent o
 physical acceptor acknowledges retirement. The acceptor's acknowledgement atomically excludes the
 parent when it has not been retained locally, so duplicate decisions at either endpoint cannot
 retire a selected parent or its streams, including when both endpoints selected different parents
-before their pending dials finished. Retirement opens a control stream; a rejected parent is
-excluded from reuse as soon as retirement starts, even while physical close is pending.
+before their pending dials finished. Retirement opens a control stream; its parent is excluded
+from reuse while confirmation is pending. A positive reply keeps it excluded through physical
+close. A negative reply or failed request restores eligibility for a live parent, so a later
+connect can reuse it if the selected parent closes. A late retirement result never reverses an explicit close.
+A retirement stream whose peer ends writing without a reply completes exceptionally and closes
+that child, as do a stream reset or parent close. Connect callers do not wait for retirement;
+other live parents and their streams remain usable.
 
 Consequently, more than one physical connection may remain when callers at the two endpoints
 already hold different parents. An application handler that opens a stream on each candidate
@@ -242,9 +247,13 @@ expose candidates. Holding a callback parameter without selecting the connection
 stream does not retain it. Retirement uses the negotiated
 `/libp2p/connection-selection/1.0.0` stream protocol. QUIC and custom transport paths without
 coordination, or a peer that does not support the protocol, cannot authorize retirement. In those
-cases, this host keeps ambiguous duplicates until explicit close
-or shutdown. Inbound reuse still interoperates with such peers, but their own duplicate decisions
-cannot provide this fork's cross-endpoint lifetime guarantee.
+cases, this host keeps ambiguous duplicates open and eligible: it cannot learn whether the peer
+has published them. With a non-coordinating peer, surplus duplicates are closed by that peer's own
+logic, never by this side's duplicate decision. Older peers using the original selection logic
+close their surplus socket at both endpoints; this host observes that close and removes the local
+entry. If the peer keeps both parents, this side preserves both until explicit close, transport
+failure or shutdown. Inbound reuse still interoperates with such peers, but their own duplicate
+decisions cannot provide this fork's cross-endpoint lifetime guarantee.
 
 Connection close and transport shutdown share one physical close operation for each Netty
 parent channel. Repeated calls wait for that operation and report its original failure if it

@@ -26,12 +26,13 @@ internal class ConnectionSelection(
     private val connection: Connection,
     private val session: StreamMuxer.Session
 ) : StreamMuxer.Session {
+    private var closing = false
     private var retained = false
     private var rejected = false
     private var retired = false
 
     @Synchronized
-    fun eligible(): Boolean = !rejected && !connection.closeFuture().isDone
+    fun eligible(): Boolean = !closing && !rejected && !connection.closeFuture().isDone
 
     @Synchronized
     fun retain(): Boolean {
@@ -53,7 +54,7 @@ internal class ConnectionSelection(
 
     @Synchronized
     fun closeRequested() {
-        rejected = true
+        closing = true
     }
 
     fun reserve(): CompletableFuture<Boolean> {
@@ -65,11 +66,19 @@ internal class ConnectionSelection(
         // that it has not retained this parent.
         if (!connection.isInitiator) return
         synchronized(this) {
-            if (retained || rejected || connection.closeFuture().isDone) return
+            if (retained || !eligible()) return
             rejected = true
             retired = true
         }
         requestRetirement().whenComplete { accepted, failure ->
+            if (failure != null || accepted != true) {
+                synchronized(this) {
+                    // No remote authorization: this may be a published parent at the peer.
+                    // Explicit close remains terminal even if it races this completion.
+                    rejected = false
+                    retired = false
+                }
+            }
             when {
                 failure != null -> selectionLogger.warn(
                     "Keeping duplicate {} because remote retirement could not be confirmed",
@@ -137,6 +146,9 @@ private class SelectionProtocol : ProtocolHandler<Boolean>(1, 1) {
                 } else {
                     response.complete(msg.readUnsignedByte().toInt() == 1)
                 }
+            }
+            override fun onReadClosed(stream: Stream) {
+                response.completeExceptionally(ConnectionClosedException("Connection selection stream ended writing before its response: $stream"))
             }
             override fun onClosed(stream: Stream) {
                 response.completeExceptionally(ConnectionClosedException("Connection selection stream closed before its response: $stream"))

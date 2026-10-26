@@ -237,6 +237,9 @@ effect while that approval is being written. Each exclusion is owned by the requ
 established it: only that request's failed approval write restores eligibility, and the acceptor
 denies any further retirement request for a parent that is already excluded. A negative reply or failed request restores eligibility for a live parent, so a later
 connect can reuse it if the selected parent closes. A late retirement result never reverses an explicit close.
+An explicit close excludes the parent from reuse from the moment it is requested, including a close
+requested from a pre-upgrade handler before stream multiplexing is set up, while the physical close
+is still pending.
 A retirement stream whose peer ends writing without a reply completes exceptionally and closes
 that child, as do a stream reset or parent close. Connect callers do not wait for retirement;
 other live parents and their streams remain usable.

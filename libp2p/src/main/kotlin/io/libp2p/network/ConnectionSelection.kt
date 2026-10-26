@@ -130,8 +130,12 @@ internal class ConnectionSelection(
 /** Identity of one retirement request; compared by reference only. */
 internal class RetirementRequest
 
-internal fun connectionEligible(connection: Connection): Boolean =
-    !connection.closeFuture().isDone && ((connection as? ConnectionOverNetty)?.selection?.eligible() != false)
+internal fun connectionEligible(connection: Connection): Boolean {
+    if (connection.closeFuture().isDone) return false
+    val netty = connection as? ConnectionOverNetty ?: return true
+    // An application close requested before the selection state existed still excludes reuse.
+    return !netty.closeWasRequested() && netty.selection?.eligible() != false
+}
 
 internal fun duplicateRetired(connection: Connection): Boolean =
     (connection as? ConnectionOverNetty)?.selection?.wasRetired() == true

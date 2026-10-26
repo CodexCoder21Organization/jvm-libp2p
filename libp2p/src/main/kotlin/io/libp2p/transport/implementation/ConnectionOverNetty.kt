@@ -18,12 +18,29 @@ open class ConnectionOverNetty(
     private val nettyTransport: NettyTransport,
     initiator: Boolean
 ) : Connection, P2PChannelOverNetty(ch, initiator) {
+    @Volatile
     internal var selection: ConnectionSelection? = null
         private set
 
+    // Set by an application close at any time, including before the selection state exists,
+    // so that a close requested from a pre-upgrade handler is never lost.
+    @Volatile
+    private var closeWasRequested = false
+
+    internal fun closeWasRequested(): Boolean = closeWasRequested
+
     internal fun enableConnectionSelection(session: StreamMuxer.Session) {
-        selection = ConnectionSelection(this, session)
-        muxerSession = selection!!
+        val created = ConnectionSelection(this, session)
+        selection = created
+        muxerSession = created
+        // Read after publishing the selection: a concurrent close either sees the selection
+        // or has already set the flag, so the request is recorded in both orders.
+        if (closeWasRequested) created.closeRequested()
+    }
+
+    private fun recordCloseRequest() {
+        closeWasRequested = true
+        selection?.closeRequested()
     }
 
     private lateinit var muxerSession: StreamMuxer.Session
@@ -41,12 +58,12 @@ open class ConnectionOverNetty(
     }
 
     override fun close(): java.util.concurrent.CompletableFuture<Unit> {
-        selection?.closeRequested()
+        recordCloseRequest()
         return closeNettyChannelOnce(nettyChannel)
     }
 
     override fun retryClose(): java.util.concurrent.CompletableFuture<Unit> {
-        selection?.closeRequested()
+        recordCloseRequest()
         return retryNettyChannelClose(nettyChannel)
     }
 

@@ -73,3 +73,18 @@ OBSERVED 2026-10-26T20:16:18.454393+00:00: consumer-10 exit 0, first-attempt Tru
 OBSERVED 2026-10-26T20:16:36.835935+00:00: pr-target-1 exit 0, first-attempt True, attempts [1].
 
 OBSERVED 2026-10-26T20:16:44.573254+00:00: original cleanup scenario passes 10/10 measured runs on attempt 1, with no second attempts. The earlier preparation-only invocation is retained separately and is not represented as a runtime pass. The completed-close published comparison also passed attempt 1.
+OBSERVED 2026-10-26T20:16:58.082538+00:00: neighbor-1 exit 0, first-attempt True, attempts [1].
+OBSERVED 2026-10-26T20:17:17.486110+00:00: neighbor-2 exit 0, first-attempt True, attempts [1].
+
+OBSERVED 2026-10-26T20:17:36.440112+00:00: all thirteen measured consumer checks pass on attempt 1: ten original cleanup repetitions, the existing PR logging scenario, and two related queue scenarios. The new completed-close scenario retains the supplied body; unused imports and extra blank lines were removed before the final candidate commit. Reversal now selects snapshot-25 only in the production declaration and new completed-close scenario, leaving all assertions and all timing bounds intact.
+
+OBSERVED 2026-10-26T20:18:13.195406+00:00: reversal control is red on attempts 1, 2, and 3 at the same after-drain result-visibility assertion. Only the production declaration and new test artifact selection were returned to snapshot-25 for this control. Restoring snapshot-41 is the only following source action.
+
+## Independent correctness review pass
+OBSERVED: this proposal changes no production implementation or test fixture. The build declaration and all selected direct test dependencies agree on snapshot-41; the POM and jar came from merged source and have matching downloaded hashes. Existing test bodies, including the cleanup body, retain their original assertions and bounds. The new public-path test has a measured baseline, a published comparison, and a measured reversal. Its loop gate and hosts are released in finally paths. No generated jar, XML, log, or local cache appears in the consumer candidate diff. Candidate fa2c12cb80d34943f671adff2f21da3655f0916a.
+INFER: the change addresses result delivery at its upstream owner rather than adding a consumer wait. Required remaining checks are the complete-suite race and required PR CI.
+OBSERVED 2026-10-26T20:18:58.420916+00:00: restored final snapshot-41 completed-close scenario passes on attempt 1. Consumer working tree is clean at the candidate commit.
+
+## Complete-suite race started 2026-10-26T20:19:17.260169+00:00
+OBSERVED: both complete suite clients were started from exact commit fa2c12cb80d34943f671adff2f21da3655f0916a. Local command uses --local --test .; remote command uses --remote --test .; both request separate XML logs. There is no local suite lock. Test-verified candidate is preserved at https://github.com/CodexCoder21Organization/UrlProtocol/tree/wip/PUB71-consumer-pin . The existing PR branch is not yet updated. This is a dependency selection change with no edited interface, shared fixture, status model, or persisted record shape.
+Plan: targeted checks and both review passes complete. Complete-suite race in progress; required PR CI follows.

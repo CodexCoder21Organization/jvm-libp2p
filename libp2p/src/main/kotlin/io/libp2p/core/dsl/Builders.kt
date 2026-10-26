@@ -27,6 +27,7 @@ import io.libp2p.etc.util.netty.LoggingHandlerShort
 import io.libp2p.host.HostImpl
 import io.libp2p.host.MemoryAddressBook
 import io.libp2p.network.NetworkImpl
+import io.libp2p.network.SelectionBinding
 import io.libp2p.protocol.IdentifyBinding
 import io.libp2p.security.noise.NoiseXXSecureChannel
 import io.libp2p.security.noise.prepareNoiseHandshakeAlgorithms
@@ -184,7 +185,16 @@ open class Builder {
         }
 
         val updatableProtocols: MutableList<ProtocolBinding<Any>> = CopyOnWriteArrayList(protocols.values)
-        val muxers = muxers.map { it.createMuxer(streamMultistreamProtocol, updatableProtocols) }
+        // Keep the application's mutable protocol list independent of network coordination.
+        val muxProtocols = object : AbstractList<ProtocolBinding<*>>() {
+            private val selection = SelectionBinding()
+            override val size get() = updatableProtocols.size + 1
+            override fun iterator(): Iterator<ProtocolBinding<*>> =
+                (listOf(selection) + updatableProtocols.toList()).iterator()
+            override fun get(index: Int): ProtocolBinding<*> =
+                if (index == 0) selection else updatableProtocols[index - 1]
+        }
+        val muxers = muxers.map { it.createMuxer(streamMultistreamProtocol, muxProtocols) }
 
         val secureChannels = secureChannels.values.map { it(privKey, muxers) }
 
@@ -196,6 +206,7 @@ open class Builder {
         }
 
         val upgrader = ConnectionUpgrader(secureMultistreamProtocol, secureChannels, muxerMultistreamProtocol, muxers)
+        upgrader.connectionSelectionEnabled = true
         if (
             secureChannels.any { channel ->
                 val descriptor = channel.protocolDescriptor

@@ -5,6 +5,7 @@ import io.libp2p.core.multiformats.Multiaddr
 import io.libp2p.core.mux.StreamMuxer
 import io.libp2p.core.security.SecureChannel
 import io.libp2p.etc.CONNECTION
+import io.libp2p.network.ConnectionSelection
 import io.netty.channel.Channel
 
 /**
@@ -17,6 +18,14 @@ open class ConnectionOverNetty(
     private val nettyTransport: NettyTransport,
     initiator: Boolean
 ) : Connection, P2PChannelOverNetty(ch, initiator) {
+    internal var selection: ConnectionSelection? = null
+        private set
+
+    internal fun enableConnectionSelection(session: StreamMuxer.Session) {
+        selection = ConnectionSelection(this, session)
+        muxerSession = selection!!
+    }
+
     private lateinit var muxerSession: StreamMuxer.Session
     private lateinit var secureSession: SecureChannel.Session
 
@@ -31,9 +40,15 @@ open class ConnectionOverNetty(
         secureSession = ss
     }
 
-    override fun close() = closeNettyChannelOnce(nettyChannel)
+    override fun close(): java.util.concurrent.CompletableFuture<Unit> {
+        selection?.closeRequested()
+        return closeNettyChannelOnce(nettyChannel)
+    }
 
-    override fun retryClose() = retryNettyChannelClose(nettyChannel)
+    override fun retryClose(): java.util.concurrent.CompletableFuture<Unit> {
+        selection?.closeRequested()
+        return retryNettyChannelClose(nettyChannel)
+    }
 
     override fun muxerSession() = muxerSession
     override fun secureSession() = secureSession

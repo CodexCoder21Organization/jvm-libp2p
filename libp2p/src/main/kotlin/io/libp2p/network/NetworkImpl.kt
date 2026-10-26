@@ -96,50 +96,53 @@ class NetworkImpl(
     override fun connect(id: PeerId, preHandler: ChannelVisitor<P2PChannel>?, vararg addrs: Multiaddr): CompletableFuture<Connection> {
         // we already have a connection for this peer, short circuit.
         findActiveConnection(id)
-            ?.apply { return CompletableFuture.completedFuture(this) }
+            ?.apply {
+                return thenCompose { connection ->
+                    if (connection != null) CompletableFuture.completedFuture(connection) else connect(id, preHandler, *addrs)
+                }
+            }
 
         val connectionFuts = addrs.map { it.withP2P(id) }
             .mapNotNull { addr ->
                 transports.firstOrNull { transport -> transport.handles(addr) }
                     ?.let { transport ->
                         pendingDial(id, addr, transport, preHandler)
-                            .thenApply { connection -> retainOneConnectionPerPeer(id, connection) }
+                            .thenCompose { connection -> retainOneConnectionPerPeer(id, connection) }
+                            .thenCompose { selected ->
+                                if (selected != null) CompletableFuture.completedFuture(selected) else connect(id, preHandler, *addrs)
+                            }
                     }
             }
         return anyComplete(connectionFuts)
     }
 
     /**
-     * Returns the connection this network has settled on for [id], closing [connection] when that
-     * is a different one.
-     *
-     * A peer is reachable at several addresses and [connect] dials all of them at once, so several
-     * dials can succeed. Only one connection is ever returned to a caller; without this, each of
-     * the others stayed fully established — a live socket, Netty pipeline and muxer session that no
-     * caller holds a reference to and nothing ever closes. A long-lived process dialling a large,
-     * churning peer population retained one such connection per surplus address per peer it had
-     * ever contacted.
-     *
-     * The winner is chosen by a single atomic map operation rather than by dial completion order,
-     * so concurrent callers — which share the same pending dials but race their own address lists —
-     * always converge on the same connection instead of each closing the one another is using. A
-     * connection that has already closed does not keep its peer's slot.
+     * Keeps one local preference, while preserving physical parents already retained at either end.
+     * A surplus dial is retired only after both endpoints exclude it from future selection.
      */
-    private fun retainOneConnectionPerPeer(id: PeerId, connection: Connection): Connection {
-        // The remapping function never returns null, so neither does compute; the elvis branch is
-        // unreachable and exists only to keep the result non-nullable without an unsafe call.
+    private fun retainOneConnectionPerPeer(id: PeerId, connection: Connection): CompletableFuture<Connection?> {
+        var newlySettled = false
         val settled = settledConnections.compute(id) { _, alreadySettled ->
-            if (alreadySettled != null && !alreadySettled.closeFuture().isDone) alreadySettled else connection
-        } ?: connection
-        if (settled !== connection) {
-            connection.close()
-        } else {
-            // Releasing the slot on close lets the next connect() to this peer settle afresh.
-            // Registering this more than once for the same connection is harmless: the removal is
-            // conditional on the mapping still being this connection, and repeating it is a no-op.
-            connection.closeFuture().thenAccept { settledConnections.remove(id, connection) }
+            when {
+                alreadySettled != null && connectionEligible(alreadySettled) -> alreadySettled
+                connectionEligible(connection) -> {
+                    newlySettled = true
+                    connection
+                }
+                else -> null
+            }
         }
-        return settled
+        if (settled !== connection) rejectDuplicate(connection)
+        // A callback may explicitly close its own fresh dial. That is a terminal dial result,
+        // not a duplicate-selection rejection: returning it must not start an endless redial.
+        if (settled == null) return CompletableFuture.completedFuture(if (duplicateRetired(connection)) null else connection)
+        // Do not start wire operations or invoke callbacks inside the peer-map computation.
+        if (newlySettled) settled.closeFuture().thenAccept { settledConnections.remove(id, settled) }
+        return reserveConnection(settled).handle { accepted, failure ->
+            if (failure != null || !accepted) settledConnections.remove(id, settled)
+            if (failure != null) throw java.util.concurrent.CompletionException(failure)
+            if (accepted || (settled === connection && !duplicateRetired(connection))) settled else null
+        }
     }
 
     private fun pendingDial(
@@ -156,12 +159,28 @@ class NetworkImpl(
 
         // An inbound or differently-addressed outbound connection may have completed between the
         // caller's established-connection check and installing this address-level pending dial.
-        findActiveConnection(id)
-            ?.also {
-                completePendingDial(key, newPendingDial, it, null)
-                return subscriberFuture(newPendingDial)
+        val existing = findActiveConnection(id)
+        if (existing != null) {
+            existing.whenComplete { connection, error ->
+                when {
+                    error != null -> completePendingDial(key, newPendingDial, null, error)
+                    connection != null -> completePendingDial(key, newPendingDial, connection, null)
+                    else -> startTransportDial(key, newPendingDial, addr, transport, preHandler)
+                }
             }
+        } else {
+            startTransportDial(key, newPendingDial, addr, transport, preHandler)
+        }
+        return subscriberFuture(newPendingDial)
+    }
 
+    private fun startTransportDial(
+        key: PendingDialKey,
+        newPendingDial: CompletableFuture<Connection>,
+        addr: Multiaddr,
+        transport: Transport,
+        preHandler: ChannelVisitor<P2PChannel>?
+    ) {
         try {
             transport.dial(addr, createHookedConnHandler(connectionHandler), preHandler)
                 .whenComplete { connection, error ->
@@ -170,18 +189,16 @@ class NetworkImpl(
         } catch (error: Exception) {
             completePendingDial(key, newPendingDial, null, error)
         }
-
-        return subscriberFuture(newPendingDial)
     }
 
-    private fun findActiveConnection(id: PeerId): Connection? {
-        settledConnections[id]?.takeUnless { it.closeFuture().isDone }
-            ?.let { return it }
+    private fun findActiveConnection(id: PeerId): CompletableFuture<Connection?>? {
+        settledConnections[id]?.takeIf { connectionEligible(it) }
+            ?.let { return retainOneConnectionPerPeer(id, it) }
 
         connections.forEach { connection ->
             if (connection.closeFuture().isDone) {
                 connections.remove(connection)
-            } else if (connection.secureSession().remoteId == id) {
+            } else if (connectionEligible(connection) && connection.secureSession().remoteId == id) {
                 // The connection hook runs before the transport dial future completes. Reserve
                 // the selected parent now so a later dial result cannot close a caller's parent.
                 return retainOneConnectionPerPeer(id, connection)

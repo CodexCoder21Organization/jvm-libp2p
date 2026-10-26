@@ -40,6 +40,7 @@ class ConnectionBuilder(
                 }
             }.thenApply {
                 connection.setMuxerSession(it)
+                if (upgrader.connectionSelectionEnabled) connection.enableConnectionSelection(it)
                 connHandler.handleConnection(connection)
                 connection
             }

@@ -175,11 +175,16 @@ class NetworkImpl(
     }
 
     private fun findActiveConnection(id: PeerId): Connection? {
+        settledConnections[id]?.takeUnless { it.closeFuture().isDone }
+            ?.let { return it }
+
         connections.forEach { connection ->
             if (connection.closeFuture().isDone) {
                 connections.remove(connection)
             } else if (connection.secureSession().remoteId == id) {
-                return connection
+                // The connection hook runs before the transport dial future completes. Reserve
+                // the selected parent now so a later dial result cannot close a caller's parent.
+                return retainOneConnectionPerPeer(id, connection)
             }
         }
         return null

@@ -22,7 +22,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 class NetworkLegacyDuplicateTest {
     @Test
-    fun `unused multi address duplicate closes with a peer lacking selection support`() {
+    fun `non coordinating peer closes its surplus and local tables follow the socket close`() {
         val b = host {
             network {
                 listen("/ip4/127.0.0.1/tcp/0")
@@ -72,13 +72,23 @@ class NetworkLegacyDuplicateTest {
                 .controller.get(10, TimeUnit.SECONDS)
             ping.ping().get(10, TimeUnit.SECONDS)
             transport.releaseFirst.complete(Unit)
-            // Develop closes the surplus; the revised head finishes a failed control child instead.
-            CompletableFuture.anyOf(unused.closeFuture(), controlClosed).get(10, TimeUnit.SECONDS)
+            // This peer has no selection protocol. Model develop's own surplus cleanup:
+            // the remote closes the unused parent; this side cannot infer remote publication.
+            controlClosed.get(10, TimeUnit.SECONDS)
+            assertThat(unused.closeFuture().isDone).isFalse()
+            val remoteSurplus = b.network.connections.single {
+                it.localAddress() == unused.remoteAddress() && it.remoteAddress() == unused.localAddress()
+            }
+            remoteSurplus.close().get(10, TimeUnit.SECONDS)
+            unused.closeFuture().get(10, TimeUnit.SECONDS)
             ping.ping().get(10, TimeUnit.SECONDS)
             println("unused duplicate close complete=${unused.closeFuture().isDone}; local sockets=${transport.activeConnections}")
             assertThat(unused.closeFuture().isDone)
                 .describedAs("A completed unused multi-address dial must release its physical socket")
                 .isTrue()
+            assertThat(a.network.connections).doesNotContain(unused)
+            assertThat(transport.activeConnections).isEqualTo(1)
+            assertThat(a.network.connect(b.peerId).get(10, TimeUnit.SECONDS)).isSameAs(selected)
         } finally {
             transport.start.complete(Unit)
             transport.releaseFirst.complete(Unit)

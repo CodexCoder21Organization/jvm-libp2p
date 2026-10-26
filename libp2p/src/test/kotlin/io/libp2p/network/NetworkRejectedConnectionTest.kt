@@ -26,9 +26,9 @@ class NetworkRejectedConnectionTest {
     @Test
     fun `reuse excludes a duplicate whose physical close is pending`() {
         val server = r77ClosingHost(true)
-        lateinit var transport: R77ResultTransport
-        val client = r77ClosingHost(false) { R77ResultTransport(it).also { transport = it } }
-        val closeGate = R77PhysicalCloseGate()
+        lateinit var transport: CallbackResultTransport
+        val client = r77ClosingHost(false) { CallbackResultTransport(it).also { transport = it } }
+        val closeGate = HeldPhysicalClose()
         val visits = AtomicInteger()
         try {
             server.start().get(10, TimeUnit.SECONDS)
@@ -82,7 +82,7 @@ private fun r77ClosingHost(listen: Boolean, factory: ((ConnectionUpgrader) -> Tc
     protocols { add(Ping()) }
 }
 
-private class R77PhysicalCloseGate : ChannelOutboundHandlerAdapter() {
+private class HeldPhysicalClose : ChannelOutboundHandlerAdapter() {
     val requested = CompletableFuture<Unit>()
     val release = CompletableFuture<Unit>()
     override fun close(ctx: ChannelHandlerContext, promise: ChannelPromise) {
@@ -91,7 +91,7 @@ private class R77PhysicalCloseGate : ChannelOutboundHandlerAdapter() {
     }
 }
 
-private class R77ResultTransport(upgrader: ConnectionUpgrader) : TcpTransport(upgrader) {
+private class CallbackResultTransport(upgrader: ConnectionUpgrader) : TcpTransport(upgrader) {
     val firstUpgraded = CompletableFuture<Connection>()
     val releaseFirst = CompletableFuture<Unit>()
     private val start = CompletableFuture<Unit>()

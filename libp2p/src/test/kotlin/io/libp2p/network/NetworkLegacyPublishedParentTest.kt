@@ -87,6 +87,12 @@ class NetworkLegacyPublishedParentTest {
             remotePing.ping().get(10, TimeUnit.SECONDS)
             assertThat(remote.closeFuture().isDone).isFalse()
             assertThat(unused.closeFuture().isDone).isFalse()
+            assertThat(transport.activeConnections).isEqualTo(2)
+            selected.close().get(10, TimeUnit.SECONDS)
+            assertThat(a.network.connect(b.peerId).get(10, TimeUnit.SECONDS)).isSameAs(unused)
+            val localPing = a.newStream<PingController>(listOf("/ipfs/ping/1.0.0"), unused)
+                .controller.get(10, TimeUnit.SECONDS)
+            localPing.ping().get(10, TimeUnit.SECONDS)
         } finally {
             transport.start.complete(Unit)
             transport.releaseFirst.complete(Unit)

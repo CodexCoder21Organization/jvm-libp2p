@@ -21,10 +21,10 @@ import java.util.concurrent.TimeUnit
 class NetworkInboundReservationTest {
     @Test
     fun `inbound reuse survives the remote pending outbound result`() {
-        lateinit var at: R77CallbackTransport
-        lateinit var bt: R77CallbackTransport
-        val a = r77Host { R77CallbackTransport(it).also { at = it } }
-        val b = r77Host { R77CallbackTransport(it).also { bt = it } }
+        lateinit var at: InboundCallbackTransport
+        lateinit var bt: InboundCallbackTransport
+        val a = r77Host { InboundCallbackTransport(it).also { at = it } }
+        val b = r77Host { InboundCallbackTransport(it).also { bt = it } }
         val aInbound = CompletableFuture<Connection>()
         val bInbound = CompletableFuture<Connection>()
         a.addConnectionHandler(ConnectionHandler.create { if (!it.isInitiator) aInbound.complete(it) })
@@ -85,7 +85,7 @@ private fun r77Host(factory: (ConnectionUpgrader) -> TcpTransport): Host = host 
 }
 
 // Real transport; only outbound hook forwarding and result completion are held.
-private class R77CallbackTransport(upgrader: ConnectionUpgrader) : TcpTransport(upgrader) {
+private class InboundCallbackTransport(upgrader: ConnectionUpgrader) : TcpTransport(upgrader) {
     val start = CompletableFuture<Unit>()
     val upgraded = CompletableFuture<Connection>()
     val forwardCallback = CompletableFuture<Unit>()

@@ -28,11 +28,14 @@ internal class ConnectionSelection(
 ) : StreamMuxer.Session {
     private var closing = false
     private var retained = false
-    private var rejected = false
+
+    // The retirement request that currently excludes this parent, or null. Only that request
+    // may release the exclusion, so a late failure of an older request cannot undo a newer one.
+    private var exclusion: RetirementRequest? = null
     private var retired = false
 
     @Synchronized
-    fun eligible(): Boolean = !closing && !rejected && !connection.closeFuture().isDone
+    fun eligible(): Boolean = !closing && exclusion == null && !connection.closeFuture().isDone
 
     @Synchronized
     fun retain(): Boolean {
@@ -41,18 +44,27 @@ internal class ConnectionSelection(
         return true
     }
 
+    /** Returns the request that now owns the exclusion, or null when retirement is denied. */
     @Synchronized
-    fun retireAtAcceptor(): Boolean {
-        if (retained) return false
-        rejected = true
+    fun retireAtAcceptor(): RetirementRequest? {
+        // A parent already excluded by another approval (pending or delivered) is never approved again.
+        if (retained || exclusion != null) return null
+        return exclude()
+    }
+
+    private fun exclude(): RetirementRequest {
+        val request = RetirementRequest()
+        exclusion = request
         retired = true
-        return true
+        return request
     }
 
     @Synchronized
-    fun restoreAfterFailedRetirement() {
+    fun restoreAfterFailedRetirement(request: RetirementRequest) {
+        // Only the request that established the exclusion may release it.
         // Explicit close has its own terminal marker and is never undone here.
-        rejected = false
+        if (exclusion !== request) return
+        exclusion = null
         retired = false
     }
 
@@ -72,15 +84,14 @@ internal class ConnectionSelection(
         // Only the physical initiator may retire a duplicate, after the acceptor confirms
         // that it has not retained this parent.
         if (!connection.isInitiator) return
-        synchronized(this) {
+        val request = synchronized(this) {
             if (retained || !eligible()) return
-            rejected = true
-            retired = true
+            exclude()
         }
         requestRetirement().whenComplete { accepted, failure ->
             if (failure != null || accepted != true) {
                 // No remote authorization: this may be a published parent at the peer.
-                restoreAfterFailedRetirement()
+                restoreAfterFailedRetirement(request)
             }
             when {
                 failure != null -> selectionLogger.warn(
@@ -115,6 +126,9 @@ internal class ConnectionSelection(
         )
     }
 }
+
+/** Identity of one retirement request; compared by reference only. */
+internal class RetirementRequest
 
 internal fun connectionEligible(connection: Connection): Boolean =
     !connection.closeFuture().isDone && ((connection as? ConnectionOverNetty)?.selection?.eligible() != false)
@@ -168,15 +182,15 @@ private class SelectionProtocol : ProtocolHandler<Boolean>(1, 1) {
             override fun onMessage(stream: Stream, msg: ByteBuf) {
                 val connection = stream.connection
                 val selection = (connection as? ConnectionOverNetty)?.selection
-                val accepted = if (msg.readableBytes() == 1 && selection != null && !connection.isInitiator) {
-                    msg.readUnsignedByte().toInt() == RETIRE && selection.retireAtAcceptor()
+                val request = if (msg.readableBytes() == 1 && selection != null && !connection.isInitiator) {
+                    if (msg.readUnsignedByte().toInt() == RETIRE) selection.retireAtAcceptor() else null
                 } else {
-                    false
+                    null
                 }
-                stream.writeAndFlushWithFuture(Unpooled.buffer(1).writeByte(if (accepted) 1 else 0))
+                stream.writeAndFlushWithFuture(Unpooled.buffer(1).writeByte(if (request != null) 1 else 0))
                     .whenComplete { _, failure ->
                         if (failure != null) {
-                            if (accepted) selection?.restoreAfterFailedRetirement()
+                            if (request != null) selection?.restoreAfterFailedRetirement(request)
                             selectionLogger.warn("Connection selection response failed on {}", connection, failure)
                         }
                         stream.closeWrite()

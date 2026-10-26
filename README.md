@@ -223,22 +223,26 @@ asynchronous table-removal continuation has not run yet. A request made in that 
 starts a fresh transport dial instead of receiving a connection whose muxer is already closed.
 
 Connection reuse and completed transport dials share one local preference per peer. A successful
-`Network.connect` retains its exact physical parent before returning it. For TCP and WebSocket hosts built by this
-fork's standard builder, inbound reuse also confirms retention with the physical dial initiator.
-Duplicate decisions at either endpoint cannot then retire that returned parent or its streams,
-including when both endpoints selected different parents before their pending dials finished.
-Opening a stream directly on a connection also retains that parent before publishing the stream.
-Unused duplicate dials close only after the other endpoint confirms retirement; rejected parents
-are excluded from reuse as soon as retirement starts, even while physical close is pending.
+`Network.connect` locally retains its exact physical parent before returning it. Opening a stream
+directly on a connection also retains that parent before publishing the stream. Reuse opens no
+coordination stream. For TCP and WebSocket hosts built by this fork's standard builder, only the
+physical dial initiator retires an unused duplicate, and it closes that parent only after the
+physical acceptor acknowledges retirement. The acceptor's acknowledgement atomically excludes the
+parent when it has not been retained locally, so duplicate decisions at either endpoint cannot
+retire a selected parent or its streams, including when both endpoints selected different parents
+before their pending dials finished. Retirement opens a control stream; a rejected parent is
+excluded from reuse as soon as retirement starts, even while physical close is pending.
 
 Consequently, more than one physical connection may remain when callers at the two endpoints
 already hold different parents. An application handler that opens a stream on each candidate
 retains each of those parents, even after those streams close. Explicit close, host shutdown and transport failure still close
 retained connections. A fresh dial closed by its own application callback keeps that original
-closed result; it does not start another dial. Connection callbacks and `Network.connections` expose candidates; retaining
-a callback parameter without selecting it or opening a stream does not reserve it. Coordination
-uses the negotiated `/libp2p/connection-selection/1.0.0` stream protocol. QUIC and custom transport paths without
-coordination, or a peer that does not support the protocol, cannot authorize retirement. In those cases, this host keeps ambiguous duplicates until explicit close
+closed result; it does not start another dial. Connection callbacks and `Network.connections`
+expose candidates. Holding a callback parameter without selecting the connection or opening a
+stream does not retain it. Retirement uses the negotiated
+`/libp2p/connection-selection/1.0.0` stream protocol. QUIC and custom transport paths without
+coordination, or a peer that does not support the protocol, cannot authorize retirement. In those
+cases, this host keeps ambiguous duplicates until explicit close
 or shutdown. Inbound reuse still interoperates with such peers, but their own duplicate decisions
 cannot provide this fork's cross-endpoint lifetime guarantee.
 

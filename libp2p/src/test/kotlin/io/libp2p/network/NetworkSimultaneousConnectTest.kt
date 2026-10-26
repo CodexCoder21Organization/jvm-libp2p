@@ -36,7 +36,7 @@ class NetworkSimultaneousConnectTest {
 
     @Test
     fun `remote retention remains usable when the peer has no selection protocol`() {
-        checkRemoteReturnedParent(StreamMuxerProtocol.getYamux(), omitClientSelection = true)
+        checkRemoteReturnedParent(StreamMuxerProtocol.getYamux(), omitSelectionBinding = true)
     }
 
     @Test
@@ -109,8 +109,8 @@ class NetworkSimultaneousConnectTest {
     }
 }
 
-private fun checkRemoteReturnedParent(muxer: StreamMuxerProtocol, omitClientSelection: Boolean = false) {
-    withSelectionHosts(muxer, omitClientSelection) { client, server, transport ->
+private fun checkRemoteReturnedParent(muxer: StreamMuxerProtocol, omitSelectionBinding: Boolean = false) {
+    withSelectionHosts(muxer, omitSelectionBinding) { client, server, transport ->
         val pending = client.network.connect(server.peerId, *server.listenAddresses().toTypedArray())
         transport.start.complete(Unit)
         transport.secondUpgraded.get(10, TimeUnit.SECONDS)
@@ -188,7 +188,7 @@ private fun pingOn(host: Host, parent: Connection) {
 
 private fun withSelectionHosts(
     muxer: StreamMuxerProtocol = StreamMuxerProtocol.getYamux(),
-    omitClientSelection: Boolean = false,
+    omitSelectionBinding: Boolean = false,
     body: (Host, Host, SelectionTestTransport) -> Unit
 ) {
     val server = host {
@@ -197,7 +197,7 @@ private fun withSelectionHosts(
             listen("/ip4/127.0.0.2/tcp/0")
         }
         secureChannels { add(::NoiseXXSecureChannel) }
-        muxers { add(muxer) }
+        muxers { add(selectionAwareMuxer(muxer, omitSelectionBinding)) }
         protocols {
             add(Ping())
             add(Echo())
@@ -207,20 +207,7 @@ private fun withSelectionHosts(
     val client = host {
         transports { add { upgrader -> SelectionTestTransport(upgrader).also { transport = it } } }
         secureChannels { add(::NoiseXXSecureChannel) }
-        muxers {
-            add(
-                StreamMuxerProtocol { multistream, protocols ->
-                    muxer.createMuxer(
-                        multistream,
-                        if (omitClientSelection) {
-                            protocols.filterNot { it.protocolDescriptor.matchesAny(listOf("/libp2p/connection-selection/1.0.0")) }
-                        } else {
-                            protocols
-                        }
-                    )
-                }
-            )
-        }
+        muxers { add(selectionAwareMuxer(muxer, omitSelectionBinding)) }
         protocols {
             add(Ping())
             add(Echo())
@@ -244,6 +231,20 @@ private fun withSelectionHosts(
             assertThat(it.activeListeners).isZero()
         }
     }
+}
+
+private fun selectionAwareMuxer(
+    muxer: StreamMuxerProtocol,
+    omitSelectionBinding: Boolean
+): StreamMuxerProtocol = StreamMuxerProtocol { multistream, protocols ->
+    muxer.createMuxer(
+        multistream,
+        if (omitSelectionBinding) {
+            protocols.filterNot { it.protocolDescriptor.matchesAny(listOf("/libp2p/connection-selection/1.0.0")) }
+        } else {
+            protocols
+        }
+    )
 }
 
 private class SelectionTestTransport(upgrader: ConnectionUpgrader) : TcpTransport(upgrader) {

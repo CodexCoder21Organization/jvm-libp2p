@@ -3,15 +3,12 @@ package io.libp2p.network
 import io.libp2p.core.Connection
 import io.libp2p.core.ConnectionClosedException
 import io.libp2p.core.Libp2pException
-import io.libp2p.core.NoSuchRemoteProtocolException
 import io.libp2p.core.Stream
 import io.libp2p.core.StreamPromise
 import io.libp2p.core.multistream.ProtocolBinding
 import io.libp2p.core.multistream.StrictProtocolBinding
 import io.libp2p.core.mux.StreamMuxer
 import io.libp2p.etc.types.completedExceptionally
-import io.libp2p.etc.types.forward
-import io.libp2p.etc.types.hasCauseOfType
 import io.libp2p.protocol.ProtocolHandler
 import io.libp2p.protocol.ProtocolMessageHandler
 import io.libp2p.transport.implementation.ConnectionOverNetty
@@ -20,12 +17,11 @@ import io.netty.buffer.Unpooled
 import org.slf4j.LoggerFactory
 import java.util.concurrent.CompletableFuture
 
-private const val RETAIN = 1
 private const val RETIRE = 2
 private const val SELECTION_PROTOCOL = "/libp2p/connection-selection/1.0.0"
 private val selectionLogger = LoggerFactory.getLogger("io.libp2p.network.ConnectionSelection")
 
-/** The physical dial initiator orders retention against retirement for BOTH endpoints. */
+/** Local retention at both endpoints is ordered against duplicate retirement. */
 internal class ConnectionSelection(
     private val connection: Connection,
     private val session: StreamMuxer.Session
@@ -33,13 +29,12 @@ internal class ConnectionSelection(
     private var retained = false
     private var rejected = false
     private var retired = false
-    private var reservation: CompletableFuture<Boolean>? = null
 
     @Synchronized
     fun eligible(): Boolean = !rejected && !connection.closeFuture().isDone
 
     @Synchronized
-    fun retainAtInitiator(): Boolean {
+    fun retain(): Boolean {
         if (!eligible()) return false
         retained = true
         return true
@@ -62,45 +57,19 @@ internal class ConnectionSelection(
     }
 
     fun reserve(): CompletableFuture<Boolean> {
-        if (connection.isInitiator) return CompletableFuture.completedFuture(retainAtInitiator())
-        val owned = CompletableFuture<Boolean>()
-        synchronized(this) {
-            if (!eligible()) return CompletableFuture.completedFuture(false)
-            if (retained) return CompletableFuture.completedFuture(true)
-            reservation?.let { return it.thenApply { accepted -> accepted } }
-            reservation = owned
-        }
-        request(RETAIN).whenComplete { accepted, failure ->
-            val legacy = failure?.hasCauseOfType(NoSuchRemoteProtocolException::class) == true
-            if (failure != null && !legacy) {
-                owned.completeExceptionally(failure)
-            } else {
-                if (legacy) selectionLogger.warn("Remote peer does not support connection retention on {}; its own duplicate decisions cannot be coordinated", connection)
-                val usable = synchronized(this) {
-                    if ((accepted == true || legacy) && eligible()) {
-                        retained = true
-                    } else {
-                        rejected = true
-                        if (accepted == false && !legacy) retired = true
-                    }
-                    retained && !rejected
-                }
-                owned.complete(usable)
-            }
-        }
-        return owned.thenApply { it }
+        return CompletableFuture.completedFuture(retain())
     }
 
     fun rejectDuplicate() {
-        // Accepted connections are never closed by local duplicate cleanup. Their physical
-        // initiator owns retirement; a remote reservation must reach that same decision.
+        // Only the physical initiator may retire a duplicate, after the acceptor confirms
+        // that it has not retained this parent.
         if (!connection.isInitiator) return
         synchronized(this) {
             if (retained || rejected || connection.closeFuture().isDone) return
             rejected = true
             retired = true
         }
-        request(RETIRE).whenComplete { accepted, failure ->
+        requestRetirement().whenComplete { accepted, failure ->
             when {
                 failure != null -> selectionLogger.warn(
                     "Keeping duplicate {} because remote retirement could not be confirmed",
@@ -112,9 +81,9 @@ internal class ConnectionSelection(
         }
     }
 
-    private fun request(command: Int): CompletableFuture<Boolean> {
+    private fun requestRetirement(): CompletableFuture<Boolean> {
         val promise = try {
-            session.createStream(SelectionBinding(command))
+            session.createStream(SelectionBinding())
         } catch (failure: Exception) {
             return completedExceptionally(failure)
         }
@@ -125,32 +94,13 @@ internal class ConnectionSelection(
     }
 
     override fun <T> createStream(protocols: List<ProtocolBinding<T>>): StreamPromise<T> {
-        val stream = CompletableFuture<Stream>()
-        val controller = CompletableFuture<T>()
-        reserve().whenComplete { accepted, failure ->
-            when {
-                failure != null -> {
-                    stream.completeExceptionally(failure)
-                    controller.completeExceptionally(failure)
-                }
-                !accepted -> {
-                    val closed = ConnectionClosedException("Cannot open a stream on a connection selected for duplicate retirement: $connection")
-                    stream.completeExceptionally(closed)
-                    controller.completeExceptionally(closed)
-                }
-                else -> {
-                    try {
-                        val opened = session.createStream(protocols)
-                        opened.stream.forward(stream)
-                        opened.controller.forward(controller)
-                    } catch (failure: Exception) {
-                        stream.completeExceptionally(failure)
-                        controller.completeExceptionally(failure)
-                    }
-                }
-            }
-        }
-        return StreamPromise(stream, controller)
+        if (retain()) return session.createStream(protocols)
+
+        val closed = ConnectionClosedException("Cannot open a stream because the connection is closed or excluded from selection: $connection")
+        return StreamPromise(
+            completedExceptionally<Stream>(closed),
+            completedExceptionally<T>(closed)
+        )
     }
 }
 
@@ -169,16 +119,15 @@ internal fun rejectDuplicate(connection: Connection) {
     (connection as? ConnectionOverNetty)?.selection?.rejectDuplicate()
 }
 
-internal class SelectionBinding(command: Int? = null) :
-    StrictProtocolBinding<Boolean>(SELECTION_PROTOCOL, SelectionProtocol(command))
+internal class SelectionBinding :
+    StrictProtocolBinding<Boolean>(SELECTION_PROTOCOL, SelectionProtocol())
 
-private class SelectionProtocol(private val command: Int?) : ProtocolHandler<Boolean>(1, 1) {
+private class SelectionProtocol : ProtocolHandler<Boolean>(1, 1) {
     override fun onStartInitiator(stream: Stream): CompletableFuture<Boolean> {
         val response = CompletableFuture<Boolean>()
-        val request = command ?: return completedExceptionally(Libp2pException("Connection selection request has no command"))
         stream.pushHandler(object : ProtocolMessageHandler<ByteBuf> {
             override fun onActivated(stream: Stream) {
-                stream.writeAndFlushWithFuture(Unpooled.buffer(1).writeByte(request)).whenComplete { _, failure ->
+                stream.writeAndFlushWithFuture(Unpooled.buffer(1).writeByte(RETIRE)).whenComplete { _, failure ->
                     if (failure != null) response.completeExceptionally(failure)
                 }
             }
@@ -204,12 +153,8 @@ private class SelectionProtocol(private val command: Int?) : ProtocolHandler<Boo
             override fun onMessage(stream: Stream, msg: ByteBuf) {
                 val connection = stream.connection
                 val selection = (connection as? ConnectionOverNetty)?.selection
-                val accepted = if (msg.readableBytes() == 1 && selection != null) {
-                    when (msg.readUnsignedByte().toInt()) {
-                        RETAIN -> connection.isInitiator && selection.retainAtInitiator()
-                        RETIRE -> !connection.isInitiator && selection.retireAtAcceptor()
-                        else -> false
-                    }
+                val accepted = if (msg.readableBytes() == 1 && selection != null && !connection.isInitiator) {
+                    msg.readUnsignedByte().toInt() == RETIRE && selection.retireAtAcceptor()
                 } else {
                     false
                 }

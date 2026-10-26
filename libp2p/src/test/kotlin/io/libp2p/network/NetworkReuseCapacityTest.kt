@@ -55,13 +55,15 @@ private fun capacityReuseHost(maxInbound: Int): Host = host {
     network { listen("/ip4/127.0.0.1/tcp/0") }
     secureChannels { add(::NoiseXXSecureChannel) }
     muxers {
-        add(StreamMuxerProtocol { multistream, protocols ->
-            YamuxCapacityStreamMuxer(
-                multistream.createMultistream(protocols).toStreamHandler(),
-                multistream,
-                maxInboundStreams = maxInbound
-            )
-        })
+        add(
+            StreamMuxerProtocol { multistream, protocols ->
+                YamuxCapacityStreamMuxer(
+                    multistream.createMultistream(protocols).toStreamHandler(),
+                    multistream,
+                    maxInboundStreams = maxInbound
+                )
+            }
+        )
     }
     protocols { add(Ping()) }
 }

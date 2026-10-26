@@ -220,3 +220,7 @@ Caused by: java.net.ConnectException: Connection \u0072\u0065\u0066\u0075\u0073\
 	... 17 more
 
 ```
+
+OBSERVED 2026-10-26T20:27:13.738448+00:00: local complete suite remains active at its original candidate; last observed runner CPU is 278 percent and the log contains 29 finished script-compilation events. No XML is available yet. No source was changed while the suite runs.
+
+OBSERVED 2026-10-26T20:30:01.436140+00:00: local complete-suite process 69491 exited 137 during preparation; no XML was written. The cgroup memory limit is 10737418240 bytes and its recorded peak is 10740391936 bytes. Current usage after exit is 9722646528 bytes. These counters cover concurrent lanes and alone do not identify which process triggered a limit event. There is no full-suite test verdict. The remote client also ended before submission, so neither client remains active.

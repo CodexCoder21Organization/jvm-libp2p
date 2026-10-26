@@ -16,7 +16,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 class NetworkSelectionListenerTest {
     @Test
-    fun `failed reuse does not accumulate close dependents on a live parent`() {
+    fun `stream free reuse does not accumulate close dependents on a live parent`() {
         val a = listenerHost()
         val b = listenerHost()
         val inbound = CompletableFuture<Connection>()
@@ -38,18 +38,18 @@ class NetworkSelectionListenerTest {
                 .controller.get(10, TimeUnit.SECONDS)
             ping.ping().get(10, TimeUnit.SECONDS)
             // Quiescent setup barrier: the connection handler's ownership listener is installed.
-            b.network.connect(a.peerId).handle { _, _ -> Unit }.get(10, TimeUnit.SECONDS)
+            assertThat(b.network.connect(a.peerId).get(10, TimeUnit.SECONDS)).isSameAs(remote)
             val before = remote.closeFuture().numberOfDependents
-            // Intentionally sequential: every retry observes the previous terminal failure.
+            // Intentionally sequential: measure listener retention after each completed reuse.
             repeat(32) {
-                b.network.connect(a.peerId).handle { _, _ -> Unit }.get(10, TimeUnit.SECONDS)
+                assertThat(b.network.connect(a.peerId).get(10, TimeUnit.SECONDS)).isSameAs(remote)
             }
             val after = remote.closeFuture().numberOfDependents
             println("close dependents before=$before after=$after; peer requests=${requests.get()}")
             ping.ping().get(10, TimeUnit.SECONDS)
             assertThat(remote.closeFuture().isDone).isFalse()
             assertThat(after)
-                .describedAs("Repeated failed reuse must not add unbounded close continuations to the same live parent")
+                .describedAs("Repeated stream-free reuse must not add unbounded close continuations to the same live parent")
                 .isLessThanOrEqualTo(before + 1)
         } finally {
             try {

@@ -26,9 +26,9 @@ private const val RETENTION_PROTOCOL = "/libp2p/connection-selection/1.0.0"
 
 class NetworkSelectionEofTest {
     @Test
-    fun `retention response EOF terminates connect while the parent remains usable`() {
-        // The peer uses the real stack and a real protocol that ends its reply without a payload.
-        // This forces a terminal wire event, rather than making a speed-based assertion.
+    fun `stream free reuse completes with an EOF selection responder configured`() {
+        // Reuse needs no selection request. Keep an EOF responder configured as a guard
+        // against making successful reuse depend on a response payload again.
         val a = eofHost(true)
         val b = eofHost(false)
         val inbound = CompletableFuture<Connection>()
@@ -56,14 +56,14 @@ class NetworkSelectionEofTest {
             ping.ping().get(10, TimeUnit.SECONDS)
             val reuse = b.network.connect(a.peerId)
             if (!reuse.isDone) readClosedHandled.get(10, TimeUnit.SECONDS)
-            // A complete EOF was processed on the child event loop before this observation.
-            // Success or a descriptive failure is acceptable; an unfinished request is not.
+            // If a regressed implementation opened a request, the barrier above processes its EOF.
+            // Correct stream-free reuse completes successfully on the exact inbound parent.
             ping.ping().get(10, TimeUnit.SECONDS)
             assertThat(parent.closeFuture().isDone).isFalse()
             assertThat(reuse.isDone)
-                .describedAs("Network.connect must terminate after its retention response reaches EOF")
+                .describedAs("Network.connect reuse must finish with the existing inbound parent")
                 .isTrue()
-            reuse.handle { _, _ -> Unit }.get(10, TimeUnit.SECONDS)
+            assertThat(reuse.get(10, TimeUnit.SECONDS)).isSameAs(inbound.get(10, TimeUnit.SECONDS))
         } finally {
             try {
                 a.stop().get(10, TimeUnit.SECONDS)

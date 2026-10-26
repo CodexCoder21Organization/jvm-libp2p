@@ -16,7 +16,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 class NetworkSelectionRecoveryTest {
     @Test
-    fun `one reset control stream does not permanently prevent healthy parent reuse`() {
+    fun `stream free reuse remains usable with a selection reset visitor configured`() {
         val a = recoveryHost()
         val b = recoveryHost()
         val inbound = CompletableFuture<Connection>()
@@ -39,11 +39,11 @@ class NetworkSelectionRecoveryTest {
             val ping = a.newStream<PingController>(listOf("/ipfs/ping/1.0.0"), parent)
                 .controller.get(10, TimeUnit.SECONDS)
             ping.ping().get(10, TimeUnit.SECONDS)
-            // The first request may fail due to the deliberate child reset. Its failure is expected.
-            b.network.connect(a.peerId).handle { _, _ -> Unit }.get(10, TimeUnit.SECONDS)
+            // The reset visitor is a trap for unexpected selection traffic; reuse needs no child.
+            assertThat(b.network.connect(a.peerId).get(10, TimeUnit.SECONDS)).isSameAs(remote)
             ping.ping().get(10, TimeUnit.SECONDS)
             assertThat(remote.closeFuture().isDone).isFalse()
-            // The reset stream is gone; the real selection responder can now answer normally.
+            // Repeating stream-free reuse returns the same healthy physical parent.
             val recovered = b.network.connect(a.peerId).get(10, TimeUnit.SECONDS)
             assertThat(recovered).isSameAs(remote)
             ping.ping().get(10, TimeUnit.SECONDS)

@@ -232,7 +232,8 @@ parent when it has not been retained locally, so duplicate decisions at either e
 retire a selected parent or its streams, including when both endpoints selected different parents
 before their pending dials finished. Retirement opens a control stream; its parent is excluded
 from reuse while confirmation is pending. A positive reply keeps it excluded through physical
-close. A negative reply or failed request restores eligibility for a live parent, so a later
+close. The acceptor commits exclusion only after its approval write succeeds; a failed write
+restores eligibility. A negative reply or failed request restores eligibility for a live parent, so a later
 connect can reuse it if the selected parent closes. A late retirement result never reverses an explicit close.
 A retirement stream whose peer ends writing without a reply completes exceptionally and closes
 that child, as do a stream reset or parent close. Connect callers do not wait for retirement;

@@ -50,6 +50,13 @@ internal class ConnectionSelection(
     }
 
     @Synchronized
+    fun restoreAfterFailedRetirement() {
+        // Explicit close has its own terminal marker and is never undone here.
+        rejected = false
+        retired = false
+    }
+
+    @Synchronized
     fun wasRetired(): Boolean = retired
 
     @Synchronized
@@ -72,12 +79,8 @@ internal class ConnectionSelection(
         }
         requestRetirement().whenComplete { accepted, failure ->
             if (failure != null || accepted != true) {
-                synchronized(this) {
-                    // No remote authorization: this may be a published parent at the peer.
-                    // Explicit close remains terminal even if it races this completion.
-                    rejected = false
-                    retired = false
-                }
+                // No remote authorization: this may be a published parent at the peer.
+                restoreAfterFailedRetirement()
             }
             when {
                 failure != null -> selectionLogger.warn(
@@ -172,7 +175,10 @@ private class SelectionProtocol : ProtocolHandler<Boolean>(1, 1) {
                 }
                 stream.writeAndFlushWithFuture(Unpooled.buffer(1).writeByte(if (accepted) 1 else 0))
                     .whenComplete { _, failure ->
-                        if (failure != null) selectionLogger.warn("Connection selection response failed on {}", connection, failure)
+                        if (failure != null) {
+                            if (accepted) selection?.restoreAfterFailedRetirement()
+                            selectionLogger.warn("Connection selection response failed on {}", connection, failure)
+                        }
                         stream.closeWrite()
                     }
             }

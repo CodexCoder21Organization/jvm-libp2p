@@ -215,6 +215,21 @@ fun replyWhileRequestsPaused(stream: StreamOverNetty, reply: ByteArray): Complet
 
 The returned future reports the write result; handle it asynchronously so the stream event loop can keep processing window updates.
 
+## Completed Netty future conversion
+
+Converting an already-completed Netty future to a `CompletableFuture` preserves its value,
+original failure, or cancellation even when its listener executor has a full queue or has
+terminated. Completion during listener registration is observed directly as well. A pending
+Netty operation continues to use its normal listener executor.
+
+A custom muxer may return a parent write future whose listeners use another executor.
+Child write completion still runs on the child's event loop. If that loop rejects delivery,
+the completed parent result is retained until the child can process it. Closing the child
+applies an already-completed parent result before cancelling retained delivery and releasing
+remaining payloads. When a child's Netty worker loop shuts down, accepted writes settle
+on that loop before it stops, including unflushed writes and writes accepted after an
+earlier parent delivery completed, even when an application handler prevents child closure.
+
 ## Connection reuse during close
 
 `Network.connect` reuses an established connection to the requested peer when one is live. Entries
@@ -265,6 +280,11 @@ Connection close and transport shutdown share one physical close operation for e
 parent channel. Repeated calls wait for that operation and report its original failure if it
 fails; they do not issue another close. Completing or cancelling one caller's returned future
 does not complete the operation or another caller's shutdown future.
+
+An already-closed connection can report its close result from unrelated nested promise
+callbacks without another listener dispatch. A synchronous callback on the connection's
+`closeFuture()` keeps earlier physical-close listeners ahead of its `close()` result,
+including a call handed to another thread before that callback returns.
 
 For `ConnectionOverNetty`, `retryClose()` explicitly requests a new physical close after
 the latest attempt has failed. A call before closing starts the initial attempt; a call while

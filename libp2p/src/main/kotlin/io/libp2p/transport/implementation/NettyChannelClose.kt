@@ -4,6 +4,7 @@ import io.libp2p.etc.types.toVoidCompletableFuture
 import io.netty.channel.Channel
 import io.netty.util.AttributeKey
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 
 private class ChannelCloseState {
@@ -12,6 +13,27 @@ private class ChannelCloseState {
 }
 
 private val closeOperationKey = AttributeKey.valueOf<ChannelCloseState>("libp2p.channel.closeOperation")
+
+private val closeNotificationKey = AttributeKey.valueOf<AtomicInteger>("libp2p.channel.closeNotificationDepth")
+
+/** Track public close callbacks rather than unrelated nested Netty promise notifications. */
+internal fun observeConnectionClose(
+    channel: Channel,
+    source: CompletableFuture<Unit>
+): CompletableFuture<Unit> {
+    val candidate = AtomicInteger()
+    val depth = channel.attr(closeNotificationKey).setIfAbsent(candidate) ?: candidate
+    val result = CompletableFuture<Unit>()
+    source.whenComplete { _, failure ->
+        depth.incrementAndGet()
+        try {
+            if (failure == null) result.complete(Unit) else result.completeExceptionally(failure)
+        } finally {
+            depth.decrementAndGet()
+        }
+    }
+    return result
+}
 
 /** Ordinary owners always observe the original close, even after an explicit retry. */
 internal fun closeNettyChannelOnce(channel: Channel): CompletableFuture<Unit> =
@@ -44,8 +66,13 @@ private fun closeOperation(channel: Channel, retry: Boolean): CompletableFuture<
 private fun requestPhysicalClose(channel: Channel, operation: CompletableFuture<Unit>) {
     try {
         if (channel.closeFuture().isDone) {
-            // An early close observer may run before other physical-close listeners finish.
-            channel.closeFuture().addListener { operation.complete(Unit) }
+            if ((channel.attr(closeNotificationKey).get()?.get() ?: 0) > 0) {
+                // Callback handoffs to another thread still join the active physical-close notification.
+                channel.closeFuture().addListener { operation.complete(Unit) }
+            } else {
+                // The terminal result must not depend on another accepted notification task.
+                operation.complete(Unit)
+            }
         } else {
             channel.close().toVoidCompletableFuture().whenComplete { _, failure ->
                 if (failure == null) operation.complete(Unit) else operation.completeExceptionally(failure)

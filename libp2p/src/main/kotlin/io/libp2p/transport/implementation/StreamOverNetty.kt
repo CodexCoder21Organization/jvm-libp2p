@@ -1,13 +1,13 @@
 package io.libp2p.transport.implementation
 
 import io.libp2p.core.Connection
-import io.libp2p.core.ConnectionClosedException
 import io.libp2p.core.PeerId
 import io.libp2p.core.Stream
 import io.libp2p.core.StreamCapacityReset
 import io.libp2p.etc.PROTOCOL
 import io.libp2p.etc.StreamSetupFuture
 import io.libp2p.etc.WRITE_FAILURE
+import io.libp2p.etc.types.toCompletableFuture
 import io.libp2p.etc.types.toVoidCompletableFuture
 import io.libp2p.etc.util.netty.mux.MuxChannel
 import io.netty.channel.Channel
@@ -39,15 +39,14 @@ open class StreamOverNetty(
 
     override fun writeAndFlushWithFuture(msg: Any): CompletableFuture<Unit> {
         val result = CompletableFuture<Unit>()
-        nettyChannel.writeAndFlush(msg).addListener {
-            if (it.isSuccess) {
+        nettyChannel.writeAndFlush(msg).toCompletableFuture().whenComplete { _, failure ->
+            if (failure == null) {
                 result.complete(Unit)
             } else {
                 result.completeExceptionally(
                     nettyChannel.attr(WRITE_FAILURE).get()
                         ?: connectionWriteFailure()
-                        ?: it.cause()
-                        ?: ConnectionClosedException("Stream write failed without a reported cause: $nettyChannel")
+                        ?: failure
                 )
             }
         }
@@ -63,8 +62,8 @@ open class StreamOverNetty(
         val operation = Runnable {
             try {
                 val closed = (nettyChannel as? MuxChannel<*>)?.resetForCapacity() ?: nettyChannel.close()
-                closed.addListener {
-                    if (it.isSuccess) result.complete(Unit) else result.completeExceptionally(it.cause())
+                closed.toVoidCompletableFuture().whenComplete { _, failure ->
+                    if (failure == null) result.complete(Unit) else result.completeExceptionally(failure)
                 }
             } catch (cause: Throwable) {
                 result.completeExceptionally(cause)

@@ -42,6 +42,7 @@ open class ConnectionOverNetty(
         closeWasRequested = true
         selection?.closeRequested()
     }
+    private val observedCloseFuture by lazy { observeConnectionClose(nettyChannel, super.closeFuture()) }
 
     private lateinit var muxerSession: StreamMuxer.Session
     private lateinit var secureSession: SecureChannel.Session
@@ -57,6 +58,7 @@ open class ConnectionOverNetty(
         secureSession = ss
     }
 
+    override fun closeFuture() = observedCloseFuture
     override fun close(): java.util.concurrent.CompletableFuture<Unit> {
         recordCloseRequest()
         return closeNettyChannelOnce(nettyChannel)

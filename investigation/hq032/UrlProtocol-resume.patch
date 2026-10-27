@@ -41,7 +41,7 @@ index 94578911b..ef3223ab6 100644
      )
 diff --git a/tests/stressTestRejectedDrainConcurrentHostStops.kts b/tests/stressTestRejectedDrainConcurrentHostStops.kts
 new file mode 100644
-index 000000000..783c0bd70
+index 000000000..db7a5e723
 --- /dev/null
 +++ b/tests/stressTestRejectedDrainConcurrentHostStops.kts
 @@ -0,0 +1,382 @@
@@ -273,9 +273,6 @@ index 000000000..783c0bd70
 +        serverRoot = activeRoot
 +        val outbound = activeRoot.unsafe().outboundBuffer()
 +            ?: fail("The server root connection has no outbound buffer")
-+        // Complete this round's eight connection setups before any caller fills a
-+        // shared worker queue. The fault and close paths still run concurrently.
-+        awaitFaultPhase()
 +        activeRoot.attr(AttributeKey.valueOf<Consumer<String>>(
 +            "foundation.url.protocol.awaitedResponseOutboxObserver",
 +        )).set(Consumer { event ->
@@ -359,6 +356,9 @@ index 000000000..783c0bd70
 +            activeRpc.sendRequest(Libp2pRpcProtocol.RpcRequest("second", "second", emptyMap()))
 +        }
 +        assertTrue(secondHandlerEntered.await(10, TimeUnit.SECONDS), "The second request must reach its handler")
++        // Every cycle has delivered both requests before any cycle holds or fills
++        // the shared loop. The faults and public close callers remain concurrent.
++        awaitFaultPhase()
 +        activeRoot.eventLoop().execute {
 +            loopHeld.countDown()
 +            assertTrue(releaseLoop.await(10, TimeUnit.SECONDS), "The test must release the root loop")

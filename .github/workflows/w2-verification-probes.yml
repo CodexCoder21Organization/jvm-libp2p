@@ -4,7 +4,7 @@ on:
     inputs:
       probe:
         type: choice
-        options: [windows, dokka]
+        options: [windows, dokka, dokka-compiled]
         default: windows
       jdk:
         type: choice
@@ -75,7 +75,7 @@ jobs:
           path: build/w2/process-*.txt
 
   dokka-retention:
-    if: inputs.probe == 'dokka'
+    if: startsWith(inputs.probe, 'dokka')
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -85,7 +85,7 @@ jobs:
           distribution: temurin
           java-version: '17'
       - name: Record real documentation classloaders with original limits
-        run: ./gradlew --no-daemon --max-workers=1 --stacktrace --continue -I investigations/w2-20261027/dokka-profile.gradle '-Dorg.gradle.jvmargs=-Xmx3G -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=build/w2-dokka.hprof' dokkaJar > w2-dokka-build.log 2>&1
+        run: ./gradlew --no-daemon --max-workers=1 --stacktrace --continue -I investigations/w2-20261027/dokka-profile.gradle '-Dorg.gradle.jvmargs=-Xmx3G -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=build/w2-dokka.hprof' ${{ inputs.probe == 'dokka-compiled' && ':libp2p:classes :libp2p:testClasses' || '' }} dokkaJar > w2-dokka-build.log 2>&1
       - uses: actions/upload-artifact@v4
         if: always()
         with:

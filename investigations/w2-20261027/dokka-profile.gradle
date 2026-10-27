@@ -14,6 +14,13 @@ def record = { task, phase ->
         throw new GradleException('Classloader diagnostic did not finish for ' + task.path)
     }
     if (result.exitValue() != 0) throw new GradleException('Classloader diagnostic failed: ' + report.text)
+    def threads = new ProcessBuilder(new File(System.getProperty('java.home'), 'bin/jcmd').path, pid, 'Thread.print', '-l')
+        .redirectErrorStream(true).redirectOutput(new File(profiles, task.path.replace(':', '_') + '-' + phase + '-threads.txt')).start()
+    if (!threads.waitFor(30, java.util.concurrent.TimeUnit.SECONDS)) {
+        threads.destroyForcibly()
+        throw new GradleException('Thread diagnostic did not finish for ' + task.path)
+    }
+    if (threads.exitValue() != 0) throw new GradleException('Thread diagnostic failed for ' + task.path)
     println report.text
 }
 gradle.taskGraph.beforeTask { task ->

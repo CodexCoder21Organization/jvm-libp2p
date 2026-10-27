@@ -49,6 +49,7 @@ class NoiseHandshakeOffEventLoopTest {
             val dialer = newNoiseHost()
             try {
                 val startupFailure = catchThrowable { startNoiseHosts(listOf(relay, dialer)) }
+                startupFailure?.printStackTrace()
                 assertThat(startupFailure)
                     .describedAs("The Noise fixture must leave the owned ordinary-loopback listener separate")
                     .isNull()
@@ -137,7 +138,7 @@ class NoiseHandshakeOffEventLoopTest {
                 "Noise test relay did not expose a TCP listen address: ${relay.listenAddresses()}"
             }.toInt()
 
-            Socket("127.0.0.1", port).use { socket ->
+            Socket(NOISE_TEST_HOST, port).use { socket ->
                 socket.soTimeout = TimeUnit.SECONDS.toMillis(HandshakeTimeoutSec + 3L).toInt()
                 writeMultistreamMessage(socket.getOutputStream(), "/multistream/1.0.0")
                 writeMultistreamMessage(socket.getOutputStream(), NoiseXXSecureChannel.announce)
@@ -171,7 +172,7 @@ class NoiseHandshakeOffEventLoopTest {
                     random(KeyType.ED25519)
                 }
                 network {
-                    listen("/ip4/127.0.0.1/tcp/0")
+                    listen("/ip4/$NOISE_TEST_HOST/tcp/0")
                 }
                 protocols {
                     +Ping()
@@ -799,7 +800,7 @@ private fun newNoiseHost(listen: Boolean = false, listenPort: Int = 0): Host = h
     }
     if (listen) {
         network {
-            listen("/ip4/127.0.0.1/tcp/$listenPort")
+            listen("/ip4/$NOISE_TEST_HOST/tcp/$listenPort")
         }
     }
     protocols {
@@ -862,3 +863,5 @@ private const val MAX_SEQUENTIAL_HANDSHAKE_MILLIS = 20_000
 private const val SATURATED_DIALERS = 120
 private const val SATURATION_EXECUTOR_THREADS = 2
 private const val SATURATION_QUEUE_CAPACITY = 256
+
+private const val NOISE_TEST_HOST = "127.0.0.2"

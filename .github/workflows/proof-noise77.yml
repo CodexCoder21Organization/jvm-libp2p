@@ -1,0 +1,77 @@
+name: Noise77 targeted proof
+
+on:
+  push:
+    branches:
+      - proof/noise77-extra-responder
+
+jobs:
+  targeted-saturation-regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-java@v3
+        with:
+          distribution: temurin
+          java-version: 11
+      - name: Setup Gradle
+        uses: gradle/gradle-build-action@v2
+      - name: Run saturation regression
+        run: >-
+          ./gradlew :libp2p:test
+          --tests 'io.libp2p.security.noise.NoiseHandshakeOffEventLoopTest.remote read timeout fails saturated handshakes while responder crypto is queued'
+      - name: Verify the targeted test result
+        if: always()
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+
+          result = Path("libp2p/build/test-results/test/TEST-io.libp2p.security.noise.NoiseHandshakeOffEventLoopTest.xml")
+          if not result.exists():
+              raise SystemExit(f"The targeted JUnit XML was not created: {result}")
+
+          root = ET.parse(result).getroot()
+          cases = root.findall("testcase")
+          if len(cases) != 1:
+              raise SystemExit(f"Expected exactly one targeted test case, got {len(cases)}")
+          case = cases[0]
+          name = case.attrib.get("name", "")
+          if "remote read timeout fails saturated handshakes" not in name:
+              raise SystemExit(f"Unexpected test ran: {name}")
+
+          failures = case.findall("failure")
+          errors = case.findall("error")
+          skipped = case.findall("skipped")
+          if errors or skipped:
+              raise SystemExit(f"Test errored or skipped: errors={len(errors)} skipped={len(skipped)}")
+
+          mode = Path("proof-mode.txt").read_text().strip()
+          if mode == "red":
+              if len(failures) != 1:
+                  raise SystemExit(f"Expected one assertion failure in red mode, got {len(failures)}")
+              failure = failures[0]
+              details = failure.attrib.get("message", "") + "\n" + (failure.text or "")
+              expected = (
+                  "121 queued responder message-1 crypto tasks",
+                  "120 dials failed",
+              )
+              if not all(fragment in details for fragment in expected):
+                  raise SystemExit(f"Red result did not show the extra responder count: {details}")
+              print(f"EXPECTED RED: {name}; failure shows 121 queued responder tasks and 120 failed dials")
+          elif mode == "green":
+              if failures:
+                  failure = failures[0]
+                  details = failure.attrib.get("message", "") + "\n" + (failure.text or "")
+                  raise SystemExit(f"Expected the targeted assertion to pass, but it failed: {details}")
+              print(f"GREEN: {name}; one pass, zero failures/errors/skips")
+          else:
+              raise SystemExit(f"Unknown proof mode: {mode}")
+          PY
+      - name: Upload targeted JUnit XML
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: noise77-test-results-${{ github.sha }}
+          path: libp2p/build/test-results/test/TEST-io.libp2p.security.noise.NoiseHandshakeOffEventLoopTest.xml
+          if-no-files-found: error

@@ -7,6 +7,7 @@ import io.libp2p.core.PeerId
 import io.libp2p.core.crypto.KeyType
 import io.libp2p.core.crypto.generateKeyPair
 import io.libp2p.core.dsl.host
+import io.libp2p.core.multiformats.Multiaddr
 import io.libp2p.core.multiformats.Protocol
 import io.libp2p.etc.CONNECTION
 import io.libp2p.multistream.MultistreamProtocolDebugV1
@@ -658,6 +659,13 @@ object NoiseHandshakePathHarness {
             val dialers = List(SATURATED_DIALERS) { newNoiseHost().also { host -> hosts += host } }
             startNoiseHosts(hosts)
             val relayAddress = relay.listenAddresses().single()
+            val relayPort = requireNotNull(relayAddress.getFirstComponent(Protocol.TCP)?.stringValue) {
+                "Noise saturation relay did not expose a TCP listen address: $relayAddress"
+            }
+            runUnrelatedNoiseCallerHarness(
+                relayPeerId = relay.peerId,
+                relayAddress = Multiaddr("/ip4/127.0.0.1/tcp/$relayPort")
+            )
 
             val connections = dialers.map { it.network.connect(relay.peerId, relayAddress) }
             val queueDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
@@ -855,6 +863,76 @@ private fun runNoiseHandshakeHarness(
     return processOutput
 }
 
+private fun runUnrelatedNoiseCallerHarness(relayPeerId: PeerId, relayAddress: Multiaddr): String {
+    val javaExecutable = java.nio.file.Paths.get(System.getProperty("java.home"), "bin", "java").toString()
+    val process = ProcessBuilder(
+        javaExecutable,
+        "-cp",
+        System.getProperty("java.class.path"),
+        NoiseUnrelatedCallerHarness::class.java.name,
+        relayPeerId.toBase58(),
+        relayAddress.toString()
+    ).redirectErrorStream(true).start()
+    val output = CompletableFuture.supplyAsync {
+        process.inputStream.bufferedReader().use { it.readText() }
+    }
+    try {
+        val finished = process.waitFor(20, TimeUnit.SECONDS)
+        if (!finished) {
+            process.destroyForcibly()
+            process.waitFor(5, TimeUnit.SECONDS)
+        }
+        val processOutput = output.get(5, TimeUnit.SECONDS)
+        print(processOutput)
+
+        assertThat(finished)
+            .withFailMessage("Unrelated real Noise caller did not finish within 20 seconds:\n%s", processOutput)
+            .isTrue()
+        assertThat(process.exitValue())
+            .withFailMessage("Unrelated real Noise caller failed:\n%s", processOutput)
+            .isZero()
+        assertThat(processOutput).contains(
+            "Unrelated Noise caller attempted",
+            "Unrelated Noise caller failed"
+        )
+        return processOutput
+    } finally {
+        if (process.isAlive) {
+            process.destroyForcibly()
+            assertThat(process.waitFor(5, TimeUnit.SECONDS))
+                .describedAs("Unrelated real Noise caller must stop during cleanup")
+                .isTrue()
+        }
+    }
+}
+
+object NoiseUnrelatedCallerHarness {
+    @JvmStatic
+    fun main(args: Array<String>) {
+        val relayPeerId = PeerId.fromBase58(args[0])
+        val relayAddress = Multiaddr(args[1])
+        val caller = newNoiseHost()
+        try {
+            caller.start().get(5, TimeUnit.SECONDS)
+            val connection = caller.network.connect(relayPeerId, relayAddress)
+            println("Unrelated Noise caller attempted: relay=$relayPeerId address=$relayAddress")
+            try {
+                connection.get(HandshakeTimeoutSec + 2L, TimeUnit.SECONDS)
+                error("Unrelated Noise caller unexpectedly connected to $relayPeerId at $relayAddress")
+            } catch (failure: ExecutionException) {
+                val causeChain = generateSequence(failure) { current ->
+                    current.cause?.takeUnless { it === current }
+                }.take(8).joinToString(" <- ") { cause ->
+                    cause.message?.let { "${cause.javaClass.name}: $it" } ?: cause.javaClass.name
+                }
+                println("Unrelated Noise caller failed: $causeChain")
+            }
+        } finally {
+            caller.stop().get(5, TimeUnit.SECONDS)
+        }
+    }
+}
+
 private const val STORM_PEERS = 160
 private const val PING_SAMPLES = 20
 private const val MAX_P95_MILLIS = 500
@@ -864,4 +942,4 @@ private const val SATURATED_DIALERS = 120
 private const val SATURATION_EXECUTOR_THREADS = 2
 private const val SATURATION_QUEUE_CAPACITY = 256
 
-private const val NOISE_TEST_HOST = "127.0.0.2"
+private const val NOISE_TEST_HOST = "127.0.0.1"

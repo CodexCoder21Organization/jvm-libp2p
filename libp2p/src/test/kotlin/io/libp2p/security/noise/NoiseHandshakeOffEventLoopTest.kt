@@ -684,11 +684,13 @@ object NoiseHandshakePathHarness {
                 }
                 else -> error("Unexpected Noise saturation relay address: $relayAddress")
             }
-            relay.addConnectionHandler(ConnectionHandler.create { connection ->
-                if (connection.secureSession().remoteId == anchor.peerId) {
-                    publishedAnchor.complete(connection)
+            relay.addConnectionHandler(
+                ConnectionHandler.create { connection ->
+                    if (connection.secureSession().remoteId == anchor.peerId) {
+                        publishedAnchor.complete(connection)
+                    }
                 }
-            })
+            )
             val anchorConnection = anchor.network.connect(relay.peerId, relayAddress).get(5, TimeUnit.SECONDS)
             val relayAnchorConnection = publishedAnchor.get(5, TimeUnit.SECONDS)
             check(
@@ -1036,4 +1038,4 @@ private const val SATURATION_QUEUE_CAPACITY = 256
 
 private const val LEGACY_NOISE_TEST_HOST = "127.0.0.1"
 private const val ISOLATED_NOISE_TEST_HOST = "127.0.0.2"
-private const val NOISE_TEST_HOST = ISOLATED_NOISE_TEST_HOST
+private const val NOISE_TEST_HOST = LEGACY_NOISE_TEST_HOST

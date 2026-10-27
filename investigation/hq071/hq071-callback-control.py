@@ -2,8 +2,10 @@ import hashlib, json, os, signal, subprocess, sys, time
 from pathlib import Path
 repo=Path('/home/u/lanes/hd27/ws/hq023/workspace/UrlProtocol')
 out=Path('/home/u/lanes/hd27/out')
-mode,label=sys.argv[1:]
-if mode not in ('queue','stress'): raise ValueError(mode)
+mode,label=sys.argv[1:3]
+execution=sys.argv[3] if len(sys.argv)>3 else '--local'
+if execution not in ('--local','--remote'): raise ValueError(execution)
+if mode not in ('queue','stress','phase'): raise ValueError(mode)
 subprocess.run(['git','fetch','origin'],cwd=repo,check=True)
 subprocess.run(['git','rebase','origin/main'],cwd=repo,check=True)
 filename='testHostStopObservesCompletedCloseWithFullEventLoop' if mode=='queue' else 'stressTestRejectedDrainConcurrentHostStops'
@@ -12,13 +14,25 @@ original=path.read_text()
 if mode=='queue':
  before='System.setProperty("io.netty.eventLoop.maxPendingTasks", "1024")'
  after='System.setProperty("io.netty.eventLoop.maxPendingTasks", "8192")'
-else:
+elif mode=='stress':
  before='assertTrue(releaseLoop.await(10, TimeUnit.SECONDS), "The test must release the root loop")'
  after=before+'\n            check(false) { "hq071 controlled held-loop callback failure" }'
+if mode=='phase':
+ before='    val nativeErr = System.err'
+ after='    val previousLoopThreads = System.getProperty("io.netty.eventLoopThreads")\n    System.setProperty("io.netty.eventLoopThreads", "4")\n'+before
 assert original.count(before)==1
 control=original.replace(before,after)
+if mode=='phase':
+ before='        InternalLoggerFactory.setDefaultFactory(loggerFactory)'
+ after='        if (previousLoopThreads == null) System.clearProperty("io.netty.eventLoopThreads")\n        else System.setProperty("io.netty.eventLoopThreads", previousLoopThreads)\n'+before
+ assert control.count(before)==1
+ control=control.replace(before,after)
+ before='        val outbound = activeRoot.unsafe().outboundBuffer()'
+ after='        check(activeRoot.eventLoop().parent().count() == 4) { "The phase control must use exactly four shared NIO loops" }\n'+before
+ assert control.count(before)==1
+ control=control.replace(before,after)
 (out/f'{label}-source.kts.txt').write_text(control)
-meta={'mode':mode,'label':label,'head':subprocess.check_output(['git','rev-parse','HEAD'],cwd=repo,text=True).strip(),'originalSha256':hashlib.sha256(original.encode()).hexdigest(),'controlSha256':hashlib.sha256(control.encode()).hexdigest(),'startedAt':time.time(),'command':['scripts/test.bash','--local','--test',f'tests/{filename}.kts','--log',str(out/f'{label}.xml')]}
+meta={'mode':mode,'label':label,'head':subprocess.check_output(['git','rev-parse','HEAD'],cwd=repo,text=True).strip(),'originalSha256':hashlib.sha256(original.encode()).hexdigest(),'controlSha256':hashlib.sha256(control.encode()).hexdigest(),'startedAt':time.time(),'command':['scripts/test.bash',execution,'--test',f'tests/{filename}.kts','--log',str(out/f'{label}.xml')]}
 child=None
 signal.signal(signal.SIGTERM,lambda *_: (_ for _ in ()).throw(KeyboardInterrupt()))
 try:

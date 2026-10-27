@@ -1,0 +1,49 @@
+tests/testHostStopObservesCompletedCloseWithFullEventLoop.kts:31:    try {
+tests/testHostStopObservesCompletedCloseWithFullEventLoop.kts:40:                override fun close(ctx: ChannelHandlerContext, promise: ChannelPromise) {
+tests/testHostStopObservesCompletedCloseWithFullEventLoop.kts:44:                    loop.execute {
+tests/testHostStopObservesCompletedCloseWithFullEventLoop.kts:45:                        try {
+tests/testHostStopObservesCompletedCloseWithFullEventLoop.kts:48:                                try {
+tests/testHostStopObservesCompletedCloseWithFullEventLoop.kts:49:                                    loop.execute { }
+tests/testHostStopObservesCompletedCloseWithFullEventLoop.kts:50:                                } catch (_: java.util.concurrent.RejectedExecutionException) {
+tests/testHostStopObservesCompletedCloseWithFullEventLoop.kts:76:        try {
+tests/testRawProviderGossipFlushReportsAcceptedWriteFailure.kts:37:    try {
+tests/testRawProviderGossipFlushReportsAcceptedWriteFailure.kts:46:            override fun write(ctx: ChannelHandlerContext, message: Any, promise: ChannelPromise) {
+tests/testRawProviderGossipFlushReportsAcceptedWriteFailure.kts:51:        channel.eventLoop().submit {}.get(10, TimeUnit.SECONDS)
+tests/testRawProviderGossipFlushReportsAcceptedWriteFailure.kts:53:            override fun write(value: Int) = active.output.write(value)
+tests/testRawProviderGossipFlushReportsAcceptedWriteFailure.kts:54:            override fun write(bytes: ByteArray, offset: Int, length: Int) = active.output.write(bytes, offset, length)
+tests/testRawProviderGossipFlushReportsAcceptedWriteFailure.kts:55:            override fun flush() {
+tests/testRawProviderGossipFlushReportsAcceptedWriteFailure.kts:61:        val writer = executor.submit<Throwable?> {
+tests/testRawProviderGossipFlushReportsAcceptedWriteFailure.kts:66:        channel.eventLoop().submit {
+tests/testRawProviderGossipFlushReportsAcceptedWriteFailure.kts:81:                promise.tryFailure(IOException("The test is closing"))
+tests/testRawProviderGossipFlushReportsAcceptedWriteFailure.kts:85:        try {
+tests/testRawProviderGossipFlushReportsAcceptedWriteFailure.kts:87:        } catch (failure: IOException) {
+tests/testRawProviderGossipFlushReportsAcceptedWriteFailure.kts:93:            try { client.stop().get(10, TimeUnit.SECONDS) } finally { server.stop().get(10, TimeUnit.SECONDS) }
+tests/stressTestRejectedDrainConcurrentHostStops.kts:46:        override fun println(message: String?) {
+tests/stressTestRejectedDrainConcurrentHostStops.kts:62:    try {
+tests/stressTestRejectedDrainConcurrentHostStops.kts:67:        val runs = (0 until 8).map { worker -> workers.submit {
+tests/stressTestRejectedDrainConcurrentHostStops.kts:70:                try {
+tests/stressTestRejectedDrainConcurrentHostStops.kts:75:                } catch (failure: Throwable) {
+tests/stressTestRejectedDrainConcurrentHostStops.kts:116:        override fun println(message: String?) {
+tests/stressTestRejectedDrainConcurrentHostStops.kts:152:        override fun publish(record: java.util.logging.LogRecord) {
+tests/stressTestRejectedDrainConcurrentHostStops.kts:158:        override fun flush() {}
+tests/stressTestRejectedDrainConcurrentHostStops.kts:159:        override fun close() {}
+tests/stressTestRejectedDrainConcurrentHostStops.kts:166:    try {
+tests/stressTestRejectedDrainConcurrentHostStops.kts:251:                        try {
+tests/stressTestRejectedDrainConcurrentHostStops.kts:254:                        } catch (failure: java.util.concurrent.RejectedExecutionException) {
+tests/stressTestRejectedDrainConcurrentHostStops.kts:264:        activeRoot.eventLoop().submit {
+tests/stressTestRejectedDrainConcurrentHostStops.kts:266:                override fun channelWritabilityChanged(ctx: ChannelHandlerContext) {
+tests/stressTestRejectedDrainConcurrentHostStops.kts:274:        val firstCall = activeCallers.submit<Libp2pRpcProtocol.RpcResponse> {
+tests/stressTestRejectedDrainConcurrentHostStops.kts:279:        serverStream.nettyChannel.eventLoop().submit {
+tests/stressTestRejectedDrainConcurrentHostStops.kts:281:                override fun write(ctx: ChannelHandlerContext, message: Any, promise: ChannelPromise) {
+tests/stressTestRejectedDrainConcurrentHostStops.kts:291:                        promise.addListener { completed ->
+tests/stressTestRejectedDrainConcurrentHostStops.kts:300:                override fun channelWritabilityChanged(ctx: ChannelHandlerContext) {
+tests/stressTestRejectedDrainConcurrentHostStops.kts:308:        val secondCall = activeCallers.submit<Libp2pRpcProtocol.RpcResponse> {
+tests/stressTestRejectedDrainConcurrentHostStops.kts:315:        activeRoot.eventLoop().execute {
+tests/stressTestRejectedDrainConcurrentHostStops.kts:324:        val recovery = activeRoot.eventLoop().submit {
+tests/stressTestRejectedDrainConcurrentHostStops.kts:334:            try {
+tests/stressTestRejectedDrainConcurrentHostStops.kts:336:            } catch (failure: Throwable) {
+tests/stressTestRejectedDrainConcurrentHostStops.kts:358:        try {
+tests/stressTestRejectedDrainConcurrentHostStops.kts:361:                    "Injected queue tasks must finish before ordinary host cleanup submits its close")
+tests/stressTestRejectedDrainConcurrentHostStops.kts:364:            // before any host cleanup submits work to the shared NIO loop.
+tests/stressTestRejectedDrainConcurrentHostStops.kts:370:            try {
+tests/stressTestRejectedDrainConcurrentHostStops.kts:373:                try {

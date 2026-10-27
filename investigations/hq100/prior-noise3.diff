@@ -1,0 +1,390 @@
+diff --git a/libp2p/src/test/kotlin/io/libp2p/security/noise/NoiseHandshakeOffEventLoopTest.kt b/libp2p/src/test/kotlin/io/libp2p/security/noise/NoiseHandshakeOffEventLoopTest.kt
+index 5017b6c4..9dafee4a 100644
+--- a/libp2p/src/test/kotlin/io/libp2p/security/noise/NoiseHandshakeOffEventLoopTest.kt
++++ b/libp2p/src/test/kotlin/io/libp2p/security/noise/NoiseHandshakeOffEventLoopTest.kt
+@@ -8,28 +8,39 @@ import io.libp2p.core.crypto.KeyType
+ import io.libp2p.core.crypto.generateKeyPair
+ import io.libp2p.core.dsl.host
+ import io.libp2p.core.multiformats.Protocol
++import io.libp2p.core.multistream.Multistream
++import io.libp2p.core.multistream.MultistreamProtocol
++import io.libp2p.core.multistream.MultistreamProtocolV1
++import io.libp2p.core.multistream.ProtocolBinding
+ import io.libp2p.etc.CONNECTION
+ import io.libp2p.multistream.MultistreamProtocolDebugV1
+ import io.libp2p.protocol.Ping
+ import io.libp2p.tools.TestChannel
++import io.libp2p.transport.implementation.ConnectionOverNetty
+ import io.netty.buffer.ByteBuf
+ import io.netty.buffer.Unpooled
+ import io.netty.channel.ChannelHandlerContext
++import io.netty.channel.ChannelInboundHandlerAdapter
+ import io.netty.channel.ChannelOutboundHandlerAdapter
+ import io.netty.channel.ChannelPromise
+ import io.netty.channel.embedded.EmbeddedChannel
+ import io.netty.handler.timeout.ReadTimeoutException
+ import io.netty.util.ReferenceCountUtil
++import io.netty.util.concurrent.EventExecutor
++import io.netty.util.concurrent.SingleThreadEventExecutor
+ import org.assertj.core.api.Assertions.assertThat
+ import org.assertj.core.api.Assertions.catchThrowable
+ import org.junit.jupiter.api.RepeatedTest
+ import org.junit.jupiter.api.Test
+ import java.io.InputStream
+ import java.io.OutputStream
++import java.net.InetAddress
++import java.net.ServerSocket
+ import java.net.Socket
+ import java.nio.channels.ClosedChannelException
+ import java.util.concurrent.ArrayBlockingQueue
+ import java.util.concurrent.CompletableFuture
++import java.util.concurrent.ConcurrentHashMap
+ import java.util.concurrent.ConcurrentLinkedQueue
+ import java.util.concurrent.CountDownLatch
+ import java.util.concurrent.ExecutionException
+@@ -40,6 +51,35 @@ import java.util.concurrent.atomic.AtomicBoolean
+ import java.util.concurrent.atomic.AtomicInteger
+ 
+ class NoiseHandshakeOffEventLoopTest {
++    @Test
++    fun testNoiseRelayKeepsOrdinaryLoopbackPortSeparate() {
++        val relay = newNoiseHost(listen = true)
++        val dialer = newNoiseHost()
++        try {
++            startNoiseHosts(listOf(relay, dialer))
++            val address = relay.listenAddresses().single()
++            val port = requireNotNull(address.getFirstComponent(Protocol.TCP)?.stringValue).toInt()
++            ServerSocket(port, 1, InetAddress.getByName("127.0.0.1")).use { ordinaryListener ->
++                Socket("127.0.0.1", port).use {
++                    ordinaryListener.accept().use { accepted ->
++                        assertThat(accepted.localAddress.hostAddress).isEqualTo("127.0.0.1")
++                    }
++                }
++                dialer.network.connect(relay.peerId, address).get(5, TimeUnit.SECONDS)
++                assertThat(relay.network.connections).hasSize(1)
++            }
++        } finally {
++            stopNoiseHosts(listOf(dialer, relay))
++        }
++    }
++
++    @Test
++    fun testInlineNoiseSetupWaitsForQueuedCallbacks() {
++        val processOutput = runNoiseHandshakeHarness("callbacks", 25)
++
++        assertThat(processOutput).contains("Sequential Noise handshakes:")
++    }
++
+     @Test
+     fun `single Noise handshake runs crypto inline on event loops`() {
+         val processOutput = runNoiseHandshakeHarness("inline", 10)
+@@ -108,7 +148,7 @@ class NoiseHandshakeOffEventLoopTest {
+                 "Noise test relay did not expose a TCP listen address: ${relay.listenAddresses()}"
+             }.toInt()
+ 
+-            Socket("127.0.0.1", port).use { socket ->
++            Socket(NOISE_TEST_HOST, port).use { socket ->
+                 socket.soTimeout = TimeUnit.SECONDS.toMillis(HandshakeTimeoutSec + 3L).toInt()
+                 writeMultistreamMessage(socket.getOutputStream(), "/multistream/1.0.0")
+                 writeMultistreamMessage(socket.getOutputStream(), NoiseXXSecureChannel.announce)
+@@ -142,7 +182,7 @@ class NoiseHandshakeOffEventLoopTest {
+                     random(KeyType.ED25519)
+                 }
+                 network {
+-                    listen("/ip4/127.0.0.1/tcp/0")
++                    listen("/ip4/$NOISE_TEST_HOST/tcp/0")
+                 }
+                 protocols {
+                     +Ping()
+@@ -224,32 +264,12 @@ class NoiseHandshakeOffEventLoopTest {
+ 
+     @Test
+     fun `concurrent handshakes preserve both peer identities and immediate mux negotiation`() {
+-        val hosts = mutableListOf<Host>()
+-        try {
+-            val relay = newNoiseHost(listen = true).also { hosts += it }
+-            val dialers = List(CONCURRENT_DIALERS) { newNoiseHost().also { host -> hosts += host } }
+-            startNoiseHosts(hosts)
+-
+-            val relayAddress = relay.listenAddresses().single()
+-            val outboundConnections = dialers.map {
+-                it.network.connect(relay.peerId, relayAddress)
+-            }
+-            CompletableFuture.allOf(*outboundConnections.toTypedArray()).get(20, TimeUnit.SECONDS)
+-
+-            outboundConnections.forEachIndexed { index, connectionFuture ->
+-                val session = connectionFuture.join().secureSession()
+-                assertThat(session.localId).isEqualTo(dialers[index].peerId)
+-                assertThat(session.remoteId).isEqualTo(relay.peerId)
+-            }
++        verifyConcurrentNoiseIdentities()
++    }
+ 
+-            assertThat(relay.network.connections).hasSize(CONCURRENT_DIALERS)
+-            assertThat(relay.network.connections.map { it.secureSession().localId }.toSet())
+-                .containsExactly(relay.peerId)
+-            assertThat(relay.network.connections.map { it.secureSession().remoteId }.toSet())
+-                .containsExactlyInAnyOrderElementsOf(dialers.map { it.peerId })
+-        } finally {
+-            stopNoiseHosts(hosts)
+-        }
++    @Test
++    fun testConcurrentNoiseSetupWaitsForResponderPublication() {
++        verifyConcurrentNoiseIdentities(delayPublication = true)
+     }
+ 
+     @Test
+@@ -416,9 +436,6 @@ class NoiseHandshakeOffEventLoopTest {
+         }
+     }
+ 
+-    private companion object {
+-        const val CONCURRENT_DIALERS = 32
+-    }
+ }
+ 
+ private fun writeMultistreamMessage(output: OutputStream, message: String) {
+@@ -519,9 +536,10 @@ object NoiseHandshakePathHarness {
+         when (args.singleOrNull()) {
+             "inline" -> verifySingleInlineHandshake()
+             "sequential" -> verifySequentialInlineHandshakes()
++            "callbacks" -> verifySequentialInlineHandshakes(queueCallbacks = true)
+             "saturated" -> verifySaturatedRemoteWaitsTimeOut()
+             else -> error(
+-                "Expected exactly one harness mode: 'inline', 'sequential', or 'saturated'; " +
++                "Expected exactly one harness mode: 'inline', 'sequential', 'callbacks', or 'saturated'; " +
+                     "received ${args.toList()}"
+             )
+         }
+@@ -530,13 +548,15 @@ object NoiseHandshakePathHarness {
+     private fun verifySingleInlineHandshake() {
+         val executionRecorder = NoiseHandshakeExecutionRecorder().also { it.install() }
+         val hosts = mutableListOf<Host>()
++        val setup = InlineNoiseSetup()
+         try {
+-            val relay = newNoiseHost(listen = true).also { hosts += it }
+-            val dialer = newNoiseHost().also { hosts += it }
++            val relay = newNoiseHost(listen = true, inlineSetup = setup).also { hosts += it }
++            val dialer = newNoiseHost(inlineSetup = setup).also { hosts += it }
+             startNoiseHosts(hosts)
+ 
+-            dialer.network.connect(relay.peerId, relay.listenAddresses().single())
+-                .get(5, TimeUnit.SECONDS)
++            val connection = dialer.network.connect(relay.peerId, relay.listenAddresses().single())
++            setup.releaseCurrentConnection()
++            connection.get(5, TimeUnit.SECONDS)
+ 
+             val execution = executionRecorder.snapshot()
+             check(execution.inlineHandshakes == 2 && execution.offloadedHandshakes == 0) {
+@@ -551,19 +571,21 @@ object NoiseHandshakePathHarness {
+         }
+     }
+ 
+-    private fun verifySequentialInlineHandshakes() {
++    private fun verifySequentialInlineHandshakes(queueCallbacks: Boolean = false) {
+         val executionRecorder = NoiseHandshakeExecutionRecorder().also { it.install() }
+         val hosts = mutableListOf<Host>()
++        val setup = InlineNoiseSetup(queueCallbacks)
+         try {
+-            val relay = newNoiseHost(listen = true).also { hosts += it }
+-            val dialer = newNoiseHost().also { hosts += it }
++            val relay = newNoiseHost(listen = true, inlineSetup = setup).also { hosts += it }
++            val dialer = newNoiseHost(inlineSetup = setup).also { hosts += it }
+             startNoiseHosts(hosts)
+             val relayAddress = relay.listenAddresses().single()
+ 
+             val startedAt = System.nanoTime()
+             repeat(SEQUENTIAL_HANDSHAKES) {
+-                val connection = dialer.network.connect(relay.peerId, relayAddress)
+-                    .get(5, TimeUnit.SECONDS)
++                val pendingConnection = dialer.network.connect(relay.peerId, relayAddress)
++                setup.releaseCurrentConnection()
++                val connection = pendingConnection.get(5, TimeUnit.SECONDS)
+                 connection.close().get(5, TimeUnit.SECONDS)
+                 waitForConnectionsToClose(dialer, relay)
+             }
+@@ -764,13 +786,182 @@ private class NoiseHandshakeExecutionRecorder {
+     }
+ }
+ 
+-private fun newNoiseHost(listen: Boolean = false): Host = host {
++private fun verifyConcurrentNoiseIdentities(delayPublication: Boolean = false) {
++    val hosts = mutableListOf<Host>()
++    val responderSetup = ResponderNoiseSetup(delayPublication)
++    try {
++        val relay = newNoiseHost(listen = true, responderSetup = responderSetup).also { hosts += it }
++        val dialers = List(CONCURRENT_DIALERS) { newNoiseHost().also { host -> hosts += host } }
++        startNoiseHosts(hosts)
++
++        val relayAddress = relay.listenAddresses().single()
++        val outboundConnections = dialers.map {
++            it.network.connect(relay.peerId, relayAddress)
++        }
++        val connectedBy = System.nanoTime() + TimeUnit.SECONDS.toNanos(20)
++        CompletableFuture.allOf(*outboundConnections.toTypedArray()).get(20, TimeUnit.SECONDS)
++        responderSetup.awaitConnections(connectedBy)
++
++        outboundConnections.forEachIndexed { index, connectionFuture ->
++            val session = connectionFuture.join().secureSession()
++            assertThat(session.localId).isEqualTo(dialers[index].peerId)
++            assertThat(session.remoteId).isEqualTo(relay.peerId)
++        }
++
++        assertThat(relay.network.connections).hasSize(CONCURRENT_DIALERS)
++        assertThat(relay.network.connections.map { it.secureSession().localId }.toSet())
++            .containsExactly(relay.peerId)
++        assertThat(relay.network.connections.map { it.secureSession().remoteId }.toSet())
++            .containsExactlyInAnyOrderElementsOf(dialers.map { it.peerId })
++    } finally {
++        responderSetup.release()
++        stopNoiseHosts(hosts)
++    }
++}
++
++private class ResponderNoiseSetup(delayPublication: Boolean) {
++    private val registered = CountDownLatch(CONCURRENT_DIALERS)
++    private val publication = if (delayPublication) CompletableFuture<Unit>() else null
++
++    fun onConnection() {
++        registered.countDown()
++    }
++
++    fun protocol(): MultistreamProtocol = object : MultistreamProtocol {
++        override val version = MultistreamProtocolV1.version
++
++        override fun <T> createMultistream(bindings: List<ProtocolBinding<T>>): Multistream<T> {
++            val delegate = MultistreamProtocolV1.createMultistream(bindings)
++            return object : Multistream<T> {
++                override val bindings = delegate.bindings
++
++                override fun initChannel(ch: P2PChannel): CompletableFuture<T> =
++                    delegate.initChannel(ch).thenCompose { controller ->
++                        publication?.thenApplyAsync(
++                            { controller },
++                            (ch as ConnectionOverNetty).nettyChannel.eventLoop()
++                        ) ?: CompletableFuture.completedFuture(controller)
++                    }
++            }
++        }
++    }
++
++    fun awaitConnections(connectedBy: Long) {
++        release()
++        check(registered.await(maxOf(0, connectedBy - System.nanoTime()), TimeUnit.NANOSECONDS)) {
++            "Expected all $CONCURRENT_DIALERS responder connections within the connection budget, " +
++                "but ${registered.count} remain unpublished"
++        }
++    }
++
++    fun release() {
++        publication?.complete(Unit)
++    }
++}
++
++private class InlineNoiseSetup(private val queueCallbacks: Boolean = false) {
++    private val activeContexts = ArrayBlockingQueue<ChannelHandlerContext>(2)
++    private val loopDispatchers = ConcurrentHashMap<EventExecutor, EmptyQueueNoiseDispatcher>()
++
++    fun prepare(connection: ConnectionOverNetty) {
++        connection.nettyChannel.config().isAutoRead = false
++        connection.pushHandler(object : ChannelInboundHandlerAdapter() {
++            override fun channelActive(ctx: ChannelHandlerContext) {
++                check(activeContexts.offer(ctx)) { "More than two inline setup channels became active" }
++            }
++
++            override fun channelRead(ctx: ChannelHandlerContext, msg: Any) {
++                if (queueCallbacks) ctx.executor().execute { ctx.channel().isRegistered }
++                dispatch(ctx) {
++                    if (ctx.channel().isActive) ctx.fireChannelRead(msg) else ReferenceCountUtil.release(msg)
++                }
++            }
++
++            override fun channelReadComplete(ctx: ChannelHandlerContext) {
++                dispatch(ctx) { ctx.fireChannelReadComplete() }
++            }
++        })
++    }
++
++    fun releaseCurrentConnection() {
++        val contexts = List(2) {
++            requireNotNull(activeContexts.poll(5, TimeUnit.SECONDS)) {
++                "Both inline setup channels must become active within 5 seconds"
++            }
++        }
++        // Returning from the accept loop ensures its registration listener is attached.
++        contexts.forEach { ctx ->
++            ctx.channel().parent()?.eventLoop()?.submit {}?.get(5, TimeUnit.SECONDS)
++        }
++        contexts.forEach { ctx ->
++            val released = CompletableFuture<Unit>()
++            ctx.executor().execute {
++                dispatch(ctx) {
++                    ctx.fireChannelActive()
++                    ctx.channel().config().isAutoRead = true
++                    released.complete(Unit)
++                }
++            }
++            released.get(5, TimeUnit.SECONDS)
++        }
++    }
++
++    private fun dispatch(ctx: ChannelHandlerContext, action: () -> Unit) {
++        check(ctx.executor().inEventLoop())
++        loopDispatchers.computeIfAbsent(ctx.executor()) { EmptyQueueNoiseDispatcher(it) }.submit(action)
++    }
++}
++
++// One dispatcher per loop avoids two channels waiting for each other's queued dispatch.
++private class EmptyQueueNoiseDispatcher(private val executor: EventExecutor) {
++    private val events = java.util.ArrayDeque<() -> Unit>()
++    private var scheduled = false
++
++    fun submit(action: () -> Unit) {
++        events.addLast(action)
++        schedule()
++    }
++
++    private fun schedule() {
++        if (scheduled) return
++        scheduled = true
++        executor.execute {
++            scheduled = false
++            val loop = executor as SingleThreadEventExecutor
++            while (events.isNotEmpty() && loop.pendingTasks() == 0) {
++                events.removeFirst().invoke()
++            }
++            if (events.isNotEmpty()) schedule()
++        }
++    }
++}
++
++private const val CONCURRENT_DIALERS = 32
++private const val NOISE_TEST_HOST = "127.0.0.2"
++
++private fun newNoiseHost(
++    listen: Boolean = false,
++    inlineSetup: InlineNoiseSetup? = null,
++    responderSetup: ResponderNoiseSetup? = null
++): Host = host {
++    if (responderSetup != null) {
++        muxerMultistreamProtocol = responderSetup.protocol()
++        connectionHandlers {
++            add { responderSetup.onConnection() }
++        }
++    }
++    if (inlineSetup != null) {
++        secureMultistreamProtocol = MultistreamProtocolDebugV1()
++        debug {
++            beforeSecureHandler.addHandler { inlineSetup.prepare(it as ConnectionOverNetty) }
++        }
++    }
+     identity {
+         random(KeyType.ED25519)
+     }
+     if (listen) {
+         network {
+-            listen("/ip4/127.0.0.1/tcp/0")
++            listen("/ip4/$NOISE_TEST_HOST/tcp/0")
+         }
+     }
+     protocols {

@@ -12,6 +12,8 @@ The original retry change and reviewer regression are already merged at https://
 
 All three include the complete native Gradle workflow and the separate mechanical Detekt / peer-publication fixture corrections. Verification-only workflows are confined to other fix/ branches and must not be merged. No PR-ready claim is made while full checks remain red or pending.
 
+The updated CI-only full Linux run is green at https://github.com/CodexCoder21Organization/jvm-libp2p/actions/runs/40528568980: 1445 tests, 1443 passed, zero failures/errors, two existing skips. Both retirement cases pass. Complete Gradle build and documentation succeeded. This does not establish a fix for the earlier intermittent Metaspace failure. Windows remains pending at this checkpoint.
+
 ## First full results
 
 | Source | Platform | Total | Passed | Failed | Errors | Existing skips |

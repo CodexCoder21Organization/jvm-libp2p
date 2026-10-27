@@ -63,7 +63,8 @@ public class QuicKuboTestJava {
         Assertions.assertTrue(remaining > 0, () -> "Kubo did not become ready: " + readLog(log));
         WatchKey change = changes.poll(remaining, TimeUnit.NANOSECONDS);
         Assertions.assertNotNull(change, () -> "Kubo did not become ready: " + readLog(log));
-        change.reset();
+        change.pollEvents();
+        Assertions.assertTrue(change.reset(), "Owned Kubo readiness watcher became invalid");
       }
 
       String api = Files.readString(repository.resolve("api")).trim();
@@ -111,7 +112,9 @@ public class QuicKuboTestJava {
             daemon.destroyForcibly();
             Assertions.assertTrue(daemon.waitFor(5, TimeUnit.SECONDS), "Owned Kubo did not exit");
           }
-          System.out.println(readLog(log));
+          Path stoppedLog = directory.resolve("stopped-daemon.log");
+          Files.move(log, stoppedLog);
+          System.out.println(readLog(stoppedLog));
         }
       }
     }

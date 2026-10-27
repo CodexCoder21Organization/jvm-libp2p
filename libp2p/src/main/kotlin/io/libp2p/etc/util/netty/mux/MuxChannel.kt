@@ -398,7 +398,9 @@ private fun dispatchLoopCompletion(completion: ChildLoopCompletion) {
     if (!completion.active) return
     try {
         completion.loop.execute(completion.operation)
-    } catch (rejected: RejectedExecutionException) {
+    } catch (_: RejectedExecutionException) {
+        // Queue rejection selects deferred delivery; callers still observe the parent
+        // operation's retained result, so the scheduling signal is handled here.
         if (completion.loop.inEventLoop()) {
             completion.operation.run()
         } else if (!completion.loop.isShuttingDown) {

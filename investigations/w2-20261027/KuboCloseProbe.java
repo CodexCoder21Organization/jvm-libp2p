@@ -57,7 +57,8 @@ public class KuboCloseProbe {
                 if (remaining <= 0) throw new AssertionError("Kubo readiness deadline: " + Files.readString(log));
                 WatchKey event = changes.poll(remaining, TimeUnit.NANOSECONDS);
                 if (event == null) throw new AssertionError("Kubo readiness event deadline: " + Files.readString(log));
-                event.reset();
+                event.pollEvents();
+                if (!event.reset()) throw new AssertionError("Owned readiness watcher became invalid");
             }
             handle = openProcess(daemon.pid());
             if (handle == 0) throw new AssertionError("Native process handle could not open for " + daemon.pid());

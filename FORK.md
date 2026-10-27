@@ -100,3 +100,11 @@ This is a standard Gradle project (JDK 11+). It is **built with Gradle** and the
    ```
 
 6. **Bump consumers** (e.g. [UrlProtocol](https://github.com/CodexCoder21Organization/UrlProtocol), [UrlResolver](https://github.com/CodexCoder21Organization/UrlResolver)) to the new `community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-N` coordinate, which they resolve from kotlin.directory.
+
+## Snapshot-25 conversion backport
+
+`1.3.0-codexcoder21-snapshot-25-pr71` starts at snapshot-25 source
+`3dc24d8b66cafa7e6f9a1e26ed4715d3214d8b63` and carries the standalone Netty future-conversion
+change from https://github.com/CodexCoder21Organization/jvm-libp2p/pull/71.
+It retains snapshot-25's connection, muxer, and stream-close contracts. The later write-ownership
+and shared-close adaptations in that PR depend on newer releases and are excluded here.

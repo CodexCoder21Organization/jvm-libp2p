@@ -174,3 +174,10 @@ After the build is complete you may find the library `.jar` file here: `jvm-libp
 
 Dual-licensed under MIT and ASLv2, by way of the [Permissive License
 Stack](https://protocol.ai/blog/announcing-the-permissive-license-stack/).
+
+## Completed Netty future conversion
+
+Converting an already-completed Netty future to a `CompletableFuture` preserves its value,
+original failure, or cancellation even when its listener executor has a full queue or has
+terminated. Completion during listener registration is observed directly as well. A pending
+Netty operation continues to use its normal listener executor.

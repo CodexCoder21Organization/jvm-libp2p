@@ -1,49 +1,22 @@
-name: Bld - Cancellation runtime controls
+name: Bld - Mapped readiness proof
 on:
   workflow_dispatch:
 permissions:
   contents: read
 jobs:
-  cancellation-control:
+  mapped-readiness-red:
     runs-on: windows-latest
     timeout-minutes: 25
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - label: reviewed-head-24
-            ref: 62d84d62d894453f72ac7451f409265af20ffc42
-            java: '24'
-            failures: 6
-          - label: develop-17
-            ref: develop
-            java: '17'
-            failures: 0
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ matrix.ref }}
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: ${{ matrix.java }}
+          java-version: '24'
       - uses: gradle/actions/setup-gradle@v4
-      - name: Execute unchanged cancellation assertions
-        continue-on-error: true
-        run: ./gradlew --no-daemon --stacktrace :libp2p:test --tests '*NettyFutureConversionStateTest' --tests '*PendingNettyFutureConversionTest'
-      - name: Assert exact control result
-        shell: python
-        run: |
-          import pathlib, xml.etree.ElementTree as E
-          suites=[E.parse(p).getroot() for p in pathlib.Path('libp2p/build/test-results/test').glob('TEST-*.xml')]
-          counts={key:sum(int(t.get(key,0)) for t in suites) for key in ['tests','failures','errors','skipped']}
-          print(counts)
-          assert counts == dict(tests=18,failures=${{ matrix.failures }},errors=0,skipped=0), counts
-          for t in suites:
-              for c in t.findall('testcase'):
-                  if c.find('failure') is not None: print(c.get('name'), c.find('failure').get('message'))
+      - run: ./gradlew --no-daemon --stacktrace :libp2p:test --tests '*QuicKuboTestJava.readinessAlreadyBufferedWithoutFileNotification'
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: cancellation-${{ matrix.label }}
+          name: mapped-readiness-red-reports
           path: libp2p/build/test-results/**

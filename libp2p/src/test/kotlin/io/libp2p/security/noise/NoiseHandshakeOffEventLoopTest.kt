@@ -26,6 +26,8 @@ import org.junit.jupiter.api.RepeatedTest
 import org.junit.jupiter.api.Test
 import java.io.InputStream
 import java.io.OutputStream
+import java.net.InetAddress
+import java.net.ServerSocket
 import java.net.Socket
 import java.nio.channels.ClosedChannelException
 import java.util.concurrent.ArrayBlockingQueue
@@ -40,6 +42,33 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
 class NoiseHandshakeOffEventLoopTest {
+    @Test
+    fun `fixture listener stays separate from ordinary loopback traffic`() {
+        ServerSocket(0, 1, InetAddress.getByName("127.0.0.1")).use { ordinaryListener ->
+            val relay = newNoiseHost(listen = true, listenPort = ordinaryListener.localPort)
+            val dialer = newNoiseHost()
+            try {
+                val startupFailure = catchThrowable { startNoiseHosts(listOf(relay, dialer)) }
+                assertThat(startupFailure)
+                    .describedAs("The Noise fixture must leave the owned ordinary-loopback listener separate")
+                    .isNull()
+                val address = relay.listenAddresses().single()
+                assertThat(address.getFirstComponent(Protocol.TCP)?.stringValue)
+                    .isEqualTo(ordinaryListener.localPort.toString())
+                val connection = dialer.network.connect(relay.peerId, address).get(5, TimeUnit.SECONDS)
+                val ping = connection.muxerSession().createStream(Ping())
+                try {
+                    ping.controller.get(5, TimeUnit.SECONDS).ping().get(5, TimeUnit.SECONDS)
+                    assertThat(relay.network.connections).hasSize(1)
+                } finally {
+                    ping.stream.get(5, TimeUnit.SECONDS).close().get(5, TimeUnit.SECONDS)
+                }
+            } finally {
+                stopNoiseHosts(listOf(dialer, relay))
+            }
+        }
+    }
+
     @Test
     fun `single Noise handshake runs crypto inline on event loops`() {
         val processOutput = runNoiseHandshakeHarness("inline", 10)
@@ -764,13 +793,13 @@ private class NoiseHandshakeExecutionRecorder {
     }
 }
 
-private fun newNoiseHost(listen: Boolean = false): Host = host {
+private fun newNoiseHost(listen: Boolean = false, listenPort: Int = 0): Host = host {
     identity {
         random(KeyType.ED25519)
     }
     if (listen) {
         network {
-            listen("/ip4/127.0.0.1/tcp/0")
+            listen("/ip4/127.0.0.1/tcp/$listenPort")
         }
     }
     protocols {

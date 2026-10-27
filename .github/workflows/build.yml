@@ -26,6 +26,11 @@ jobs:
           java-version: '17'
       - name: Prepare Android SDK
         run: '"$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platform-tools" "platforms;android-30" "build-tools;30.0.3"'
+      - name: Verify the JDK 11 minimum
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '11'
       - name: Build and test with Gradle
         run: ./gradlew --no-daemon --stacktrace --continue build dokkaJar
       - name: Upload test reports
@@ -48,7 +53,7 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: '24'
       - name: Prepare Android SDK
         run: '& "$env:ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager.bat" "platform-tools" "platforms;android-30" "build-tools;30.0.3"'
       - name: Build and test with Gradle

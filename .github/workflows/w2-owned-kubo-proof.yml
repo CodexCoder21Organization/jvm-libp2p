@@ -19,7 +19,7 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: ${{ inputs.jdk || '17' }}
+          java-version: ${{ inputs.jdk || '24' }}
       - name: Check owned Kubo and immediate file release
         shell: bash
         run: ./gradlew --no-daemon --stacktrace --max-workers=1 :libp2p:cleanTest :libp2p:test --tests io.libp2p.transport.quic.QuicKuboTestJava :libp2p:detekt :libp2p:spotlessCheck

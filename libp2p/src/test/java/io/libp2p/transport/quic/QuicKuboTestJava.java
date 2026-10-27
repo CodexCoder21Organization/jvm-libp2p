@@ -98,10 +98,13 @@ public class QuicKuboTestJava {
       } finally {
         if (daemon != null) {
           try {
-            daemon.destroy();
-            if (!daemon.waitFor(5, TimeUnit.SECONDS)) {
-              daemon.destroyForcibly();
-              Assertions.assertTrue(daemon.waitFor(5, TimeUnit.SECONDS), "Owned Kubo did not exit");
+            try {
+              if (daemon.isAlive()) runKubo(executable, repository, "shutdown");
+            } finally {
+              if (!daemon.waitFor(5, TimeUnit.SECONDS)) {
+                daemon.destroyForcibly();
+                Assertions.assertTrue(daemon.waitFor(5, TimeUnit.SECONDS), "Owned Kubo did not exit");
+              }
             }
           } finally {
             if (output != null) output.close();

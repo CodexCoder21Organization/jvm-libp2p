@@ -1,0 +1,513 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.libp2p.pubsub.gossip.extensions.GossipExtensionsMessageHandlingTest" tests="13" skipped="0" failures="0" errors="0" timestamp="2026-10-27T15:19:44.872Z" hostname="runnervmtai0g" time="2.537">
+  <properties/>
+  <testcase name="remove peer control extensions map when disconnecting()" classname="io.libp2p.pubsub.gossip.extensions.GossipExtensionsMessageHandlingTest" time="0.003"/>
+  <testcase name="control extension sent state cleared on peer disconnect()" classname="io.libp2p.pubsub.gossip.extensions.GossipExtensionsMessageHandlingTest" time="0.002"/>
+  <testcase name="control extension message contains all supported extensions flags()" classname="io.libp2p.pubsub.gossip.extensions.GossipExtensionsMessageHandlingTest" time="0.001"/>
+  <testcase name="extension state tracks that we sent control extension to peer()" classname="io.libp2p.pubsub.gossip.extensions.GossipExtensionsMessageHandlingTest" time="0.001"/>
+  <testcase name="[1] Gossip_V_1_1" classname="io.libp2p.pubsub.gossip.extensions.GossipExtensionsMessageHandlingTest" time="0.504"/>
+  <testcase name="[2] Gossip_V_1_2" classname="io.libp2p.pubsub.gossip.extensions.GossipExtensionsMessageHandlingTest" time="0.502"/>
+  <testcase name="extension message flow with control extensions message before actual extension message()" classname="io.libp2p.pubsub.gossip.extensions.GossipExtensionsMessageHandlingTest" time="0.004"/>
+  <testcase name="local peer ignores test extension messages when they are disabled in config()" classname="io.libp2p.pubsub.gossip.extensions.GossipExtensionsMessageHandlingTest" time="0.503"/>
+  <testcase name="extension messages sent to peer prior to gossip v1_3 are ignored()" classname="io.libp2p.pubsub.gossip.extensions.GossipExtensionsMessageHandlingTest" time="0.504"/>
+  <testcase name="[1] Gossip_V_1_3" classname="io.libp2p.pubsub.gossip.extensions.GossipExtensionsMessageHandlingTest" time="0.002"/>
+  <testcase name="extension messages sent to peer prior to sending control extensions messages are ignored()" classname="io.libp2p.pubsub.gossip.extensions.GossipExtensionsMessageHandlingTest" time="0.501"/>
+  <testcase name="extension message flow with control extensions and extension message in the same rpc message()" classname="io.libp2p.pubsub.gossip.extensions.GossipExtensionsMessageHandlingTest" time="0.003"/>
+  <testcase name="peer sending multiple control extension messages are downscored()" classname="io.libp2p.pubsub.gossip.extensions.GossipExtensionsMessageHandlingTest" time="0.001"/>
+  <system-out><![CDATA[15:19:44.874 [Test worker] [?[1;31mERROR?[m] [20423]0=>1 - [id: 0x[20423]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] REGISTERED
+15:19:44.874 [Test worker] [?[1;31mERROR?[m] [20423]0=>1 - [id: 0x[20423]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] ACTIVE
+15:19:44.874 [Test worker] [?[1;31mERROR?[m] [20424]1=>0 - [id: 0x[20424]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] REGISTERED
+15:19:44.874 [Test worker] [?[1;31mERROR?[m] [20424]1=>0 - [id: 0x[20424]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] ACTIVE
+15:19:44.874 [Test worker] [?[1;31mERROR?[m] [20425]1=>0 - [id: 0x[20425]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] REGISTERED
+15:19:44.874 [Test worker] [?[1;31mERROR?[m] [20425]1=>0 - [id: 0x[20425]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] ACTIVE
+15:19:44.874 [Test worker] [?[1;31mERROR?[m] [20425]1=>0 - [id: 0x[20425]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] WRITE: 
+15:19:44.874 [Test worker] [?[1;31mERROR?[m] [20425]1=>0 - [id: 0x[20425]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] FLUSH
+15:19:44.874 [Test worker] [?[1;31mERROR?[m] [20426]0=>1 - [id: 0x[20426]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] REGISTERED
+15:19:44.874 [Test worker] [?[1;31mERROR?[m] [20426]0=>1 - [id: 0x[20426]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] ACTIVE
+15:19:44.874 [Test worker] [?[1;31mERROR?[m] [20426]0=>1 - [id: 0x[20426]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: 
+15:19:44.874 [Test worker] [?[1;31mERROR?[m] [20426]0=>1 - [id: 0x[20426]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+15:19:44.875 [Test worker] [?[1;31mERROR?[m] [20423]0=>1 - [id: 0x[20423]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] WRITE: control {
+  extensions {
+    partialMessages: false
+    testExtension: true
+  }
+}
+
+15:19:44.875 [Test worker] [?[1;31mERROR?[m] [20423]0=>1 - [id: 0x[20423]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] FLUSH
+15:19:44.875 [Test worker] [?[1;31mERROR?[m] [20424]1=>0 - [id: 0x[20424]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: control {
+  extensions {
+    partialMessages: false
+    testExtension: true
+  }
+}
+
+15:19:44.875 [Test worker] [?[1;31mERROR?[m] [20424]1=>0 - [id: 0x[20424]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+15:19:44.875 [Test worker] [?[1;31mERROR?[m] [20425]1=>0 - [id: 0x[20425]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] WRITE: control {
+  extensions {
+    testExtension: true
+  }
+}
+testExtension {
+}
+
+15:19:44.875 [Test worker] [?[1;31mERROR?[m] [20425]1=>0 - [id: 0x[20425]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] FLUSH
+15:19:44.875 [Test worker] [?[1;31mERROR?[m] [20426]0=>1 - [id: 0x[20426]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: control {
+  extensions {
+    testExtension: true
+  }
+}
+testExtension {
+}
+
+15:19:44.875 [Test worker] [?[1;31mERROR?[m] [20426]0=>1 - [id: 0x[20426]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+15:19:44.875 [Test worker] [?[1;31mERROR?[m] [20423]0=>1 - [id: 0x[20423]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] WRITE: testExtension {
+}
+
+15:19:44.875 [Test worker] [?[1;31mERROR?[m] [20423]0=>1 - [id: 0x[20423]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] FLUSH
+15:19:44.875 [Test worker] [?[1;31mERROR?[m] [20424]1=>0 - [id: 0x[20424]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: testExtension {
+}
+
+15:19:44.875 [Test worker] [?[1;31mERROR?[m] [20424]1=>0 - [id: 0x[20424]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+15:19:44.876 [Test worker] [?[1;31mERROR?[m] [20423]0=>1 - [id: 0x[20423]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] CLOSE
+15:19:44.876 [Test worker] [?[1;31mERROR?[m] [20423]0=>1 - [id: 0x[20423]0=>1, L:/0.0.0.0:777 ! R:/0.0.0.0:777] INACTIVE
+15:19:44.876 [Test worker] [?[1;31mERROR?[m] [20423]0=>1 - [id: 0x[20423]0=>1, L:/0.0.0.0:777 ! R:/0.0.0.0:777] UNREGISTERED
+15:19:44.876 [Test worker] [?[1;31mERROR?[m] [20426]0=>1 - [id: 0x[20426]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] CLOSE
+15:19:44.876 [Test worker] [?[1;31mERROR?[m] [20426]0=>1 - [id: 0x[20426]0=>1, L:/0.0.0.0:777 ! R:/0.0.0.0:777] INACTIVE
+15:19:44.876 [Test worker] [?[1;31mERROR?[m] [20426]0=>1 - [id: 0x[20426]0=>1, L:/0.0.0.0:777 ! R:/0.0.0.0:777] UNREGISTERED
+15:19:44.876 [Test worker] [?[1;31mERROR?[m] [20424]1=>0 - [id: 0x[20424]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] CLOSE
+15:19:44.876 [Test worker] [?[1;31mERROR?[m] [20424]1=>0 - [id: 0x[20424]1=>0, L:/0.0.0.0:777 ! R:/0.0.0.0:777] INACTIVE
+15:19:44.876 [Test worker] [?[1;31mERROR?[m] [20424]1=>0 - [id: 0x[20424]1=>0, L:/0.0.0.0:777 ! R:/0.0.0.0:777] UNREGISTERED
+15:19:44.876 [Test worker] [?[1;31mERROR?[m] [20425]1=>0 - [id: 0x[20425]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] CLOSE
+15:19:44.876 [Test worker] [?[1;31mERROR?[m] [20425]1=>0 - [id: 0x[20425]1=>0, L:/0.0.0.0:777 ! R:/0.0.0.0:777] INACTIVE
+15:19:44.876 [Test worker] [?[1;31mERROR?[m] [20425]1=>0 - [id: 0x[20425]1=>0, L:/0.0.0.0:777 ! R:/0.0.0.0:777] UNREGISTERED
+15:19:44.877 [Test worker] [?[1;31mERROR?[m] [20427]0=>1 - [id: 0x[20427]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] REGISTERED
+15:19:44.877 [Test worker] [?[1;31mERROR?[m] [20427]0=>1 - [id: 0x[20427]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] ACTIVE
+15:19:44.877 [Test worker] [?[1;31mERROR?[m] [20428]1=>0 - [id: 0x[20428]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] REGISTERED
+15:19:44.877 [Test worker] [?[1;31mERROR?[m] [20428]1=>0 - [id: 0x[20428]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] ACTIVE
+15:19:44.877 [Test worker] [?[1;31mERROR?[m] [20429]1=>0 - [id: 0x[20429]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] REGISTERED
+15:19:44.877 [Test worker] [?[1;31mERROR?[m] [20429]1=>0 - [id: 0x[20429]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] ACTIVE
+15:19:44.877 [Test worker] [?[1;31mERROR?[m] [20429]1=>0 - [id: 0x[20429]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] WRITE: 
+15:19:44.877 [Test worker] [?[1;31mERROR?[m] [20429]1=>0 - [id: 0x[20429]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] FLUSH
+15:19:44.877 [Test worker] [?[1;31mERROR?[m] [20430]0=>1 - [id: 0x[20430]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] REGISTERED
+15:19:44.877 [Test worker] [?[1;31mERROR?[m] [20430]0=>1 - [id: 0x[20430]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] ACTIVE
+15:19:44.877 [Test worker] [?[1;31mERROR?[m] [20430]0=>1 - [id: 0x[20430]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: 
+15:19:44.877 [Test worker] [?[1;31mERROR?[m] [20430]0=>1 - [id: 0x[20430]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+15:19:44.878 [Test worker] [?[1;31mERROR?[m] [20427]0=>1 - [id: 0x[20427]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] WRITE: control {
+  extensions {
+    partialMessages: false
+    testExtension: true
+  }
+}
+
+15:19:44.878 [Test worker] [?[1;31mERROR?[m] [20427]0=>1 - [id: 0x[20427]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] FLUSH
+15:19:44.878 [Test worker] [?[1;31mERROR?[m] [20428]1=>0 - [id: 0x[20428]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: control {
+  extensions {
+    partialMessages: false
+    testExtension: true
+  }
+}
+
+15:19:44.878 [Test worker] [?[1;31mERROR?[m] [20428]1=>0 - [id: 0x[20428]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+15:19:44.878 [Test worker] [?[1;31mERROR?[m] [20427]0=>1 - [id: 0x[20427]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] CLOSE
+15:19:44.878 [Test worker] [?[1;31mERROR?[m] [20427]0=>1 - [id: 0x[20427]0=>1, L:/0.0.0.0:777 ! R:/0.0.0.0:777] INACTIVE
+15:19:44.878 [Test worker] [?[1;31mERROR?[m] [20427]0=>1 - [id: 0x[20427]0=>1, L:/0.0.0.0:777 ! R:/0.0.0.0:777] UNREGISTERED
+15:19:44.878 [Test worker] [?[1;31mERROR?[m] [20430]0=>1 - [id: 0x[20430]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] CLOSE
+15:19:44.878 [Test worker] [?[1;31mERROR?[m] [20430]0=>1 - [id: 0x[20430]0=>1, L:/0.0.0.0:777 ! R:/0.0.0.0:777] INACTIVE
+15:19:44.878 [Test worker] [?[1;31mERROR?[m] [20430]0=>1 - [id: 0x[20430]0=>1, L:/0.0.0.0:777 ! R:/0.0.0.0:777] UNREGISTERED
+15:19:44.878 [Test worker] [?[1;31mERROR?[m] [20428]1=>0 - [id: 0x[20428]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] CLOSE
+15:19:44.878 [Test worker] [?[1;31mERROR?[m] [20428]1=>0 - [id: 0x[20428]1=>0, L:/0.0.0.0:777 ! R:/0.0.0.0:777] INACTIVE
+15:19:44.878 [Test worker] [?[1;31mERROR?[m] [20428]1=>0 - [id: 0x[20428]1=>0, L:/0.0.0.0:777 ! R:/0.0.0.0:777] UNREGISTERED
+15:19:44.878 [Test worker] [?[1;31mERROR?[m] [20429]1=>0 - [id: 0x[20429]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] CLOSE
+15:19:44.878 [Test worker] [?[1;31mERROR?[m] [20429]1=>0 - [id: 0x[20429]1=>0, L:/0.0.0.0:777 ! R:/0.0.0.0:777] INACTIVE
+15:19:44.878 [Test worker] [?[1;31mERROR?[m] [20429]1=>0 - [id: 0x[20429]1=>0, L:/0.0.0.0:777 ! R:/0.0.0.0:777] UNREGISTERED
+15:19:44.879 [Test worker] [?[1;31mERROR?[m] [20431]0=>1 - [id: 0x[20431]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] REGISTERED
+15:19:44.879 [Test worker] [?[1;31mERROR?[m] [20431]0=>1 - [id: 0x[20431]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] ACTIVE
+15:19:44.879 [Test worker] [?[1;31mERROR?[m] [20432]1=>0 - [id: 0x[20432]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] REGISTERED
+15:19:44.879 [Test worker] [?[1;31mERROR?[m] [20432]1=>0 - [id: 0x[20432]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] ACTIVE
+15:19:44.879 [Test worker] [?[1;31mERROR?[m] [20433]1=>0 - [id: 0x[20433]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] REGISTERED
+15:19:44.879 [Test worker] [?[1;31mERROR?[m] [20433]1=>0 - [id: 0x[20433]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] ACTIVE
+15:19:44.879 [Test worker] [?[1;31mERROR?[m] [20433]1=>0 - [id: 0x[20433]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] WRITE: 
+15:19:44.879 [Test worker] [?[1;31mERROR?[m] [20433]1=>0 - [id: 0x[20433]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] FLUSH
+15:19:44.879 [Test worker] [?[1;31mERROR?[m] [20434]0=>1 - [id: 0x[20434]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] REGISTERED
+15:19:44.880 [Test worker] [?[1;31mERROR?[m] [20434]0=>1 - [id: 0x[20434]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] ACTIVE
+15:19:44.880 [Test worker] [?[1;31mERROR?[m] [20434]0=>1 - [id: 0x[20434]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: 
+15:19:44.880 [Test worker] [?[1;31mERROR?[m] [20434]0=>1 - [id: 0x[20434]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+15:19:44.880 [Test worker] [?[1;31mERROR?[m] [20431]0=>1 - [id: 0x[20431]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] WRITE: control {
+  extensions {
+    partialMessages: true
+    testExtension: true
+  }
+}
+
+15:19:44.880 [Test worker] [?[1;31mERROR?[m] [20431]0=>1 - [id: 0x[20431]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] FLUSH
+15:19:44.880 [Test worker] [?[1;31mERROR?[m] [20432]1=>0 - [id: 0x[20432]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: control {
+  extensions {
+    partialMessages: true
+    testExtension: true
+  }
+}
+
+15:19:44.880 [Test worker] [?[1;31mERROR?[m] [20432]1=>0 - [id: 0x[20432]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+15:19:44.881 [Test worker] [?[1;31mERROR?[m] [20435]0=>1 - [id: 0x[20435]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] REGISTERED
+15:19:44.881 [Test worker] [?[1;31mERROR?[m] [20435]0=>1 - [id: 0x[20435]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] ACTIVE
+15:19:44.881 [Test worker] [?[1;31mERROR?[m] [20436]1=>0 - [id: 0x[20436]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] REGISTERED
+15:19:44.881 [Test worker] [?[1;31mERROR?[m] [20436]1=>0 - [id: 0x[20436]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] ACTIVE
+15:19:44.881 [Test worker] [?[1;31mERROR?[m] [20437]1=>0 - [id: 0x[20437]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] REGISTERED
+15:19:44.881 [Test worker] [?[1;31mERROR?[m] [20437]1=>0 - [id: 0x[20437]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] ACTIVE
+15:19:44.881 [Test worker] [?[1;31mERROR?[m] [20437]1=>0 - [id: 0x[20437]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] WRITE: 
+15:19:44.881 [Test worker] [?[1;31mERROR?[m] [20437]1=>0 - [id: 0x[20437]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] FLUSH
+15:19:44.881 [Test worker] [?[1;31mERROR?[m] [20438]0=>1 - [id: 0x[20438]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] REGISTERED
+15:19:44.881 [Test worker] [?[1;31mERROR?[m] [20438]0=>1 - [id: 0x[20438]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] ACTIVE
+15:19:44.881 [Test worker] [?[1;31mERROR?[m] [20438]0=>1 - [id: 0x[20438]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: 
+15:19:44.881 [Test worker] [?[1;31mERROR?[m] [20438]0=>1 - [id: 0x[20438]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+15:19:44.881 [Test worker] [?[1;31mERROR?[m] [20435]0=>1 - [id: 0x[20435]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] WRITE: control {
+  extensions {
+    partialMessages: false
+    testExtension: true
+  }
+}
+
+15:19:44.881 [Test worker] [?[1;31mERROR?[m] [20435]0=>1 - [id: 0x[20435]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] FLUSH
+15:19:44.881 [Test worker] [?[1;31mERROR?[m] [20436]1=>0 - [id: 0x[20436]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: control {
+  extensions {
+    partialMessages: false
+    testExtension: true
+  }
+}
+
+15:19:44.881 [Test worker] [?[1;31mERROR?[m] [20436]1=>0 - [id: 0x[20436]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+15:19:44.884 [Test worker] [?[1;31mERROR?[m] [20439]0=>1 - [id: 0x[20439]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] REGISTERED
+15:19:44.884 [Test worker] [?[1;31mERROR?[m] [20439]0=>1 - [id: 0x[20439]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] ACTIVE
+15:19:44.884 [Test worker] [?[1;31mERROR?[m] [20440]1=>0 - [id: 0x[20440]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] REGISTERED
+15:19:44.884 [Test worker] [?[1;31mERROR?[m] [20440]1=>0 - [id: 0x[20440]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] ACTIVE
+15:19:44.884 [Test worker] [?[1;31mERROR?[m] [20441]1=>0 - [id: 0x[20441]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] REGISTERED
+15:19:44.884 [Test worker] [?[1;31mERROR?[m] [20441]1=>0 - [id: 0x[20441]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] ACTIVE
+15:19:44.884 [Test worker] [?[1;31mERROR?[m] [20441]1=>0 - [id: 0x[20441]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] WRITE: 
+15:19:44.884 [Test worker] [?[1;31mERROR?[m] [20441]1=>0 - [id: 0x[20441]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] FLUSH
+15:19:44.884 [Test worker] [?[1;31mERROR?[m] [20442]0=>1 - [id: 0x[20442]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] REGISTERED
+15:19:44.884 [Test worker] [?[1;31mERROR?[m] [20442]0=>1 - [id: 0x[20442]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] ACTIVE
+15:19:44.885 [Test worker] [?[1;31mERROR?[m] [20442]0=>1 - [id: 0x[20442]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: 
+15:19:44.885 [Test worker] [?[1;31mERROR?[m] [20442]0=>1 - [id: 0x[20442]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+15:19:45.388 [Test worker] [?[1;31mERROR?[m] [20443]0=>1 - [id: 0x[20443]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] REGISTERED
+15:19:45.388 [Test worker] [?[1;31mERROR?[m] [20443]0=>1 - [id: 0x[20443]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] ACTIVE
+15:19:45.388 [Test worker] [?[1;31mERROR?[m] [20444]1=>0 - [id: 0x[20444]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] REGISTERED
+15:19:45.388 [Test worker] [?[1;31mERROR?[m] [20444]1=>0 - [id: 0x[20444]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] ACTIVE
+15:19:45.388 [Test worker] [?[1;31mERROR?[m] [20445]1=>0 - [id: 0x[20445]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] REGISTERED
+15:19:45.388 [Test worker] [?[1;31mERROR?[m] [20445]1=>0 - [id: 0x[20445]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] ACTIVE
+15:19:45.388 [Test worker] [?[1;31mERROR?[m] [20445]1=>0 - [id: 0x[20445]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] WRITE: 
+15:19:45.388 [Test worker] [?[1;31mERROR?[m] [20445]1=>0 - [id: 0x[20445]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] FLUSH
+15:19:45.388 [Test worker] [?[1;31mERROR?[m] [20446]0=>1 - [id: 0x[20446]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] REGISTERED
+15:19:45.388 [Test worker] [?[1;31mERROR?[m] [20446]0=>1 - [id: 0x[20446]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] ACTIVE
+15:19:45.388 [Test worker] [?[1;31mERROR?[m] [20446]0=>1 - [id: 0x[20446]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: 
+15:19:45.388 [Test worker] [?[1;31mERROR?[m] [20446]0=>1 - [id: 0x[20446]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+15:19:45.890 [Test worker] [?[1;31mERROR?[m] [20447]0=>1 - [id: 0x[20447]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] REGISTERED
+15:19:45.890 [Test worker] [?[1;31mERROR?[m] [20447]0=>1 - [id: 0x[20447]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] ACTIVE
+15:19:45.890 [Test worker] [?[1;31mERROR?[m] [20448]1=>0 - [id: 0x[20448]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] REGISTERED
+15:19:45.890 [Test worker] [?[1;31mERROR?[m] [20448]1=>0 - [id: 0x[20448]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] ACTIVE
+15:19:45.890 [Test worker] [?[1;31mERROR?[m] [20449]1=>0 - [id: 0x[20449]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] REGISTERED
+15:19:45.890 [Test worker] [?[1;31mERROR?[m] [20449]1=>0 - [id: 0x[20449]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] ACTIVE
+15:19:45.890 [Test worker] [?[1;31mERROR?[m] [20449]1=>0 - [id: 0x[20449]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] WRITE: 
+15:19:45.890 [Test worker] [?[1;31mERROR?[m] [20449]1=>0 - [id: 0x[20449]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] FLUSH
+15:19:45.890 [Test worker] [?[1;31mERROR?[m] [20450]0=>1 - [id: 0x[20450]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] REGISTERED
+15:19:45.890 [Test worker] [?[1;31mERROR?[m] [20450]0=>1 - [id: 0x[20450]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] ACTIVE
+15:19:45.891 [Test worker] [?[1;31mERROR?[m] [20450]0=>1 - [id: 0x[20450]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: 
+15:19:45.891 [Test worker] [?[1;31mERROR?[m] [20450]0=>1 - [id: 0x[20450]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+15:19:45.891 [Test worker] [?[1;31mERROR?[m] [20447]0=>1 - [id: 0x[20447]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] WRITE: control {
+  extensions {
+    partialMessages: false
+    testExtension: true
+  }
+}
+
+15:19:45.892 [Test worker] [?[1;31mERROR?[m] [20447]0=>1 - [id: 0x[20447]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] FLUSH
+15:19:45.892 [Test worker] [?[1;31mERROR?[m] [20448]1=>0 - [id: 0x[20448]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: control {
+  extensions {
+    partialMessages: false
+    testExtension: true
+  }
+}
+
+15:19:45.892 [Test worker] [?[1;31mERROR?[m] [20448]1=>0 - [id: 0x[20448]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+15:19:45.892 [Test worker] [?[1;31mERROR?[m] [20449]1=>0 - [id: 0x[20449]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] WRITE: control {
+  extensions {
+    testExtension: true
+  }
+}
+
+15:19:45.892 [Test worker] [?[1;31mERROR?[m] [20449]1=>0 - [id: 0x[20449]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] FLUSH
+15:19:45.892 [Test worker] [?[1;31mERROR?[m] [20450]0=>1 - [id: 0x[20450]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: control {
+  extensions {
+    testExtension: true
+  }
+}
+
+15:19:45.892 [Test worker] [?[1;31mERROR?[m] [20450]0=>1 - [id: 0x[20450]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+15:19:45.892 [Test worker] [?[1;31mERROR?[m] [20449]1=>0 - [id: 0x[20449]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] WRITE: testExtension {
+}
+
+15:19:45.892 [Test worker] [?[1;31mERROR?[m] [20449]1=>0 - [id: 0x[20449]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] FLUSH
+15:19:45.892 [Test worker] [?[1;31mERROR?[m] [20450]0=>1 - [id: 0x[20450]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: testExtension {
+}
+
+15:19:45.892 [Test worker] [?[1;31mERROR?[m] [20450]0=>1 - [id: 0x[20450]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+15:19:45.892 [Test worker] [?[1;31mERROR?[m] [20447]0=>1 - [id: 0x[20447]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] WRITE: testExtension {
+}
+
+15:19:45.892 [Test worker] [?[1;31mERROR?[m] [20447]0=>1 - [id: 0x[20447]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] FLUSH
+15:19:45.893 [Test worker] [?[1;31mERROR?[m] [20448]1=>0 - [id: 0x[20448]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: testExtension {
+}
+
+15:19:45.893 [Test worker] [?[1;31mERROR?[m] [20448]1=>0 - [id: 0x[20448]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+15:19:45.894 [Test worker] [?[1;31mERROR?[m] [20451]0=>1 - [id: 0x[20451]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] REGISTERED
+15:19:45.894 [Test worker] [?[1;31mERROR?[m] [20451]0=>1 - [id: 0x[20451]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] ACTIVE
+15:19:45.894 [Test worker] [?[1;31mERROR?[m] [20452]1=>0 - [id: 0x[20452]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] REGISTERED
+15:19:45.894 [Test worker] [?[1;31mERROR?[m] [20452]1=>0 - [id: 0x[20452]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] ACTIVE
+15:19:45.894 [Test worker] [?[1;31mERROR?[m] [20453]1=>0 - [id: 0x[20453]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] REGISTERED
+15:19:45.894 [Test worker] [?[1;31mERROR?[m] [20453]1=>0 - [id: 0x[20453]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] ACTIVE
+15:19:45.894 [Test worker] [?[1;31mERROR?[m] [20453]1=>0 - [id: 0x[20453]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] WRITE: 
+15:19:45.894 [Test worker] [?[1;31mERROR?[m] [20453]1=>0 - [id: 0x[20453]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] FLUSH
+15:19:45.894 [Test worker] [?[1;31mERROR?[m] [20454]0=>1 - [id: 0x[20454]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] REGISTERED
+15:19:45.894 [Test worker] [?[1;31mERROR?[m] [20454]0=>1 - [id: 0x[20454]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] ACTIVE
+15:19:45.894 [Test worker] [?[1;31mERROR?[m] [20454]0=>1 - [id: 0x[20454]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: 
+15:19:45.894 [Test worker] [?[1;31mERROR?[m] [20454]0=>1 - [id: 0x[20454]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+15:19:45.894 [Test worker] [?[1;31mERROR?[m] [20451]0=>1 - [id: 0x[20451]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] WRITE: control {
+  extensions {
+    partialMessages: false
+    testExtension: false
+  }
+}
+
+15:19:45.894 [Test worker] [?[1;31mERROR?[m] [20451]0=>1 - [id: 0x[20451]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] FLUSH
+15:19:45.894 [Test worker] [?[1;31mERROR?[m] [20452]1=>0 - [id: 0x[20452]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: control {
+  extensions {
+    partialMessages: false
+    testExtension: false
+  }
+}
+
+15:19:45.895 [Test worker] [?[1;31mERROR?[m] [20452]1=>0 - [id: 0x[20452]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+15:19:45.895 [Test worker] [?[1;31mERROR?[m] [20453]1=>0 - [id: 0x[20453]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] WRITE: control {
+  extensions {
+    testExtension: true
+  }
+}
+testExtension {
+}
+
+15:19:45.895 [Test worker] [?[1;31mERROR?[m] [20453]1=>0 - [id: 0x[20453]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] FLUSH
+15:19:45.895 [Test worker] [?[1;31mERROR?[m] [20454]0=>1 - [id: 0x[20454]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: control {
+  extensions {
+    testExtension: true
+  }
+}
+testExtension {
+}
+
+15:19:45.895 [Test worker] [?[1;31mERROR?[m] [20454]0=>1 - [id: 0x[20454]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+15:19:46.397 [Test worker] [?[1;31mERROR?[m] [20455]0=>1 - [id: 0x[20455]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] REGISTERED
+15:19:46.397 [Test worker] [?[1;31mERROR?[m] [20455]0=>1 - [id: 0x[20455]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] ACTIVE
+15:19:46.397 [Test worker] [?[1;31mERROR?[m] [20456]1=>0 - [id: 0x[20456]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] REGISTERED
+15:19:46.397 [Test worker] [?[1;31mERROR?[m] [20456]1=>0 - [id: 0x[20456]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] ACTIVE
+15:19:46.397 [Test worker] [?[1;31mERROR?[m] [20457]1=>0 - [id: 0x[20457]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] REGISTERED
+15:19:46.397 [Test worker] [?[1;31mERROR?[m] [20457]1=>0 - [id: 0x[20457]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] ACTIVE
+15:19:46.397 [Test worker] [?[1;31mERROR?[m] [20457]1=>0 - [id: 0x[20457]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] WRITE: 
+15:19:46.397 [Test worker] [?[1;31mERROR?[m] [20457]1=>0 - [id: 0x[20457]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] FLUSH
+15:19:46.397 [Test worker] [?[1;31mERROR?[m] [20458]0=>1 - [id: 0x[20458]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] REGISTERED
+15:19:46.397 [Test worker] [?[1;31mERROR?[m] [20458]0=>1 - [id: 0x[20458]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] ACTIVE
+15:19:46.397 [Test worker] [?[1;31mERROR?[m] [20458]0=>1 - [id: 0x[20458]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: 
+15:19:46.397 [Test worker] [?[1;31mERROR?[m] [20458]0=>1 - [id: 0x[20458]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+15:19:46.397 [Test worker] [?[1;31mERROR?[m] [20457]1=>0 - [id: 0x[20457]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] WRITE: control {
+  extensions {
+    testExtension: true
+  }
+}
+testExtension {
+}
+
+15:19:46.398 [Test worker] [?[1;31mERROR?[m] [20457]1=>0 - [id: 0x[20457]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] FLUSH
+15:19:46.398 [Test worker] [?[1;31mERROR?[m] [20458]0=>1 - [id: 0x[20458]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: control {
+  extensions {
+    testExtension: true
+  }
+}
+testExtension {
+}
+
+15:19:46.398 [Test worker] [?[1;31mERROR?[m] [20458]0=>1 - [id: 0x[20458]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+15:19:46.901 [Test worker] [?[1;31mERROR?[m] [20459]0=>1 - [id: 0x[20459]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] REGISTERED
+15:19:46.901 [Test worker] [?[1;31mERROR?[m] [20459]0=>1 - [id: 0x[20459]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] ACTIVE
+15:19:46.901 [Test worker] [?[1;31mERROR?[m] [20460]1=>0 - [id: 0x[20460]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] REGISTERED
+15:19:46.901 [Test worker] [?[1;31mERROR?[m] [20460]1=>0 - [id: 0x[20460]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] ACTIVE
+15:19:46.901 [Test worker] [?[1;31mERROR?[m] [20461]1=>0 - [id: 0x[20461]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] REGISTERED
+15:19:46.901 [Test worker] [?[1;31mERROR?[m] [20461]1=>0 - [id: 0x[20461]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] ACTIVE
+15:19:46.901 [Test worker] [?[1;31mERROR?[m] [20461]1=>0 - [id: 0x[20461]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] WRITE: 
+15:19:46.902 [Test worker] [?[1;31mERROR?[m] [20461]1=>0 - [id: 0x[20461]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] FLUSH
+15:19:46.902 [Test worker] [?[1;31mERROR?[m] [20462]0=>1 - [id: 0x[20462]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] REGISTERED
+15:19:46.902 [Test worker] [?[1;31mERROR?[m] [20462]0=>1 - [id: 0x[20462]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] ACTIVE
+15:19:46.902 [Test worker] [?[1;31mERROR?[m] [20462]0=>1 - [id: 0x[20462]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: 
+15:19:46.902 [Test worker] [?[1;31mERROR?[m] [20462]0=>1 - [id: 0x[20462]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+15:19:46.902 [Test worker] [?[1;31mERROR?[m] [20459]0=>1 - [id: 0x[20459]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] WRITE: control {
+  extensions {
+    partialMessages: false
+    testExtension: true
+  }
+}
+
+15:19:46.902 [Test worker] [?[1;31mERROR?[m] [20459]0=>1 - [id: 0x[20459]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] FLUSH
+15:19:46.902 [Test worker] [?[1;31mERROR?[m] [20460]1=>0 - [id: 0x[20460]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: control {
+  extensions {
+    partialMessages: false
+    testExtension: true
+  }
+}
+
+15:19:46.902 [Test worker] [?[1;31mERROR?[m] [20460]1=>0 - [id: 0x[20460]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+15:19:46.904 [Test worker] [?[1;31mERROR?[m] [20463]0=>1 - [id: 0x[20463]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] REGISTERED
+15:19:46.904 [Test worker] [?[1;31mERROR?[m] [20463]0=>1 - [id: 0x[20463]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] ACTIVE
+15:19:46.904 [Test worker] [?[1;31mERROR?[m] [20464]1=>0 - [id: 0x[20464]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] REGISTERED
+15:19:46.904 [Test worker] [?[1;31mERROR?[m] [20464]1=>0 - [id: 0x[20464]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] ACTIVE
+15:19:46.904 [Test worker] [?[1;31mERROR?[m] [20465]1=>0 - [id: 0x[20465]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] REGISTERED
+15:19:46.904 [Test worker] [?[1;31mERROR?[m] [20465]1=>0 - [id: 0x[20465]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] ACTIVE
+15:19:46.904 [Test worker] [?[1;31mERROR?[m] [20465]1=>0 - [id: 0x[20465]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] WRITE: 
+15:19:46.904 [Test worker] [?[1;31mERROR?[m] [20465]1=>0 - [id: 0x[20465]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] FLUSH
+15:19:46.904 [Test worker] [?[1;31mERROR?[m] [20466]0=>1 - [id: 0x[20466]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] REGISTERED
+15:19:46.904 [Test worker] [?[1;31mERROR?[m] [20466]0=>1 - [id: 0x[20466]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] ACTIVE
+15:19:46.904 [Test worker] [?[1;31mERROR?[m] [20466]0=>1 - [id: 0x[20466]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: 
+15:19:46.904 [Test worker] [?[1;31mERROR?[m] [20466]0=>1 - [id: 0x[20466]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+15:19:46.904 [Test worker] [?[1;31mERROR?[m] [20463]0=>1 - [id: 0x[20463]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] WRITE: control {
+  extensions {
+    partialMessages: false
+    testExtension: true
+  }
+}
+
+15:19:46.904 [Test worker] [?[1;31mERROR?[m] [20463]0=>1 - [id: 0x[20463]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] FLUSH
+15:19:46.904 [Test worker] [?[1;31mERROR?[m] [20464]1=>0 - [id: 0x[20464]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: control {
+  extensions {
+    partialMessages: false
+    testExtension: true
+  }
+}
+
+15:19:46.904 [Test worker] [?[1;31mERROR?[m] [20464]1=>0 - [id: 0x[20464]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+15:19:46.904 [Test worker] [?[1;31mERROR?[m] [20465]1=>0 - [id: 0x[20465]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] WRITE: testExtension {
+}
+
+15:19:46.904 [Test worker] [?[1;31mERROR?[m] [20465]1=>0 - [id: 0x[20465]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] FLUSH
+15:19:46.904 [Test worker] [?[1;31mERROR?[m] [20466]0=>1 - [id: 0x[20466]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: testExtension {
+}
+
+15:19:46.904 [Test worker] [?[1;31mERROR?[m] [20466]0=>1 - [id: 0x[20466]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+15:19:47.406 [Test worker] [?[1;31mERROR?[m] [20467]0=>1 - [id: 0x[20467]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] REGISTERED
+15:19:47.406 [Test worker] [?[1;31mERROR?[m] [20467]0=>1 - [id: 0x[20467]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] ACTIVE
+15:19:47.406 [Test worker] [?[1;31mERROR?[m] [20468]1=>0 - [id: 0x[20468]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] REGISTERED
+15:19:47.406 [Test worker] [?[1;31mERROR?[m] [20468]1=>0 - [id: 0x[20468]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] ACTIVE
+15:19:47.406 [Test worker] [?[1;31mERROR?[m] [20469]1=>0 - [id: 0x[20469]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] REGISTERED
+15:19:47.406 [Test worker] [?[1;31mERROR?[m] [20469]1=>0 - [id: 0x[20469]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] ACTIVE
+15:19:47.406 [Test worker] [?[1;31mERROR?[m] [20469]1=>0 - [id: 0x[20469]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] WRITE: 
+15:19:47.406 [Test worker] [?[1;31mERROR?[m] [20469]1=>0 - [id: 0x[20469]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] FLUSH
+15:19:47.406 [Test worker] [?[1;31mERROR?[m] [20470]0=>1 - [id: 0x[20470]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] REGISTERED
+15:19:47.406 [Test worker] [?[1;31mERROR?[m] [20470]0=>1 - [id: 0x[20470]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] ACTIVE
+15:19:47.406 [Test worker] [?[1;31mERROR?[m] [20470]0=>1 - [id: 0x[20470]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: 
+15:19:47.406 [Test worker] [?[1;31mERROR?[m] [20470]0=>1 - [id: 0x[20470]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+15:19:47.406 [Test worker] [?[1;31mERROR?[m] [20467]0=>1 - [id: 0x[20467]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] WRITE: control {
+  extensions {
+    partialMessages: false
+    testExtension: true
+  }
+}
+
+15:19:47.407 [Test worker] [?[1;31mERROR?[m] [20467]0=>1 - [id: 0x[20467]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] FLUSH
+15:19:47.407 [Test worker] [?[1;31mERROR?[m] [20468]1=>0 - [id: 0x[20468]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: control {
+  extensions {
+    partialMessages: false
+    testExtension: true
+  }
+}
+
+15:19:47.407 [Test worker] [?[1;31mERROR?[m] [20468]1=>0 - [id: 0x[20468]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+15:19:47.407 [Test worker] [?[1;31mERROR?[m] [20469]1=>0 - [id: 0x[20469]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] WRITE: control {
+  extensions {
+    testExtension: true
+  }
+}
+testExtension {
+}
+
+15:19:47.407 [Test worker] [?[1;31mERROR?[m] [20469]1=>0 - [id: 0x[20469]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] FLUSH
+15:19:47.407 [Test worker] [?[1;31mERROR?[m] [20470]0=>1 - [id: 0x[20470]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: control {
+  extensions {
+    testExtension: true
+  }
+}
+testExtension {
+}
+
+15:19:47.407 [Test worker] [?[1;31mERROR?[m] [20470]0=>1 - [id: 0x[20470]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+15:19:47.407 [Test worker] [?[1;31mERROR?[m] [20467]0=>1 - [id: 0x[20467]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] WRITE: testExtension {
+}
+
+15:19:47.407 [Test worker] [?[1;31mERROR?[m] [20467]0=>1 - [id: 0x[20467]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] FLUSH
+15:19:47.407 [Test worker] [?[1;31mERROR?[m] [20468]1=>0 - [id: 0x[20468]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: testExtension {
+}
+
+15:19:47.407 [Test worker] [?[1;31mERROR?[m] [20468]1=>0 - [id: 0x[20468]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+15:19:47.409 [Test worker] [?[1;31mERROR?[m] [20471]0=>1 - [id: 0x[20471]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] REGISTERED
+15:19:47.409 [Test worker] [?[1;31mERROR?[m] [20471]0=>1 - [id: 0x[20471]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] ACTIVE
+15:19:47.409 [Test worker] [?[1;31mERROR?[m] [20472]1=>0 - [id: 0x[20472]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] REGISTERED
+15:19:47.409 [Test worker] [?[1;31mERROR?[m] [20472]1=>0 - [id: 0x[20472]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] ACTIVE
+15:19:47.409 [Test worker] [?[1;31mERROR?[m] [20473]1=>0 - [id: 0x[20473]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] REGISTERED
+15:19:47.409 [Test worker] [?[1;31mERROR?[m] [20473]1=>0 - [id: 0x[20473]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] ACTIVE
+15:19:47.409 [Test worker] [?[1;31mERROR?[m] [20473]1=>0 - [id: 0x[20473]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] WRITE: 
+15:19:47.409 [Test worker] [?[1;31mERROR?[m] [20473]1=>0 - [id: 0x[20473]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] FLUSH
+15:19:47.409 [Test worker] [?[1;31mERROR?[m] [20474]0=>1 - [id: 0x[20474]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] REGISTERED
+15:19:47.409 [Test worker] [?[1;31mERROR?[m] [20474]0=>1 - [id: 0x[20474]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] ACTIVE
+15:19:47.409 [Test worker] [?[1;31mERROR?[m] [20474]0=>1 - [id: 0x[20474]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: 
+15:19:47.409 [Test worker] [?[1;31mERROR?[m] [20474]0=>1 - [id: 0x[20474]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+15:19:47.409 [Test worker] [?[1;31mERROR?[m] [20471]0=>1 - [id: 0x[20471]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] WRITE: control {
+  extensions {
+    partialMessages: true
+    testExtension: false
+  }
+}
+
+15:19:47.409 [Test worker] [?[1;31mERROR?[m] [20471]0=>1 - [id: 0x[20471]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] FLUSH
+15:19:47.409 [Test worker] [?[1;31mERROR?[m] [20472]1=>0 - [id: 0x[20472]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: control {
+  extensions {
+    partialMessages: true
+    testExtension: false
+  }
+}
+
+15:19:47.409 [Test worker] [?[1;31mERROR?[m] [20472]1=>0 - [id: 0x[20472]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+15:19:47.409 [Test worker] [?[1;31mERROR?[m] [20473]1=>0 - [id: 0x[20473]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] WRITE: control {
+  extensions {
+    testExtension: true
+  }
+}
+
+15:19:47.409 [Test worker] [?[1;31mERROR?[m] [20473]1=>0 - [id: 0x[20473]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] FLUSH
+15:19:47.409 [Test worker] [?[1;31mERROR?[m] [20474]0=>1 - [id: 0x[20474]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: control {
+  extensions {
+    testExtension: true
+  }
+}
+
+15:19:47.409 [Test worker] [?[1;31mERROR?[m] [20474]0=>1 - [id: 0x[20474]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+15:19:47.409 [Test worker] [?[1;31mERROR?[m] [20473]1=>0 - [id: 0x[20473]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] WRITE: control {
+  extensions {
+    testExtension: true
+  }
+}
+
+15:19:47.409 [Test worker] [?[1;31mERROR?[m] [20473]1=>0 - [id: 0x[20473]1=>0, L:/255.255.255.255:777 - R:/255.255.255.255:255] FLUSH
+15:19:47.409 [Test worker] [?[1;31mERROR?[m] [20474]0=>1 - [id: 0x[20474]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ: control {
+  extensions {
+    testExtension: true
+  }
+}
+
+15:19:47.409 [Test worker] [?[1;31mERROR?[m] [20474]0=>1 - [id: 0x[20474]0=>1, L:/255.255.255.255:777 - R:/255.255.255.255:255] READ COMPLETE
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

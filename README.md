@@ -381,9 +381,10 @@ Add the library to the `dependencies` section of the pom file:
 
 To build the library you will need just 
 - JDK (Java Development Kit) of version 11 or higher on Linux
-- JDK 24 for the Windows build and tests, including its corrected process-wait behavior
+- JDK 17 for the Windows build and general tests, plus JDK 24 for the Kubo process tests
 
-The fork's CI verifies the Linux build on JDK 11 and the Windows build on JDK 24.
+The fork's CI verifies the Linux build on JDK 11 and the Windows build on JDK 17.
+Windows runs every Kubo process test on JDK 24 with its corrected process-wait behavior.
 See [FORK.md](FORK.md#build--test) for the owned Kubo test setup.
  
 For building a stable release version clone the `master` branch:  

@@ -43,8 +43,8 @@ public class QuicKuboTestJava {
     Path log = directory.resolve("daemon.log");
     Host clientHost = null;
     Process daemon = null;
-    try (WatchService changes = FileSystems.getDefault().newWatchService()) {
-      directory.register(changes, StandardWatchEventKinds.ENTRY_MODIFY);
+    DaemonOutput output = null;
+    try {
       daemon =
           new ProcessBuilder(
                   executable.toString(),
@@ -53,9 +53,9 @@ public class QuicKuboTestJava {
                   "daemon",
                   "--routing=none")
               .redirectErrorStream(true)
-              .redirectOutput(log.toFile())
               .start();
-      awaitReadiness(daemon, log);
+      output = new DaemonOutput(daemon, log);
+      output.awaitReadiness();
 
       String api = Files.readString(repository.resolve("api")).trim();
       int apiPort = Integer.parseInt(api.substring(api.lastIndexOf('/') + 1));
@@ -97,10 +97,14 @@ public class QuicKuboTestJava {
         if (clientHost != null) clientHost.stop().get(5, TimeUnit.SECONDS);
       } finally {
         if (daemon != null) {
-          daemon.destroy();
-          if (!daemon.waitFor(5, TimeUnit.SECONDS)) {
-            daemon.destroyForcibly();
-            Assertions.assertTrue(daemon.waitFor(5, TimeUnit.SECONDS), "Owned Kubo did not exit");
+          try {
+            daemon.destroy();
+            if (!daemon.waitFor(5, TimeUnit.SECONDS)) {
+              daemon.destroyForcibly();
+              Assertions.assertTrue(daemon.waitFor(5, TimeUnit.SECONDS), "Owned Kubo did not exit");
+            }
+          } finally {
+            if (output != null) output.close();
           }
           Path stoppedLog = directory.resolve("stopped-daemon.log");
           Files.move(log, stoppedLog);
@@ -110,19 +114,57 @@ public class QuicKuboTestJava {
     }
   }
 
-  private static void awaitReadiness(Process daemon, Path log) throws Exception {
-    try (WatchService changes = FileSystems.getDefault().newWatchService()) {
-      log.getParent().register(changes, StandardWatchEventKinds.ENTRY_MODIFY);
-      long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
-      while (!Files.readString(log).contains("Daemon is ready")) {
-        Assertions.assertTrue(
-            daemon.isAlive(), () -> "Kubo exited before readiness: " + readLog(log));
-        long remaining = deadline - System.nanoTime();
-        Assertions.assertTrue(remaining > 0, () -> "Kubo did not become ready: " + readLog(log));
-        WatchKey change = changes.poll(remaining, TimeUnit.NANOSECONDS);
-        Assertions.assertNotNull(change, () -> "Kubo did not become ready: " + readLog(log));
-        change.pollEvents();
-        Assertions.assertTrue(change.reset(), "Owned Kubo readiness watcher became invalid");
+  private static class DaemonOutput implements AutoCloseable {
+    private final CompletableFuture<Void> ready = new CompletableFuture<>();
+    private final ExecutorService reader = Executors.newSingleThreadExecutor(task -> {
+      Thread thread = new Thread(task, "owned-kubo-output");
+      thread.setDaemon(true);
+      return thread;
+    });
+    private final Future<?> drained;
+    private final Path log;
+    private final InputStream input;
+
+    DaemonOutput(Process daemon, Path log) {
+      this.log = log;
+      this.input = daemon.getInputStream();
+      drained = reader.submit(() -> {
+        try (BufferedReader input = new BufferedReader(new InputStreamReader(input, java.nio.charset.StandardCharsets.UTF_8));
+            BufferedWriter output = Files.newBufferedWriter(log)) {
+          String line;
+          while ((line = input.readLine()) != null) {
+            output.write(line);
+            output.newLine();
+            output.flush();
+            if (line.contains("Daemon is ready")) ready.complete(null);
+          }
+          ready.completeExceptionally(new IOException("Kubo exited before readiness: " + readLog(log)));
+        } catch (IOException failure) {
+          ready.completeExceptionally(failure);
+          throw new UncheckedIOException("Could not read owned Kubo output", failure);
+        }
+      });
+    }
+
+    void awaitReadiness() throws Exception {
+      try {
+        ready.get(5, TimeUnit.SECONDS);
+      } catch (TimeoutException failure) {
+        Assertions.fail("Kubo did not become ready: " + readLog(log), failure);
+      }
+    }
+
+    @Override
+    public void close() throws Exception {
+      try {
+        drained.get(5, TimeUnit.SECONDS);
+      } finally {
+        try {
+          input.close();
+        } finally {
+          reader.shutdownNow();
+          Assertions.assertTrue(reader.awaitTermination(5, TimeUnit.SECONDS), "Kubo output reader did not stop");
+        }
       }
     }
   }
@@ -137,6 +179,7 @@ public class QuicKuboTestJava {
         "-cp", System.getProperty("java.class.path"),
         ReadinessEmitter.class.getName(), emitted.toString())
         .redirectErrorStream(true).start();
+    DaemonOutput output = null;
     try {
       // The child exits only after the parent releases stdin, so readiness must be
       // recognized while it is alive, even though no log-file notification exists.
@@ -145,18 +188,23 @@ public class QuicKuboTestJava {
         Assertions.assertTrue(System.nanoTime() < deadline, "Readiness child did not emit output");
         Thread.yield();
       }
-      awaitReadiness(process, log);
+      output = new DaemonOutput(process, log);
+      output.awaitReadiness();
       Assertions.assertTrue(process.isAlive(), "Readiness must not require process exit");
     } finally {
-      process.getOutputStream().close();
-      if (!process.waitFor(5, TimeUnit.SECONDS)) {
-        process.destroyForcibly();
-        Assertions.assertTrue(process.waitFor(5, TimeUnit.SECONDS), "Readiness child did not exit");
+      try {
+        process.getOutputStream().close();
+        if (!process.waitFor(5, TimeUnit.SECONDS)) {
+          process.destroyForcibly();
+          Assertions.assertTrue(process.waitFor(5, TimeUnit.SECONDS), "Readiness child did not exit");
+        }
+      } finally {
+        if (output != null) output.close();
       }
     }
   }
 
-  public static class ReadinessEmitter {
+  static class ReadinessEmitter {
     public static void main(String[] args) throws Exception {
       System.out.println("Daemon is ready");
       System.out.flush();

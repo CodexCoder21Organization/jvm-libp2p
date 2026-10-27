@@ -19,7 +19,7 @@ jobs:
         env:
           NETTY_HOOK_PATCH: .github/proof/netty-hook.patch
       - name: Run focused scenarios
-        run: ./gradlew --no-daemon -I /tmp/w2-netty-overlay.init.gradle :libp2p:test :libp2p:spotlessCheck --tests 'io.libp2p.mux.yamux.YamuxPausedStreamKeepsConnectionReadingTest' --tests 'io.libp2p.mux.PausedChild*' --tests 'io.libp2p.mux.ChildReadPauseTcpTest'
+        run: ./gradlew --no-daemon -I /tmp/w2-netty-overlay.init.gradle :libp2p:test --tests 'io.libp2p.mux.yamux.YamuxPausedStreamKeepsConnectionReadingTest' --tests 'io.libp2p.mux.PausedChild*' --tests 'io.libp2p.mux.ChildReadPauseTcpTest' :libp2p:spotlessCheck
       - uses: actions/upload-artifact@v4
         if: always()
         with:

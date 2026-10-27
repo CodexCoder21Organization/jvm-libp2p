@@ -14,7 +14,7 @@ index a26e27c13..823eaea7c 100644
  
  `RpcStream.sendRequest` implementations return locally generated failures with a
 diff --git a/build.kts b/build.kts
-index 94578911b..72c4c058a 100644
+index 94578911b..ef3223ab6 100644
 --- a/build.kts
 +++ b/build.kts
 @@ -54,7 +54,9 @@ val dependencies = resolveDependencies2(
@@ -28,12 +28,23 @@ index 94578911b..72c4c058a 100644
  
      // Netty for network I/O (directly used by Libp2pHostFactory)
      MavenPrebuilt2("io.netty:netty-buffer:4.2.10.2-codexcoder21"),
+@@ -2221,7 +2223,9 @@ fun buildMaven(): File {
+         // 0.0.1438 passes request-owned Clocks into host stream acquisition, including
+         // reused parents, and preserves asynchronous Clock failure before host fallback.
+         // 0.0.1439 adds the actual listening port on service bindings.
+-        coordinates = "foundation.url:protocol:0.0.1439",
++        // 0.0.1442 carries published-parent settlement, completed-close futures,
++        // and independent inbound frame delivery on libp2p snapshot-41.
++        coordinates = "foundation.url:protocol:0.0.1442",
+         src = File("src"),
+         compileDependencies = dependencies
+     )
 diff --git a/tests/stressTestRejectedDrainConcurrentHostStops.kts b/tests/stressTestRejectedDrainConcurrentHostStops.kts
 new file mode 100644
-index 000000000..0dd7e5136
+index 000000000..783c0bd70
 --- /dev/null
 +++ b/tests/stressTestRejectedDrainConcurrentHostStops.kts
-@@ -0,0 +1,379 @@
+@@ -0,0 +1,382 @@
 +@file:WithArtifact("foundation.url.protocol.buildMaven()")
 +@file:WithArtifact("org.jetbrains.kotlin:kotlin-test:1.8.22")
 +@file:WithArtifact("community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-25")
@@ -137,7 +148,7 @@ index 000000000..0dd7e5136
 +    id: Int,
 +    nativeErr: java.io.PrintStream,
 +    sinks: java.util.concurrent.ConcurrentHashMap<Thread, java.io.PrintStream>,
-+    beforeQueueFault: () -> Unit,
++    awaitFaultPhase: () -> Unit,
 +) {
 +    val sinkEntered = CountDownLatch(1)
 +    val releaseSink = CountDownLatch(1)
@@ -264,7 +275,7 @@ index 000000000..0dd7e5136
 +            ?: fail("The server root connection has no outbound buffer")
 +        // Complete this round's eight connection setups before any caller fills a
 +        // shared worker queue. The fault and close paths still run concurrently.
-+        beforeQueueFault()
++        awaitFaultPhase()
 +        activeRoot.attr(AttributeKey.valueOf<Consumer<String>>(
 +            "foundation.url.protocol.awaitedResponseOutboxObserver",
 +        )).set(Consumer { event ->
@@ -396,6 +407,9 @@ index 000000000..0dd7e5136
 +                assertTrue(queueTasksCompleted.await(10, TimeUnit.SECONDS),
 +                    "Injected queue tasks must finish before ordinary host cleanup submits its close")
 +            }
++            // Every cycle has released its held sink and drained its injected tasks
++            // before any host cleanup submits work to the shared NIO loop.
++            awaitFaultPhase()
 +            rpc?.close()
 +        } finally {
 +            callers?.shutdownNow()
@@ -500,6 +514,109 @@ index 000000000..5d0bedec6
 +            if (previousLimit == null) System.clearProperty("io.netty.eventLoop.maxPendingTasks")
 +            else System.setProperty("io.netty.eventLoop.maxPendingTasks", previousLimit)
 +        }
++    }
++}
+diff --git a/tests/testRawProviderGossipFlushReportsAcceptedWriteFailure.kts b/tests/testRawProviderGossipFlushReportsAcceptedWriteFailure.kts
+new file mode 100644
+index 000000000..99d525aa2
+--- /dev/null
++++ b/tests/testRawProviderGossipFlushReportsAcceptedWriteFailure.kts
+@@ -0,0 +1,97 @@
++@file:WithArtifact("foundation.url.protocol.buildMaven()")
++@file:WithArtifact("org.jetbrains.kotlin:kotlin-test:1.9.22")
++package foundation.url.protocol
++
++import build.kotlin.withartifact.WithArtifact
++import foundation.url.protocol.*
++import io.libp2p.core.Stream
++import io.libp2p.transport.implementation.P2PChannelOverNetty
++import io.netty.channel.ChannelHandlerContext
++import io.netty.channel.ChannelOutboundHandlerAdapter
++import io.netty.channel.ChannelPromise
++import io.netty.util.ReferenceCountUtil
++import org.json.JSONObject
++import java.io.IOException
++import java.io.OutputStream
++import java.util.concurrent.CompletableFuture
++import java.util.concurrent.CountDownLatch
++import java.util.concurrent.Executors
++import java.util.concurrent.TimeUnit
++import java.util.concurrent.atomic.AtomicReference
++import kotlin.test.*
++
++fun testRawProviderGossipFlushReportsAcceptedWriteFailure() {
++    println("FLUSH_PROTOCOL_SOURCE=" + Libp2pHostFactory::class.java.protectionDomain.codeSource.location)
++    val server = Libp2pHostFactory.createServerHost(listOf("/ip4/127.0.0.1/tcp/0"),
++        object : RpcRequestHandler {
++            override suspend fun handleRequest(request: Libp2pRpcProtocol.RpcRequest, effectHandler: EffectPropagator) =
++                Libp2pRpcProtocol.RpcResponse.success(request.id, mapOf("ok" to true))
++        })
++    val client = Libp2pHostFactory.createHost(listenAddresses = emptyList())
++    val executor = Executors.newSingleThreadExecutor()
++    val accepted = CompletableFuture<Pair<Any, ChannelPromise>>()
++    val beforeFlush = CountDownLatch(1)
++    val releaseFlush = CountDownLatch(1)
++    val fault = IOException("The transport rejected the accepted gossip frame before flush")
++    var controller: Libp2pRpcController? = null
++    try {
++        server.start().get(10, TimeUnit.SECONDS)
++        client.start().get(10, TimeUnit.SECONDS)
++        val opened = client.newStream<Libp2pRpcController>(listOf(Libp2pRpcProtocol.PROTOCOL_ID),
++            server.peerId, *server.listenAddresses().toTypedArray())
++        val active = opened.controller.get(10, TimeUnit.SECONDS)
++        controller = active
++        val stream = opened.stream.get(10, TimeUnit.SECONDS)
++        stream.pushHandler(object : ChannelOutboundHandlerAdapter() {
++            override fun write(ctx: ChannelHandlerContext, message: Any, promise: ChannelPromise) {
++                check(accepted.complete(message to promise)) { "The codec must emit one complete frame" }
++            }
++        })
++        val channel = (stream as P2PChannelOverNetty).nettyChannel
++        channel.eventLoop().submit {}.get(10, TimeUnit.SECONDS)
++        val output = object : OutputStream() {
++            override fun write(value: Int) = active.output.write(value)
++            override fun write(bytes: ByteArray, offset: Int, length: Int) = active.output.write(bytes, offset, length)
++            override fun flush() {
++                beforeFlush.countDown()
++                check(releaseFlush.await(10, TimeUnit.SECONDS)) { "The transport failure must be released" }
++                active.output.flush()
++            }
++        }
++        val writer = executor.submit<Throwable?> {
++            runCatching { Libp2pRpcProtocol.writeMessage(output, JSONObject().put("frame", "withdrawal")) }.exceptionOrNull()
++        }
++        val (message, promise) = accepted.get(10, TimeUnit.SECONDS)
++        assertTrue(beforeFlush.await(10, TimeUnit.SECONDS), "The framed write must reach flush")
++        channel.eventLoop().submit {
++            ReferenceCountUtil.release(message)
++            promise.setFailure(fault)
++        }.get(10, TimeUnit.SECONDS)
++        releaseFlush.countDown()
++        val failure = writer.get(10, TimeUnit.SECONDS)
++        println("FLUSH_FAILURE=" + failure?.stackTraceToString())
++        assertNotNull(failure, "A framed provider write must report an accepted transport write failure at flush")
++        assertTrue(generateSequence(failure) { it.cause }.any { it === fault },
++            "The framed write must preserve the original transport failure: ${failure.stackTraceToString()}")
++    } finally {
++        releaseFlush.countDown()
++        accepted.getNow(null)?.let { (message, promise) ->
++            if (!promise.isDone) {
++                ReferenceCountUtil.release(message)
++                promise.tryFailure(IOException("The test is closing"))
++            }
++        }
++        executor.shutdownNow()
++        try {
++            controller?.close()
++        } catch (failure: IOException) {
++            // A controller may report the injected accepted-write failure again on close.
++            // Verify that exact failure so cleanup does not replace the flush assertion.
++            assertTrue(generateSequence(failure as Throwable) { it.cause }.any { it === fault },
++                "Closing the failed stream must preserve the injected transport failure: ${failure.stackTraceToString()}")
++        } finally {
++            try { client.stop().get(10, TimeUnit.SECONDS) } finally { server.stop().get(10, TimeUnit.SECONDS) }
++        }
++        assertTrue(executor.awaitTermination(10, TimeUnit.SECONDS), "The framed writer must stop")
 +    }
 +}
 diff --git a/tests/testRejectedDrainLoggingDoesNotHoldOutboxMonitor.kts b/tests/testRejectedDrainLoggingDoesNotHoldOutboxMonitor.kts

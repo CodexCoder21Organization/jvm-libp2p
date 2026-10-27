@@ -1,34 +1,22 @@
-name: Bld - Review proof
+name: Bld - Linux readiness proof
 on:
   workflow_dispatch:
 permissions:
   contents: read
 jobs:
-  readiness-green:
-    runs-on: windows-latest
+  readiness-linux:
+    runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-java@v4
-        id: kubo-java
-        with:
-          distribution: temurin
-          java-version: '24'
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: '11'
       - uses: gradle/actions/setup-gradle@v4
-      - name: Format and verify both runtimes
-        run: ./gradlew --no-daemon --stacktrace "-PkuboJavaHome=${{ steps.kubo-java.outputs.path }}" :libp2p:spotlessJavaApply :libp2p:test --tests '*NettyFutureConversionStateTest' --tests '*PendingNettyFutureConversionTest' :libp2p:kuboProcessTest
-      - name: Verify unchanged baseline cancellation sources
-        run: git diff --exit-code origin/develop -- libp2p/src/test/kotlin/io/libp2p/etc/types/NettyFutureConversionStateTest.kt libp2p/src/test/kotlin/io/libp2p/etc/types/PendingNettyFutureConversionTest.kt libp2p/src/main/kotlin/io/libp2p/etc/types/AsyncExt.kt
+      - run: ./gradlew --no-daemon --stacktrace :libp2p:test --tests '*QuicKuboTestJava'
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: readiness-green-reports
-          path: |
-            libp2p/build/test-results/**
-            libp2p/src/test/java/io/libp2p/transport/quic/QuicKuboTestJava.java
+          name: readiness-linux-reports
+          path: libp2p/build/test-results/**

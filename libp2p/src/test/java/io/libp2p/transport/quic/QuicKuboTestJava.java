@@ -124,21 +124,25 @@ public class QuicKuboTestJava {
     command.add("--repo-dir");
     command.add(repository.toString());
     command.addAll(Arrays.asList(arguments));
-    Process process = new ProcessBuilder(command).redirectErrorStream(true).start();
+    Path output = Files.createTempFile(repository.getParent(), "kubo-command-", ".log");
+    Process process =
+        new ProcessBuilder(command)
+            .redirectErrorStream(true)
+            .redirectOutput(output.toFile())
+            .start();
     try {
       Assertions.assertTrue(
-          process.waitFor(5, TimeUnit.SECONDS), "Kubo command did not exit: " + command);
-      String output =
-          new String(
-              process.getInputStream().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+          process.waitFor(5, TimeUnit.SECONDS),
+          () -> "Kubo command did not exit: " + command + "\n" + readLog(output));
       Assertions.assertEquals(
-          0, process.exitValue(), "Kubo command failed: " + command + "\n" + output);
+          0, process.exitValue(), "Kubo command failed: " + command + "\n" + readLog(output));
     } finally {
       if (process.isAlive()) {
         process.destroyForcibly();
         Assertions.assertTrue(
             process.waitFor(5, TimeUnit.SECONDS), "Kubo command did not stop: " + command);
       }
+      Files.deleteIfExists(output);
     }
   }
 

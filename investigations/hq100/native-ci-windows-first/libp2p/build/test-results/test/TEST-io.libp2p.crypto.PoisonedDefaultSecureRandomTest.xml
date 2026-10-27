@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.libp2p.crypto.PoisonedDefaultSecureRandomTest" tests="1" skipped="0" failures="1" errors="0" timestamp="2026-10-27T14:40:42.505Z" hostname="runnervmdaln5" time="0.378">
+  <properties/>
+  <testcase name="startupAndKeyGenerationPathsAvoidDefaultSecureRandom()" classname="io.libp2p.crypto.PoisonedDefaultSecureRandomTest" time="0.378">
+    <failure message="org.opentest4j.AssertionFailedError:            Poisoned-default-provider child JVM failed.&#10;           Completed within two minutes: true&#10;           Full stderr:&#10;           Exception in thread &quot;main&quot; java.lang.IllegalStateException: default new SecureRandom() was used on a startup/key-generation path; use nonBlockingSecureRandom() — see SecureRandom.kt&#10;at io.libp2p.crypto.PoisonedDefaultSecureRandomProvider$PoisonedSecureRandomSpi.engineNextBytes(PoisonedDefaultSecureRandomProvider.java:31)&#10;at java.base/java.security.SecureRandom.nextBytes(SecureRandom.java:761)&#10;at io.libp2p.crypto.keys.Curve25519Kt.generateCurve25519KeyPair(Curve25519.kt:65)&#10;at io.libp2p.crypto.PoisonedDefaultSecureRandomChildMain.main(PoisonedDefaultSecureRandomChildMain.kt:47)&#10;&#10;           Full stdout:&#10;            ==&gt; expected: &lt;0&gt; but was: &lt;1&gt;" type="org.opentest4j.AssertionFailedError">org.opentest4j.AssertionFailedError:            Poisoned-default-provider child JVM failed.
+           Completed within two minutes: true
+           Full stderr:
+           Exception in thread &quot;main&quot; java.lang.IllegalStateException: default new SecureRandom() was used on a startup/key-generation path; use nonBlockingSecureRandom() — see SecureRandom.kt
+at io.libp2p.crypto.PoisonedDefaultSecureRandomProvider$PoisonedSecureRandomSpi.engineNextBytes(PoisonedDefaultSecureRandomProvider.java:31)
+at java.base/java.security.SecureRandom.nextBytes(SecureRandom.java:761)
+at io.libp2p.crypto.keys.Curve25519Kt.generateCurve25519KeyPair(Curve25519.kt:65)
+at io.libp2p.crypto.PoisonedDefaultSecureRandomChildMain.main(PoisonedDefaultSecureRandomChildMain.kt:47)
+
+           Full stdout:
+            ==&gt; expected: &lt;0&gt; but was: &lt;1&gt;
+	at app//org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+	at app//org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+	at app//org.junit.jupiter.api.AssertEquals.failNotEqual(AssertEquals.java:197)
+	at app//org.junit.jupiter.api.AssertEquals.assertEquals(AssertEquals.java:150)
+	at app//org.junit.jupiter.api.Assertions.assertEquals(Assertions.java:563)
+	at app//io.libp2p.crypto.PoisonedDefaultSecureRandomTest.startupAndKeyGenerationPathsAvoidDefaultSecureRandom(PoisonedDefaultSecureRandomTest.kt:26)
+	at java.base@17.0.20.1/java.lang.reflect.Method.invoke(Method.java:569)
+	at java.base@17.0.20.1/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base@17.0.20.1/java.util.ArrayList.forEach(ArrayList.java:1511)
+</failure>
+  </testcase>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

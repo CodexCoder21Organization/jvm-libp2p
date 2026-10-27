@@ -89,7 +89,10 @@ class NetworkRetirementOwnershipTest {
         try {
             a.start().get(10, SECONDS)
             b.start().get(10, SECONDS)
+            val connectedBy = System.nanoTime() + SECONDS.toNanos(10)
             val parent = a.network.connect(b.peerId, *b.listenAddresses().toTypedArray()).get(10, SECONDS)
+            publication.complete(Unit)
+            registered.get(maxOf(0L, connectedBy - System.nanoTime()), java.util.concurrent.TimeUnit.NANOSECONDS)
             assertThat(b.network.connections).hasSize(1)
             val remote = b.network.connections.single()
             val first = parent.muxerSession().createStream(listOf(OwnershipRetirementBinding()))

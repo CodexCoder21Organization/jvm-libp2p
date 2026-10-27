@@ -21,12 +21,12 @@ subprocess.run(['jar','uf',str(jar),'-C',str(classes),'.'],check=True)
 pom=urllib.request.urlopen(f'https://repo.maven.apache.org/maven2/io/netty/netty-transport/{version}/netty-transport-{version}.pom').read().decode()
 pom=pom.replace('<artifactId>netty-transport</artifactId>',f'<artifactId>netty-transport</artifactId>\n  <version>{proof}</version>',1).replace('${project.version}',version)
 (dest/f'netty-transport-{proof}.pom').write_text(pom)
-Path('/tmp/w2-netty-overlay.init.gradle').write_text('''allprojects {
- repositories { maven { url = uri("REPO") } }
+Path('/tmp/w2-netty-overlay.init.gradle').write_text('''settingsEvaluated { settings ->
+ settings.dependencyResolutionManagement.repositories.maven { url = uri("REPO") }
+}
+allprojects {
  configurations.all {
-  resolutionStrategy.dependencySubstitution {
-   substitute module("io.netty:netty-transport") using module("io.netty:netty-transport:VERSION")
-  }
+  resolutionStrategy.force("io.netty:netty-transport:VERSION")
  }
 }
 '''.replace('REPO',str(repo)).replace('VERSION',proof))

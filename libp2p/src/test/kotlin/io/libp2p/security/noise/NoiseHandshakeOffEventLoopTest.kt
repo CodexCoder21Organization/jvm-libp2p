@@ -917,6 +917,8 @@ private fun runUnrelatedNoiseCallerHarness(relayPeerId: PeerId, relayAddress: Mu
     val javaExecutable = java.nio.file.Paths.get(System.getProperty("java.home"), "bin", "java").toString()
     val process = ProcessBuilder(
         javaExecutable,
+        "-Xmx128m",
+        "-Xss512k",
         "-cp",
         System.getProperty("java.class.path"),
         NoiseUnrelatedCallerHarness::class.java.name,

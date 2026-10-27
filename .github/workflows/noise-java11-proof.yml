@@ -1,0 +1,43 @@
+name: Noise Java 11 verification
+
+on:
+  push:
+    branches: [verify/w2-noise-ci11-20261027]
+
+permissions:
+  contents: read
+
+jobs:
+  noise-java11:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up JDK 17 for Android SDK preparation
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Prepare Android SDK
+        run: '"$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platform-tools" "platforms;android-30" "build-tools;30.0.3"'
+      - name: Set up JDK 11 for Gradle verification
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '11'
+      - name: Run targeted Noise and connection-close verification
+        run: >-
+          ./gradlew --no-daemon --max-workers=1
+          :libp2p:cleanTest :libp2p:test
+          --tests io.libp2p.security.noise.NoiseHandshakeOffEventLoopTest
+          --tests io.libp2p.transport.ConnectionCloseRetryTest
+          --tests io.libp2p.transport.RetryCloseInactiveReviewTest
+          --tests io.libp2p.core.RelayConnectionRetryTest
+          :libp2p:spotlessCheck :libp2p:detekt
+      - name: Upload test XML reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: noise-java11-test-xml
+          path: '**/build/test-results/**/*.xml'
+          if-no-files-found: warn

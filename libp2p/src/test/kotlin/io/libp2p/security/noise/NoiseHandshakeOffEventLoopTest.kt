@@ -1039,4 +1039,4 @@ private const val SATURATION_QUEUE_CAPACITY = 256
 
 private const val LEGACY_NOISE_TEST_HOST = "127.0.0.1"
 private const val ISOLATED_NOISE_TEST_HOST = "127.0.0.2"
-private const val NOISE_TEST_HOST = LEGACY_NOISE_TEST_HOST
+private const val NOISE_TEST_HOST = ISOLATED_NOISE_TEST_HOST

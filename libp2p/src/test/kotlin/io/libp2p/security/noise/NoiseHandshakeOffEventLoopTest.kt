@@ -652,10 +652,6 @@ object NoiseHandshakePathHarness {
             check(saturatedWorkersStarted.await(5, TimeUnit.SECONDS)) {
                 "The hermetic Noise saturation executor did not occupy all $SATURATION_EXECUTOR_THREADS workers"
             }
-            NoiseHandshakeExecutionTestHook.cryptoExecutorSelector = { role, receivedFrames ->
-                if (role == Role.RESP && receivedFrames == 1) saturatedExecutor else null
-            }
-
             ordinaryLoopbackReservation = if (NOISE_TEST_HOST == ISOLATED_NOISE_TEST_HOST) {
                 NoiseOrdinaryLoopbackReservation()
             } else {
@@ -665,6 +661,7 @@ object NoiseHandshakePathHarness {
                 listen = true,
                 listenPort = ordinaryLoopbackReservation?.port ?: 0
             ).also { hosts += it }
+            val anchor = newNoiseHost().also { hosts += it }
             val dialers = List(SATURATED_DIALERS) { newNoiseHost().also { host -> hosts += host } }
             startNoiseHosts(hosts)
             val relayAddress = relay.listenAddresses().single()
@@ -684,12 +681,17 @@ object NoiseHandshakePathHarness {
                 }
                 else -> error("Unexpected Noise saturation relay address: $relayAddress")
             }
-            runUnrelatedNoiseCallerHarness(
-                relayPeerId = relay.peerId,
-                relayAddress = Multiaddr("/ip4/127.0.0.1/tcp/$relayPort")
-            )
-            ordinaryLoopbackReservation?.awaitCallerAccepted()
+            val anchorConnection = anchor.network.connect(relay.peerId, relayAddress).get(5, TimeUnit.SECONDS)
+            check(anchor.network.connections.contains(anchorConnection) && relay.network.connections.isNotEmpty()) {
+                "The ordinary Noise anchor connection must remain active while saturation connections are admitted"
+            }
+            check(executionRecorder.failuresOfType(ReadTimeoutException::class.java).isEmpty()) {
+                "The ordinary Noise anchor connection must establish without read-timeout failures"
+            }
 
+            NoiseHandshakeExecutionTestHook.cryptoExecutorSelector = { role, receivedFrames ->
+                if (role == Role.RESP && receivedFrames == 1) saturatedExecutor else null
+            }
             val connections = dialers.map { it.network.connect(relay.peerId, relayAddress) }
             val queueDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
             while (saturatedExecutor.queue.isEmpty()) {
@@ -698,7 +700,15 @@ object NoiseHandshakePathHarness {
                 }
                 Thread.yield()
             }
+            val unrelatedNoiseCaller = CompletableFuture.supplyAsync {
+                runUnrelatedNoiseCallerHarness(
+                    relayPeerId = relay.peerId,
+                    relayAddress = Multiaddr("/ip4/127.0.0.1/tcp/$relayPort")
+                )
+            }
             Thread.sleep(TimeUnit.SECONDS.toMillis(HandshakeTimeoutSec + 1L))
+            unrelatedNoiseCaller.get(5, TimeUnit.SECONDS)
+            ordinaryLoopbackReservation?.awaitCallerAccepted()
 
             val connectionStates = connections.groupingBy { connection ->
                 when {
@@ -858,7 +868,9 @@ private fun runNoiseHandshakeHarness(
     timeoutSeconds: Long
 ): String {
     val javaExecutable = java.nio.file.Paths.get(System.getProperty("java.home"), "bin", "java").toString()
-    val command = listOf(javaExecutable) + listOf(
+    // One shared network worker makes the established Noise anchor visible to every saturation handshake.
+    val eventLoopArguments = if (mode == "saturated") listOf("-Dio.netty.eventLoopThreads=1") else emptyList()
+    val command = listOf(javaExecutable) + eventLoopArguments + listOf(
         "-cp",
         System.getProperty("java.class.path"),
         NoiseHandshakePathHarness::class.java.name,
@@ -968,6 +980,7 @@ private class NoiseOrdinaryLoopbackReservation : AutoCloseable {
             listener.accept().use { }
             accepted.complete(Unit)
         } catch (failure: Throwable) {
+            // close() interrupts accept() during early test cleanup; before cleanup this future surfaces failures.
             accepted.completeExceptionally(failure)
         }
     }, "noise-ordinary-loopback-reservation").apply {

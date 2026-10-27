@@ -98,10 +98,14 @@ public class QuicKuboTestJava {
       } finally {
         if (daemon != null) {
           try {
-            daemon.destroy();
-            if (!daemon.waitFor(5, TimeUnit.SECONDS)) {
-              daemon.destroyForcibly();
-              Assertions.assertTrue(daemon.waitFor(5, TimeUnit.SECONDS), "Owned Kubo did not exit");
+            try {
+              if (daemon.isAlive()) runKubo(executable, repository, "shutdown");
+            } finally {
+              if (!daemon.waitFor(5, TimeUnit.SECONDS)) {
+                daemon.destroyForcibly();
+                Assertions.assertTrue(
+                    daemon.waitFor(5, TimeUnit.SECONDS), "Owned Kubo did not exit");
+              }
             }
           } finally {
             if (output != null) output.close();
@@ -116,11 +120,13 @@ public class QuicKuboTestJava {
 
   private static class DaemonOutput implements AutoCloseable {
     private final CompletableFuture<Void> ready = new CompletableFuture<>();
-    private final ExecutorService reader = Executors.newSingleThreadExecutor(task -> {
-      Thread thread = new Thread(task, "owned-kubo-output");
-      thread.setDaemon(true);
-      return thread;
-    });
+    private final ExecutorService reader =
+        Executors.newSingleThreadExecutor(
+            task -> {
+              Thread thread = new Thread(task, "owned-kubo-output");
+              thread.setDaemon(true);
+              return thread;
+            });
     private final Future<?> drained;
     private final Path log;
     private final InputStream input;
@@ -128,22 +134,30 @@ public class QuicKuboTestJava {
     DaemonOutput(Process daemon, Path log) {
       this.log = log;
       this.input = daemon.getInputStream();
-      drained = reader.submit(() -> {
-        try (BufferedReader input = new BufferedReader(new InputStreamReader(this.input, java.nio.charset.StandardCharsets.UTF_8));
-            BufferedWriter output = Files.newBufferedWriter(log, StandardOpenOption.CREATE, StandardOpenOption.APPEND)) {
-          String line;
-          while ((line = input.readLine()) != null) {
-            output.write(line);
-            output.newLine();
-            output.flush();
-            if (line.contains("Daemon is ready")) ready.complete(null);
-          }
-          ready.completeExceptionally(new IOException("Kubo exited before readiness: " + readLog(log)));
-        } catch (IOException failure) {
-          ready.completeExceptionally(failure);
-          throw new UncheckedIOException("Could not read owned Kubo output", failure);
-        }
-      });
+      drained =
+          reader.submit(
+              () -> {
+                try (BufferedReader input =
+                        new BufferedReader(
+                            new InputStreamReader(
+                                this.input, java.nio.charset.StandardCharsets.UTF_8));
+                    BufferedWriter output =
+                        Files.newBufferedWriter(
+                            log, StandardOpenOption.CREATE, StandardOpenOption.APPEND)) {
+                  String line;
+                  while ((line = input.readLine()) != null) {
+                    output.write(line);
+                    output.newLine();
+                    output.flush();
+                    if (line.contains("Daemon is ready")) ready.complete(null);
+                  }
+                  ready.completeExceptionally(
+                      new IOException("Kubo exited before readiness: " + readLog(log)));
+                } catch (IOException failure) {
+                  ready.completeExceptionally(failure);
+                  throw new UncheckedIOException("Could not read owned Kubo output", failure);
+                }
+              });
     }
 
     void awaitReadiness() throws Exception {
@@ -168,7 +182,8 @@ public class QuicKuboTestJava {
           input.close();
         } finally {
           reader.shutdownNow();
-          Assertions.assertTrue(reader.awaitTermination(5, TimeUnit.SECONDS), "Kubo output reader did not stop");
+          Assertions.assertTrue(
+              reader.awaitTermination(5, TimeUnit.SECONDS), "Kubo output reader did not stop");
         }
       }
     }
@@ -180,33 +195,42 @@ public class QuicKuboTestJava {
     Path log = logs.resolve("daemon.log");
     Files.write(log, new byte["Daemon is ready\n".length()]);
     Path emitted = directory.resolve("emitted");
-    Process process = new ProcessBuilder(
-        Path.of(System.getProperty("java.home"), "bin", "java").toString(),
-        "-cp", System.getProperty("java.class.path"),
-        ReadinessEmitter.class.getName(), emitted.toString(), log.toString())
-        .redirectErrorStream(true).start();
+    Process process =
+        new ProcessBuilder(
+                Path.of(System.getProperty("java.home"), "bin", "java").toString(),
+                "-cp",
+                System.getProperty("java.class.path"),
+                ReadinessEmitter.class.getName(),
+                emitted.toString(),
+                log.toString())
+            .redirectErrorStream(true)
+            .start();
     DaemonOutput output = null;
     try {
       output = new DaemonOutput(process, log);
-      output.awaitReadiness(() -> {
-        process.getOutputStream().write(1);
-        process.getOutputStream().flush();
-        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
-        while (!Files.exists(emitted)) {
-          Assertions.assertTrue(System.nanoTime() < deadline, "Readiness child did not emit output");
-          Thread.yield();
-        }
-        Assertions.assertTrue(Files.readString(log).contains("Daemon is ready"),
-            "Mapped readiness must already be readable before waiting for its notification");
-        return null;
-      });
+      output.awaitReadiness(
+          () -> {
+            process.getOutputStream().write(1);
+            process.getOutputStream().flush();
+            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+            while (!Files.exists(emitted)) {
+              Assertions.assertTrue(
+                  System.nanoTime() < deadline, "Readiness child did not emit output");
+              Thread.yield();
+            }
+            Assertions.assertTrue(
+                Files.readString(log).contains("Daemon is ready"),
+                "Mapped readiness must already be readable before waiting for its notification");
+            return null;
+          });
       Assertions.assertTrue(process.isAlive(), "Readiness must not require process exit");
     } finally {
       try {
         process.getOutputStream().close();
         if (!process.waitFor(5, TimeUnit.SECONDS)) {
           process.destroyForcibly();
-          Assertions.assertTrue(process.waitFor(5, TimeUnit.SECONDS), "Readiness child did not exit");
+          Assertions.assertTrue(
+              process.waitFor(5, TimeUnit.SECONDS), "Readiness child did not exit");
         }
       } finally {
         if (output != null) output.close();
@@ -220,8 +244,9 @@ public class QuicKuboTestJava {
       byte[] ready = "Daemon is ready\n".getBytes(java.nio.charset.StandardCharsets.UTF_8);
       // Mapped writes make file data visible without relying on directory notifications.
       // Keep the mapping's channel open until the parent releases the child.
-      try (java.nio.channels.FileChannel log = java.nio.channels.FileChannel.open(
-          Path.of(args[1]), StandardOpenOption.READ, StandardOpenOption.WRITE)) {
+      try (java.nio.channels.FileChannel log =
+          java.nio.channels.FileChannel.open(
+              Path.of(args[1]), StandardOpenOption.READ, StandardOpenOption.WRITE)) {
         log.map(java.nio.channels.FileChannel.MapMode.READ_WRITE, 0, ready.length).put(ready);
         System.out.write(ready);
         System.out.flush();

@@ -76,10 +76,12 @@ The test retains its 1,000-ping check and stops both hosts even when an assertio
 Linux CI builds and tests on JDK 11 after preparing Android tools on JDK 17.
 Windows CI builds and runs general tests on JDK 17. It assigns all Kubo process
 tests to `kuboProcessTest` on JDK 24 using `-PkuboJavaHome=<JDK 24 directory>`.
-The `check` task includes both test tasks, so the full suite still runs. JDK 24 contains the OpenJDK process-wait correction
+The `check` task includes both test tasks, so the full suite still runs.
+JDK 24 contains the OpenJDK process-wait correction
 [JDK-8333742](https://github.com/openjdk/jdk/commit/b77bd5fd6a6f7ddbed90300fba790da4fb683275).
-That correction waits for process termination before temporary log cleanup;
-the test checks immediate file release after its process wait.
+That correction waits for process termination before temporary-file cleanup.
+The test waits for its owned process, drains its output and releases the log
+before removing temporary files.
 
 ### Cut a release
 

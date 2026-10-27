@@ -27,7 +27,6 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicBoolean
 
 private const val PAUSED_STREAM_PROTOCOL = "/test/yamux-paused-stream/1.0.0"
 
@@ -94,15 +93,9 @@ class YamuxPausedStreamKeepsConnectionReadingTest {
         responders.poll(5, TimeUnit.SECONDS)
             ?: throw AssertionError("the server did not accept the expected stream within 5 seconds")
 
-    /** Runs a no-op on [channel]'s event loop so an off-loop autoRead change has been reconciled. */
+    /** Waits until the channel has finished its current event-loop work. */
     private fun settle(channel: Channel) {
         channel.eventLoop().submit(Callable {}).get(5, TimeUnit.SECONDS)
-    }
-
-    private fun pauseAndWait(channel: Channel, afterPause: () -> Unit = {}) {
-        channel.config().isAutoRead = false
-        afterPause()
-        settle(channel)
     }
 
     private fun awaitBytes(responder: Responder, expected: Int, what: String) {
@@ -125,7 +118,12 @@ class YamuxPausedStreamKeepsConnectionReadingTest {
             val paused = nextResponder()
             val pausedChannel = paused.stream.nettyChannel
             val connection = pausedChannel.parent()
-            pauseAndWait(pausedChannel)
+            pauseAfterAutomaticRead(pausedChannel) {
+                pausedSender.writeAndFlushWithFuture(Unpooled.wrappedBuffer(byteArrayOf(0x5a))).get(5, TimeUnit.SECONDS)
+                awaitBytes(paused, 1, "Primer before the pause")
+            }
+            synchronized(paused.received) { paused.received.reset() }
+            paused.receivedBytes.set(0)
 
             // Far more than one receive window: the sender must be held back by the window alone.
             val pausedPayload = payload(4 * 1024 * 1024, 0x5a)
@@ -182,7 +180,12 @@ class YamuxPausedStreamKeepsConnectionReadingTest {
             val paused = nextResponder()
             val pausedChannel = paused.stream.nettyChannel
             val connection = pausedChannel.parent()
-            pauseAndWait(pausedChannel)
+            pauseAfterAutomaticRead(pausedChannel) {
+                sender.writeAndFlushWithFuture(Unpooled.wrappedBuffer(byteArrayOf(0x5a))).get(5, TimeUnit.SECONDS)
+                awaitBytes(paused, 1, "Primer before the pause")
+            }
+            synchronized(paused.received) { paused.received.reset() }
+            paused.receivedBytes.set(0)
 
             // The byte window alone permits many one-byte frames. The paused stream must hold them
             // without a reset and without stopping control traffic and sibling data on the parent.
@@ -221,9 +224,6 @@ class YamuxPausedStreamKeepsConnectionReadingTest {
     fun closingAPausedStreamWithQueuedDataKeepsTheConnectionReading() {
         val client = newHost(false)
         val server = newHost(true)
-        val automaticReadEntered = CountDownLatch(1)
-        val releaseAutomaticRead = CountDownLatch(1)
-        val automaticReadBlocked = AtomicBoolean()
         try {
             client.start().get(5, TimeUnit.SECONDS)
             server.start().get(5, TimeUnit.SECONDS)
@@ -232,32 +232,12 @@ class YamuxPausedStreamKeepsConnectionReadingTest {
             val paused = nextResponder()
             val pausedChannel = paused.stream.nettyChannel
             val connection = pausedChannel.parent()
-            pausedChannel.pipeline().addLast(
-                "primer-auto-read-gate",
-                object : ChannelOutboundHandlerAdapter() {
-                    override fun read(ctx: ChannelHandlerContext) {
-                        if (paused.receivedBytes.get() == 1 && pausedChannel.config().isAutoRead &&
-                            automaticReadBlocked.compareAndSet(false, true)
-                        ) {
-                            automaticReadEntered.countDown()
-                            check(releaseAutomaticRead.await(5, TimeUnit.SECONDS)) {
-                                "the primer automatic read was not released within 5 seconds"
-                            }
-                        }
-                        ctx.read()
-                    }
-                }
-            )
-            settle(pausedChannel)
-            sender.writeAndFlushWithFuture(Unpooled.wrappedBuffer(byteArrayOf(0x5a))).get(5, TimeUnit.SECONDS)
-            assertTrue(
-                automaticReadEntered.await(5, TimeUnit.SECONDS),
-                "the automatic read after the primer payload did not reach the gate"
-            )
-            pauseAndWait(pausedChannel) { releaseAutomaticRead.countDown() }
+            pauseAfterAutomaticRead(pausedChannel) {
+                sender.writeAndFlushWithFuture(Unpooled.wrappedBuffer(byteArrayOf(0x5a))).get(5, TimeUnit.SECONDS)
+                awaitBytes(paused, 1, "Primer before the pause")
+            }
             synchronized(paused.received) { paused.received.reset() }
             paused.receivedBytes.set(0)
-
             val atPressure = CountDownLatch(1)
             connection.eventLoop().submit(
                 Callable {
@@ -299,12 +279,40 @@ class YamuxPausedStreamKeepsConnectionReadingTest {
             settle(connection)
             assertTrue(connection.config().isAutoRead, "closing a paused stream must leave the connection reading")
         } finally {
-            releaseAutomaticRead.countDown()
             try {
                 client.stop().get(10, TimeUnit.SECONDS)
             } finally {
                 server.stop().get(10, TimeUnit.SECONDS)
             }
         }
+    }
+}
+
+/** Defers any automatic read until after an off-loop pause and its event-loop barrier. */
+private fun pauseAfterAutomaticRead(channel: Channel, prime: () -> Unit) {
+    val pendingReads = java.util.ArrayDeque<ChannelHandlerContext>()
+    val gate = object : ChannelOutboundHandlerAdapter() {
+        override fun read(ctx: ChannelHandlerContext) {
+            if (channel.config().isAutoRead) pendingReads.addLast(ctx) else ctx.read()
+        }
+    }
+    channel.eventLoop().submit(Callable { channel.pipeline().addLast(gate) }).get(5, TimeUnit.SECONDS)
+    try {
+        prime()
+        channel.eventLoop().submit(Callable {}).get(5, TimeUnit.SECONDS)
+        channel.config().isAutoRead = false
+        channel.eventLoop().submit(
+            Callable {
+                // A read admitted while auto-read was enabled must not create manual demand later.
+                // A virtual pipeline may avoid those redundant reads altogether, leaving this empty.
+                while (pendingReads.isNotEmpty()) pendingReads.removeFirst().read()
+            }
+        ).get(5, TimeUnit.SECONDS)
+    } finally {
+        channel.eventLoop().submit(
+            Callable {
+                if (channel.pipeline().context(gate) != null) channel.pipeline().remove(gate)
+            }
+        ).get(5, TimeUnit.SECONDS)
     }
 }

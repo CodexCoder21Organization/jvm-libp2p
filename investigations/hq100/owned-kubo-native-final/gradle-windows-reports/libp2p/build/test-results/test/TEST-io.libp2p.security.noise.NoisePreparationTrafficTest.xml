@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.libp2p.security.noise.NoisePreparationTrafficTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-10-27T15:38:01.354Z" hostname="runnervmdaln5" time="11.197">
+  <properties/>
+  <testcase name="construction failure preserves its cause and closes live plaintext fixtures()" classname="io.libp2p.security.noise.NoisePreparationTrafficTest" time="2.78"/>
+  <testcase name="close during cold preparation prevents late listener publication()" classname="io.libp2p.security.noise.NoisePreparationTrafficTest" time="2.752"/>
+  <testcase name="cold preparation from another thread leaves plaintext traffic running()" classname="io.libp2p.security.noise.NoisePreparationTrafficTest" time="2.843"/>
+  <testcase name="cold preparation requested on live event loop awaits readiness asynchronously()" classname="io.libp2p.security.noise.NoisePreparationTrafficTest" time="2.822"/>
+  <system-out><![CDATA[NOISE_PROBE_READY=1834ms
+NOISE_PROBE_BODY_COMPLETE=40ms
+NOISE_PROBE_CLEANUP_COMPLETE=25ms
+NOISE_PROBE_PHASE=READY
+java.lang.Exception: First prepared SHA-256 allocation
+	at io.libp2p.security.noise.NoisePreparationTrafficProbe$Digest.<init>(NoisePreparationTrafficProbe.java:64)
+	at io.libp2p.security.noise.NoisePreparationTrafficProbe$1$1.newInstance(NoisePreparationTrafficProbe.java:211)
+	at java.base/sun.security.jca.GetInstance.getInstance(GetInstance.java:236)
+	at java.base/sun.security.jca.GetInstance.getInstance(GetInstance.java:164)
+	at java.base/java.security.MessageDigest.getInstance(MessageDigest.java:189)
+	at com.southernstorm.noise.protocol.Noise.createHash(Noise.java:151)
+	at com.southernstorm.noise.protocol.SymmetricState.<init>(SymmetricState.java:60)
+	at com.southernstorm.noise.protocol.HandshakeState.<init>(HandshakeState.java:189)
+	at io.libp2p.security.noise.NoiseXXSecureChannelKt.allocateNoiseHandshakeState(NoiseXXSecureChannel.kt:633)
+	at io.libp2p.security.noise.NoiseXXSecureChannelKt.access$allocateNoiseHandshakeState(NoiseXXSecureChannel.kt:1)
+	at io.libp2p.security.noise.NoiseXXSecureChannelKt$preparedNoiseHandshakeAlgorithms$2.invoke(NoiseXXSecureChannel.kt:637)
+	at io.libp2p.security.noise.NoiseXXSecureChannelKt$preparedNoiseHandshakeAlgorithms$2.invoke(NoiseXXSecureChannel.kt:635)
+	at kotlin.SynchronizedLazyImpl.getValue(LazyJVM.kt:74)
+	at io.libp2p.security.noise.NoiseXXSecureChannelKt.getPreparedNoiseHandshakeAlgorithms(NoiseXXSecureChannel.kt:635)
+	at io.libp2p.security.noise.NoiseXXSecureChannelKt.prepareNoiseHandshakeAlgorithms(NoiseXXSecureChannel.kt:648)
+	at io.libp2p.core.dsl.Builder$build$14.invoke(Builders.kt:217)
+	at io.libp2p.core.dsl.Builder$build$14.invoke(Builders.kt:217)
+	at io.libp2p.transport.implementation.PlainNettyTransport$preparation$2.invoke$lambda-1(PlainNettyTransport.kt:113)
+	at java.base/java.lang.Thread.run(Thread.java:840)
+NOISE_PROBE_PHASE=BODY_COMPLETE
+NOISE_PROBE_PHASE=CLEANUP_COMPLETE
+CONSTRUCTION_FAILURE_PRESERVED_AND_ALL_FIXTURES_CLOSED=true
+NOISE_PROBE_READY=1746ms
+NOISE_PROBE_BODY_COMPLETE=38ms
+NOISE_PROBE_CLEANUP_COMPLETE=30ms
+NOISE_PROBE_PHASE=READY
+java.lang.Exception: First prepared SHA-256 allocation
+	at io.libp2p.security.noise.NoisePreparationTrafficProbe$Digest.<init>(NoisePreparationTrafficProbe.java:64)
+	at io.libp2p.security.noise.NoisePreparationTrafficProbe$1$1.newInstance(NoisePreparationTrafficProbe.java:211)
+	at java.base/sun.security.jca.GetInstance.getInstance(GetInstance.java:236)
+	at java.base/sun.security.jca.GetInstance.getInstance(GetInstance.java:164)
+	at java.base/java.security.MessageDigest.getInstance(MessageDigest.java:189)
+	at com.southernstorm.noise.protocol.Noise.createHash(Noise.java:151)
+	at com.southernstorm.noise.protocol.SymmetricState.<init>(SymmetricState.java:60)
+	at com.southernstorm.noise.protocol.HandshakeState.<init>(HandshakeState.java:189)
+	at io.libp2p.security.noise.NoiseXXSecureChannelKt.allocateNoiseHandshakeState(NoiseXXSecureChannel.kt:633)
+	at io.libp2p.security.noise.NoiseXXSecureChannelKt.access$allocateNoiseHandshakeState(NoiseXXSecureChannel.kt:1)
+	at io.libp2p.security.noise.NoiseXXSecureChannelKt$preparedNoiseHandshakeAlgorithms$2.invoke(NoiseXXSecureChannel.kt:637)
+	at io.libp2p.security.noise.NoiseXXSecureChannelKt$preparedNoiseHandshakeAlgorithms$2.invoke(NoiseXXSecureChannel.kt:635)
+	at kotlin.SynchronizedLazyImpl.getValue(LazyJVM.kt:74)
+	at io.libp2p.security.noise.NoiseXXSecureChannelKt.getPreparedNoiseHandshakeAlgorithms(NoiseXXSecureChannel.kt:635)
+	at io.libp2p.security.noise.NoiseXXSecureChannelKt.prepareNoiseHandshakeAlgorithms(NoiseXXSecureChannel.kt:648)
+	at io.libp2p.core.dsl.Builder$build$14.invoke(Builders.kt:217)
+	at io.libp2p.core.dsl.Builder$build$14.invoke(Builders.kt:217)
+	at io.libp2p.transport.implementation.PlainNettyTransport$preparation$2.invoke$lambda-1(PlainNettyTransport.kt:113)
+	at java.base/java.lang.Thread.run(Thread.java:840)
+NOISE_PROBE_PHASE=BODY_COMPLETE
+PLAINTEXT_PING_COMPLETED_WHILE_NOISE_PREPARATION_HELD=true
+NOISE_PROBE_PHASE=CLEANUP_COMPLETE
+NOISE_PROBE_READY=1871ms
+NOISE_PROBE_BODY_COMPLETE=43ms
+NOISE_PROBE_CLEANUP_COMPLETE=23ms
+NOISE_PROBE_PHASE=READY
+java.lang.Exception: First prepared SHA-256 allocation
+	at io.libp2p.security.noise.NoisePreparationTrafficProbe$Digest.<init>(NoisePreparationTrafficProbe.java:64)
+	at io.libp2p.security.noise.NoisePreparationTrafficProbe$1$1.newInstance(NoisePreparationTrafficProbe.java:211)
+	at java.base/sun.security.jca.GetInstance.getInstance(GetInstance.java:236)
+	at java.base/sun.security.jca.GetInstance.getInstance(GetInstance.java:164)
+	at java.base/java.security.MessageDigest.getInstance(MessageDigest.java:189)
+	at com.southernstorm.noise.protocol.Noise.createHash(Noise.java:151)
+	at com.southernstorm.noise.protocol.SymmetricState.<init>(SymmetricState.java:60)
+	at com.southernstorm.noise.protocol.HandshakeState.<init>(HandshakeState.java:189)
+	at io.libp2p.security.noise.NoiseXXSecureChannelKt.allocateNoiseHandshakeState(NoiseXXSecureChannel.kt:633)
+	at io.libp2p.security.noise.NoiseXXSecureChannelKt.access$allocateNoiseHandshakeState(NoiseXXSecureChannel.kt:1)
+	at io.libp2p.security.noise.NoiseXXSecureChannelKt$preparedNoiseHandshakeAlgorithms$2.invoke(NoiseXXSecureChannel.kt:637)
+	at io.libp2p.security.noise.NoiseXXSecureChannelKt$preparedNoiseHandshakeAlgorithms$2.invoke(NoiseXXSecureChannel.kt:635)
+	at kotlin.SynchronizedLazyImpl.getValue(LazyJVM.kt:74)
+	at io.libp2p.security.noise.NoiseXXSecureChannelKt.getPreparedNoiseHandshakeAlgorithms(NoiseXXSecureChannel.kt:635)
+	at io.libp2p.security.noise.NoiseXXSecureChannelKt.prepareNoiseHandshakeAlgorithms(NoiseXXSecureChannel.kt:648)
+	at io.libp2p.core.dsl.Builder$build$14.invoke(Builders.kt:217)
+	at io.libp2p.core.dsl.Builder$build$14.invoke(Builders.kt:217)
+	at io.libp2p.transport.implementation.PlainNettyTransport$preparation$2.invoke$lambda-1(PlainNettyTransport.kt:113)
+	at java.base/java.lang.Thread.run(Thread.java:840)
+NOISE_PROBE_PHASE=BODY_COMPLETE
+PLAINTEXT_PING_COMPLETED_WHILE_NOISE_PREPARATION_HELD=true
+NOISE_PROBE_PHASE=CLEANUP_COMPLETE
+NOISE_PROBE_READY=1870ms
+NOISE_PROBE_BODY_COMPLETE=48ms
+NOISE_PROBE_CLEANUP_COMPLETE=27ms
+NOISE_PROBE_PHASE=READY
+java.lang.Exception: First prepared SHA-256 allocation
+	at io.libp2p.security.noise.NoisePreparationTrafficProbe$Digest.<init>(NoisePreparationTrafficProbe.java:64)
+	at io.libp2p.security.noise.NoisePreparationTrafficProbe$1$1.newInstance(NoisePreparationTrafficProbe.java:211)
+	at java.base/sun.security.jca.GetInstance.getInstance(GetInstance.java:236)
+	at java.base/sun.security.jca.GetInstance.getInstance(GetInstance.java:164)
+	at java.base/java.security.MessageDigest.getInstance(MessageDigest.java:189)
+	at com.southernstorm.noise.protocol.Noise.createHash(Noise.java:151)
+	at com.southernstorm.noise.protocol.SymmetricState.<init>(SymmetricState.java:60)
+	at com.southernstorm.noise.protocol.HandshakeState.<init>(HandshakeState.java:189)
+	at io.libp2p.security.noise.NoiseXXSecureChannelKt.allocateNoiseHandshakeState(NoiseXXSecureChannel.kt:633)
+	at io.libp2p.security.noise.NoiseXXSecureChannelKt.access$allocateNoiseHandshakeState(NoiseXXSecureChannel.kt:1)
+	at io.libp2p.security.noise.NoiseXXSecureChannelKt$preparedNoiseHandshakeAlgorithms$2.invoke(NoiseXXSecureChannel.kt:637)
+	at io.libp2p.security.noise.NoiseXXSecureChannelKt$preparedNoiseHandshakeAlgorithms$2.invoke(NoiseXXSecureChannel.kt:635)
+	at kotlin.SynchronizedLazyImpl.getValue(LazyJVM.kt:74)
+	at io.libp2p.security.noise.NoiseXXSecureChannelKt.getPreparedNoiseHandshakeAlgorithms(NoiseXXSecureChannel.kt:635)
+	at io.libp2p.security.noise.NoiseXXSecureChannelKt.prepareNoiseHandshakeAlgorithms(NoiseXXSecureChannel.kt:648)
+	at io.libp2p.core.dsl.Builder$build$14.invoke(Builders.kt:217)
+	at io.libp2p.core.dsl.Builder$build$14.invoke(Builders.kt:217)
+	at io.libp2p.transport.implementation.PlainNettyTransport$preparation$2.invoke$lambda-1(PlainNettyTransport.kt:113)
+	at java.base/java.lang.Thread.run(Thread.java:840)
+NOISE_PROBE_PHASE=BODY_COMPLETE
+PLAINTEXT_PING_COMPLETED_WHILE_NOISE_PREPARATION_HELD=true
+NOISE_PROBE_PHASE=CLEANUP_COMPLETE
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -41,6 +41,13 @@ try:
     worker_pids = set(pid for entry in finished for pid in entry['workers'])
     print('Worker pids across all generations:', sorted(worker_pids), flush=True)
     print('Root peak used Metaspace:', max(entry['rootMetaspace'] for entry in entries), flush=True)
+    if 'pluginMode=V2Enabled' in (checkout / 'gradle.properties').read_text():
+        assert len(worker_pids) == 1, f'Javadoc generations must reuse one owned worker, observed {worker_pids}'
+        assert all(entry['rootMetaspaceMax'] == 400 * 1024 * 1024 for entry in entries), 'Gradle Metaspace budget changed'
+        worker_reports = list((checkout / 'build/dokka-budget-proof').glob('*-worker-*.txt'))
+        assert worker_reports, 'The documentation worker JVM budget was not recorded'
+        assert all('-XX:MaxMetaspaceSize=112m' in path.read_text() and '-Xmx1G' in path.read_text()
+                   for path in worker_reports), 'Documentation worker must retain its 1GiB/112MiB budget'
 except BaseException:
     result.set('failures', '1')
     failure = ET.SubElement(case, 'failure', type='AssertionError')

@@ -24,7 +24,7 @@ def record = { task, phase, state ->
     def label = task.path.replace(':', '_') + '-' + phase
     def workerPids = ProcessHandle.current().descendants().filter { process ->
         process.info().commandLine().orElse('').contains('GradleWorkerMain')
-    }.map { it.pid() }.toList()
+    }.map { it.pid() }.collect(java.util.stream.Collectors.toList())
     def meta = ManagementFactory.memoryPoolMXBeans.find { it.name == 'Metaspace' }.usage
     ledger << JsonOutput.toJson([task: task.path, phase: phase, failure: state?.failure?.toString(),
         rootPid: rootPid, rootMetaspace: meta.used, rootMetaspaceCommitted: meta.committed,

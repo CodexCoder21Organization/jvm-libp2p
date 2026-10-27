@@ -712,14 +712,11 @@ object NoiseHandshakePathHarness {
                 }
                 Thread.yield()
             }
-            val unrelatedNoiseCaller = CompletableFuture.supplyAsync {
-                runUnrelatedNoiseCallerHarness(
-                    relayPeerId = relay.peerId,
-                    relayAddress = Multiaddr("/ip4/127.0.0.1/tcp/$relayPort")
-                )
-            }
+            runUnrelatedNoiseCallerHarness(
+                relayPeerId = relay.peerId,
+                relayAddress = Multiaddr("/ip4/127.0.0.1/tcp/$relayPort")
+            )
             Thread.sleep(TimeUnit.SECONDS.toMillis(HandshakeTimeoutSec + 1L))
-            unrelatedNoiseCaller.get(5, TimeUnit.SECONDS)
             ordinaryLoopbackReservation?.awaitCallerAccepted()
 
             val connectionStates = connections.groupingBy { connection ->

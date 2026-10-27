@@ -20,6 +20,12 @@ jobs:
         run: >-
           ./gradlew :libp2p:test
           --tests 'io.libp2p.security.noise.NoiseHandshakeOffEventLoopTest.remote read timeout fails saturated handshakes while responder crypto is queued'
+      - name: Run static checks on green source
+        if: success()
+        run: |
+          if [ "$(cat proof-mode.txt)" = "green" ]; then
+            ./gradlew :libp2p:spotlessCheck :libp2p:detekt
+          fi
       - name: Verify the targeted test result
         if: always()
         run: |

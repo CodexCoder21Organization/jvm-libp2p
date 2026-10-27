@@ -33,7 +33,13 @@ public class KuboCloseProbe {
     private static boolean runAttempt(Path executable, Path template, int attempt) throws Exception {
         Path directory = Files.createTempDirectory("kubo-close-probe-" + attempt + "-");
         Path repository = Files.createDirectory(directory.resolve("node"));
-        Files.copy(template, repository.resolve("config"));
+        try (java.util.stream.Stream<Path> files = Files.walk(template.getParent())) {
+            for (Path source : files.toList()) {
+                Path target = repository.resolve(template.getParent().relativize(source));
+                if (Files.isDirectory(source)) Files.createDirectories(target);
+                else Files.copy(source, target);
+            }
+        }
         Path log = directory.resolve("daemon.log");
         Process daemon = null;
         long handle = 0;

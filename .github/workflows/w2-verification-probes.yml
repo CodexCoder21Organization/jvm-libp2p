@@ -1,12 +1,16 @@
 name: W2 verification probes
 on:
-  push:
-    branches: [verify/w2-close-and-dokka-20261027]
   workflow_dispatch:
+    inputs:
+      probe:
+        type: choice
+        options: [windows, dokka]
+        default: windows
 permissions:
   contents: read
 jobs:
   windows-process:
+    if: inputs.probe == 'windows'
     runs-on: windows-latest
     timeout-minutes: 15
     steps:
@@ -49,6 +53,7 @@ jobs:
           path: build/w2/process-results.txt
 
   dokka-retention:
+    if: inputs.probe == 'dokka'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:

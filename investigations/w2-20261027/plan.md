@@ -17,3 +17,5 @@ This branch is evidence only, never a merge candidate. The owner asked to finish
 | Documentation classloader | Dokka task | generation should release task-owned runtime state | VM.classloader_stats and JMX memory/class counts | run all real documentation tasks in one bounded build |
 
 No production action, test skip, assertion reduction, timeout/resource increase or consumer workaround is part of these probes.
+
+First Windows probe 40577066631 stopped before its target path: copying config alone omitted Kubo repository version metadata. The correction copies the real initialized repository. This is a probe setup error, not a library failure. Dokka from the same run remains in progress; later dispatch selects Windows alone so that independent probe is not repeated.

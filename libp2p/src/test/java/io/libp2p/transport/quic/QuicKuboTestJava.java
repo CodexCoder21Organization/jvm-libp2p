@@ -55,17 +55,7 @@ public class QuicKuboTestJava {
               .redirectErrorStream(true)
               .redirectOutput(log.toFile())
               .start();
-      long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
-      while (!Files.readString(log).contains("Daemon is ready")) {
-        Assertions.assertTrue(
-            daemon.isAlive(), () -> "Kubo exited before readiness: " + readLog(log));
-        long remaining = deadline - System.nanoTime();
-        Assertions.assertTrue(remaining > 0, () -> "Kubo did not become ready: " + readLog(log));
-        WatchKey change = changes.poll(remaining, TimeUnit.NANOSECONDS);
-        Assertions.assertNotNull(change, () -> "Kubo did not become ready: " + readLog(log));
-        change.pollEvents();
-        Assertions.assertTrue(change.reset(), "Owned Kubo readiness watcher became invalid");
-      }
+      awaitReadiness(daemon, log);
 
       String api = Files.readString(repository.resolve("api")).trim();
       int apiPort = Integer.parseInt(api.substring(api.lastIndexOf('/') + 1));
@@ -117,6 +107,61 @@ public class QuicKuboTestJava {
           System.out.println(readLog(stoppedLog));
         }
       }
+    }
+  }
+
+  private static void awaitReadiness(Process daemon, Path log) throws Exception {
+    try (WatchService changes = FileSystems.getDefault().newWatchService()) {
+      log.getParent().register(changes, StandardWatchEventKinds.ENTRY_MODIFY);
+      long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+      while (!Files.readString(log).contains("Daemon is ready")) {
+        Assertions.assertTrue(
+            daemon.isAlive(), () -> "Kubo exited before readiness: " + readLog(log));
+        long remaining = deadline - System.nanoTime();
+        Assertions.assertTrue(remaining > 0, () -> "Kubo did not become ready: " + readLog(log));
+        WatchKey change = changes.poll(remaining, TimeUnit.NANOSECONDS);
+        Assertions.assertNotNull(change, () -> "Kubo did not become ready: " + readLog(log));
+        change.pollEvents();
+        Assertions.assertTrue(change.reset(), "Owned Kubo readiness watcher became invalid");
+      }
+    }
+  }
+
+  @Test
+  void readinessAlreadyBufferedWithoutFileNotification(@TempDir Path directory) throws Exception {
+    Path log = directory.resolve("daemon.log");
+    Files.createFile(log);
+    Path emitted = directory.resolve("emitted");
+    Process process = new ProcessBuilder(
+        Path.of(System.getProperty("java.home"), "bin", "java").toString(),
+        "-cp", System.getProperty("java.class.path"),
+        ReadinessEmitter.class.getName(), emitted.toString())
+        .redirectErrorStream(true).start();
+    try {
+      // The child exits only after the parent releases stdin, so readiness must be
+      // recognized while it is alive, even though no log-file notification exists.
+      long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+      while (!Files.exists(emitted)) {
+        Assertions.assertTrue(System.nanoTime() < deadline, "Readiness child did not emit output");
+        Thread.yield();
+      }
+      awaitReadiness(process, log);
+      Assertions.assertTrue(process.isAlive(), "Readiness must not require process exit");
+    } finally {
+      process.getOutputStream().close();
+      if (!process.waitFor(5, TimeUnit.SECONDS)) {
+        process.destroyForcibly();
+        Assertions.assertTrue(process.waitFor(5, TimeUnit.SECONDS), "Readiness child did not exit");
+      }
+    }
+  }
+
+  public static class ReadinessEmitter {
+    public static void main(String[] args) throws Exception {
+      System.out.println("Daemon is ready");
+      System.out.flush();
+      Files.createFile(Path.of(args[0]));
+      System.in.read();
     }
   }
 

@@ -1,0 +1,26 @@
+name: W2 Yamux paused-read proof
+on:
+  push:
+    branches:
+      - 'proof/w2-yamux232805-*'
+jobs:
+  targeted:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-java@v3
+        with:
+          distribution: temurin
+          java-version: 11
+      - uses: gradle/gradle-build-action@v2
+      - name: Run focused scenarios
+        run: ./gradlew --no-daemon :libp2p:test --tests 'io.libp2p.mux.yamux.YamuxPausedStreamKeepsConnectionReadingTest'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: yamux-proof-${{ github.sha }}
+          path: |
+            libp2p/build/test-results/test/TEST-*.xml
+            libp2p/build/reports/tests/test/
+          if-no-files-found: error

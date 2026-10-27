@@ -111,7 +111,9 @@ public class QuicKuboTestJava {
             daemon.destroyForcibly();
             Assertions.assertTrue(daemon.waitFor(5, TimeUnit.SECONDS), "Owned Kubo did not exit");
           }
-          System.out.println(readLog(log));
+          Path stoppedLog = directory.resolve("stopped-daemon.log");
+          Files.move(log, stoppedLog);
+          System.out.println(readLog(stoppedLog));
         }
       }
     }

@@ -25,6 +25,16 @@ def record = { task, phase ->
 }
 gradle.taskGraph.beforeTask { task ->
     if (task.name.startsWith('dokka') && task.name != 'dokkaJar') record(task, 'before')
+    if (task.path == ':tools:schedulers:dokkaJavadoc') {
+        def dump = new File(gradle.startParameter.currentDir, 'build/w2-dokka-before-schedulers.hprof')
+        def capture = new ProcessBuilder(new File(System.getProperty('java.home'), 'bin/jcmd').path, pid,
+            'GC.heap_dump', '-all', dump.absolutePath).inheritIO().start()
+        if (!capture.waitFor(60, java.util.concurrent.TimeUnit.SECONDS)) {
+            capture.destroyForcibly()
+            throw new GradleException('Heap diagnostic did not finish')
+        }
+        if (capture.exitValue() != 0) throw new GradleException('Heap diagnostic failed')
+    }
 }
 gradle.taskGraph.afterTask { task, state ->
     if (task.name.startsWith('dokka') && task.name != 'dokkaJar') record(task, 'after')

@@ -4,7 +4,7 @@ on:
     inputs:
       probe:
         type: choice
-        options: [windows, dokka, dokka-compiled]
+        options: [windows, dokka, dokka-compiled, dokka-build]
         default: windows
       jdk:
         type: choice
@@ -84,8 +84,11 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+      - name: Prepare Android build prerequisites
+        if: inputs.probe == 'dokka-build'
+        run: '"$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platform-tools" "platforms;android-30" "build-tools;30.0.3"'
       - name: Record real documentation classloaders with original limits
-        run: ./gradlew --no-daemon --max-workers=1 --stacktrace --continue -I investigations/w2-20261027/dokka-profile.gradle '-Dorg.gradle.jvmargs=-Xmx3G -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=build/w2-dokka.hprof' ${{ inputs.probe == 'dokka-compiled' && ':libp2p:classes :libp2p:testClasses' || '' }} dokkaJar > w2-dokka-build.log 2>&1
+        run: ./gradlew --no-daemon --stacktrace --continue -I investigations/w2-20261027/dokka-profile.gradle '-Dorg.gradle.jvmargs=-Xmx3G -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=build/w2-dokka.hprof' ${{ inputs.probe == 'dokka-build' && 'assemble spotlessCheck detekt' || inputs.probe == 'dokka-compiled' && ':libp2p:classes :libp2p:testClasses' || '' }} dokkaJar > w2-dokka-build.log 2>&1
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -94,3 +97,4 @@ jobs:
             w2-dokka-build.log
             build/w2-dokka-profiles/**
             build/w2-dokka.hprof
+            build/w2-dokka-before-schedulers.hprof

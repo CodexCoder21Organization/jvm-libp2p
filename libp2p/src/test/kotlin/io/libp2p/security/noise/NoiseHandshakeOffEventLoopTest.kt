@@ -684,11 +684,13 @@ object NoiseHandshakePathHarness {
                 }
                 else -> error("Unexpected Noise saturation relay address: $relayAddress")
             }
-            relay.addConnectionHandler(ConnectionHandler.create { connection ->
-                if (connection.secureSession().remoteId == anchor.peerId) {
-                    publishedAnchor.complete(connection)
+            relay.addConnectionHandler(
+                ConnectionHandler.create { connection ->
+                    if (connection.secureSession().remoteId == anchor.peerId) {
+                        publishedAnchor.complete(connection)
+                    }
                 }
-            })
+            )
             val anchorConnection = anchor.network.connect(relay.peerId, relayAddress).get(5, TimeUnit.SECONDS)
             val relayAnchorConnection = publishedAnchor.get(5, TimeUnit.SECONDS)
             check(
@@ -712,14 +714,11 @@ object NoiseHandshakePathHarness {
                 }
                 Thread.yield()
             }
-            val unrelatedNoiseCaller = CompletableFuture.supplyAsync {
-                runUnrelatedNoiseCallerHarness(
-                    relayPeerId = relay.peerId,
-                    relayAddress = Multiaddr("/ip4/127.0.0.1/tcp/$relayPort")
-                )
-            }
+            runUnrelatedNoiseCallerHarness(
+                relayPeerId = relay.peerId,
+                relayAddress = Multiaddr("/ip4/127.0.0.1/tcp/$relayPort")
+            )
             Thread.sleep(TimeUnit.SECONDS.toMillis(HandshakeTimeoutSec + 1L))
-            unrelatedNoiseCaller.get(5, TimeUnit.SECONDS)
             ordinaryLoopbackReservation?.awaitCallerAccepted()
 
             val connectionStates = connections.groupingBy { connection ->

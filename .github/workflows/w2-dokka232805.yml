@@ -3,11 +3,16 @@ on:
   push:
     branches: [proof/w2-dokka232805]
   workflow_dispatch:
+    inputs:
+      baseline:
+        type: boolean
+        default: false
 permissions:
   contents: read
   actions: read
 jobs:
   baseline:
+    if: inputs.baseline == true
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -55,8 +60,9 @@ jobs:
           HEAP=$(find evidence -name w2-dokka-before-schedulers.hprof -type f -print -quit)
           test -n "$HEAP"
           HEAP=$(realpath "$HEAP")
-          for query in 'histogram -groupBy BY_CLASSLOADER' 'merge_shortest_paths java.net.URLClassLoader -include_subclasses -groupBy FROM_OBJECTS_BY_CLASS' 'thread_overview'; do
-            label=$(echo "$query" | cut -d' ' -f1)
+          for address in 0x753cb7208 0x754da8b78 0x754db6f30 0x75450afb8 0x7543b27c8 0x7545093a8 0x74eac0c88 0x754f0ba48; do
+            query="path2gc $address -numberOfPaths 10"
+            label="$address"
             tools/mat/ParseHeapDump.sh "$HEAP" "-command=$query" -format=txt -unzip org.eclipse.mat.api:query > "analysis/$label.log" 2>&1
             mv "${HEAP%.hprof}_Query" "analysis/$label"
           done

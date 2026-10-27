@@ -1,0 +1,3 @@
+Resume evidence for hosted qualification of https://github.com/CodexCoder21Organization/UrlProtocol/pull/954 at cc33cf0df81e5980d9cc80234a393192ecef392e. No source patch, generated build output or dependency cache is included. Earlier evidence and source live in investigation/hq032, investigation/hq054 and investigation/hq064 on the preceding evidence branches.
+
+Existing build-watchman PID449491 was explicitly assigned for adoption by the supervisor. Log: /home/u/lanes/hd27/out/hq064-watchman.log. Test Actions run: https://github.com/CodexCoder21Organization/UrlProtocol/actions/runs/40472543377 . Read all four test-attempt-history artifacts, preserving first failures even if built-in retries pass. No check re-request, merge or queue action is authorized.

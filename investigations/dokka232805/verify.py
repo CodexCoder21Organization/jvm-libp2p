@@ -11,13 +11,15 @@ checkout = Path(sys.argv[1]).resolve()
 init_script = Path(sys.argv[2]).resolve()
 proof = Path(sys.argv[3]).resolve()
 proof.mkdir(parents=True, exist_ok=True)
+html_mode = len(sys.argv) > 4 and sys.argv[4] == 'html'
 started = time.monotonic()
 result = ET.Element('testsuite', name='DocumentationBuildBudgetTest', tests='1', failures='0')
 case = ET.SubElement(result, 'testcase', classname='DocumentationBuildBudgetTest',
-                     name='allJavadocArchivesBuildWithinTheOriginalBudget')
+                     name=('allHtmlModulesBuildWithinTheOriginalBudget' if html_mode else 'allJavadocArchivesBuildWithinTheOriginalBudget'))
 try:
     command = ['./gradlew', '--no-daemon', '--stacktrace', '--continue', '--parallel',
-               '-I', str(init_script), 'assemble', 'spotlessCheck', 'detekt', 'testClasses', 'dokkaJar']
+               '-I', str(init_script)]
+    command += ['dokkaHtml'] if html_mode else ['assemble', 'spotlessCheck', 'detekt', 'testClasses', 'dokkaJar']
     with (proof / 'gradle.log').open('w') as output:
         build = subprocess.run(command, cwd=checkout, stdout=output, stderr=subprocess.STDOUT, timeout=1200)
     print('Gradle exit:', build.returncode, flush=True)
@@ -30,14 +32,19 @@ try:
     assert not failures, 'Documentation generation must succeed under the original build budget: ' + repr(failures)
     modules = ['libp2p', 'interop-test-client', 'tools/schedulers', 'tools/simulator',
                'examples/chatter', 'examples/cli-chatter', 'examples/pinger']
-    archives = []
+    outputs = []
     for module in modules:
-        jars = list((checkout / module / 'build/libs').glob('*-javadoc.jar'))
-        assert len(jars) == 1, f'{module}: expected one Javadoc archive, found {jars}'
-        with zipfile.ZipFile(jars[0]) as archive:
-            assert 'index.html' in archive.namelist(), f'{module}: Javadoc archive has no index.html'
-        archives.append(str(jars[0].relative_to(checkout)))
-    print('Documentation archive assertions passed:', archives, flush=True)
+        if html_mode:
+            index = checkout / module / 'build/dokka/index.html'
+            assert index.exists(), f'{module}: HTML documentation has no index.html'
+            outputs.append(str(index.relative_to(checkout)))
+        else:
+            jars = list((checkout / module / 'build/libs').glob('*-javadoc.jar'))
+            assert len(jars) == 1, f'{module}: expected one Javadoc archive, found {jars}'
+            with zipfile.ZipFile(jars[0]) as archive:
+                assert 'index.html' in archive.namelist(), f'{module}: Javadoc archive has no index.html'
+            outputs.append(str(jars[0].relative_to(checkout)))
+    print('Documentation output assertions passed:', outputs, flush=True)
     worker_pids = set(pid for entry in finished for pid in entry['workers'])
     print('Worker pids across all generations:', sorted(worker_pids), flush=True)
     print('Root peak used Metaspace:', max(entry['rootMetaspace'] for entry in entries), flush=True)

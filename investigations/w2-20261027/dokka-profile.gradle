@@ -1,0 +1,24 @@
+import java.lang.management.ManagementFactory
+
+def profiles = new File(gradle.startParameter.currentDir, 'build/w2-dokka-profiles')
+profiles.mkdirs()
+def pid = ManagementFactory.runtimeMXBean.name.split('@')[0]
+def record = { task, phase ->
+    def report = new File(profiles, task.path.replace(':', '_') + '-' + phase + '.txt')
+    report << "task=${task.path} phase=${phase} classes=${ManagementFactory.classLoadingMXBean.loadedClassCount}\n"
+    ManagementFactory.memoryPoolMXBeans.each { pool -> report << "${pool.name}: ${pool.usage}\n" }
+    def result = new ProcessBuilder(new File(System.getProperty('java.home'), 'bin/jcmd').path, pid, 'VM.classloader_stats')
+        .redirectErrorStream(true).redirectOutput(ProcessBuilder.Redirect.appendTo(report)).start()
+    if (!result.waitFor(30, java.util.concurrent.TimeUnit.SECONDS)) {
+        result.destroyForcibly()
+        throw new GradleException('Classloader diagnostic did not finish for ' + task.path)
+    }
+    if (result.exitValue() != 0) throw new GradleException('Classloader diagnostic failed: ' + report.text)
+    println report.text
+}
+gradle.taskGraph.beforeTask { task ->
+    if (task.name.startsWith('dokka') && task.name != 'dokkaJar') record(task, 'before')
+}
+gradle.taskGraph.afterTask { task, state ->
+    if (task.name.startsWith('dokka') && task.name != 'dokkaJar') record(task, 'after')
+}

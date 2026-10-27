@@ -1,0 +1,67 @@
+name: W2 verification probes
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows-process:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Prepare real Kubo and native process signal probe
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force build/w2 | Out-Null
+          Invoke-WebRequest https://github.com/ipfs/kubo/releases/download/v0.34.1/kubo_v0.34.1_windows-amd64.zip -OutFile build/w2/kubo.zip
+          $actual = (Get-FileHash build/w2/kubo.zip -Algorithm SHA512).Hash.ToLower()
+          if ($actual -ne 'b139c4bacee6bf7b0221dbee5c5dfe4bf5b2ac0d5c7daa1521b338a9b170276654392fde97feb49230f03dd157c8a72d617b1ee0ff7b2e7f58664cc6d17246f2') { throw "Kubo archive mismatch: $actual" }
+          Expand-Archive build/w2/kubo.zip build/w2
+          & build/w2/kubo/ipfs.exe --repo-dir build/w2/template init --profile=test
+          if ($LASTEXITCODE) { throw 'Kubo init failed' }
+          $config = Get-Content build/w2/template/config -Raw | ConvertFrom-Json
+          $config.Addresses.API = '/ip4/127.0.0.1/tcp/0'
+          $config.Addresses.Gateway = '/ip4/127.0.0.1/tcp/0'
+          $config.Addresses.Swarm = @('/ip4/127.0.0.1/udp/0/quic-v1')
+          $config.Bootstrap = @()
+          $config.Discovery.MDNS.Enabled = $false
+          $config.Swarm.DisableNatPortMap = $true
+          $config | ConvertTo-Json -Depth 100 | Set-Content build/w2/template/config -Encoding utf8NoBOM
+          $vs = & "${env:ProgramFiles(x86)}/Microsoft Visual Studio/Installer/vswhere.exe" -latest -property installationPath
+          $compile = '"' + $vs + '\Common7\Tools\VsDevCmd.bat" -arch=x64 && cl /nologo /LD /I"%JAVA_HOME%\include" /I"%JAVA_HOME%\include\win32" /Febuild\w2\process_probe.dll investigations\w2-20261027\process_probe.c'
+          cmd /d /s /c $compile
+          if ($LASTEXITCODE) { throw 'Native process probe did not compile' }
+      - name: Run first-attempt Java process close proofs
+        shell: pwsh
+        run: |
+          java investigations/w2-20261027/KuboCloseProbe.java build/w2/kubo/ipfs.exe build/w2/template/config build/w2/process_probe.dll 2>&1 | Tee-Object build/w2/process-results.txt
+          exit $LASTEXITCODE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: w2-windows-process-evidence
+          path: build/w2/process-results.txt
+
+  dokka-retention:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Record real documentation classloaders with original limits
+        run: ./gradlew --no-daemon --max-workers=1 --stacktrace --continue -I investigations/w2-20261027/dokka-profile.gradle '-Dorg.gradle.jvmargs=-Xmx3G -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=build/w2-dokka.hprof' dokkaJar > w2-dokka-build.log 2>&1
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: w2-dokka-retention-evidence
+          path: |
+            w2-dokka-build.log
+            build/w2-dokka-profiles/**
+            build/w2-dokka.hprof

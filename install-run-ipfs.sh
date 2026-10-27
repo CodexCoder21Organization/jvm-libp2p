@@ -12,7 +12,8 @@ printf '%s  %s\n' \
   "$archive" | sha256sum --check
 
 tar -xzf "$archive" -C "$ci_root"
-export IPFS_PATH="$ci_root/repo"
+export IPFS_PATH
+IPFS_PATH=$(mktemp -d "$ci_root/repo.XXXXXX")
 ipfs="$ci_root/kubo/ipfs"
 "$ipfs" init --profile=test
 "$ipfs" config Addresses.API /ip4/127.0.0.1/tcp/5001

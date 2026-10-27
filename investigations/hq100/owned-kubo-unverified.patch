@@ -1,0 +1,303 @@
+diff --git a/FORK.md b/FORK.md
+index ca0d2317..08b05495 100644
+--- a/FORK.md
++++ b/FORK.md
+@@ -63,6 +63,11 @@ This is a standard Gradle project (JDK 11+). It is **built with Gradle** and the
+ 
+ > **Note:** the fork's GitHub Actions workflows (`build.yml` / `publish.yml`) are currently failing at startup (an org-side Actions configuration issue), so there is **no green CI check and no CI auto-publish**. Until that is fixed, builds are verified locally with the commands above and releases are published manually as described below. A couple of suites that need native libraries absent from the CI/dev image (`io.libp2p.transport.quic.*`, `io.libp2p.security.tls.*`) fail with `SSLException: failed to create an SSL_CTX`, and some host tests intermittently fail with `BindException` under parallel execution — these are environmental, not regressions.
+ 
++The QUIC integration test starts its own Kubo node on loopback with OS-assigned
++ports, an empty bootstrap list and a temporary repository. Gradle downloads and
++verifies the pinned Kubo binary before tests; no existing IPFS daemon is required.
++The test retains its 1,000-ping check and stops both hosts even when an assertion fails.
++
+ ### Cut a release
+ 
+ 1. **Pick the next version.** Releases are `1.3.0-codexcoder21-snapshot-N`. **Increment `N` to the next unpublished value and confirm it is not already published** — the publish API refuses to overwrite an existing version (`HTTP 409`), and version numbers have in the past been claimed by parallel branches. Check with:
+diff --git a/libp2p/build.gradle.kts b/libp2p/build.gradle.kts
+index d9037e61..a707ff92 100644
+--- a/libp2p/build.gradle.kts
++++ b/libp2p/build.gradle.kts
+@@ -1,3 +1,7 @@
++import java.net.URL
++import java.security.DigestInputStream
++import java.security.MessageDigest
++
+ plugins {
+     id("com.google.protobuf").version("0.9.4")
+     id("me.champeau.jmh").version("0.7.3")
+@@ -38,6 +42,7 @@ dependencies {
+     implementation("org.bouncycastle:bcpkix-jdk18on")
+ 
+     testImplementation(project(":tools:schedulers"))
++    testImplementation("org.json:json:20250517")
+ 
+     testFixturesApi("org.apache.logging.log4j:log4j-core")
+     testFixturesImplementation(project(":tools:schedulers"))
+@@ -61,3 +66,68 @@ protobuf {
+         }
+     }
+ }
++
++val kuboVersion = "0.34.1"
++val kuboOs = System.getProperty("os.name").lowercase().let {
++    when {
++        it.contains("linux") -> "linux"
++        it.contains("windows") -> "windows"
++        it.contains("mac") -> "darwin"
++        else -> error("Kubo test binary is not configured for operating system '$it'")
++    }
++}
++val kuboArch = System.getProperty("os.arch").lowercase().let {
++    when (it) {
++        "amd64", "x86_64" -> "amd64"
++        "aarch64", "arm64" -> "arm64"
++        else -> error("Kubo test binary is not configured for architecture '$it'")
++    }
++}
++val kuboPlatform = "$kuboOs-$kuboArch"
++val kuboChecksums = mapOf(
++    "linux-amd64" to "4e4b13c600d5a9422f2d0a03e674b65e14defa65dfc6048facdea3a195f967ece0573b8a2292800d902d69fd6ef5aad825b95d8147cbf902f55b60ee0b4c419e",
++    "linux-arm64" to "04dd6e9caaf6f287d19a0c11d90f907e578022b4369209830ec00ccb315d865469779013a856bcb72be54a83d2215100ae76dd9181a40cfa920233d1de93c94b",
++    "darwin-amd64" to "435b23904eca342730d86cf9207bd29bdee2fabfcf62f24b2a3a1fab771618bc82bd9f4ce3f89f370e93c7c20fc68e551583130ea9b0a58d6aeb776e70f4f3b0",
++    "darwin-arm64" to "5abbe269cd1f61dce4bd22d1cfd87be64009de0d80a235303011eb70ef889b043439cef2a8c6487383b724cd44dfb16a1be609c0ca7430c9c7249521b5a98ea3",
++    "windows-amd64" to "b139c4bacee6bf7b0221dbee5c5dfe4bf5b2ac0d5c7daa1521b338a9b170276654392fde97feb49230f03dd157c8a72d617b1ee0ff7b2e7f58664cc6d17246f2"
++)
++val kuboChecksum = kuboChecksums[kuboPlatform]
++    ?: error("Kubo test binary is not configured for platform '$kuboPlatform'")
++val kuboTools = layout.buildDirectory.dir("test-tools/kubo-$kuboVersion-$kuboPlatform")
++val kuboExecutable = kuboTools.map { it.file("kubo/" + if (kuboOs == "windows") "ipfs.exe" else "ipfs") }
++val prepareKubo by tasks.registering {
++    inputs.property("version", kuboVersion)
++    inputs.property("platform", kuboPlatform)
++    inputs.property("sha512", kuboChecksum)
++    outputs.file(kuboExecutable)
++    doLast {
++        val directory = kuboTools.get().asFile.apply { mkdirs() }
++        val extension = if (kuboOs == "windows") "zip" else "tar.gz"
++        val archive = directory.resolve("kubo.$extension")
++        val url = URL("https://github.com/ipfs/kubo/releases/download/v$kuboVersion/kubo_v${kuboVersion}_$kuboPlatform.$extension")
++        val digest = MessageDigest.getInstance("SHA-512")
++        val connection = url.openConnection().apply {
++            connectTimeout = 30_000
++            readTimeout = 30_000
++        }
++        DigestInputStream(connection.getInputStream(), digest).use { input ->
++            archive.outputStream().use { output -> input.copyTo(output) }
++        }
++        val actual = digest.digest().joinToString("") { "%02x".format(it) }
++        check(actual == kuboChecksum) {
++            "Kubo archive $url has SHA-512 $actual; expected $kuboChecksum"
++        }
++        copy {
++            from(if (kuboOs == "windows") zipTree(archive) else tarTree(resources.gzip(archive)))
++            into(directory)
++        }
++        check(kuboExecutable.get().asFile.setExecutable(true) || kuboOs == "windows") {
++            "Could not make Kubo test binary executable: ${kuboExecutable.get().asFile}"
++        }
++    }
++}
++
++tasks.named<Test>("test") {
++    dependsOn(prepareKubo)
++    systemProperty("libp2p.test.kubo.executable", kuboExecutable.get().asFile.absolutePath)
++}
+diff --git a/libp2p/src/test/java/io/libp2p/transport/quic/QuicKuboTestJava.java b/libp2p/src/test/java/io/libp2p/transport/quic/QuicKuboTestJava.java
+index c597eb8b..ef464884 100644
+--- a/libp2p/src/test/java/io/libp2p/transport/quic/QuicKuboTestJava.java
++++ b/libp2p/src/test/java/io/libp2p/transport/quic/QuicKuboTestJava.java
+@@ -10,69 +10,147 @@ import io.libp2p.core.multiformats.*;
+ import io.libp2p.protocol.*;
+ import java.io.*;
+ import java.net.*;
++import java.nio.file.*;
++import java.util.*;
+ import java.util.concurrent.*;
+ import kotlin.*;
++import org.json.*;
+ import org.junit.jupiter.api.*;
++import org.junit.jupiter.api.io.TempDir;
+ 
+ public class QuicKuboTestJava {
+   @Test
+-  void pingKubo() throws Exception {
+-    if (System.getProperty("os.name").toLowerCase().startsWith("windows")) return;
+-    PeerId peerId = PeerId.fromBase58(getKuboPeerId());
++  void pingKubo(@TempDir Path directory) throws Exception {
++    Path executable = Path.of(System.getProperty("libp2p.test.kubo.executable"));
++    Path repository = directory.resolve("node");
++    runKubo(executable, repository, "init", "--profile=test");
++    runKubo(executable, repository, "config", "Addresses.API", "/ip4/127.0.0.1/tcp/0");
++    runKubo(
++        executable,
++        repository,
++        "config",
++        "--json",
++        "Addresses.Swarm",
++        "[\"/ip4/127.0.0.1/udp/0/quic-v1\"]");
++    runKubo(executable, repository, "config", "--json", "Bootstrap", "[]");
++    runKubo(executable, repository, "config", "--json", "Discovery.MDNS.Enabled", "false");
++    runKubo(executable, repository, "config", "--json", "Swarm.DisableNatPortMap", "true");
+ 
+-    Host clientHost =
+-        new HostBuilder().keyType(KeyType.ED25519).secureTransport(QuicTransport::ECDSA).build();
++    Path log = directory.resolve("daemon.log");
++    Host clientHost = null;
++    Process daemon = null;
++    try (WatchService changes = FileSystems.getDefault().newWatchService()) {
++      directory.register(changes, StandardWatchEventKinds.ENTRY_MODIFY);
++      daemon =
++          new ProcessBuilder(
++                  executable.toString(), "--repo-dir", repository.toString(), "daemon", "--routing=none")
++              .redirectErrorStream(true)
++              .redirectOutput(log.toFile())
++              .start();
++      long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
++      while (!Files.readString(log).contains("Daemon is ready")) {
++        Assertions.assertTrue(daemon.isAlive(), () -> "Kubo exited before readiness: " + readLog(log));
++        long remaining = deadline - System.nanoTime();
++        Assertions.assertTrue(remaining > 0, () -> "Kubo did not become ready: " + readLog(log));
++        WatchKey change = changes.poll(remaining, TimeUnit.NANOSECONDS);
++        Assertions.assertNotNull(change, () -> "Kubo did not become ready: " + readLog(log));
++        change.reset();
++      }
+ 
+-    CompletableFuture<Void> clientStarted = clientHost.start();
+-    clientStarted.get(5, TimeUnit.SECONDS);
+-    System.out.println("Client started");
++      String api = Files.readString(repository.resolve("api")).trim();
++      int apiPort = Integer.parseInt(api.substring(api.lastIndexOf('/') + 1));
++      JSONObject identity = getKuboIdentity(apiPort);
++      PeerId peerId = PeerId.fromBase58(identity.getString("ID"));
++      JSONArray addresses = identity.getJSONArray("Addresses");
++      String quicAddress = null;
++      for (int index = 0; index < addresses.length(); index++) {
++        String address = addresses.getString(index);
++        if (address.startsWith("/ip4/127.0.0.1/udp/") && address.contains("/quic-v1")) {
++          quicAddress = address;
++          break;
++        }
++      }
++      Assertions.assertNotNull(quicAddress, "Owned Kubo did not advertise its loopback QUIC address: " + identity);
+ 
+-    Assertions.assertEquals(0, clientHost.listenAddresses().size());
+-
+-    StreamPromise<PingController> ping =
+-        clientHost
+-            .getNetwork()
+-            .connect(peerId, new Multiaddr("/ip4/127.0.0.1/udp/4001/quic-v1"))
+-            .thenApply(it -> it.muxerSession().createStream(new Ping()))
+-            .get(5, TimeUnit.SECONDS);
+-
+-    Stream pingStream = ping.getStream().get(5, TimeUnit.SECONDS);
+-    System.out.println("Ping stream created");
+-    PingController pingCtr = ping.getController().get(5, TimeUnit.SECONDS);
+-    System.out.println("Ping controller created");
+-
+-    for (int i = 0; i < 1000; i++) {
+-      long latency = pingCtr.ping().get(1, TimeUnit.SECONDS);
+-      System.out.println("Ping is " + latency);
++      clientHost =
++          new HostBuilder().keyType(KeyType.ED25519).secureTransport(QuicTransport::ECDSA).build();
++      clientHost.start().get(5, TimeUnit.SECONDS);
++      Assertions.assertEquals(0, clientHost.listenAddresses().size());
++      StreamPromise<PingController> ping =
++          clientHost
++              .getNetwork()
++              .connect(peerId, new Multiaddr(quicAddress))
++              .thenApply(it -> it.muxerSession().createStream(new Ping()))
++              .get(5, TimeUnit.SECONDS);
++      Stream pingStream = ping.getStream().get(5, TimeUnit.SECONDS);
++      PingController pingCtr = ping.getController().get(5, TimeUnit.SECONDS);
++      for (int i = 0; i < 1000; i++) {
++        long latency = pingCtr.ping().get(1, TimeUnit.SECONDS);
++        System.out.println("Ping is " + latency);
++      }
++      pingStream.close().get(5, TimeUnit.SECONDS);
++      Assertions.assertThrows(
++          ExecutionException.class, () -> pingCtr.ping().get(5, TimeUnit.SECONDS));
++    } finally {
++      try {
++        if (clientHost != null) clientHost.stop().get(5, TimeUnit.SECONDS);
++      } finally {
++        if (daemon != null) {
++          daemon.destroy();
++          if (!daemon.waitFor(5, TimeUnit.SECONDS)) {
++            daemon.destroyForcibly();
++            Assertions.assertTrue(daemon.waitFor(5, TimeUnit.SECONDS), "Owned Kubo did not exit");
++          }
++          System.out.println(readLog(log));
++        }
++      }
+     }
+-    pingStream.close().get(5, TimeUnit.SECONDS);
+-    System.out.println("Ping stream closed");
++  }
+ 
+-    Assertions.assertThrows(
+-        ExecutionException.class, () -> pingCtr.ping().get(5, TimeUnit.SECONDS));
++  private static void runKubo(Path executable, Path repository, String... arguments) throws Exception {
++    List<String> command = new ArrayList<>();
++    command.add(executable.toString());
++    command.add("--repo-dir");
++    command.add(repository.toString());
++    command.addAll(Arrays.asList(arguments));
++    Process process = new ProcessBuilder(command).redirectErrorStream(true).start();
++    try {
++      Assertions.assertTrue(process.waitFor(5, TimeUnit.SECONDS), "Kubo command did not exit: " + command);
++      String output = new String(process.getInputStream().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
++      Assertions.assertEquals(0, process.exitValue(), "Kubo command failed: " + command + "\n" + output);
++    } finally {
++      if (process.isAlive()) {
++        process.destroyForcibly();
++        Assertions.assertTrue(process.waitFor(5, TimeUnit.SECONDS), "Kubo command did not stop: " + command);
++      }
++    }
++  }
+ 
+-    clientHost.stop().get(5, TimeUnit.SECONDS);
+-    System.out.println("Client stopped");
++  private static String readLog(Path path) {
++    try {
++      return Files.readString(path);
++    } catch (IOException failure) {
++      throw new UncheckedIOException("Could not read owned Kubo log " + path, failure);
++    }
+   }
+ 
+-  private static String getKuboPeerId() throws IOException, URISyntaxException {
+-    String url = "http://localhost:5001/api/v0/id";
+-    HttpURLConnection conn = (HttpURLConnection) new URI(url).toURL().openConnection();
++  private static JSONObject getKuboIdentity(int port) throws IOException, URISyntaxException {
++    HttpURLConnection conn =
++        (HttpURLConnection) new URI("http://127.0.0.1:" + port + "/api/v0/id").toURL().openConnection();
+     conn.setConnectTimeout(1_000);
++    conn.setReadTimeout(1_000);
+     conn.setDoInput(true);
+     conn.setDoOutput(true);
+-
+-    DataOutputStream dout = new DataOutputStream(conn.getOutputStream());
+-
+-    dout.write(new byte[0]);
+-    dout.flush();
+-
+-    DataInputStream din = new DataInputStream(conn.getInputStream());
+-    String resp = new String(din.readAllBytes());
+-    din.close();
+-    int start = resp.indexOf("ID") + 5;
+-    int end = resp.indexOf("\"", start);
+-    return resp.substring(start, end);
++    try {
++      try (DataOutputStream dout = new DataOutputStream(conn.getOutputStream())) {
++        dout.write(new byte[0]);
++      }
++      try (InputStream input = conn.getInputStream()) {
++        return new JSONObject(new String(input.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8));
++      }
++    } finally {
++      conn.disconnect();
++    }
+   }
+ 
+   @Test

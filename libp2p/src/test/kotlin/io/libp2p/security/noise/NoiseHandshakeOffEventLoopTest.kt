@@ -647,6 +647,7 @@ object NoiseHandshakePathHarness {
             }
         }
         val hosts = mutableListOf<Host>()
+        var ordinaryLoopbackReservation: NoiseOrdinaryLoopbackReservation? = null
         try {
             check(saturatedWorkersStarted.await(5, TimeUnit.SECONDS)) {
                 "The hermetic Noise saturation executor did not occupy all $SATURATION_EXECUTOR_THREADS workers"
@@ -655,17 +656,39 @@ object NoiseHandshakePathHarness {
                 if (role == Role.RESP && receivedFrames == 1) saturatedExecutor else null
             }
 
-            val relay = newNoiseHost(listen = true).also { hosts += it }
+            ordinaryLoopbackReservation = if (NOISE_TEST_HOST == ISOLATED_NOISE_TEST_HOST) {
+                NoiseOrdinaryLoopbackReservation()
+            } else {
+                null
+            }
+            val relay = newNoiseHost(
+                listen = true,
+                listenPort = ordinaryLoopbackReservation?.port ?: 0
+            ).also { hosts += it }
             val dialers = List(SATURATED_DIALERS) { newNoiseHost().also { host -> hosts += host } }
             startNoiseHosts(hosts)
             val relayAddress = relay.listenAddresses().single()
             val relayPort = requireNotNull(relayAddress.getFirstComponent(Protocol.TCP)?.stringValue) {
                 "Noise saturation relay did not expose a TCP listen address: $relayAddress"
             }
+            val relayHost = requireNotNull(relayAddress.getFirstComponent(Protocol.IP4)?.stringValue) {
+                "Noise saturation relay did not expose an IPv4 listen address: $relayAddress"
+            }
+            when (relayHost) {
+                LEGACY_NOISE_TEST_HOST -> check(ordinaryLoopbackReservation == null) {
+                    "The relay owns ordinary loopback at $relayAddress, so no separate reservation may be open"
+                }
+                ISOLATED_NOISE_TEST_HOST -> check(ordinaryLoopbackReservation?.port == relayPort.toInt()) {
+                    "The test must own ordinary loopback on the relay's TCP port $relayPort, " +
+                        "but reservation was ${ordinaryLoopbackReservation?.port}"
+                }
+                else -> error("Unexpected Noise saturation relay address: $relayAddress")
+            }
             runUnrelatedNoiseCallerHarness(
                 relayPeerId = relay.peerId,
                 relayAddress = Multiaddr("/ip4/127.0.0.1/tcp/$relayPort")
             )
+            ordinaryLoopbackReservation?.awaitCallerAccepted()
 
             val connections = dialers.map { it.network.connect(relay.peerId, relayAddress) }
             val queueDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
@@ -722,7 +745,11 @@ object NoiseHandshakePathHarness {
                 saturatedExecutor.shutdownNow()
                 saturatedExecutor.awaitTermination(5, TimeUnit.SECONDS)
             }
-            stopNoiseHosts(hosts)
+            try {
+                stopNoiseHosts(hosts)
+            } finally {
+                ordinaryLoopbackReservation?.close()
+            }
         }
     }
 
@@ -920,7 +947,7 @@ object NoiseUnrelatedCallerHarness {
                 connection.get(HandshakeTimeoutSec + 2L, TimeUnit.SECONDS)
                 error("Unrelated Noise caller unexpectedly connected to $relayPeerId at $relayAddress")
             } catch (failure: ExecutionException) {
-                val causeChain = generateSequence(failure) { current ->
+                val causeChain = generateSequence<Throwable>(failure) { current ->
                     current.cause?.takeUnless { it === current }
                 }.take(8).joinToString(" <- ") { cause ->
                     cause.message?.let { "${cause.javaClass.name}: $it" } ?: cause.javaClass.name
@@ -929,6 +956,49 @@ object NoiseUnrelatedCallerHarness {
             }
         } finally {
             caller.stop().get(5, TimeUnit.SECONDS)
+        }
+    }
+}
+
+private class NoiseOrdinaryLoopbackReservation : AutoCloseable {
+    private val listener = ServerSocket(0, 1, InetAddress.getByName(LEGACY_NOISE_TEST_HOST))
+    private val accepted = CompletableFuture<Unit>()
+    private val acceptThread = Thread({
+        try {
+            listener.accept().use { }
+            accepted.complete(Unit)
+        } catch (failure: Throwable) {
+            accepted.completeExceptionally(failure)
+        }
+    }, "noise-ordinary-loopback-reservation").apply {
+        isDaemon = true
+        try {
+            start()
+        } catch (failure: Throwable) {
+            listener.close()
+            throw failure
+        }
+    }
+
+    val port: Int = listener.localPort
+
+    fun awaitCallerAccepted() {
+        try {
+            accepted.get(5, TimeUnit.SECONDS)
+        } catch (failure: Exception) {
+            throw AssertionError(
+                "The unrelated real Noise caller did not reach the test-owned ordinary-loopback endpoint " +
+                    "127.0.0.1:$port within 5 seconds",
+                failure
+            )
+        }
+    }
+
+    override fun close() {
+        listener.close()
+        acceptThread.join(TimeUnit.SECONDS.toMillis(5))
+        check(!acceptThread.isAlive) {
+            "The ordinary-loopback reservation accept thread did not stop within 5 seconds"
         }
     }
 }
@@ -942,4 +1012,6 @@ private const val SATURATED_DIALERS = 120
 private const val SATURATION_EXECUTOR_THREADS = 2
 private const val SATURATION_QUEUE_CAPACITY = 256
 
-private const val NOISE_TEST_HOST = "127.0.0.1"
+private const val LEGACY_NOISE_TEST_HOST = "127.0.0.1"
+private const val ISOLATED_NOISE_TEST_HOST = "127.0.0.2"
+private const val NOISE_TEST_HOST = LEGACY_NOISE_TEST_HOST

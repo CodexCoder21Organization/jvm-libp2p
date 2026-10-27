@@ -1,6 +1,8 @@
 package io.libp2p.security.noise
 
+import io.libp2p.core.Connection
 import io.libp2p.core.ConnectionClosedException
+import io.libp2p.core.ConnectionHandler
 import io.libp2p.core.Host
 import io.libp2p.core.P2PChannel
 import io.libp2p.core.PeerId
@@ -662,6 +664,7 @@ object NoiseHandshakePathHarness {
                 listenPort = ordinaryLoopbackReservation?.port ?: 0
             ).also { hosts += it }
             val anchor = newNoiseHost().also { hosts += it }
+            val publishedAnchor = CompletableFuture<Connection>()
             val dialers = List(SATURATED_DIALERS) { newNoiseHost().also { host -> hosts += host } }
             startNoiseHosts(hosts)
             val relayAddress = relay.listenAddresses().single()
@@ -681,8 +684,17 @@ object NoiseHandshakePathHarness {
                 }
                 else -> error("Unexpected Noise saturation relay address: $relayAddress")
             }
+            relay.addConnectionHandler(ConnectionHandler.create { connection ->
+                if (connection.secureSession().remoteId == anchor.peerId) {
+                    publishedAnchor.complete(connection)
+                }
+            })
             val anchorConnection = anchor.network.connect(relay.peerId, relayAddress).get(5, TimeUnit.SECONDS)
-            check(anchor.network.connections.contains(anchorConnection) && relay.network.connections.isNotEmpty()) {
+            val relayAnchorConnection = publishedAnchor.get(5, TimeUnit.SECONDS)
+            check(
+                anchor.network.connections.contains(anchorConnection) &&
+                    relay.network.connections.contains(relayAnchorConnection)
+            ) {
                 "The ordinary Noise anchor connection must remain active while saturation connections are admitted"
             }
             check(executionRecorder.failuresOfType(ReadTimeoutException::class.java).isEmpty()) {

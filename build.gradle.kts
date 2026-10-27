@@ -1,6 +1,11 @@
 import com.diffplug.gradle.spotless.SpotlessExtension
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import org.jetbrains.dokka.gradle.DokkaExtension
+import org.jetbrains.dokka.gradle.tasks.DokkaGenerateTask
+import org.jetbrains.dokka.gradle.tasks.DokkaGeneratePublicationTask
+import org.gradle.api.services.BuildService
+import org.gradle.api.services.BuildServiceParameters
 import java.net.URI
 // To publish the release artifact to CloudSmith repo run the following :
 // ./gradlew publish -PcloudsmithUser=<user> -PcloudsmithApiKey=<api-key>
@@ -8,7 +13,7 @@ import java.net.URI
 description = "a libp2p implementation for the JVM, written in Kotlin"
 
 plugins {
-    val kotlinVersion = "1.6.21"
+    val kotlinVersion = "1.9.25"
 
     id("org.jetbrains.kotlin.jvm") version kotlinVersion apply false
 
@@ -17,13 +22,20 @@ plugins {
     id("io.gitlab.arturbosch.detekt").version("1.22.0")
     id("java")
     id("maven-publish")
-    id("org.jetbrains.dokka").version("1.9.20")
+    id("org.jetbrains.dokka").version("2.0.0")
+    id("org.jetbrains.dokka-javadoc").version("2.0.0")
     id("com.diffplug.spotless").version("7.2.1")
     id("java-test-fixtures")
     id("io.spring.dependency-management").version("1.1.7")
 
     id("org.jetbrains.kotlin.android") version kotlinVersion apply false
     id("com.android.application") version "7.4.2" apply false
+}
+
+abstract class DokkaWorkerBudget : BuildService<BuildServiceParameters.None>
+
+val dokkaWorkerBudget = gradle.sharedServices.registerIfAbsent("dokkaWorkerBudget", DokkaWorkerBudget::class) {
+    maxParallelUsages.set(1)
 }
 
 fun Project.getBooleanPropertyOrFalse(propName: String) =
@@ -93,6 +105,7 @@ configure(
     apply(plugin = "io.gitlab.arturbosch.detekt")
     apply(plugin = "maven-publish")
     apply(plugin = "org.jetbrains.dokka")
+    apply(plugin = "org.jetbrains.dokka-javadoc")
     apply(plugin = "com.diffplug.spotless")
     apply(plugin = "java-test-fixtures")
     apply(plugin = "io.spring.dependency-management")
@@ -188,25 +201,43 @@ configure(
         from(sourceSets.main.get().allSource)
     }
 
-    tasks.dokkaHtml.configure {
-        outputDirectory.set(getLayout().buildDirectory.dir("dokka"))
-        dokkaSourceSets {
-            configureEach {
-                jdkVersion.set(11)
-                reportUndocumented.set(false)
-                externalDocumentationLink {
-                    url.set(URI.create("https://netty.io/4.2/api/").toURL())
-                }
+    configure<DokkaExtension> {
+        dokkaGeneratorIsolation.set(ProcessIsolation {
+            maxHeapSize.set("1G")
+            jvmArgs.add("-XX:MaxMetaspaceSize=112m")
+        })
+        dokkaPublications.named("html") {
+            outputDirectory.set(layout.buildDirectory.dir("dokka"))
+        }
+        dokkaPublications.named("javadoc") {
+            outputDirectory.set(layout.buildDirectory.dir("dokkaJavadoc"))
+        }
+        dokkaSourceSets.configureEach {
+            jdkVersion.set(11)
+            reportUndocumented.set(false)
+            externalDocumentationLinks.register("netty") {
+                url.set(URI.create("https://netty.io/4.2/api/"))
             }
         }
     }
+    tasks.withType<DokkaGenerateTask>().configureEach {
+        usesService(dokkaWorkerBudget)
+    }
 
+    tasks.register("dokkaHtml") {
+        group = JavaBasePlugin.DOCUMENTATION_GROUP
+        dependsOn("dokkaGenerateHtml")
+    }
+    val dokkaJavadocTask = tasks.named<DokkaGeneratePublicationTask>("dokkaGeneratePublicationJavadoc")
+    tasks.register("dokkaJavadoc") {
+        group = JavaBasePlugin.DOCUMENTATION_GROUP
+        dependsOn(dokkaJavadocTask)
+    }
     val dokkaJar: TaskProvider<Jar> by tasks.registering(Jar::class) {
         group = JavaBasePlugin.DOCUMENTATION_GROUP
-        val dokkaJavadocTask = tasks.getByName("dokkaJavadoc")
         dependsOn(dokkaJavadocTask)
         archiveClassifier.set("javadoc")
-        from(dokkaJavadocTask.outputs)
+        from(dokkaJavadocTask.flatMap { it.outputDirectory })
     }
 
     publishing {

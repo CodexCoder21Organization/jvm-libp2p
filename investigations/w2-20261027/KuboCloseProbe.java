@@ -21,7 +21,10 @@ public class KuboCloseProbe {
                 attempts.add(callers.submit(() -> runAttempt(executable, template, attempt)));
             }
             int failed = 0;
-            for (Future<Boolean> attempt : attempts) if (!attempt.get(10, TimeUnit.MINUTES)) failed++;
+            for (Future<Boolean> attempt : attempts) {
+                try { if (!attempt.get(10, TimeUnit.MINUTES)) failed++; }
+                catch (ExecutionException failure) { failed++; failure.printStackTrace(System.out); }
+            }
             System.out.println("SUMMARY attempts=128 failed=" + failed);
             if (failed != 0) throw new AssertionError(failed + " immediate deletions failed after Java reported exit");
         } finally {

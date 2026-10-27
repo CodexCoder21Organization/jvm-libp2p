@@ -20,9 +20,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
+        id: java17
         with:
           distribution: temurin
-          java-version: ${{ inputs.jdk }}
+          java-version: '17'
+      - uses: actions/setup-java@v4
+        id: java24
+        with:
+          distribution: temurin
+          java-version: '24'
       - name: Prepare real Kubo and native process signal probe
         shell: pwsh
         run: |
@@ -45,16 +51,28 @@ jobs:
           $compile = '"' + $vs + '\Common7\Tools\VsDevCmd.bat" -arch=x64 && cl /nologo /LD /I"%JAVA_HOME%\include" /I"%JAVA_HOME%\include\win32" /Febuild\w2\process_probe.dll investigations\w2-20261027\process_probe.c'
           cmd /d /s /c $compile
           if ($LASTEXITCODE) { throw 'Native process probe did not compile' }
-      - name: Run first-attempt Java process close proofs
+      - name: Run JDK 17 baseline on this runner
         shell: pwsh
         run: |
-          java investigations/w2-20261027/KuboCloseProbe.java build/w2/kubo/ipfs.exe build/w2/template/config build/w2/process_probe.dll 2>&1 | Tee-Object build/w2/process-results.txt
+          & '${{ steps.java17.outputs.path }}/bin/java.exe' investigations/w2-20261027/KuboCloseProbe.java build/w2/kubo/ipfs.exe build/w2/template/config build/w2/process_probe.dll 2>&1 | Tee-Object build/w2/process-jdk17-baseline.txt
+          exit $LASTEXITCODE
+      - name: Run JDK 24 comparison on the same runner
+        if: always()
+        shell: pwsh
+        run: |
+          & '${{ steps.java24.outputs.path }}/bin/java.exe' investigations/w2-20261027/KuboCloseProbe.java build/w2/kubo/ipfs.exe build/w2/template/config build/w2/process_probe.dll 2>&1 | Tee-Object build/w2/process-jdk24.txt
+          exit $LASTEXITCODE
+      - name: Run JDK 17 reversal on the same runner
+        if: always()
+        shell: pwsh
+        run: |
+          & '${{ steps.java17.outputs.path }}/bin/java.exe' investigations/w2-20261027/KuboCloseProbe.java build/w2/kubo/ipfs.exe build/w2/template/config build/w2/process_probe.dll 2>&1 | Tee-Object build/w2/process-jdk17-reversal.txt
           exit $LASTEXITCODE
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: w2-windows-process-evidence
-          path: build/w2/process-results.txt
+          path: build/w2/process-*.txt
 
   dokka-retention:
     if: inputs.probe == 'dokka'

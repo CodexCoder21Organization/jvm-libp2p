@@ -1,0 +1,519 @@
+diff --git a/README.md b/README.md
+index a26e27c13..823eaea7c 100644
+--- a/README.md
++++ b/README.md
+@@ -30,6 +30,10 @@ unregistered until Java Flight Recorder is initialized. The fixes are tracked in
+ keeps the fixed transport and buffer modules selected when libp2p brings upstream Netty
+ transitively. Keep the production and test Netty pins aligned.
+ 
++The libp2p pin targets `1.3.0-codexcoder21-snapshot-41`, which preserves completed
++channel-close results when an event loop cannot accept another listener notification.
++See [the upstream correction](https://github.com/CodexCoder21Organization/jvm-libp2p/pull/71).
++
+ ## Local RPC transport failures
+ 
+ `RpcStream.sendRequest` implementations return locally generated failures with a
+diff --git a/build.kts b/build.kts
+index 94578911b..72c4c058a 100644
+--- a/build.kts
++++ b/build.kts
+@@ -54,7 +54,9 @@ val dependencies = resolveDependencies2(
+     // pipeline before arming parent-close propagation, so an early close always completes the
+     // stream negotiation controller; upstream:
+     // https://github.com/CodexCoder21Organization/jvm-libp2p/pull/36.
+-    MavenPrebuilt2("community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-25"),
++    // snapshot-41 preserves completed close results when listener dispatch is rejected.
++    // https://github.com/CodexCoder21Organization/jvm-libp2p/pull/71
++    MavenPrebuilt2("community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-41"),
+ 
+     // Netty for network I/O (directly used by Libp2pHostFactory)
+     MavenPrebuilt2("io.netty:netty-buffer:4.2.10.2-codexcoder21"),
+diff --git a/tests/stressTestRejectedDrainConcurrentHostStops.kts b/tests/stressTestRejectedDrainConcurrentHostStops.kts
+new file mode 100644
+index 000000000..0dd7e5136
+--- /dev/null
++++ b/tests/stressTestRejectedDrainConcurrentHostStops.kts
+@@ -0,0 +1,379 @@
++@file:WithArtifact("foundation.url.protocol.buildMaven()")
++@file:WithArtifact("org.jetbrains.kotlin:kotlin-test:1.8.22")
++@file:WithArtifact("community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-25")
++@file:WithArtifact("build.kotlin.annotations:build-kotlin-annotations:0.0.10")
++package foundation.url.protocol
++
++import build.kotlin.annotations.Timeout
++import build.kotlin.annotations.TestWorkerSlots
++import build.kotlin.withartifact.WithArtifact
++import io.libp2p.transport.implementation.P2PChannelOverNetty
++import io.libp2p.transport.implementation.StreamOverNetty
++import io.netty.buffer.ByteBuf
++import io.netty.channel.Channel
++import io.netty.channel.ChannelHandlerContext
++import io.netty.channel.ChannelInboundHandlerAdapter
++import io.netty.channel.ChannelOutboundHandlerAdapter
++import io.netty.channel.ChannelPromise
++import io.netty.util.AttributeKey
++import io.netty.util.internal.logging.InternalLoggerFactory
++import io.netty.util.internal.logging.JdkLoggerFactory
++import java.util.concurrent.ConcurrentLinkedQueue
++import java.util.concurrent.CountDownLatch
++import java.util.concurrent.Executors
++import java.util.concurrent.TimeUnit
++import java.util.concurrent.atomic.AtomicBoolean
++import java.util.concurrent.atomic.AtomicInteger
++import java.util.concurrent.atomic.AtomicReference
++import java.util.function.Consumer
++import kotlin.test.assertEquals
++import kotlin.test.assertFalse
++import kotlin.test.assertNull
++import kotlin.test.assertSame
++import kotlin.test.assertTrue
++import kotlin.test.fail
++
++/** A held diagnostic sink must not hold response accounting against a close caller. */
++@TestWorkerSlots(4)
++@Timeout(240)
++fun stressTestRejectedDrainConcurrentHostStops() {
++    val nativeErr = System.err
++    val debug = System.getProperty("foundation.url.protocol.debug")
++    val limit = System.getProperty("io.netty.eventLoop.maxPendingTasks")
++    val loggerFactory = InternalLoggerFactory.getDefaultFactory()
++    val sinks = java.util.concurrent.ConcurrentHashMap<Thread, java.io.PrintStream>()
++    val router = object : java.io.PrintStream(nativeErr, true, "UTF-8") {
++        override fun println(message: String?) {
++            (sinks[Thread.currentThread()] ?: nativeErr).println(message)
++        }
++    }
++    val failures = ConcurrentLinkedQueue<Throwable>()
++    val completed = AtomicInteger()
++    val workers = Executors.newFixedThreadPool(8)
++    val rounds = java.util.concurrent.Phaser(8)
++    val awaitRound = {
++        val phase = rounds.arrive()
++        check(phase >= 0) { "A failed host-stop round must end every participant" }
++        check(rounds.awaitAdvanceInterruptibly(phase, 10, TimeUnit.SECONDS) >= 0) {
++            "A failed host-stop round must end every participant"
++        }
++        Unit
++    }
++    try {
++        System.setProperty("io.netty.eventLoop.maxPendingTasks", "1024")
++        System.setProperty("foundation.url.protocol.debug", "true")
++        System.setErr(router)
++        InternalLoggerFactory.setDefaultFactory(JdkLoggerFactory.INSTANCE)
++        val runs = (0 until 8).map { worker -> workers.submit {
++            repeat(16) { iteration ->
++                val id = worker * 16 + iteration
++                try {
++                    rejectedDrainHostStopCycle(id, nativeErr, sinks, awaitRound)
++                    // All queue faults and their cleanup finish before another initial dial.
++                    // Transports in this JVM share their NIO workers across hosts.
++                    awaitRound()
++                } catch (failure: Throwable) {
++                    rounds.forceTermination()
++                    failures.add(failure)
++                    nativeErr.println("FL635_CYCLE_FAILURE id=$id")
++                    failure.printStackTrace(nativeErr)
++                } finally {
++                    completed.incrementAndGet()
++                }
++            }
++        } }
++        runs.forEach { it.get(220, TimeUnit.SECONDS) }
++    } finally {
++        workers.shutdownNow()
++        check(workers.awaitTermination(10, TimeUnit.SECONDS))
++        System.setErr(nativeErr)
++        if (debug == null) System.clearProperty("foundation.url.protocol.debug")
++        else System.setProperty("foundation.url.protocol.debug", debug)
++        if (limit == null) System.clearProperty("io.netty.eventLoop.maxPendingTasks")
++        else System.setProperty("io.netty.eventLoop.maxPendingTasks", limit)
++        InternalLoggerFactory.setDefaultFactory(loggerFactory)
++    }
++    nativeErr.println("FL635_CYCLES completed=${completed.get()} failed=${failures.size} concurrency=8 iterations=128")
++    assertEquals(0, failures.size, "Concurrent rejected-drain host-stop cycles must complete; failed=${failures.size}/${completed.get()}")
++}
++
++private fun rejectedDrainHostStopCycle(
++    id: Int,
++    nativeErr: java.io.PrintStream,
++    sinks: java.util.concurrent.ConcurrentHashMap<Thread, java.io.PrintStream>,
++    beforeQueueFault: () -> Unit,
++) {
++    val sinkEntered = CountDownLatch(1)
++    val releaseSink = CountDownLatch(1)
++    val closeEntered = CountDownLatch(1)
++    val closeReturned = CountDownLatch(1)
++    val closeCallFailure = AtomicReference<Throwable>()
++    val closeResult = AtomicReference<io.netty.channel.ChannelFuture>()
++    var closeThread: Thread? = null
++    val previousDebug = System.getProperty("foundation.url.protocol.debug")
++    val previousErr = nativeErr
++    val heldSink = object : java.io.PrintStream(previousErr, true, "UTF-8") {
++        override fun println(message: String?) {
++            if (message?.startsWith("[RPC] Awaited-response drain submission rejected:") == true) {
++                sinkEntered.countDown()
++                assertTrue(releaseSink.await(10, TimeUnit.SECONDS), "The test must release the diagnostic sink")
++            }
++            super.println(message)
++        }
++    }
++    val previousQueueLimit = System.getProperty("io.netty.eventLoop.maxPendingTasks")
++    val previousLoggerFactory = InternalLoggerFactory.getDefaultFactory()
++    val firstHandlerEntered = CountDownLatch(1)
++    val releaseFirstHandler = CountDownLatch(1)
++    val secondHandlerEntered = CountDownLatch(1)
++    val releaseSecondHandler = CountDownLatch(1)
++    val loopHeld = CountDownLatch(1)
++    val releaseLoop = CountDownLatch(1)
++    val queueRejected = AtomicBoolean()
++    val queueTaskExecutions = AtomicInteger()
++    val queueTasksCompleted = CountDownLatch(1)
++    val queueTasksAccepted = AtomicInteger()
++    val queueRejection = AtomicReference<Throwable>()
++    fun rootConnectionChannel(channel: Channel): Channel {
++        var current = channel
++        while (true) {
++            val parent = current.parent() ?: return current
++            if (parent is io.netty.channel.ServerChannel) return current
++            current = parent
++        }
++    }
++
++    val fatal = NoClassDefFoundError("prequeued-sibling-observer-failed")
++    val fatalRaised = AtomicBoolean(false)
++    val propagated = AtomicReference<Throwable>()
++    val fatalPropagated = CountDownLatch(1)
++    val taskLogger = java.util.logging.Logger.getLogger("io.netty.util.concurrent.AbstractEventExecutor")
++    val propagationHandler = object : java.util.logging.Handler() {
++        override fun publish(record: java.util.logging.LogRecord) {
++            if (record.thrown === fatal) {
++                propagated.set(record.thrown)
++                fatalPropagated.countDown()
++            }
++        }
++        override fun flush() {}
++        override fun close() {}
++    }
++    var serverHost: io.libp2p.core.Host? = null
++    var clientHost: io.libp2p.core.Host? = null
++    var callers: java.util.concurrent.ExecutorService? = null
++    var rpc: Libp2pRpcStream? = null
++    var serverRoot: Channel? = null
++    try {
++        taskLogger.addHandler(propagationHandler)
++
++    val firstAdmitted = CountDownLatch(1)
++    val bothAdmitted = CountDownLatch(2)
++    val bothDrained = CountDownLatch(2)
++    val bothWritesCompleted = CountDownLatch(2)
++    val outboxEvents = ConcurrentLinkedQueue<String>()
++    val handoffs = ConcurrentLinkedQueue<Pair<String, ByteBuf>>()
++    val completions = ConcurrentLinkedQueue<Pair<String, Boolean>>()
++    val admissionsAfterFatal = AtomicInteger()
++    val writabilityChangesAfterFatal = AtomicInteger()
++    val requestsHandled = ConcurrentLinkedQueue<String>()
++    val payloads = mapOf("first" to "first-" + "a".repeat(1024), "second" to "second-" + "b".repeat(1024))
++    val serverHandler = object : RpcRequestHandler {
++        override suspend fun handleRequest(
++            request: Libp2pRpcProtocol.RpcRequest,
++            effectHandler: EffectPropagator,
++        ): Libp2pRpcProtocol.RpcResponse {
++            requestsHandled.add(request.id)
++            if (request.id == "first") {
++                firstHandlerEntered.countDown()
++                assertTrue(releaseFirstHandler.await(10, TimeUnit.SECONDS), "The test must release the first handler")
++            }
++            if (request.id == "second") {
++                secondHandlerEntered.countDown()
++                assertTrue(releaseSecondHandler.await(10, TimeUnit.SECONDS), "The test must release the second handler")
++            }
++            return Libp2pRpcProtocol.RpcResponse.success(
++                request.id,
++                payloads[request.id] ?: fail("Unexpected request ${request.id}"),
++            )
++        }
++    }
++    val activeServerHost = Libp2pHostFactory.createServerHost(
++        listenAddresses = listOf("/ip4/127.0.0.1/tcp/0"),
++        requestHandler = serverHandler,
++        keyPair = Libp2pHostFactory.generateKeyFromSeed("prequeued-sibling-server-$id"),
++    )
++    serverHost = activeServerHost
++    val activeClientHost = Libp2pHostFactory.createHost(
++        listenAddresses = listOf("/ip4/127.0.0.1/tcp/0"),
++        keyPair = Libp2pHostFactory.generateKeyFromSeed("prequeued-sibling-client-$id"),
++    )
++    clientHost = activeClientHost
++    val activeCallers = Executors.newFixedThreadPool(2)
++    callers = activeCallers
++        activeServerHost.start().get(10, TimeUnit.SECONDS)
++        activeClientHost.start().get(10, TimeUnit.SECONDS)
++        val streamPromise = activeClientHost.newStream<Libp2pRpcController>(
++            listOf(Libp2pRpcProtocol.PROTOCOL_ID), activeServerHost.peerId, activeServerHost.listenAddresses().first(),
++        )
++        val controller = streamPromise.controller.get(10, TimeUnit.SECONDS)
++        streamPromise.stream.get(10, TimeUnit.SECONDS)
++        val activeRpc = Libp2pRpcStream(controller, activeServerHost.peerId.toString(), "prequeued-siblings")
++        rpc = activeRpc
++        val activeRoot = rootConnectionChannel(
++            (activeServerHost.network.connections.single() as? P2PChannelOverNetty)?.nettyChannel
++                ?: fail("Could not obtain the server connection channel"),
++        )
++        serverRoot = activeRoot
++        val outbound = activeRoot.unsafe().outboundBuffer()
++            ?: fail("The server root connection has no outbound buffer")
++        // Complete this round's eight connection setups before any caller fills a
++        // shared worker queue. The fault and close paths still run concurrently.
++        beforeQueueFault()
++        activeRoot.attr(AttributeKey.valueOf<Consumer<String>>(
++            "foundation.url.protocol.awaitedResponseOutboxObserver",
++        )).set(Consumer { event ->
++            sinks[Thread.currentThread()] = heldSink
++            outboxEvents.add(event)
++            if (event == "ADMITTED:PRIORITY") {
++                if (fatalRaised.get()) admissionsAfterFatal.incrementAndGet()
++                firstAdmitted.countDown()
++                bothAdmitted.countDown()
++            }
++            if (event == "DRAINED:PRIORITY") {
++                bothDrained.countDown()
++                if (fatalRaised.compareAndSet(false, true)) {
++                    // Exhaust the real bounded task queue while its only consumer is in this
++                    // callback. These queued tasks record completion; none blocks or spins.
++                    val recordQueueTask = Runnable {
++                        if (queueTaskExecutions.incrementAndGet() == queueTasksAccepted.get()) {
++                            queueTasksCompleted.countDown()
++                        }
++                    }
++                    // Netty clamps this queue to at least 2048 cells; attempt cell 2049.
++                    for (index in 0..2048) {
++                        try {
++                            activeRoot.eventLoop().execute(recordQueueTask)
++                            queueTasksAccepted.incrementAndGet()
++                        } catch (failure: java.util.concurrent.RejectedExecutionException) {
++                            queueRejected.set(true)
++                            queueRejection.set(failure)
++                            break
++                        }
++                    }
++                    throw fatal
++                }
++            }
++        })
++        activeRoot.eventLoop().submit {
++            activeRoot.pipeline().addFirst("observe-root-writability", object : ChannelInboundHandlerAdapter() {
++                override fun channelWritabilityChanged(ctx: ChannelHandlerContext) {
++                    if (fatalRaised.get()) writabilityChangesAfterFatal.incrementAndGet()
++                    ctx.fireChannelWritabilityChanged()
++                }
++            })
++            outbound.setUserDefinedWritability(1, false)
++        }.get(10, TimeUnit.SECONDS)
++        assertFalse(activeRoot.isWritable, "Both replies must be queued under forced root backpressure")
++        val firstCall = activeCallers.submit<Libp2pRpcProtocol.RpcResponse> {
++            activeRpc.sendRequest(Libp2pRpcProtocol.RpcRequest("first", "first", emptyMap()))
++        }
++        assertTrue(firstHandlerEntered.await(10, TimeUnit.SECONDS), "The first request must reach its handler")
++        val serverStream = activeServerHost.streams.single() as StreamOverNetty
++        serverStream.nettyChannel.eventLoop().submit {
++            serverStream.nettyChannel.pipeline().addFirst("observe-response-handoffs", object : ChannelOutboundHandlerAdapter() {
++                override fun write(ctx: ChannelHandlerContext, message: Any, promise: ChannelPromise) {
++                    if (message is ByteBuf) {
++                        // Read a duplicate so observing the real frame does not consume transport bytes.
++                        val frame = message.duplicate()
++                        val jsonLength = frame.readInt()
++                        val response = org.json.JSONObject(frame.readCharSequence(jsonLength, Charsets.UTF_8).toString())
++                        val requestId = response.getString("id")
++                        handoffs.add(requestId to message)
++                        // The outbox has already attached its cleanup listener to this promise.
++                        // This listener runs after that listener returns, without admitting more work.
++                        promise.addListener { completed ->
++                            completions.add(requestId to completed.isSuccess)
++                            bothWritesCompleted.countDown()
++                        }
++                    }
++                    ctx.write(message, promise)
++                }
++            })
++            serverStream.nettyChannel.pipeline().addFirst("observe-child-writability", object : ChannelInboundHandlerAdapter() {
++                override fun channelWritabilityChanged(ctx: ChannelHandlerContext) {
++                    if (fatalRaised.get()) writabilityChangesAfterFatal.incrementAndGet()
++                    ctx.fireChannelWritabilityChanged()
++                }
++            })
++        }.get(10, TimeUnit.SECONDS)
++        releaseFirstHandler.countDown()
++        assertTrue(firstAdmitted.await(10, TimeUnit.SECONDS), "The first reply must be queued before the second request")
++        val secondCall = activeCallers.submit<Libp2pRpcProtocol.RpcResponse> {
++            activeRpc.sendRequest(Libp2pRpcProtocol.RpcRequest("second", "second", emptyMap()))
++        }
++        assertTrue(secondHandlerEntered.await(10, TimeUnit.SECONDS), "The second request must reach its handler")
++        activeRoot.eventLoop().execute {
++            loopHeld.countDown()
++            assertTrue(releaseLoop.await(10, TimeUnit.SECONDS), "The test must release the root loop")
++        }
++        assertTrue(loopHeld.await(10, TimeUnit.SECONDS))
++        // Force registration to precede recovery in the ordinary queue. Registration must not
++        // enqueue an unwritable drain behind recovery and ahead of its writability notification.
++        releaseSecondHandler.countDown()
++        assertTrue(bothAdmitted.await(10, TimeUnit.SECONDS), "Both replies must be admitted before the only recovery")
++        val recovery = activeRoot.eventLoop().submit {
++            assertEquals(0, handoffs.size, "Neither queued reply may be handed off while the root is unwritable")
++            outbound.setUserDefinedWritability(1, true)
++        }
++        releaseLoop.countDown()
++        recovery.get(10, TimeUnit.SECONDS)
++
++        assertTrue(sinkEntered.await(10, TimeUnit.SECONDS), "The actual rejected-drain diagnostic must reach the held sink")
++        closeThread = Thread({
++            closeEntered.countDown()
++            try {
++                closeResult.set(activeRoot.closeProtocolRoot())
++            } catch (failure: Throwable) {
++                closeCallFailure.set(failure)
++            } finally {
++                closeReturned.countDown()
++            }
++        }, "review-protocol-close-caller").apply { isDaemon = true; start() }
++        assertTrue(closeEntered.await(5, TimeUnit.SECONDS), "The separate public close caller must start")
++        assertTrue(closeReturned.await(5, TimeUnit.SECONDS),
++            "closeProtocolRoot must return its future while diagnostic output is held; a sink cannot own the outbox monitor")
++        assertNull(closeCallFailure.get())
++        assertTrue(closeResult.get() != null)
++        releaseSink.countDown()
++        closeThread!!.join(5_000L)
++    } finally {
++        releaseSink.countDown()
++        closeThread?.join(5_000L)
++        releaseFirstHandler.countDown()
++        releaseSecondHandler.countDown()
++        releaseLoop.countDown()
++        serverRoot?.attr(AttributeKey.valueOf<Consumer<String>>(
++            "foundation.url.protocol.awaitedResponseOutboxObserver",
++        ))?.set(null)
++        try {
++            if (queueRejected.get() && queueTasksAccepted.get() > 0) {
++                assertTrue(queueTasksCompleted.await(10, TimeUnit.SECONDS),
++                    "Injected queue tasks must finish before ordinary host cleanup submits its close")
++            }
++            rpc?.close()
++        } finally {
++            callers?.shutdownNow()
++            assertTrue(callers?.awaitTermination(5, TimeUnit.SECONDS) != false)
++            try {
++                clientHost?.stop()?.get(10, TimeUnit.SECONDS)
++            } finally {
++                try {
++                    serverHost?.stop()?.get(10, TimeUnit.SECONDS)
++                } finally {
++                    taskLogger.removeHandler(propagationHandler)
++                    sinks.entries.removeIf { it.value === heldSink }
++                }
++            }
++        }
++    }
++}
+diff --git a/tests/testHostStopObservesCompletedCloseWithFullEventLoop.kts b/tests/testHostStopObservesCompletedCloseWithFullEventLoop.kts
+new file mode 100644
+index 000000000..5d0bedec6
+--- /dev/null
++++ b/tests/testHostStopObservesCompletedCloseWithFullEventLoop.kts
+@@ -0,0 +1,83 @@
++@file:WithArtifact("foundation.url.protocol.buildMaven()")
++@file:WithArtifact("community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-25")
++@file:WithArtifact("org.jetbrains.kotlin:kotlin-test:1.8.22")
++package foundation.url.protocol
++
++import build.kotlin.withartifact.WithArtifact
++import io.libp2p.transport.implementation.P2PChannelOverNetty
++import io.netty.channel.ChannelHandlerContext
++import io.netty.channel.ChannelOutboundHandlerAdapter
++import io.netty.channel.ChannelPromise
++import io.netty.util.concurrent.ImmediateEventExecutor
++import java.util.concurrent.CountDownLatch
++import java.util.concurrent.TimeUnit
++import kotlin.test.assertTrue
++
++/** A completed physical close must not depend on accepting another event-loop task. */
++@Suppress("DEPRECATION")
++fun testHostStopObservesCompletedCloseWithFullEventLoop() {
++    val previousLimit = System.getProperty("io.netty.eventLoop.maxPendingTasks")
++    System.setProperty("io.netty.eventLoop.maxPendingTasks", "1024")
++    val full = CountDownLatch(1)
++    val release = CountDownLatch(1)
++    val server = Libp2pHostFactory.createHost(
++        listenAddresses = listOf("/ip4/127.0.0.1/tcp/0"),
++        keyPair = Libp2pHostFactory.generateKeyFromSeed("full-close-server"),
++    )
++    val client = Libp2pHostFactory.createHost(
++        listenAddresses = listOf("/ip4/127.0.0.1/tcp/0"),
++        keyPair = Libp2pHostFactory.generateKeyFromSeed("full-close-client"),
++    )
++    try {
++        server.start().get(10, TimeUnit.SECONDS)
++        client.start().get(10, TimeUnit.SECONDS)
++        val connection = client.network.connect(server.peerId, *server.listenAddresses().toTypedArray())
++            .get(10, TimeUnit.SECONDS) as P2PChannelOverNetty
++        val root = connection.nettyChannel
++        val loop = root.eventLoop()
++        root.pipeline().addLast(ImmediateEventExecutor.INSTANCE, "complete-before-listener-registration",
++            object : ChannelOutboundHandlerAdapter() {
++                override fun close(ctx: ChannelHandlerContext, promise: ChannelPromise) {
++                    // Complete the real physical close on its loop before returning it to
++                    // transport shutdown, then hold the same bounded loop at queue capacity.
++                    ctx.close(promise).syncUninterruptibly()
++                    loop.execute {
++                        try {
++                            var rejected = false
++                            for (index in 0..2048) {
++                                try {
++                                    loop.execute { }
++                                } catch (_: java.util.concurrent.RejectedExecutionException) {
++                                    rejected = true
++                                    break
++                                }
++                            }
++                            check(rejected) { "The real root event-loop queue must be full" }
++                            check(!loop.isShuttingDown) { "This is a full live loop, not loop shutdown" }
++                            full.countDown()
++                            check(release.await(10, TimeUnit.SECONDS)) { "The test must release the full root event loop" }
++                        } finally {
++                            full.countDown()
++                        }
++                    }
++                    check(full.await(5, TimeUnit.SECONDS)) { "The root loop must reach queue capacity before close returns" }
++                    check(promise.isSuccess) { "The real physical close must succeed before the converter adds its listener" }
++                }
++            })
++        val stopped = client.stop()
++        assertTrue(full.await(5, TimeUnit.SECONDS))
++        release.countDown()
++        // On the old library, the listener was rejected while stop() ran and this
++        // future stays pending even after the loop recovers.
++        stopped.get(10, TimeUnit.SECONDS)
++        assertTrue(!root.isOpen)
++    } finally {
++        release.countDown()
++        try {
++            server.stop().get(10, TimeUnit.SECONDS)
++        } finally {
++            if (previousLimit == null) System.clearProperty("io.netty.eventLoop.maxPendingTasks")
++            else System.setProperty("io.netty.eventLoop.maxPendingTasks", previousLimit)
++        }
++    }
++}
+diff --git a/tests/testRejectedDrainLoggingDoesNotHoldOutboxMonitor.kts b/tests/testRejectedDrainLoggingDoesNotHoldOutboxMonitor.kts
+index 5f7c66cee..8606d446b 100644
+--- a/tests/testRejectedDrainLoggingDoesNotHoldOutboxMonitor.kts
++++ b/tests/testRejectedDrainLoggingDoesNotHoldOutboxMonitor.kts
+@@ -291,6 +291,10 @@ fun testRejectedDrainLoggingDoesNotHoldOutboxMonitor() {
+             "foundation.url.protocol.awaitedResponseOutboxObserver",
+         ))?.set(null)
+         try {
++            if (queueRejected.get() && queueTasksAccepted.get() > 0) {
++                assertTrue(queueTasksCompleted.await(10, TimeUnit.SECONDS),
++                    "Injected queue tasks must finish before ordinary host cleanup submits its close")
++            }
+             rpc?.close()
+         } finally {
+             callers?.shutdownNow()

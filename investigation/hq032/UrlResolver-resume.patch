@@ -1,0 +1,147 @@
+diff --git a/README.md b/README.md
+index f6e4602adc..900ef8b84c 100644
+--- a/README.md
++++ b/README.md
+@@ -35,6 +35,8 @@ UrlResolver is the main entry point for connecting to url:// protocol services:
+ 
+ Low-level peer-to-peer networking, gossip, relay, and RPC stream functionality is provided by [UrlProtocol](https://github.com/CodexCoder21Organization/UrlProtocol) (`foundation.url:protocol`).
+ 
++The direct libp2p dependency includes [the published-connection settlement fix](https://github.com/CodexCoder21Organization/jvm-libp2p/pull/73). Racing dials preserve a physical connection already selected by either endpoint, so later duplicate cleanup leaves accepted RPC work available.
++
+ Gossip re-broadcast operations (forwarding service announcements, peer announcements, and service withdrawals to other peers) run in background coroutines to avoid blocking the listener thread. This ensures that slow network operations (e.g., connecting to NAT'd peers with 1-second timeouts) do not delay processing of subsequent gossip messages.
+ 
+ Background peer-prune confirmations use separate blocking capacity, limited to one reachability check
+diff --git a/build.kts b/build.kts
+index 91eb5509fe..72b75e64a0 100644
+--- a/build.kts
++++ b/build.kts
+@@ -409,7 +409,9 @@ val dependencies = resolveDependencies2(
+     // https://github.com/CodexCoder21Organization/jvm-libp2p/pull/48
+     // Pin it directly so these fixes win over the version resolved transitively by
+     // the pinned foundation.url:protocol build.
+-    MavenPrebuilt2("community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-32"),
++    // Snapshot-41 includes published-parent preservation during duplicate settlement.
++    // https://github.com/CodexCoder21Organization/jvm-libp2p/pull/73
++    MavenPrebuilt2("community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-41"),
+ 
+     // Annotated performance tests are dispatched by scanning/running the built
+     // resolver classpath in a fresh compiler process. The current libp2p stack
+diff --git a/tests/testPublishedParentSurvivesRacingDialSettlement.kts b/tests/testPublishedParentSurvivesRacingDialSettlement.kts
+new file mode 100644
+index 0000000000..652f743f6b
+--- /dev/null
++++ b/tests/testPublishedParentSurvivesRacingDialSettlement.kts
+@@ -0,0 +1,113 @@
++@file:WithArtifact("foundation.url.resolver.buildMaven()")
++@file:WithArtifact("community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-32")
++@file:WithArtifact("org.jetbrains.kotlin:kotlin-test:1.9.22")
++package foundation.url.resolver
++
++import build.kotlin.withartifact.WithArtifact
++import foundation.url.protocol.*
++import community.kotlin.clocks.simple.SystemClock
++import io.libp2p.core.*
++import io.libp2p.core.dsl.host
++import io.libp2p.core.multiformats.Multiaddr
++import io.libp2p.core.mux.StreamMuxerProtocol
++import io.libp2p.core.transport.Transport
++import io.libp2p.security.noise.NoiseXXSecureChannel
++import io.libp2p.transport.tcp.TcpTransport
++import io.libp2p.transport.implementation.ConnectionOverNetty
++import java.util.concurrent.CompletableFuture
++import java.util.concurrent.TimeUnit
++import java.util.concurrent.atomic.AtomicInteger
++import java.util.concurrent.atomic.AtomicReference
++import kotlin.test.*
++
++fun testPublishedParentSurvivesRacingDialSettlement() {
++    val firstPublished = CompletableFuture<Connection>()
++    val releaseFirstResult = CompletableFuture<Unit>()
++    val firstStart = AtomicReference<(() -> Unit)?>()
++    val dialCount = AtomicInteger()
++    val server = Libp2pHostFactory.createServerHost(
++        listOf("/ip4/127.0.0.1/tcp/0"),
++        object : RpcRequestHandler {
++            override suspend fun handleRequest(request: Libp2pRpcProtocol.RpcRequest,
++                effectHandler: EffectPropagator) =
++                Libp2pRpcProtocol.RpcResponse.success(request.id, mapOf("available" to true))
++        },
++    )
++    val client = host {
++        identity { factory = { Libp2pHostFactory.generateKeyFromSeed("published-parent-dial-settlement") } }
++        transports {
++            +{ upgrader: io.libp2p.transport.ConnectionUpgrader ->
++                val actual = TcpTransport(upgrader)
++                object : Transport by actual {
++                    override fun dial(addr: Multiaddr, connHandler: ConnectionHandler,
++                        preHandler: ChannelVisitor<P2PChannel>?): CompletableFuture<Connection> {
++                        val number = dialCount.incrementAndGet()
++                        val result = CompletableFuture<Connection>()
++                        val start = {
++                            val gate = ChannelVisitor<P2PChannel> { raw ->
++                                preHandler?.visit(raw)
++                                if (number == 2) {
++                                    val channel = (raw as ConnectionOverNetty).nettyChannel
++                                    channel.config().isAutoRead = false
++                                    firstPublished.whenComplete { _, failure ->
++                                        channel.eventLoop().execute {
++                                            if (failure == null) channel.config().isAutoRead = true
++                                            else channel.close()
++                                        }
++                                    }
++                                }
++                            }
++                            actual.dial(addr, connHandler, gate).whenComplete { connection, failure ->
++                                if (failure != null) {
++                                    firstPublished.completeExceptionally(failure)
++                                    result.completeExceptionally(failure)
++                                } else if (number == 1) {
++                                    firstPublished.complete(connection)
++                                    releaseFirstResult.thenRun { result.complete(connection) }
++                                } else result.complete(connection)
++                            }
++                            Unit
++                        }
++                        if (number == 1) {
++                            check(firstStart.compareAndSet(null, start))
++                        } else {
++                            checkNotNull(firstStart.getAndSet(null)).invoke()
++                            start()
++                        }
++                        return result
++                    }
++                }
++            }
++        }
++        secureChannels { add(::NoiseXXSecureChannel) }
++        muxers { +StreamMuxerProtocol.getYamux() }
++        protocols { +Libp2pRpcBinding() }
++    }
++    var rpc: PersistentRpcConnection? = null
++    try {
++        server.start().get(10, TimeUnit.SECONDS)
++        server.network.listen(Multiaddr("/ip4/127.0.0.2/tcp/0")).get(10, TimeUnit.SECONDS)
++        client.start().get(10, TimeUnit.SECONDS)
++        val addresses = server.listenAddresses().toTypedArray()
++        assertEquals(2, addresses.size, "The fixture needs two real addresses for the same peer")
++        val settled = client.network.connect(server.peerId, *addresses).get(10, TimeUnit.SECONDS)
++        assertEquals(2, dialCount.get(), "Both real physical dials must have started")
++        val published = firstPublished.get(10, TimeUnit.SECONDS)
++        val selected = client.network.connect(server.peerId, *addresses).get(10, TimeUnit.SECONDS)
++        val opened = client.newStream<Libp2pRpcController>(listOf(Libp2pRpcProtocol.PROTOCOL_ID), selected)
++        val controller = opened.controller.get(10, TimeUnit.SECONDS)
++        val connection = PersistentRpcConnection.withClock(controller, "published.parent", SystemClock())
++        rpc = connection
++        releaseFirstResult.complete(Unit)
++        (published as ConnectionOverNetty).nettyChannel.eventLoop().submit {}.get(10, TimeUnit.SECONDS)
++        assertEquals(true, connection.sendRequest("read", emptyMap(), 10_000L)["available"],
++            "A parent selected through the public network must survive delayed duplicate-dial settlement")
++        assertSame(settled, selected, "All public selections must use the retained parent")
++    } finally {
++        releaseFirstResult.complete(Unit)
++        firstPublished.completeExceptionally(IllegalStateException("The fixture is closing"))
++        try { rpc?.close() } finally {
++            try { client.stop().get(10, TimeUnit.SECONDS) } finally { server.stop().get(10, TimeUnit.SECONDS) }
++        }
++    }
++}

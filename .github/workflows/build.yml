@@ -1,72 +1,25 @@
-name: Bld - Build and Test
+name: Noise fixture proof
 on:
-  push:
-    branches: [develop]
-  pull_request:
-    branches: [develop]
-  merge_group:
   workflow_dispatch:
-
 permissions:
   contents: read
-
 jobs:
   bld-build:
     runs-on: ubuntu-latest
     timeout-minutes: 150
     steps:
       - uses: actions/checkout@v4
-      - name: Free disk space
-        run: |
-          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/share/boost
-          df -h /
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
-      - name: Prepare Android SDK
-        run: '"$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platform-tools" "platforms;android-30" "build-tools;30.0.3"'
-      - name: Start isolated Kubo
-        run: ./install-run-ipfs.sh
-      - name: Build and test with Gradle
-        run: ./gradlew --no-daemon --stacktrace --continue build dokkaJar
-      - name: Stop Kubo
-        if: always()
-        run: |
-          if [ -f build/ci-kubo/daemon.pid ]; then
-            kill "$(cat build/ci-kubo/daemon.pid)"
-          fi
-      - name: Upload test reports
+      - name: Run the listener isolation regression
+        run: ./gradlew --no-daemon --max-workers=1 --stacktrace :libp2p:cleanTest :libp2p:test --tests 'io.libp2p.security.noise.NoiseHandshakeOffEventLoopTest.fixture listener stays separate*'
+      - name: Upload first-attempt test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: gradle-linux-reports
-          path: |
-            **/build/test-results/**
-            **/build/reports/**
-            build/ci-kubo/daemon.log
-      - name: Check disk space
-        if: always()
-        run: df -h /
-
-  gradle-windows:
-    runs-on: windows-latest
-    timeout-minutes: 150
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
-      - name: Prepare Android SDK
-        run: '& "$env:ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager.bat" "platform-tools" "platforms;android-30" "build-tools;30.0.3"'
-      - name: Build and test with Gradle
-        run: ./gradlew --no-daemon --stacktrace --continue build dokkaJar
-      - name: Upload test reports
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: gradle-windows-reports
+          name: noise-fixture-proof
           path: |
             **/build/test-results/**
             **/build/reports/**

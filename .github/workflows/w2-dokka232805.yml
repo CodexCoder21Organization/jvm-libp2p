@@ -50,22 +50,28 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh run download 40579988965 --repo CodexCoder21Organization/jvm-libp2p --name w2-dokka-retention-evidence --dir evidence
+          gh run download 40602653040 --repo CodexCoder21Organization/jvm-libp2p --name dokka-baseline232805 --dir evidence
           curl --fail --location --silent --show-error https://download.eclipse.org/mat/1.16.1/rcp/MemoryAnalyzer-1.16.1.20250109-linux.gtk.x86_64.zip --output mat.zip
           echo '7c7bc3457e08bdcd187fdafb28573b00e8e9f56b46a872fb63dbbaf7f508f01e  mat.zip' | sha256sum --check -
           unzip -q mat.zip -d tools
       - name: Query loaders and actual roots
         run: |
           mkdir -p analysis
-          HEAP=$(find evidence -name w2-dokka-before-schedulers.hprof -type f -print -quit)
+          HEAP=$(find evidence -name w2-dokka.hprof -type f -print -quit)
           test -n "$HEAP"
           HEAP=$(realpath "$HEAP")
-          for address in 0x753cb7208 0x754da8b78 0x754db6f30 0x75450afb8 0x7543b27c8 0x7545093a8 0x74eac0c88 0x754f0ba48; do
-            query="path2gc $address -numberOfPaths 10 -excludes java.lang.ref.WeakReference:referent java.lang.ref.SoftReference:referent java.lang.ref.Finalizer:referent,unfinalized java.lang.Runtime:<Unfinalized>"
-            label="$address"
+          for query in 'histogram -groupBy BY_CLASSLOADER' 'oql "select * from java.net.URLClassLoader"' 'thread_overview'; do
+            label=$(echo "$query" | cut -d' ' -f1)
             tools/mat/ParseHeapDump.sh "$HEAP" "-command=$query" -format=txt -unzip org.eclipse.mat.api:query > "analysis/$label.log" 2>&1
             mv "${HEAP%.hprof}_Query" "analysis/$label"
           done
+          grep -oE 'java.net.URLClassLoader @ 0x[0-9a-f]+' analysis/oql/pages/*.txt | sed -E 's/.* @ //' | sort -u > analysis/loader-addresses.txt
+          test -s analysis/loader-addresses.txt
+          while read -r address; do
+            query="path2gc $address -numberOfPaths 10 -excludes java.lang.ref.Reference:referent java.lang.ref.Finalizer:unfinalized java.lang.Runtime:<Unfinalized>"
+            tools/mat/ParseHeapDump.sh "$HEAP" "-command=$query" -format=txt -unzip org.eclipse.mat.api:query > "analysis/$address.log" 2>&1
+            mv "${HEAP%.hprof}_Query" "analysis/$address"
+          done < analysis/loader-addresses.txt
           if grep -r -E 'has no argument|Unknown query|Error executing|Exception' analysis/*/pages; then exit 1; fi
       - uses: actions/upload-artifact@v4
         if: always()

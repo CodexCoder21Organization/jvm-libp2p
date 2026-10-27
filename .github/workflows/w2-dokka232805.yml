@@ -1,22 +1,33 @@
-name: W2 Dokka cause proof
+name: W2 Dokka bounded runtime proof
 on:
   push:
     branches: [proof/w2-dokka232805]
   workflow_dispatch:
     inputs:
-      baseline:
-        type: boolean
-        default: false
+      mode:
+        type: choice
+        options: [candidate, reversal]
+        default: candidate
+      target:
+        type: string
+        default: d254f9ed
 permissions:
   contents: read
-  actions: read
 jobs:
-  baseline:
-    if: inputs.baseline == true
+  documentation:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.target || 'd254f9ed' }}
+          fetch-depth: 2
+          path: candidate
+      - name: Restore the old build for the reversal control
+        if: inputs.mode == 'reversal'
+        working-directory: candidate
+        run: git checkout HEAD^ -- build.gradle.kts gradle.properties README.md
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -27,54 +38,13 @@ jobs:
         with:
           distribution: temurin
           java-version: '11'
-      - name: Compile, analyze and generate real documentation under original limits
-        run: ./gradlew --no-daemon --stacktrace --continue -I investigations/dokka232805/profile.gradle '-Dorg.gradle.jvmargs=-Xmx3G -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=build/w2-dokka.hprof' assemble spotlessCheck detekt testClasses dokkaJar > dokka-build.log 2>&1
+      - name: Verify real documentation and record owned runtimes
+        run: python3 investigations/dokka232805/verify.py candidate investigations/dokka232805/budget.gradle proof
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: dokka-baseline232805
+          name: dokka-budget232805-${{ inputs.mode || 'candidate' }}
           path: |
-            dokka-build.log
-            build/w2-dokka-profiles/**
-            build/*.hprof
-  analyze-old-dump:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
-      - name: Download owned prior dump and pinned analyzer
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh run download 40602653040 --repo CodexCoder21Organization/jvm-libp2p --name dokka-baseline232805 --dir evidence
-          curl --fail --location --silent --show-error https://download.eclipse.org/mat/1.16.1/rcp/MemoryAnalyzer-1.16.1.20250109-linux.gtk.x86_64.zip --output mat.zip
-          echo '7c7bc3457e08bdcd187fdafb28573b00e8e9f56b46a872fb63dbbaf7f508f01e  mat.zip' | sha256sum --check -
-          unzip -q mat.zip -d tools
-      - name: Query loaders and actual roots
-        run: |
-          mkdir -p analysis
-          HEAP=$(find evidence -name w2-dokka.hprof -type f -print -quit)
-          test -n "$HEAP"
-          HEAP=$(realpath "$HEAP")
-          for query in 'histogram -groupBy BY_CLASSLOADER' 'oql "select * from java.net.URLClassLoader"' 'thread_overview'; do
-            label=$(echo "$query" | cut -d' ' -f1)
-            tools/mat/ParseHeapDump.sh "$HEAP" "-command=$query" -format=txt -unzip org.eclipse.mat.api:query > "analysis/$label.log" 2>&1
-            mv "${HEAP%.hprof}_Query" "analysis/$label"
-          done
-          grep -oE 'java.net.URLClassLoader @ 0x[0-9a-f]+' analysis/oql/pages/*.txt | sed -E 's/.* @ //' | sort -u > analysis/loader-addresses.txt
-          test -s analysis/loader-addresses.txt
-          while read -r address; do
-            query="path2gc $address -numberOfPaths 10 -excludes java.lang.ref.Reference:referent java.lang.ref.Finalizer:unfinalized java.lang.Runtime:<Unfinalized>"
-            tools/mat/ParseHeapDump.sh "$HEAP" "-command=$query" -format=txt -unzip org.eclipse.mat.api:query > "analysis/$address.log" 2>&1
-            mv "${HEAP%.hprof}_Query" "analysis/$address"
-          done < analysis/loader-addresses.txt
-          if grep -r -E 'has no argument|Unknown query|Error executing|Exception' analysis/*/pages; then exit 1; fi
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: dokka-mat232805
-          path: analysis/**
+            proof/**
+            candidate/build/dokka-budget-proof/**
+            candidate/**/build/libs/*-javadoc.jar

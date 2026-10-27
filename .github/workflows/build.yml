@@ -26,16 +26,8 @@ jobs:
           java-version: '17'
       - name: Prepare Android SDK
         run: '"$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platform-tools" "platforms;android-30" "build-tools;30.0.3"'
-      - name: Start isolated Kubo
-        run: ./install-run-ipfs.sh
       - name: Build and test with Gradle
         run: ./gradlew --no-daemon --stacktrace --continue build dokkaJar
-      - name: Stop Kubo
-        if: always()
-        run: |
-          if [ -f build/ci-kubo/daemon.pid ]; then
-            kill "$(cat build/ci-kubo/daemon.pid)"
-          fi
       - name: Upload test reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -44,7 +36,6 @@ jobs:
           path: |
             **/build/test-results/**
             **/build/reports/**
-            build/ci-kubo/daemon.log
       - name: Check disk space
         if: always()
         run: df -h /

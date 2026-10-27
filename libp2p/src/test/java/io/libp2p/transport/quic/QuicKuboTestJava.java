@@ -21,7 +21,11 @@ import org.junit.jupiter.api.io.TempDir;
 public class QuicKuboTestJava {
   @Test
   void pingKubo(@TempDir Path directory) throws Exception {
-    Path executable = Path.of(System.getProperty("libp2p.test.kubo.executable"));
+    String executablePath = System.getProperty("libp2p.test.kubo.executable");
+    Assertions.assertNotNull(executablePath, "Gradle must supply libp2p.test.kubo.executable");
+    Path executable = Path.of(executablePath);
+    Assertions.assertTrue(
+        Files.isExecutable(executable), "Kubo test binary is not executable: " + executable);
     Path repository = directory.resolve("node");
     runKubo(executable, repository, "init", "--profile=test");
     runKubo(executable, repository, "config", "Addresses.API", "/ip4/127.0.0.1/tcp/0");
@@ -43,13 +47,18 @@ public class QuicKuboTestJava {
       directory.register(changes, StandardWatchEventKinds.ENTRY_MODIFY);
       daemon =
           new ProcessBuilder(
-                  executable.toString(), "--repo-dir", repository.toString(), "daemon", "--routing=none")
+                  executable.toString(),
+                  "--repo-dir",
+                  repository.toString(),
+                  "daemon",
+                  "--routing=none")
               .redirectErrorStream(true)
               .redirectOutput(log.toFile())
               .start();
       long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
       while (!Files.readString(log).contains("Daemon is ready")) {
-        Assertions.assertTrue(daemon.isAlive(), () -> "Kubo exited before readiness: " + readLog(log));
+        Assertions.assertTrue(
+            daemon.isAlive(), () -> "Kubo exited before readiness: " + readLog(log));
         long remaining = deadline - System.nanoTime();
         Assertions.assertTrue(remaining > 0, () -> "Kubo did not become ready: " + readLog(log));
         WatchKey change = changes.poll(remaining, TimeUnit.NANOSECONDS);
@@ -70,7 +79,8 @@ public class QuicKuboTestJava {
           break;
         }
       }
-      Assertions.assertNotNull(quicAddress, "Owned Kubo did not advertise its loopback QUIC address: " + identity);
+      Assertions.assertNotNull(
+          quicAddress, "Owned Kubo did not advertise its loopback QUIC address: " + identity);
 
       clientHost =
           new HostBuilder().keyType(KeyType.ED25519).secureTransport(QuicTransport::ECDSA).build();
@@ -107,7 +117,8 @@ public class QuicKuboTestJava {
     }
   }
 
-  private static void runKubo(Path executable, Path repository, String... arguments) throws Exception {
+  private static void runKubo(Path executable, Path repository, String... arguments)
+      throws Exception {
     List<String> command = new ArrayList<>();
     command.add(executable.toString());
     command.add("--repo-dir");
@@ -115,13 +126,18 @@ public class QuicKuboTestJava {
     command.addAll(Arrays.asList(arguments));
     Process process = new ProcessBuilder(command).redirectErrorStream(true).start();
     try {
-      Assertions.assertTrue(process.waitFor(5, TimeUnit.SECONDS), "Kubo command did not exit: " + command);
-      String output = new String(process.getInputStream().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
-      Assertions.assertEquals(0, process.exitValue(), "Kubo command failed: " + command + "\n" + output);
+      Assertions.assertTrue(
+          process.waitFor(5, TimeUnit.SECONDS), "Kubo command did not exit: " + command);
+      String output =
+          new String(
+              process.getInputStream().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+      Assertions.assertEquals(
+          0, process.exitValue(), "Kubo command failed: " + command + "\n" + output);
     } finally {
       if (process.isAlive()) {
         process.destroyForcibly();
-        Assertions.assertTrue(process.waitFor(5, TimeUnit.SECONDS), "Kubo command did not stop: " + command);
+        Assertions.assertTrue(
+            process.waitFor(5, TimeUnit.SECONDS), "Kubo command did not stop: " + command);
       }
     }
   }
@@ -136,7 +152,8 @@ public class QuicKuboTestJava {
 
   private static JSONObject getKuboIdentity(int port) throws IOException, URISyntaxException {
     HttpURLConnection conn =
-        (HttpURLConnection) new URI("http://127.0.0.1:" + port + "/api/v0/id").toURL().openConnection();
+        (HttpURLConnection)
+            new URI("http://127.0.0.1:" + port + "/api/v0/id").toURL().openConnection();
     conn.setConnectTimeout(1_000);
     conn.setReadTimeout(1_000);
     conn.setDoInput(true);
@@ -146,7 +163,8 @@ public class QuicKuboTestJava {
         dout.write(new byte[0]);
       }
       try (InputStream input = conn.getInputStream()) {
-        return new JSONObject(new String(input.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8));
+        return new JSONObject(
+            new String(input.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8));
       }
     } finally {
       conn.disconnect();

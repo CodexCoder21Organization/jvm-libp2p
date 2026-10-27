@@ -64,7 +64,7 @@ This is a standard Gradle project (JDK 11+). It is **built with Gradle** and the
 The fork's GitHub Actions `build.yml` runs the native Gradle build, tests, formatting,
 static analysis and documentation tasks. Its Linux job is named `bld-build`; Windows
 keeps a separate build job. Both retain Android compilation and upload test reports.
-Linux verification starts its own isolated Kubo node for the QUIC integration test.
+The QUIC integration test owns its isolated Kubo node.
 These are Gradle checks: the informational Kotlin build service does not run tests
 when this repository has no `build.kts`. Artifact publication remains a separate,
 manual release step.

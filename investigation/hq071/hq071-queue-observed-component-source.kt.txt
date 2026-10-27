@@ -1,0 +1,82 @@
+package foundation.url.protocol
+
+import io.libp2p.transport.implementation.P2PChannelOverNetty
+import io.netty.channel.ChannelHandlerContext
+import io.netty.channel.ChannelOutboundHandlerAdapter
+import io.netty.channel.ChannelPromise
+import io.netty.util.concurrent.ImmediateEventExecutor
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
+import kotlin.test.assertTrue
+
+/** A completed physical close must not depend on accepting another event-loop task. */
+@Suppress("DEPRECATION")
+fun testHostStopObservesCompletedCloseWithFullEventLoop() {
+    val previousLimit = System.getProperty("io.netty.eventLoop.maxPendingTasks")
+    System.setProperty("io.netty.eventLoop.maxPendingTasks", "8192")
+    val full = CountDownLatch(1)
+    val release = CountDownLatch(1)
+    val fillTask = AtomicReference<io.netty.util.concurrent.Future<*>>()
+    val server = Libp2pHostFactory.createHost(
+        listenAddresses = listOf("/ip4/127.0.0.1/tcp/0"),
+        keyPair = Libp2pHostFactory.generateKeyFromSeed("full-close-server"),
+    )
+    val client = Libp2pHostFactory.createHost(
+        listenAddresses = listOf("/ip4/127.0.0.1/tcp/0"),
+        keyPair = Libp2pHostFactory.generateKeyFromSeed("full-close-client"),
+    )
+    try {
+        server.start().get(10, TimeUnit.SECONDS)
+        client.start().get(10, TimeUnit.SECONDS)
+        val connection = client.network.connect(server.peerId, *server.listenAddresses().toTypedArray())
+            .get(10, TimeUnit.SECONDS) as P2PChannelOverNetty
+        val root = connection.nettyChannel
+        val loop = root.eventLoop()
+        root.pipeline().addLast(ImmediateEventExecutor.INSTANCE, "complete-before-listener-registration",
+            object : ChannelOutboundHandlerAdapter() {
+                override fun close(ctx: ChannelHandlerContext, promise: ChannelPromise) {
+                    // Complete the real physical close on its loop before returning it to
+                    // transport shutdown, then hold the same bounded loop at queue capacity.
+                    ctx.close(promise).syncUninterruptibly()
+                    fillTask.set(loop.submit {
+                        try {
+                            var rejected = false
+                            for (index in 0..2048) {
+                                try {
+                                    loop.execute { }
+                                } catch (_: java.util.concurrent.RejectedExecutionException) {
+                                    rejected = true
+                                    break
+                                }
+                            }
+                            check(rejected) { "The real root event-loop queue must be full" }
+                            check(!loop.isShuttingDown) { "This is a full live loop, not loop shutdown" }
+                            full.countDown()
+                            check(release.await(10, TimeUnit.SECONDS)) { "The test must release the full root event loop" }
+                        } finally {
+                            full.countDown()
+                        }
+                    })
+                    check(full.await(5, TimeUnit.SECONDS)) { "The root loop must reach queue capacity before close returns" }
+                    check(promise.isSuccess) { "The real physical close must succeed before the converter adds its listener" }
+                }
+            })
+        val stopped = client.stop()
+        assertTrue(full.await(5, TimeUnit.SECONDS))
+        release.countDown()
+        // On the old library, the listener was rejected while stop() ran and this
+        // future stays pending even after the loop recovers.
+        stopped.get(10, TimeUnit.SECONDS)
+        fillTask.get().get(10, TimeUnit.SECONDS)
+        assertTrue(!root.isOpen)
+    } finally {
+        release.countDown()
+        try {
+            server.stop().get(10, TimeUnit.SECONDS)
+        } finally {
+            if (previousLimit == null) System.clearProperty("io.netty.eventLoop.maxPendingTasks")
+            else System.setProperty("io.netty.eventLoop.maxPendingTasks", previousLimit)
+        }
+    }
+}

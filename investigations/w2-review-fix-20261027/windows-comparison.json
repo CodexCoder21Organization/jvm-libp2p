@@ -1,0 +1,53 @@
+{
+  "counts": {
+    "tests": 1446,
+    "failures": 6,
+    "errors": 0,
+    "skipped": 2
+  },
+  "baseline_counts": {
+    "tests": 1444,
+    "failures": 8,
+    "errors": 0,
+    "skipped": 2
+  },
+  "failures": [
+    {
+      "class": "io.libp2p.crypto.PoisonedDefaultSecureRandomTest",
+      "case": "startupAndKeyGenerationPathsAvoidDefaultSecureRandom()",
+      "type": "org.opentest4j.AssertionFailedError",
+      "message": "org.opentest4j.AssertionFailedError:            Poisoned-default-provider child JVM failed.\n           Completed within two minutes: true\n           Full stderr:\n           Exception in thread \"main\" java.lang.IllegalStateException: default new SecureRandom() was used on a startup/key-generation path; use nonBlockingSecureRandom() \u2014 see SecureRandom.kt\nat io.libp2p.crypto.PoisonedDefaultSecureRandomProvider$PoisonedSecureRandomSpi.engineNextBytes(PoisonedDefaultSecureRandomProvider.java:31)\nat java.base/java.security.SecureRandom.nextBytes(SecureRandom.java:761)\nat io.libp2p.crypto.keys.Curve25519Kt.generateCurve25519KeyPair(Curve25519.kt:65)\nat io.libp2p.crypto.PoisonedDefaultSecureRandomChildMain.main(PoisonedDefaultSecureRandomChildMain.kt:47)\n\n           Full stdout:\n            ==> expected: <0> but was: <1>"
+    },
+    {
+      "class": "io.libp2p.security.noise.NoiseProbePhasesTest",
+      "case": "[1] BODY_COMPLETE",
+      "type": "java.nio.file.FileSystemException",
+      "message": "java.nio.file.FileSystemException: C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\noise-probe-deadline-15853230160809337879.log: The process cannot access the file because it is being used by another process"
+    },
+    {
+      "class": "io.libp2p.security.noise.NoiseProbePhasesTest",
+      "case": "[2] CLEANUP_COMPLETE",
+      "type": "java.nio.file.FileSystemException",
+      "message": "java.nio.file.FileSystemException: C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\noise-probe-deadline-7267338633240676574.log: The process cannot access the file because it is being used by another process"
+    },
+    {
+      "class": "io.libp2p.security.noise.NoiseProbePhasesTest",
+      "case": "[3] EXIT",
+      "type": "org.opentest4j.AssertionFailedError",
+      "message": "org.opentest4j.AssertionFailedError: Noise probe exceeded the 30s aggregate deadline while awaiting EXIT; phase durations: READY=16000ms, BODY_COMPLETE=12000ms, CLEANUP_COMPLETE=1000ms, EXIT pending=2540ms:\nNOISE_PROBE_PHASE=READY\r\nNOISE_PROBE_PHASE=BODY_COMPLETE\r\nNOISE_PROBE_PHASE=CLEANUP_COMPLETE\r\n ==> expected: <true> but was: <false>"
+    },
+    {
+      "class": "io.libp2p.security.noise.NoiseProbePhasesTest",
+      "case": "[2] BODY_COMPLETE",
+      "type": "org.opentest4j.AssertionFailedError",
+      "message": "org.opentest4j.AssertionFailedError: expected: <Noise probe exited before BODY_COMPLETE:\nNOISE_PROBE_PHASE=READY\n> but was: <Noise probe exited before BODY_COMPLETE:\nNOISE_PROBE_PHASE=READY\r\n>"
+    },
+    {
+      "class": "io.libp2p.security.noise.NoiseProbePhasesTest",
+      "case": "[3] CLEANUP_COMPLETE",
+      "type": "org.opentest4j.AssertionFailedError",
+      "message": "org.opentest4j.AssertionFailedError: expected: <Noise probe exited before CLEANUP_COMPLETE:\nNOISE_PROBE_PHASE=READY\nNOISE_PROBE_PHASE=BODY_COMPLETE\n> but was: <Noise probe exited before CLEANUP_COMPLETE:\nNOISE_PROBE_PHASE=READY\r\nNOISE_PROBE_PHASE=BODY_COMPLETE\r\n>"
+    }
+  ],
+  "new_failure_identities": []
+}

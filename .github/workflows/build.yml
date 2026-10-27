@@ -1,10 +1,10 @@
-name: Bld - Mapped readiness green
+name: Bld - Review reversal proofs
 on:
   workflow_dispatch:
 permissions:
   contents: read
 jobs:
-  readiness-green:
+  reversal:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 25
     strategy:
@@ -12,34 +12,47 @@ jobs:
       matrix:
         include:
           - os: windows-latest
-            java: '17'
+            java: '24'
+            ref: verify/w2-mapped-readiness-red-213755
+            label: watch-and-runtime
+            tests: 19
+            failures: 7
+            selectors: --tests '*QuicKuboTestJava.readinessAlreadyBufferedWithoutFileNotification' --tests '*NettyFutureConversionStateTest' --tests '*PendingNettyFutureConversionTest'
           - os: ubuntu-latest
             java: '11'
+            ref: verify/w2-final-reversal-213755
+            label: output-close
+            tests: 1
+            failures: 1
+            selectors: --tests '*QuicKuboTestJava.pingKubo'
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
-      - uses: actions/setup-java@v4
-        id: kubo-java
-        if: runner.os == 'Windows'
-        with:
-          distribution: temurin
-          java-version: '24'
+          ref: ${{ matrix.ref }}
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: ${{ matrix.java }}
       - uses: gradle/actions/setup-gradle@v4
-      - name: Verify Windows split runtimes
-        if: runner.os == 'Windows'
-        run: ./gradlew --no-daemon --stacktrace "-PkuboJavaHome=${{ steps.kubo-java.outputs.path }}" :libp2p:spotlessJavaApply :libp2p:test --tests '*NettyFutureConversionStateTest' --tests '*PendingNettyFutureConversionTest' :libp2p:kuboProcessTest :libp2p:spotlessCheck
-      - name: Verify Linux minimum runtime
-        if: runner.os == 'Linux'
-        run: ./gradlew --no-daemon --stacktrace :libp2p:spotlessJavaApply :libp2p:test --tests '*QuicKuboTestJava' :libp2p:spotlessCheck
+      - name: Execute the reverted behavior
+        continue-on-error: true
+        run: ./gradlew --no-daemon --stacktrace :libp2p:test ${{ matrix.selectors }}
+      - name: Assert exact reverted failures
+        shell: python
+        run: |
+          import pathlib, xml.etree.ElementTree as E
+          suites=[E.parse(p).getroot() for p in pathlib.Path('libp2p/build/test-results/test').glob('TEST-*.xml')]
+          counts={key:sum(int(t.get(key,0)) for t in suites) for key in ['tests','failures','errors','skipped']}
+          print(counts)
+          assert counts==dict(tests=${{ matrix.tests }},failures=${{ matrix.failures }},errors=0,skipped=0), counts
+          failures=[f for t in suites for f in t.iter('failure')]
+          if '${{ matrix.label }}'=='watch-and-runtime':
+              assert any('Kubo did not become ready: Daemon is ready' in f.get('message','') for f in failures)
+              assert sum('CancellationException: join' in f.get('message','') for f in failures)==6
+          else:
+              assert any('java.io.IOException: Stream closed' in (f.text or '') for f in failures)
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: mapped-readiness-green-${{ matrix.java }}
-          path: |
-            libp2p/build/test-results/**
-            libp2p/src/test/java/io/libp2p/transport/quic/QuicKuboTestJava.java
+          name: reversal-${{ matrix.label }}
+          path: libp2p/build/test-results/**

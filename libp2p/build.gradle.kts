@@ -131,3 +131,27 @@ tasks.named<Test>("test") {
     dependsOn(prepareKubo)
     systemProperty("libp2p.test.kubo.executable", kuboExecutable.get().asFile.absolutePath)
 }
+
+// Keep the build, Android tools and general tests on their compatible runtime.
+// Windows assigns every Kubo case to this separate task for the corrected process wait.
+val kuboJavaHome = providers.gradleProperty("kuboJavaHome")
+if (kuboJavaHome.isPresent) {
+    tasks.named<Test>("test") {
+        exclude("io/libp2p/transport/quic/QuicKuboTestJava*.class")
+    }
+    val kuboProcessTest by tasks.registering(Test::class) {
+        description = "Runs the owned Kubo process tests on the supplied JDK."
+        testClassesDirs = sourceSets.test.get().output.classesDirs
+        classpath = sourceSets.test.get().runtimeClasspath
+        executable = file(kuboJavaHome.get()).resolve("bin/java.exe").absolutePath
+        useJUnitPlatform()
+        include("io/libp2p/transport/quic/QuicKuboTestJava.class")
+        dependsOn(prepareKubo)
+        systemProperty("libp2p.test.kubo.executable", kuboExecutable.get().asFile.absolutePath)
+        testLogging {
+            events("FAILED")
+            exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+        }
+    }
+    tasks.named("check") { dependsOn(kuboProcessTest) }
+}

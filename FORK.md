@@ -74,7 +74,9 @@ ports, an empty bootstrap list and a temporary repository. Gradle downloads and
 verifies the pinned Kubo binary before tests; no existing IPFS daemon is required.
 The test retains its 1,000-ping check and stops both hosts even when an assertion fails.
 Linux CI builds and tests on JDK 11 after preparing Android tools on JDK 17.
-Windows CI uses JDK 24, which contains the OpenJDK process-wait correction
+Windows CI builds and runs general tests on JDK 17. It assigns all Kubo process
+tests to `kuboProcessTest` on JDK 24 using `-PkuboJavaHome=<JDK 24 directory>`.
+The `check` task includes both test tasks, so the full suite still runs. JDK 24 contains the OpenJDK process-wait correction
 [JDK-8333742](https://github.com/openjdk/jdk/commit/b77bd5fd6a6f7ddbed90300fba790da4fb683275).
 That correction waits for process termination before temporary log cleanup;
 the test checks immediate file release after its process wait.

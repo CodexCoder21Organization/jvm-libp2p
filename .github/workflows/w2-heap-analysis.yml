@@ -1,0 +1,53 @@
+name: W2 heap ownership analysis
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: Completed Dokka probe run
+        required: true
+        type: string
+permissions:
+  contents: read
+  actions: read
+jobs:
+  heap-analysis:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Fetch captured heap and the pinned official analyzer
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN: ${{ inputs.run_id }}
+        run: |
+          gh run download "$SOURCE_RUN" --repo CodexCoder21Organization/jvm-libp2p --name w2-dokka-retention-evidence --dir evidence
+          curl --fail --location --silent --show-error https://download.eclipse.org/mat/1.16.1/rcp/MemoryAnalyzer-1.16.1.20250109-linux.gtk.x86_64.zip --output mat.zip
+          echo '7c7bc3457e08bdcd187fdafb28573b00e8e9f56b46a872fb63dbbaf7f508f01e  mat.zip' | sha256sum --check -
+          unzip -q mat.zip -d tools
+      - name: Export retained loaders, root paths and thread owners
+        run: |
+          mkdir -p analysis
+          HEAP=$(find evidence -name w2-dokka-before-schedulers.hprof -type f -print -quit)
+          if [ -z "$HEAP" ]; then
+            HEAP=$(find evidence -name w2-dokka.hprof -type f -print -quit)
+          fi
+          test -n "$HEAP"
+          HEAP=$(realpath "$HEAP")
+          printf '%s\n' "$HEAP" > analysis/heap-input.txt
+          tools/mat/ParseHeapDump.sh "$HEAP" -keep_unreachable_objects '-command=dominator_tree -groupby=BY_CLASSLOADER' -format=txt -unzip org.eclipse.mat.api:query > analysis/dominator.log 2>&1
+          mv "${HEAP%.hprof}_Query" analysis/dominator
+          tools/mat/ParseHeapDump.sh "$HEAP" -keep_unreachable_objects '-command=histogram -groupby=BY_CLASSLOADER' -format=txt -unzip org.eclipse.mat.api:query > analysis/histogram.log 2>&1
+          mv "${HEAP%.hprof}_Query" analysis/histogram
+          tools/mat/ParseHeapDump.sh "$HEAP" -keep_unreachable_objects '-command=merge_shortest_paths java\.net\.URLClassLoader -include_subclasses -groupby=FROM_OBJECTS_BY_CLASS' -format=txt -unzip org.eclipse.mat.api:query > analysis/paths.log 2>&1
+          mv "${HEAP%.hprof}_Query" analysis/paths
+          tools/mat/ParseHeapDump.sh "$HEAP" -keep_unreachable_objects '-command=thread_overview' -format=txt -unzip org.eclipse.mat.api:query > analysis/threads.log 2>&1
+          mv "${HEAP%.hprof}_Query" analysis/threads
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: w2-heap-ownership-analysis
+          path: analysis/**

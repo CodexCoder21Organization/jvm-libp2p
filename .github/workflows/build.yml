@@ -1,45 +1,72 @@
-name: build
+name: Bld - Build and Test
 on:
   push:
-    paths-ignore:
-      - '**/*.md'
-      - 'docs/**'
-      - '.gitignore'
-      - 'LICENSE-APACHE'
-      - 'LICENSE-MIT'
-      - 'funding.json'
-      - '.github/ISSUE_TEMPLATE/**'
+    branches: [develop]
   pull_request:
-    paths-ignore:
-      - '**/*.md'
-      - 'docs/**'
-      - '.gitignore'
-      - 'LICENSE-APACHE'
-      - 'LICENSE-MIT'
-      - 'funding.json'
-      - '.github/ISSUE_TEMPLATE/**'
+    branches: [develop]
+  merge_group:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
 jobs:
-  gradle:
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
+  bld-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-java@v3
+      - uses: actions/checkout@v4
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/share/boost
+          df -h /
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 11
-      - name: Install and run ipfs
+          java-version: '17'
+      - name: Prepare Android SDK
+        run: '"$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platform-tools" "platforms;android-30" "build-tools;30.0.3"'
+      - name: Start isolated Kubo
         run: ./install-run-ipfs.sh
-
-      - name: Setup Gradle
-        uses: gradle/gradle-build-action@v2
-
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Build and test with Gradle
+        run: ./gradlew --no-daemon --stacktrace --continue build dokkaJar
+      - name: Stop Kubo
+        if: always()
+        run: |
+          if [ -f build/ci-kubo/daemon.pid ]; then
+            kill "$(cat build/ci-kubo/daemon.pid)"
+          fi
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
-          cmdline-tools-version: 8512546
+          name: gradle-linux-reports
+          path: |
+            **/build/test-results/**
+            **/build/reports/**
+            build/ci-kubo/daemon.log
+      - name: Check disk space
+        if: always()
+        run: df -h /
 
-      - name: Execute Gradle build
-        run: ./gradlew -s build dokkaJar
+  gradle-windows:
+    runs-on: windows-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Prepare Android SDK
+        run: '& "$env:ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager.bat" "platform-tools" "platforms;android-30" "build-tools;30.0.3"'
+      - name: Build and test with Gradle
+        run: ./gradlew --no-daemon --stacktrace --continue build dokkaJar
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gradle-windows-reports
+          path: |
+            **/build/test-results/**
+            **/build/reports/**

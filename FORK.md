@@ -61,7 +61,13 @@ This is a standard Gradle project (JDK 11+). It is **built with Gradle** and the
 ./gradlew :libp2p:spotlessCheck :libp2p:detekt   # formatting + static analysis gates
 ```
 
-> **Note:** the fork's GitHub Actions workflows (`build.yml` / `publish.yml`) are currently failing at startup (an org-side Actions configuration issue), so there is **no green CI check and no CI auto-publish**. Until that is fixed, builds are verified locally with the commands above and releases are published manually as described below. A couple of suites that need native libraries absent from the CI/dev image (`io.libp2p.transport.quic.*`, `io.libp2p.security.tls.*`) fail with `SSLException: failed to create an SSL_CTX`, and some host tests intermittently fail with `BindException` under parallel execution — these are environmental, not regressions.
+The fork's GitHub Actions `build.yml` runs the native Gradle build, tests, formatting,
+static analysis and documentation tasks. Its Linux job is named `bld-build`; Windows
+keeps a separate build job. Both retain Android compilation and upload test reports.
+Linux verification starts its own isolated Kubo node for the QUIC integration test.
+These are Gradle checks: the informational Kotlin build service does not run tests
+when this repository has no `build.kts`. Artifact publication remains a separate,
+manual release step.
 
 ### Cut a release
 

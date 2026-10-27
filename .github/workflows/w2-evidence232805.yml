@@ -1,0 +1,29 @@
+name: Collect existing W2 proof results
+on:
+  push:
+    branches: [proof/w2-yamux232805-collect]
+permissions:
+  actions: read
+  contents: write
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - run: '40605274562'
+            artifact: 'yamux-proof-*'
+          - run: '40604806030'
+            artifact: 'dokka-budget232805-candidate'
+          - run: '40605138469'
+            artifact: 'dokka-budget232805-html'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Collect the existing result without running tests
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PROOF_RUN: ${{ matrix.run }}
+          PROOF_ARTIFACT: ${{ matrix.artifact }}
+        run: python3 .github/proof/collect-existing-results.py

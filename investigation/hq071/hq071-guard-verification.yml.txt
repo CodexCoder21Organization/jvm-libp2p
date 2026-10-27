@@ -1,0 +1,43 @@
+name: HQ071 guard verification
+on:
+  push:
+    branches: [fix/hq071-hosted-guard-evidence]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  register:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo 'Guard verification is dispatched after workflow registration.'
+  verify:
+    if: github.event_name == 'workflow_dispatch'
+    name: Guard case ${{ matrix.case }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        case: [normal, held-loop, diagnostic, handler]
+    container:
+      image: eclipse-temurin:21-jdk-jammy
+    steps:
+      - name: Install runner tools
+        run: |
+          apt update
+          apt install -y curl git python3 procps
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Record disk space
+        run: df -h /
+      - name: Run public guards and preserve first attempts
+        run: python3 investigation/hq071/run-hosted-guard.py '${{ matrix.case }}'
+      - name: Upload complete native evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hq071-guard-${{ matrix.case }}
+          path: guard-evidence/
+          if-no-files-found: error

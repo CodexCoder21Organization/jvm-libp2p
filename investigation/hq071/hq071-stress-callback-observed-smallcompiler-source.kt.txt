@@ -1,0 +1,382 @@
+package foundation.url.protocol
+
+import build.kotlin.annotations.Timeout
+import build.kotlin.annotations.TestWorkerSlots
+import io.libp2p.transport.implementation.P2PChannelOverNetty
+import io.libp2p.transport.implementation.StreamOverNetty
+import io.netty.buffer.ByteBuf
+import io.netty.channel.Channel
+import io.netty.channel.ChannelHandlerContext
+import io.netty.channel.ChannelInboundHandlerAdapter
+import io.netty.channel.ChannelOutboundHandlerAdapter
+import io.netty.channel.ChannelPromise
+import io.netty.util.AttributeKey
+import io.netty.util.internal.logging.InternalLoggerFactory
+import io.netty.util.internal.logging.JdkLoggerFactory
+import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
+import java.util.function.Consumer
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNull
+import kotlin.test.assertSame
+import kotlin.test.assertTrue
+import kotlin.test.fail
+
+/** A held diagnostic sink must not hold response accounting against a close caller. */
+@TestWorkerSlots(4)
+@Timeout(240)
+fun stressTestRejectedDrainConcurrentHostStops() {
+    val nativeErr = System.err
+    val debug = System.getProperty("foundation.url.protocol.debug")
+    val limit = System.getProperty("io.netty.eventLoop.maxPendingTasks")
+    val loggerFactory = InternalLoggerFactory.getDefaultFactory()
+    val sinks = java.util.concurrent.ConcurrentHashMap<Thread, java.io.PrintStream>()
+    val router = object : java.io.PrintStream(nativeErr, true, "UTF-8") {
+        override fun println(message: String?) {
+            (sinks[Thread.currentThread()] ?: nativeErr).println(message)
+        }
+    }
+    val failures = ConcurrentLinkedQueue<Throwable>()
+    val completed = AtomicInteger()
+    val workers = Executors.newFixedThreadPool(8)
+    val rounds = java.util.concurrent.Phaser(8)
+    val awaitRound = {
+        val phase = rounds.arrive()
+        check(phase >= 0) { "A failed host-stop round must end every participant" }
+        check(rounds.awaitAdvanceInterruptibly(phase, 10, TimeUnit.SECONDS) >= 0) {
+            "A failed host-stop round must end every participant"
+        }
+        Unit
+    }
+    try {
+        System.setProperty("io.netty.eventLoop.maxPendingTasks", "1024")
+        System.setProperty("foundation.url.protocol.debug", "true")
+        System.setErr(router)
+        InternalLoggerFactory.setDefaultFactory(JdkLoggerFactory.INSTANCE)
+        val runs = (0 until 8).map { worker -> workers.submit {
+            repeat(16) { iteration ->
+                val id = worker * 16 + iteration
+                try {
+                    rejectedDrainHostStopCycle(id, nativeErr, sinks, awaitRound)
+                    // All queue faults and their cleanup finish before another initial dial.
+                    // Transports in this JVM share their NIO workers across hosts.
+                    awaitRound()
+                } catch (failure: Throwable) {
+                    rounds.forceTermination()
+                    failures.add(failure)
+                    nativeErr.println("FL635_CYCLE_FAILURE id=$id")
+                    failure.printStackTrace(nativeErr)
+                } finally {
+                    completed.incrementAndGet()
+                }
+            }
+        } }
+        runs.forEach { it.get(220, TimeUnit.SECONDS) }
+    } finally {
+        workers.shutdownNow()
+        check(workers.awaitTermination(10, TimeUnit.SECONDS))
+        System.setErr(nativeErr)
+        if (debug == null) System.clearProperty("foundation.url.protocol.debug")
+        else System.setProperty("foundation.url.protocol.debug", debug)
+        if (limit == null) System.clearProperty("io.netty.eventLoop.maxPendingTasks")
+        else System.setProperty("io.netty.eventLoop.maxPendingTasks", limit)
+        InternalLoggerFactory.setDefaultFactory(loggerFactory)
+    }
+    nativeErr.println("FL635_CYCLES completed=${completed.get()} failed=${failures.size} concurrency=8 iterations=128")
+    assertEquals(0, failures.size, "Concurrent rejected-drain host-stop cycles must complete; failed=${failures.size}/${completed.get()}")
+}
+
+private fun rejectedDrainHostStopCycle(
+    id: Int,
+    nativeErr: java.io.PrintStream,
+    sinks: java.util.concurrent.ConcurrentHashMap<Thread, java.io.PrintStream>,
+    awaitFaultPhase: () -> Unit,
+) {
+    val sinkEntered = CountDownLatch(1)
+    val releaseSink = CountDownLatch(1)
+    val closeEntered = CountDownLatch(1)
+    val closeReturned = CountDownLatch(1)
+    val closeCallFailure = AtomicReference<Throwable>()
+    val closeResult = AtomicReference<io.netty.channel.ChannelFuture>()
+    var closeThread: Thread? = null
+    val previousDebug = System.getProperty("foundation.url.protocol.debug")
+    val previousErr = nativeErr
+    val heldSink = object : java.io.PrintStream(previousErr, true, "UTF-8") {
+        override fun println(message: String?) {
+            if (message?.startsWith("[RPC] Awaited-response drain submission rejected:") == true) {
+                sinkEntered.countDown()
+                assertTrue(releaseSink.await(10, TimeUnit.SECONDS), "The test must release the diagnostic sink")
+            }
+            super.println(message)
+        }
+    }
+    val previousQueueLimit = System.getProperty("io.netty.eventLoop.maxPendingTasks")
+    val previousLoggerFactory = InternalLoggerFactory.getDefaultFactory()
+    val firstHandlerEntered = CountDownLatch(1)
+    val releaseFirstHandler = CountDownLatch(1)
+    val secondHandlerEntered = CountDownLatch(1)
+    val releaseSecondHandler = CountDownLatch(1)
+    val loopHeld = CountDownLatch(1)
+    val releaseLoop = CountDownLatch(1)
+    val queueRejected = AtomicBoolean()
+    val queueTaskExecutions = AtomicInteger()
+    val queueTasksCompleted = CountDownLatch(1)
+    val queueTasksAccepted = AtomicInteger()
+    val queueRejection = AtomicReference<Throwable>()
+    fun rootConnectionChannel(channel: Channel): Channel {
+        var current = channel
+        while (true) {
+            val parent = current.parent() ?: return current
+            if (parent is io.netty.channel.ServerChannel) return current
+            current = parent
+        }
+    }
+
+    val fatal = NoClassDefFoundError("prequeued-sibling-observer-failed")
+    val fatalRaised = AtomicBoolean(false)
+    val propagated = AtomicReference<Throwable>()
+    val fatalPropagated = CountDownLatch(1)
+    val taskLogger = java.util.logging.Logger.getLogger("io.netty.util.concurrent.AbstractEventExecutor")
+    val propagationHandler = object : java.util.logging.Handler() {
+        override fun publish(record: java.util.logging.LogRecord) {
+            if (record.thrown === fatal) {
+                propagated.set(record.thrown)
+                fatalPropagated.countDown()
+            }
+        }
+        override fun flush() {}
+        override fun close() {}
+    }
+    var serverHost: io.libp2p.core.Host? = null
+    var clientHost: io.libp2p.core.Host? = null
+    var callers: java.util.concurrent.ExecutorService? = null
+    var rpc: Libp2pRpcStream? = null
+    var serverRoot: Channel? = null
+    try {
+        taskLogger.addHandler(propagationHandler)
+
+    val firstAdmitted = CountDownLatch(1)
+    val bothAdmitted = CountDownLatch(2)
+    val bothDrained = CountDownLatch(2)
+    val bothWritesCompleted = CountDownLatch(2)
+    val outboxEvents = ConcurrentLinkedQueue<String>()
+    val handoffs = ConcurrentLinkedQueue<Pair<String, ByteBuf>>()
+    val completions = ConcurrentLinkedQueue<Pair<String, Boolean>>()
+    val admissionsAfterFatal = AtomicInteger()
+    val writabilityChangesAfterFatal = AtomicInteger()
+    val requestsHandled = ConcurrentLinkedQueue<String>()
+    val payloads = mapOf("first" to "first-" + "a".repeat(1024), "second" to "second-" + "b".repeat(1024))
+    val serverHandler = object : RpcRequestHandler {
+        override suspend fun handleRequest(
+            request: Libp2pRpcProtocol.RpcRequest,
+            effectHandler: EffectPropagator,
+        ): Libp2pRpcProtocol.RpcResponse {
+            requestsHandled.add(request.id)
+            if (request.id == "first") {
+                firstHandlerEntered.countDown()
+                assertTrue(releaseFirstHandler.await(10, TimeUnit.SECONDS), "The test must release the first handler")
+            }
+            if (request.id == "second") {
+                secondHandlerEntered.countDown()
+                assertTrue(releaseSecondHandler.await(10, TimeUnit.SECONDS), "The test must release the second handler")
+            }
+            return Libp2pRpcProtocol.RpcResponse.success(
+                request.id,
+                payloads[request.id] ?: fail("Unexpected request ${request.id}"),
+            )
+        }
+    }
+    val activeServerHost = Libp2pHostFactory.createServerHost(
+        listenAddresses = listOf("/ip4/127.0.0.1/tcp/0"),
+        requestHandler = serverHandler,
+        keyPair = Libp2pHostFactory.generateKeyFromSeed("prequeued-sibling-server-$id"),
+    )
+    serverHost = activeServerHost
+    val activeClientHost = Libp2pHostFactory.createHost(
+        listenAddresses = listOf("/ip4/127.0.0.1/tcp/0"),
+        keyPair = Libp2pHostFactory.generateKeyFromSeed("prequeued-sibling-client-$id"),
+    )
+    clientHost = activeClientHost
+    val activeCallers = Executors.newFixedThreadPool(2)
+    callers = activeCallers
+        activeServerHost.start().get(10, TimeUnit.SECONDS)
+        activeClientHost.start().get(10, TimeUnit.SECONDS)
+        val streamPromise = activeClientHost.newStream<Libp2pRpcController>(
+            listOf(Libp2pRpcProtocol.PROTOCOL_ID), activeServerHost.peerId, activeServerHost.listenAddresses().first(),
+        )
+        val controller = streamPromise.controller.get(10, TimeUnit.SECONDS)
+        streamPromise.stream.get(10, TimeUnit.SECONDS)
+        val activeRpc = Libp2pRpcStream(controller, activeServerHost.peerId.toString(), "prequeued-siblings")
+        rpc = activeRpc
+        val activeRoot = rootConnectionChannel(
+            (activeServerHost.network.connections.single() as? P2PChannelOverNetty)?.nettyChannel
+                ?: fail("Could not obtain the server connection channel"),
+        )
+        serverRoot = activeRoot
+        val outbound = activeRoot.unsafe().outboundBuffer()
+            ?: fail("The server root connection has no outbound buffer")
+        activeRoot.attr(AttributeKey.valueOf<Consumer<String>>(
+            "foundation.url.protocol.awaitedResponseOutboxObserver",
+        )).set(Consumer { event ->
+            sinks[Thread.currentThread()] = heldSink
+            outboxEvents.add(event)
+            if (event == "ADMITTED:PRIORITY") {
+                if (fatalRaised.get()) admissionsAfterFatal.incrementAndGet()
+                firstAdmitted.countDown()
+                bothAdmitted.countDown()
+            }
+            if (event == "DRAINED:PRIORITY") {
+                bothDrained.countDown()
+                if (fatalRaised.compareAndSet(false, true)) {
+                    // Exhaust the real bounded task queue while its only consumer is in this
+                    // callback. These queued tasks record completion; none blocks or spins.
+                    val recordQueueTask = Runnable {
+                        if (queueTaskExecutions.incrementAndGet() == queueTasksAccepted.get()) {
+                            queueTasksCompleted.countDown()
+                        }
+                    }
+                    // Netty clamps this queue to at least 2048 cells; attempt cell 2049.
+                    for (index in 0..2048) {
+                        try {
+                            activeRoot.eventLoop().execute(recordQueueTask)
+                            queueTasksAccepted.incrementAndGet()
+                        } catch (failure: java.util.concurrent.RejectedExecutionException) {
+                            queueRejected.set(true)
+                            queueRejection.set(failure)
+                            break
+                        }
+                    }
+                    throw fatal
+                }
+            }
+        })
+        activeRoot.eventLoop().submit {
+            activeRoot.pipeline().addFirst("observe-root-writability", object : ChannelInboundHandlerAdapter() {
+                override fun channelWritabilityChanged(ctx: ChannelHandlerContext) {
+                    if (fatalRaised.get()) writabilityChangesAfterFatal.incrementAndGet()
+                    ctx.fireChannelWritabilityChanged()
+                }
+            })
+            outbound.setUserDefinedWritability(1, false)
+        }.get(10, TimeUnit.SECONDS)
+        assertFalse(activeRoot.isWritable, "Both replies must be queued under forced root backpressure")
+        val firstCall = activeCallers.submit<Libp2pRpcProtocol.RpcResponse> {
+            activeRpc.sendRequest(Libp2pRpcProtocol.RpcRequest("first", "first", emptyMap()))
+        }
+        assertTrue(firstHandlerEntered.await(10, TimeUnit.SECONDS), "The first request must reach its handler")
+        val serverStream = activeServerHost.streams.single() as StreamOverNetty
+        serverStream.nettyChannel.eventLoop().submit {
+            serverStream.nettyChannel.pipeline().addFirst("observe-response-handoffs", object : ChannelOutboundHandlerAdapter() {
+                override fun write(ctx: ChannelHandlerContext, message: Any, promise: ChannelPromise) {
+                    if (message is ByteBuf) {
+                        // Read a duplicate so observing the real frame does not consume transport bytes.
+                        val frame = message.duplicate()
+                        val jsonLength = frame.readInt()
+                        val response = org.json.JSONObject(frame.readCharSequence(jsonLength, Charsets.UTF_8).toString())
+                        val requestId = response.getString("id")
+                        handoffs.add(requestId to message)
+                        // The outbox has already attached its cleanup listener to this promise.
+                        // This listener runs after that listener returns, without admitting more work.
+                        promise.addListener { completed ->
+                            completions.add(requestId to completed.isSuccess)
+                            bothWritesCompleted.countDown()
+                        }
+                    }
+                    ctx.write(message, promise)
+                }
+            })
+            serverStream.nettyChannel.pipeline().addFirst("observe-child-writability", object : ChannelInboundHandlerAdapter() {
+                override fun channelWritabilityChanged(ctx: ChannelHandlerContext) {
+                    if (fatalRaised.get()) writabilityChangesAfterFatal.incrementAndGet()
+                    ctx.fireChannelWritabilityChanged()
+                }
+            })
+        }.get(10, TimeUnit.SECONDS)
+        releaseFirstHandler.countDown()
+        assertTrue(firstAdmitted.await(10, TimeUnit.SECONDS), "The first reply must be queued before the second request")
+        val secondCall = activeCallers.submit<Libp2pRpcProtocol.RpcResponse> {
+            activeRpc.sendRequest(Libp2pRpcProtocol.RpcRequest("second", "second", emptyMap()))
+        }
+        assertTrue(secondHandlerEntered.await(10, TimeUnit.SECONDS), "The second request must reach its handler")
+        // Every cycle has delivered both requests before any cycle holds or fills
+        // the shared loop. The faults and public close callers remain concurrent.
+        awaitFaultPhase()
+        val heldTask = activeRoot.eventLoop().submit(Runnable {
+            loopHeld.countDown()
+            assertTrue(releaseLoop.await(10, TimeUnit.SECONDS), "The test must release the root loop")
+            check(false) { "hq071 controlled held-loop callback failure" }
+        })
+        // Force registration to precede recovery in the ordinary queue. Registration must not
+        // enqueue an unwritable drain behind recovery and ahead of its writability notification.
+        releaseSecondHandler.countDown()
+        assertTrue(bothAdmitted.await(10, TimeUnit.SECONDS), "Both replies must be admitted before the only recovery")
+        val recovery = activeRoot.eventLoop().submit {
+            assertEquals(0, handoffs.size, "Neither queued reply may be handed off while the root is unwritable")
+            outbound.setUserDefinedWritability(1, true)
+        }
+        // Every cycle queues its held-loop and recovery tasks before any cycle can
+        // fill a shared loop. A held task can be behind a sibling's held task.
+        awaitFaultPhase()
+        assertTrue(loopHeld.await(10, TimeUnit.SECONDS))
+        releaseLoop.countDown()
+        heldTask.get(10, TimeUnit.SECONDS)
+        recovery.get(10, TimeUnit.SECONDS)
+
+        assertTrue(sinkEntered.await(10, TimeUnit.SECONDS), "The actual rejected-drain diagnostic must reach the held sink")
+        closeThread = Thread({
+            closeEntered.countDown()
+            try {
+                closeResult.set(activeRoot.closeProtocolRoot())
+            } catch (failure: Throwable) {
+                closeCallFailure.set(failure)
+            } finally {
+                closeReturned.countDown()
+            }
+        }, "review-protocol-close-caller").apply { isDaemon = true; start() }
+        assertTrue(closeEntered.await(5, TimeUnit.SECONDS), "The separate public close caller must start")
+        assertTrue(closeReturned.await(5, TimeUnit.SECONDS),
+            "closeProtocolRoot must return its future while diagnostic output is held; a sink cannot own the outbox monitor")
+        assertNull(closeCallFailure.get())
+        assertTrue(closeResult.get() != null)
+        releaseSink.countDown()
+        closeThread!!.join(5_000L)
+    } finally {
+        releaseSink.countDown()
+        closeThread?.join(5_000L)
+        releaseFirstHandler.countDown()
+        releaseSecondHandler.countDown()
+        releaseLoop.countDown()
+        serverRoot?.attr(AttributeKey.valueOf<Consumer<String>>(
+            "foundation.url.protocol.awaitedResponseOutboxObserver",
+        ))?.set(null)
+        try {
+            if (queueRejected.get() && queueTasksAccepted.get() > 0) {
+                assertTrue(queueTasksCompleted.await(10, TimeUnit.SECONDS),
+                    "Injected queue tasks must finish before ordinary host cleanup submits its close")
+            }
+            // Every cycle has released its held sink and drained its injected tasks
+            // before any host cleanup submits work to the shared NIO loop.
+            awaitFaultPhase()
+            rpc?.close()
+        } finally {
+            callers?.shutdownNow()
+            assertTrue(callers?.awaitTermination(5, TimeUnit.SECONDS) != false)
+            try {
+                clientHost?.stop()?.get(10, TimeUnit.SECONDS)
+            } finally {
+                try {
+                    serverHost?.stop()?.get(10, TimeUnit.SECONDS)
+                } finally {
+                    taskLogger.removeHandler(propagationHandler)
+                    sinks.entries.removeIf { it.value === heldSink }
+                }
+            }
+        }
+    }
+}

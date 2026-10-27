@@ -106,16 +106,35 @@ public class QuicKuboTestJava {
         if (clientHost != null) clientHost.stop().get(5, TimeUnit.SECONDS);
       } finally {
         if (daemon != null) {
+          String inspector = System.getenv("KUBO_HANDLE_EXE");
+          if (inspector != null) {
+            System.out.println("LOG OWNERS BEFORE STOP");
+            Process before =
+                new ProcessBuilder(inspector, "-accepteula", "-nobanner", "daemon.log")
+                    .inheritIO()
+                    .start();
+            Assertions.assertTrue(
+                before.waitFor(5, TimeUnit.SECONDS), "File inspection did not finish");
+          }
           daemon.destroy();
           if (!daemon.waitFor(5, TimeUnit.SECONDS)) {
             daemon.destroyForcibly();
             Assertions.assertTrue(daemon.waitFor(5, TimeUnit.SECONDS), "Owned Kubo did not exit");
           }
           System.out.println(readLog(log));
-          String inspector = System.getenv("KUBO_HANDLE_EXE");
-          if (inspector != null) {
-            Process inspection = new ProcessBuilder(inspector, "-accepteula", "-nobanner", log.toString()).inheritIO().start();
-            Assertions.assertTrue(inspection.waitFor(5, TimeUnit.SECONDS), "File inspection did not finish");
+          try {
+            Files.delete(log);
+          } catch (IOException failure) {
+            System.out.println("LOG DELETE FAILED " + failure);
+            if (inspector != null) {
+              Process inspection =
+                  new ProcessBuilder(inspector, "-accepteula", "-nobanner", "daemon.log")
+                      .inheritIO()
+                      .start();
+              Assertions.assertTrue(
+                  inspection.waitFor(5, TimeUnit.SECONDS), "File inspection did not finish");
+            }
+            throw failure;
           }
         }
       }

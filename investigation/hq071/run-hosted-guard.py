@@ -3,6 +3,8 @@ from pathlib import Path
 case=sys.argv[1]
 assert case in ('normal','held-loop','diagnostic','handler')
 repo=Path.cwd();out=repo/'guard-evidence'/case;out.mkdir(parents=True,exist_ok=True)
+(out/'startup.json').write_text(json.dumps({'case':case,'checkout':str(repo)}))
+subprocess.run(['git','config','--global','--add','safe.directory',str(repo)],check=True)
 subprocess.run(['git','config','user.name','hq071 verification'],check=True)
 subprocess.run(['git','config','user.email','hq071@example.invalid'],check=True)
 path=repo/'tests/stressTestRejectedDrainConcurrentHostStops.kts'

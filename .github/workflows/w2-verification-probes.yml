@@ -6,6 +6,10 @@ on:
         type: choice
         options: [windows, dokka]
         default: windows
+      jdk:
+        type: choice
+        options: ['17', '24']
+        default: '17'
 permissions:
   contents: read
 jobs:
@@ -18,7 +22,7 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: ${{ inputs.jdk }}
       - name: Prepare real Kubo and native process signal probe
         shell: pwsh
         run: |

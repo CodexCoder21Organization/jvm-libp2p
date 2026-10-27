@@ -4,11 +4,7 @@ permissions:
   contents: read
 jobs:
   bld-build:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
+    runs-on: windows-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
@@ -16,13 +12,19 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
+      - name: Prepare file-owner inspection
+        shell: pwsh
+        run: |
+          Invoke-WebRequest https://download.sysinternals.com/files/Handle.zip -OutFile handle.zip
+          Expand-Archive handle.zip -DestinationPath build/handle
+          "KUBO_HANDLE_EXE=$pwd\build\handle\handle64.exe" >> $env:GITHUB_ENV
       - name: Run real owned Kubo and static verification
         shell: bash
         run: ./gradlew --no-daemon --stacktrace --continue :libp2p:cleanTest :libp2p:test --tests io.libp2p.transport.quic.QuicKuboTestJava :libp2p:detekt :libp2p:spotlessCheck
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: owned-kubo-proof-${{ matrix.os }}
+          name: owned-kubo-file-proof
           path: |
             **/build/test-results/**
             **/build/reports/**

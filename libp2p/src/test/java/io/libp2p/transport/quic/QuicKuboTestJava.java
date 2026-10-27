@@ -112,6 +112,11 @@ public class QuicKuboTestJava {
             Assertions.assertTrue(daemon.waitFor(5, TimeUnit.SECONDS), "Owned Kubo did not exit");
           }
           System.out.println(readLog(log));
+          String inspector = System.getenv("KUBO_HANDLE_EXE");
+          if (inspector != null) {
+            Process inspection = new ProcessBuilder(inspector, "-accepteula", "-nobanner", log.toString()).inheritIO().start();
+            Assertions.assertTrue(inspection.waitFor(5, TimeUnit.SECONDS), "File inspection did not finish");
+          }
         }
       }
     }

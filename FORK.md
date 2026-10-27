@@ -69,6 +69,11 @@ These are Gradle checks: the informational Kotlin build service does not run tes
 when this repository has no `build.kts`. Artifact publication remains a separate,
 manual release step.
 
+The QUIC integration test starts its own Kubo node on loopback with OS-assigned
+ports, an empty bootstrap list and a temporary repository. Gradle downloads and
+verifies the pinned Kubo binary before tests; no existing IPFS daemon is required.
+The test retains its 1,000-ping check and stops both hosts even when an assertion fails.
+
 ### Cut a release
 
 1. **Pick the next version.** Releases are `1.3.0-codexcoder21-snapshot-N`. **Increment `N` to the next unpublished value and confirm it is not already published** — the publish API refuses to overwrite an existing version (`HTTP 409`), and version numbers have in the past been claimed by parallel branches. Check with:

@@ -58,7 +58,6 @@ class NoiseMatcherReadinessTest {
                 assertEquals(0, process.exitValue(), text)
             } catch (failure: Throwable) {
                 primaryFailure = failure
-                throw failure
             } finally {
                 try {
                     process.descendants().forEach { it.destroyForcibly() }
@@ -69,13 +68,17 @@ class NoiseMatcherReadinessTest {
                         observation.get(5, TimeUnit.SECONDS)
                     } catch (cleanupFailure: Throwable) {
                         val original = primaryFailure
-                        if (original == null) throw cleanupFailure
-                        if (original !== cleanupFailure) original.addSuppressed(cleanupFailure)
+                        if (original == null) {
+                            primaryFailure = cleanupFailure
+                        } else if (original !== cleanupFailure) {
+                            original.addSuppressed(cleanupFailure)
+                        }
                     } finally {
                         Files.deleteIfExists(output)
                     }
                 }
             }
+            primaryFailure?.let { throw it }
         } finally {
             peer.stop().get(10, TimeUnit.SECONDS)
         }

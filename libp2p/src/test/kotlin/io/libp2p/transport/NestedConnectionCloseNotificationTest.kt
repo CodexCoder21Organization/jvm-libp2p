@@ -93,15 +93,15 @@ object NestedConnectionCloseProbe {
             closing.get(1, TimeUnit.SECONDS)
         } catch (failure: Throwable) {
             primaryFailure = failure
-            throw failure
         } finally {
             release.countDown()
             try {
                 CompletableFuture.allOf(client.stop(), server.stop()).get(10, TimeUnit.SECONDS)
             } catch (cleanupFailure: Throwable) {
                 val primary = primaryFailure
-                if (primary == null) throw cleanupFailure else primary.addSuppressed(cleanupFailure)
+                if (primary == null) primaryFailure = cleanupFailure else primary.addSuppressed(cleanupFailure)
             }
         }
+        primaryFailure?.let { throw it }
     }
 }

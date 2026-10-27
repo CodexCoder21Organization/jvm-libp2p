@@ -28,17 +28,17 @@ public class QuicKuboTestJava {
         Files.isExecutable(executable), "Kubo test binary is not executable: " + executable);
     Path repository = directory.resolve("node");
     runKubo(executable, repository, "init", "--profile=test");
-    runKubo(executable, repository, "config", "Addresses.API", "/ip4/127.0.0.1/tcp/0");
-    runKubo(
-        executable,
-        repository,
-        "config",
-        "--json",
-        "Addresses.Swarm",
-        "[\"/ip4/127.0.0.1/udp/0/quic-v1\"]");
-    runKubo(executable, repository, "config", "--json", "Bootstrap", "[]");
-    runKubo(executable, repository, "config", "--json", "Discovery.MDNS.Enabled", "false");
-    runKubo(executable, repository, "config", "--json", "Swarm.DisableNatPortMap", "true");
+    Path configPath = repository.resolve("config");
+    JSONObject config = new JSONObject(Files.readString(configPath));
+    config
+        .getJSONObject("Addresses")
+        .put("API", "/ip4/127.0.0.1/tcp/0")
+        .put("Gateway", "/ip4/127.0.0.1/tcp/0")
+        .put("Swarm", new JSONArray().put("/ip4/127.0.0.1/udp/0/quic-v1"));
+    config.put("Bootstrap", new JSONArray());
+    config.getJSONObject("Discovery").getJSONObject("MDNS").put("Enabled", false);
+    config.getJSONObject("Swarm").put("DisableNatPortMap", true);
+    Files.writeString(configPath, config.toString());
 
     Path log = directory.resolve("daemon.log");
     Host clientHost = null;

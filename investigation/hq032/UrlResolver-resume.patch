@@ -26,6 +26,35 @@ index 91eb5509fe..72b75e64a0 100644
  
      // Annotated performance tests are dispatched by scanning/running the built
      // resolver classpath in a fresh compiler process. The current libp2p stack
+diff --git a/tests/stressTestFreshJoinWithdrawalDeliveryUnderConcurrentReannounce.kts b/tests/stressTestFreshJoinWithdrawalDeliveryUnderConcurrentReannounce.kts
+index 3611cd436f..baa6605dbb 100644
+--- a/tests/stressTestFreshJoinWithdrawalDeliveryUnderConcurrentReannounce.kts
++++ b/tests/stressTestFreshJoinWithdrawalDeliveryUnderConcurrentReannounce.kts
+@@ -94,7 +94,9 @@ fun stressTestFreshJoinWithdrawalDeliveryUnderConcurrentReannounce() {
+                             val idleRead = stream.remotePeerId == idlePeerId.get()
+                             try {
+                                 if (idleRead) idleReadEntered.countDown()
++                                trialTrace += "READ_ENTER thread=${Thread.currentThread().id} peer=${stream.remotePeerId}"
+                                 val frame = Libp2pRpcProtocol.readMessage(stream.input)
++                                trialTrace += "READ_FRAME thread=${Thread.currentThread().id} type=${frame.optString("type")} msg=${frame.optString("messageId")}"
+                                 val target = frame.optString("serviceIdentifier") == serviceId
+                                 val task = FutureTask<Unit> {
+                                     val type = frame.optString("type")
+@@ -274,8 +276,13 @@ fun stressTestFreshJoinWithdrawalDeliveryUnderConcurrentReannounce() {
+                     }
+                 } catch (failure: Throwable) {
+                     failedTrials += trial
++                    val inputWorkers = if (announcementHeld.count == 0L && withdrawalRemoved.count != 0L) {
++                        Thread.getAllStackTraces().entries
++                            .filter { it.key.name == "Libp2pNetworkProvider-inbound" }
++                            .joinToString("\n") { "THREAD ${it.key.id} ${it.key.name}\n" + it.value.joinToString("\n") }
++                    } else ""
+                     failures += "$trial: unexpected ${failure.javaClass.name}: ${failure.message}\n" +
+-                        failure.stackTraceToString()
++                        failure.stackTraceToString() + "\nInput workers before releasing the held announcement:\n" + inputWorkers
+                 } finally {
+                     releaseAnnouncement.countDown()
+                     receiverId?.let { provider?.resumeGossipDrain(it) }
 diff --git a/tests/testPublishedParentSurvivesRacingDialSettlement.kts b/tests/testPublishedParentSurvivesRacingDialSettlement.kts
 new file mode 100644
 index 0000000000..652f743f6b

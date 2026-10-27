@@ -1,12 +1,15 @@
 package io.libp2p.security.noise
 
+import io.libp2p.core.Connection
 import io.libp2p.core.ConnectionClosedException
+import io.libp2p.core.ConnectionHandler
 import io.libp2p.core.Host
 import io.libp2p.core.P2PChannel
 import io.libp2p.core.PeerId
 import io.libp2p.core.crypto.KeyType
 import io.libp2p.core.crypto.generateKeyPair
 import io.libp2p.core.dsl.host
+import io.libp2p.core.multiformats.Multiaddr
 import io.libp2p.core.multiformats.Protocol
 import io.libp2p.etc.CONNECTION
 import io.libp2p.multistream.MultistreamProtocolDebugV1
@@ -26,6 +29,8 @@ import org.junit.jupiter.api.RepeatedTest
 import org.junit.jupiter.api.Test
 import java.io.InputStream
 import java.io.OutputStream
+import java.net.InetAddress
+import java.net.ServerSocket
 import java.net.Socket
 import java.nio.channels.ClosedChannelException
 import java.util.concurrent.ArrayBlockingQueue
@@ -40,6 +45,34 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
 class NoiseHandshakeOffEventLoopTest {
+    @Test
+    fun `fixture listener stays separate from ordinary loopback traffic`() {
+        ServerSocket(0, 1, InetAddress.getByName("127.0.0.1")).use { ordinaryListener ->
+            val relay = newNoiseHost(listen = true, listenPort = ordinaryListener.localPort)
+            val dialer = newNoiseHost()
+            try {
+                val startupFailure = catchThrowable { startNoiseHosts(listOf(relay, dialer)) }
+                startupFailure?.printStackTrace()
+                assertThat(startupFailure)
+                    .describedAs("The Noise fixture must leave the owned ordinary-loopback listener separate")
+                    .isNull()
+                val address = relay.listenAddresses().single()
+                assertThat(address.getFirstComponent(Protocol.TCP)?.stringValue)
+                    .isEqualTo(ordinaryListener.localPort.toString())
+                val connection = dialer.network.connect(relay.peerId, address).get(5, TimeUnit.SECONDS)
+                val ping = connection.muxerSession().createStream(Ping())
+                try {
+                    ping.controller.get(5, TimeUnit.SECONDS).ping().get(5, TimeUnit.SECONDS)
+                    assertThat(relay.network.connections).hasSize(1)
+                } finally {
+                    ping.stream.get(5, TimeUnit.SECONDS).close().get(5, TimeUnit.SECONDS)
+                }
+            } finally {
+                stopNoiseHosts(listOf(dialer, relay))
+            }
+        }
+    }
+
     @Test
     fun `single Noise handshake runs crypto inline on event loops`() {
         val processOutput = runNoiseHandshakeHarness("inline", 10)
@@ -108,7 +141,7 @@ class NoiseHandshakeOffEventLoopTest {
                 "Noise test relay did not expose a TCP listen address: ${relay.listenAddresses()}"
             }.toInt()
 
-            Socket("127.0.0.1", port).use { socket ->
+            Socket(NOISE_TEST_HOST, port).use { socket ->
                 socket.soTimeout = TimeUnit.SECONDS.toMillis(HandshakeTimeoutSec + 3L).toInt()
                 writeMultistreamMessage(socket.getOutputStream(), "/multistream/1.0.0")
                 writeMultistreamMessage(socket.getOutputStream(), NoiseXXSecureChannel.announce)
@@ -142,7 +175,7 @@ class NoiseHandshakeOffEventLoopTest {
                     random(KeyType.ED25519)
                 }
                 network {
-                    listen("/ip4/127.0.0.1/tcp/0")
+                    listen("/ip4/$NOISE_TEST_HOST/tcp/0")
                 }
                 protocols {
                     +Ping()
@@ -616,19 +649,63 @@ object NoiseHandshakePathHarness {
             }
         }
         val hosts = mutableListOf<Host>()
+        var ordinaryLoopbackReservation: NoiseOrdinaryLoopbackReservation? = null
         try {
             check(saturatedWorkersStarted.await(5, TimeUnit.SECONDS)) {
                 "The hermetic Noise saturation executor did not occupy all $SATURATION_EXECUTOR_THREADS workers"
             }
-            NoiseHandshakeExecutionTestHook.cryptoExecutorSelector = { role, receivedFrames ->
-                if (role == Role.RESP && receivedFrames == 1) saturatedExecutor else null
+            ordinaryLoopbackReservation = if (NOISE_TEST_HOST == ISOLATED_NOISE_TEST_HOST) {
+                NoiseOrdinaryLoopbackReservation()
+            } else {
+                null
             }
-
-            val relay = newNoiseHost(listen = true).also { hosts += it }
+            val relay = newNoiseHost(
+                listen = true,
+                listenPort = ordinaryLoopbackReservation?.port ?: 0
+            ).also { hosts += it }
+            val anchor = newNoiseHost().also { hosts += it }
+            val publishedAnchor = CompletableFuture<Connection>()
             val dialers = List(SATURATED_DIALERS) { newNoiseHost().also { host -> hosts += host } }
             startNoiseHosts(hosts)
             val relayAddress = relay.listenAddresses().single()
+            val relayPort = requireNotNull(relayAddress.getFirstComponent(Protocol.TCP)?.stringValue) {
+                "Noise saturation relay did not expose a TCP listen address: $relayAddress"
+            }
+            val relayHost = requireNotNull(relayAddress.getFirstComponent(Protocol.IP4)?.stringValue) {
+                "Noise saturation relay did not expose an IPv4 listen address: $relayAddress"
+            }
+            when (relayHost) {
+                LEGACY_NOISE_TEST_HOST -> check(ordinaryLoopbackReservation == null) {
+                    "The relay owns ordinary loopback at $relayAddress, so no separate reservation may be open"
+                }
+                ISOLATED_NOISE_TEST_HOST -> check(ordinaryLoopbackReservation?.port == relayPort.toInt()) {
+                    "The test must own ordinary loopback on the relay's TCP port $relayPort, " +
+                        "but reservation was ${ordinaryLoopbackReservation?.port}"
+                }
+                else -> error("Unexpected Noise saturation relay address: $relayAddress")
+            }
+            relay.addConnectionHandler(
+                ConnectionHandler.create { connection ->
+                    if (connection.secureSession().remoteId == anchor.peerId) {
+                        publishedAnchor.complete(connection)
+                    }
+                }
+            )
+            val anchorConnection = anchor.network.connect(relay.peerId, relayAddress).get(5, TimeUnit.SECONDS)
+            val relayAnchorConnection = publishedAnchor.get(5, TimeUnit.SECONDS)
+            check(
+                anchor.network.connections.contains(anchorConnection) &&
+                    relay.network.connections.contains(relayAnchorConnection)
+            ) {
+                "The ordinary Noise anchor connection must remain active while saturation connections are admitted"
+            }
+            check(executionRecorder.failuresOfType(ReadTimeoutException::class.java).isEmpty()) {
+                "The ordinary Noise anchor connection must establish without read-timeout failures"
+            }
 
+            NoiseHandshakeExecutionTestHook.cryptoExecutorSelector = { role, receivedFrames ->
+                if (role == Role.RESP && receivedFrames == 1) saturatedExecutor else null
+            }
             val connections = dialers.map { it.network.connect(relay.peerId, relayAddress) }
             val queueDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
             while (saturatedExecutor.queue.isEmpty()) {
@@ -637,7 +714,12 @@ object NoiseHandshakePathHarness {
                 }
                 Thread.yield()
             }
+            runUnrelatedNoiseCallerHarness(
+                relayPeerId = relay.peerId,
+                relayAddress = Multiaddr("/ip4/127.0.0.1/tcp/$relayPort")
+            )
             Thread.sleep(TimeUnit.SECONDS.toMillis(HandshakeTimeoutSec + 1L))
+            ordinaryLoopbackReservation?.awaitCallerAccepted()
 
             val connectionStates = connections.groupingBy { connection ->
                 when {
@@ -684,7 +766,11 @@ object NoiseHandshakePathHarness {
                 saturatedExecutor.shutdownNow()
                 saturatedExecutor.awaitTermination(5, TimeUnit.SECONDS)
             }
-            stopNoiseHosts(hosts)
+            try {
+                stopNoiseHosts(hosts)
+            } finally {
+                ordinaryLoopbackReservation?.close()
+            }
         }
     }
 
@@ -764,13 +850,13 @@ private class NoiseHandshakeExecutionRecorder {
     }
 }
 
-private fun newNoiseHost(listen: Boolean = false): Host = host {
+private fun newNoiseHost(listen: Boolean = false, listenPort: Int = 0): Host = host {
     identity {
         random(KeyType.ED25519)
     }
     if (listen) {
         network {
-            listen("/ip4/127.0.0.1/tcp/0")
+            listen("/ip4/$NOISE_TEST_HOST/tcp/$listenPort")
         }
     }
     protocols {
@@ -793,7 +879,9 @@ private fun runNoiseHandshakeHarness(
     timeoutSeconds: Long
 ): String {
     val javaExecutable = java.nio.file.Paths.get(System.getProperty("java.home"), "bin", "java").toString()
-    val command = listOf(javaExecutable) + listOf(
+    // One shared network worker makes the established Noise anchor visible to every saturation handshake.
+    val eventLoopArguments = if (mode == "saturated") listOf("-Dio.netty.eventLoopThreads=1") else emptyList()
+    val command = listOf(javaExecutable) + eventLoopArguments + listOf(
         "-cp",
         System.getProperty("java.class.path"),
         NoiseHandshakePathHarness::class.java.name,
@@ -825,6 +913,122 @@ private fun runNoiseHandshakeHarness(
     return processOutput
 }
 
+private fun runUnrelatedNoiseCallerHarness(relayPeerId: PeerId, relayAddress: Multiaddr): String {
+    val javaExecutable = java.nio.file.Paths.get(System.getProperty("java.home"), "bin", "java").toString()
+    val process = ProcessBuilder(
+        javaExecutable,
+        "-Xmx128m",
+        "-Xss512k",
+        "-cp",
+        System.getProperty("java.class.path"),
+        NoiseUnrelatedCallerHarness::class.java.name,
+        relayPeerId.toBase58(),
+        relayAddress.toString()
+    ).redirectErrorStream(true).start()
+    val output = CompletableFuture.supplyAsync {
+        process.inputStream.bufferedReader().use { it.readText() }
+    }
+    try {
+        val finished = process.waitFor(20, TimeUnit.SECONDS)
+        if (!finished) {
+            process.destroyForcibly()
+            process.waitFor(5, TimeUnit.SECONDS)
+        }
+        val processOutput = output.get(5, TimeUnit.SECONDS)
+        print(processOutput)
+
+        assertThat(finished)
+            .withFailMessage("Unrelated real Noise caller did not finish within 20 seconds:\n%s", processOutput)
+            .isTrue()
+        assertThat(process.exitValue())
+            .withFailMessage("Unrelated real Noise caller failed:\n%s", processOutput)
+            .isZero()
+        assertThat(processOutput).contains(
+            "Unrelated Noise caller attempted",
+            "Unrelated Noise caller failed"
+        )
+        return processOutput
+    } finally {
+        if (process.isAlive) {
+            process.destroyForcibly()
+            assertThat(process.waitFor(5, TimeUnit.SECONDS))
+                .describedAs("Unrelated real Noise caller must stop during cleanup")
+                .isTrue()
+        }
+    }
+}
+
+object NoiseUnrelatedCallerHarness {
+    @JvmStatic
+    fun main(args: Array<String>) {
+        val relayPeerId = PeerId.fromBase58(args[0])
+        val relayAddress = Multiaddr(args[1])
+        val caller = newNoiseHost()
+        try {
+            caller.start().get(5, TimeUnit.SECONDS)
+            val connection = caller.network.connect(relayPeerId, relayAddress)
+            println("Unrelated Noise caller attempted: relay=$relayPeerId address=$relayAddress")
+            try {
+                connection.get(HandshakeTimeoutSec + 2L, TimeUnit.SECONDS)
+                error("Unrelated Noise caller unexpectedly connected to $relayPeerId at $relayAddress")
+            } catch (failure: ExecutionException) {
+                val causeChain = generateSequence<Throwable>(failure) { current ->
+                    current.cause?.takeUnless { it === current }
+                }.take(8).joinToString(" <- ") { cause ->
+                    cause.message?.let { "${cause.javaClass.name}: $it" } ?: cause.javaClass.name
+                }
+                println("Unrelated Noise caller failed: $causeChain")
+            }
+        } finally {
+            caller.stop().get(5, TimeUnit.SECONDS)
+        }
+    }
+}
+
+private class NoiseOrdinaryLoopbackReservation : AutoCloseable {
+    private val listener = ServerSocket(0, 1, InetAddress.getByName(LEGACY_NOISE_TEST_HOST))
+    private val accepted = CompletableFuture<Unit>()
+    private val acceptThread = Thread({
+        try {
+            listener.accept().use { }
+            accepted.complete(Unit)
+        } catch (failure: Throwable) {
+            // close() interrupts accept() during early test cleanup; before cleanup this future surfaces failures.
+            accepted.completeExceptionally(failure)
+        }
+    }, "noise-ordinary-loopback-reservation").apply {
+        isDaemon = true
+        try {
+            start()
+        } catch (failure: Throwable) {
+            listener.close()
+            throw failure
+        }
+    }
+
+    val port: Int = listener.localPort
+
+    fun awaitCallerAccepted() {
+        try {
+            accepted.get(5, TimeUnit.SECONDS)
+        } catch (failure: Exception) {
+            throw AssertionError(
+                "The unrelated real Noise caller did not reach the test-owned ordinary-loopback endpoint " +
+                    "127.0.0.1:$port within 5 seconds",
+                failure
+            )
+        }
+    }
+
+    override fun close() {
+        listener.close()
+        acceptThread.join(TimeUnit.SECONDS.toMillis(5))
+        check(!acceptThread.isAlive) {
+            "The ordinary-loopback reservation accept thread did not stop within 5 seconds"
+        }
+    }
+}
+
 private const val STORM_PEERS = 160
 private const val PING_SAMPLES = 20
 private const val MAX_P95_MILLIS = 500
@@ -833,3 +1037,7 @@ private const val MAX_SEQUENTIAL_HANDSHAKE_MILLIS = 20_000
 private const val SATURATED_DIALERS = 120
 private const val SATURATION_EXECUTOR_THREADS = 2
 private const val SATURATION_QUEUE_CAPACITY = 256
+
+private const val LEGACY_NOISE_TEST_HOST = "127.0.0.1"
+private const val ISOLATED_NOISE_TEST_HOST = "127.0.0.2"
+private const val NOISE_TEST_HOST = ISOLATED_NOISE_TEST_HOST

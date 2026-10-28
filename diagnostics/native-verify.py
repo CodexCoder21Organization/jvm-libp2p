@@ -68,8 +68,11 @@ try:
     worker_pids = set(pid for entry in finished for pid in entry['workers'])
     print('Worker pids across all generations:', sorted(worker_pids), flush=True)
     print('Root peak used Metaspace:', max(entry['rootMetaspace'] for entry in entries), flush=True)
-    assert not worker_pids, f'Documentation must remain in the original capped Gradle process, saw workers {worker_pids}'
-    assert all(entry['rootMetaspaceMax'] == 512 * 1024 * 1024 for entry in entries), 'Original aggregate512MiB cap changed'
+    assert len(worker_pids) == 1, f'All documentation must reuse one worker, saw {worker_pids}'
+    assert all(entry['rootMetaspaceMax'] == 368 * 1024 * 1024 for entry in entries), 'Original aggregate512MiB cap changed'
+    worker_reports = list((checkout / 'build/dokka-budget-proof').glob('*-worker-*.txt'))
+    assert worker_reports and all('-XX:MaxMetaspaceSize=144m' in p.read_text() for p in worker_reports), 'Worker cap must remain144MiB'
+
 except BaseException:
     result.set('failures', '1')
     failure = ET.SubElement(case, 'failure', type='AssertionError')

@@ -20,9 +20,10 @@ else:
     log = (reports / 'gradle.log').read_text()
     cases = {case.get('name'): case for case in suite.findall('testcase')}
     assert result.returncode == 1
-    if mode == 'budget':
+    if mode in ('budget', 'separate_runtimes'):
         failure = cases['aggregateRootAndDokkaWorkerMetaspaceBudget'].find('failure')
-        assert failure is not None and '855638016' in failure.text, failure
+        expected = '855638016' if mode == 'budget' else '687865856'
+        assert failure is not None and expected in failure.text, failure
     elif mode in ('html_alias', 'javadoc_alias'):
         task = 'dokkaGenerateHtml' if mode == 'html_alias' else 'dokkaGenerateJavadoc'
         assert cases['combinedBuildAndShutdown'].find('failure') is not None

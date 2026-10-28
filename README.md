@@ -406,7 +406,6 @@ requires JDK 11 and Android SDK platform 30/build tools 30.0.3, and runs in CI.
 It rebuilds from clean outputs and writes logs and JUnit results to
 `build/documentation-verification`.
 
-
 After the build is complete you may find the library `.jar` file here: `jvm-libp2p/build/libs/jvm-libp2p-X.Y.Z-RELEASE.jar`
 
 ## Notable users

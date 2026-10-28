@@ -51,7 +51,7 @@ This is a short-term bridge, not a long-term divergent branch — **no feature w
 
 ## Building and releasing this fork
 
-This is a standard Gradle project (JDK 11+). It is **built with Gradle** and the resulting Maven artifact is **published to [kotlin.directory](https://kotlin.directory)** with the [`publish-maven-artifact`](https://github.com/CodexCoder21Organization) CLI — *not* to Cloudsmith. (The Cloudsmith references elsewhere in [README.md](README.md) and in `build.gradle.kts`'s `publishing {}` block are inherited from upstream and apply to the upstream `io.libp2p` artifact, not to this fork's `community.kotlin.libp2p` releases.)
+This is a standard Gradle project (JDK 11+). It is **built with Gradle** and the resulting Maven artifact is **published to [kotlin.directory](https://kotlin.directory)** with the [`publish-maven-artifact`](https://github.com/CodexCoder21Organization) CLI — *not* to Cloudsmith. (The Cloudsmith references elsewhere in [README.md](README.md) and in `build.gradle`'s `publishing {}` block are inherited from upstream and apply to the upstream `io.libp2p` artifact, not to this fork's `community.kotlin.libp2p` releases.)
 
 ### Build & test
 
@@ -73,7 +73,7 @@ This is a standard Gradle project (JDK 11+). It is **built with Gradle** and the
      "https://kotlin.directory/community/kotlin/libp2p/jvm-libp2p/1.3.0-codexcoder21-snapshot-N/jvm-libp2p-1.3.0-codexcoder21-snapshot-N.pom"
    ```
 
-2. **Bump the version** in `build.gradle.kts` (`version = "1.3.0-codexcoder21-snapshot-N"`) and land it on `develop` via a PR.
+2. **Bump the version** in `build.gradle` (`version = "1.3.0-codexcoder21-snapshot-N"`) and land it on `develop` via a PR.
 
 3. **Build the publishable artifact into the local Maven repo.** The `mavenJava` publication is gated on the `mavenArtifactId` property, so pass it:
 

@@ -10,6 +10,8 @@ import io.libp2p.core.multiformats.*;
 import io.libp2p.protocol.*;
 import java.io.*;
 import java.net.*;
+import java.nio.file.*;
+import java.util.Properties;
 import java.util.concurrent.*;
 import kotlin.*;
 import org.junit.jupiter.api.*;
@@ -18,7 +20,9 @@ public class QuicKuboTestJava {
   @Test
   void pingKubo() throws Exception {
     if (System.getProperty("os.name").toLowerCase().startsWith("windows")) return;
-    PeerId peerId = PeerId.fromBase58(getKuboPeerId());
+    Properties kubo = loadKuboFixture(Path.of("build/kubo-node.properties"));
+    PeerId peerId = PeerId.fromBase58(getKuboPeerId(kubo.getProperty("api")));
+    Assertions.assertEquals(kubo.getProperty("peerId"), peerId.toBase58());
 
     Host clientHost =
         new HostBuilder().keyType(KeyType.ED25519).secureTransport(QuicTransport::ECDSA).build();
@@ -32,7 +36,7 @@ public class QuicKuboTestJava {
     StreamPromise<PingController> ping =
         clientHost
             .getNetwork()
-            .connect(peerId, new Multiaddr("/ip4/127.0.0.1/udp/4001/quic-v1"))
+            .connect(peerId, new Multiaddr(kubo.getProperty("swarm")))
             .thenApply(it -> it.muxerSession().createStream(new Ping()))
             .get(5, TimeUnit.SECONDS);
 
@@ -55,8 +59,23 @@ public class QuicKuboTestJava {
     System.out.println("Client stopped");
   }
 
-  private static String getKuboPeerId() throws IOException, URISyntaxException {
-    String url = "http://localhost:5001/api/v0/id";
+  private static Properties loadKuboFixture(Path path) throws IOException {
+    if (!Files.isRegularFile(path)) {
+      throw new IOException(
+          "Kubo fixture "
+              + path.toAbsolutePath()
+              + " does not exist. Run the test through .github/scripts/kubo-node.py run"
+              + " with fixture path libp2p/build/kubo-node.properties.");
+    }
+    Properties fixture = new Properties();
+    try (InputStream input = Files.newInputStream(path)) {
+      fixture.load(input);
+    }
+    return fixture;
+  }
+
+  private static String getKuboPeerId(String api) throws IOException, URISyntaxException {
+    String url = api + "/api/v0/id";
     HttpURLConnection conn = (HttpURLConnection) new URI(url).toURL().openConnection();
     conn.setConnectTimeout(1_000);
     conn.setDoInput(true);

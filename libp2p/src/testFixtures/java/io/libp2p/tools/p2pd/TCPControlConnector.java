@@ -8,6 +8,7 @@ import io.netty.channel.ChannelOption;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
+import io.netty.util.concurrent.DefaultThreadFactory;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.concurrent.CompletableFuture;
@@ -15,7 +16,9 @@ import java.util.function.Consumer;
 
 /** Created by Anton Nashatyrev on 06.08.2019. */
 public class TCPControlConnector extends ControlConnector {
-  static NioEventLoopGroup group = new NioEventLoopGroup();
+  // Shared by all fixture connectors for the lifetime of the JVM.
+  static NioEventLoopGroup group =
+      new NioEventLoopGroup(new DefaultThreadFactory("p2pd-control-tcp", true));
 
   public CompletableFuture<DaemonChannelHandler> connect(String host, int port) {
     return connect(new InetSocketAddress(host, port));

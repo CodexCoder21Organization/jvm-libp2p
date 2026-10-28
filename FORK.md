@@ -63,7 +63,7 @@ python3 .github/scripts/kubo-node.py run /path/to/ipfs /tmp/kubo-native.log \
 ./gradlew :libp2p:spotlessCheck :libp2p:detekt   # formatting + static analysis gates
 ```
 
-> **Native verification:** [bld-build](.github/workflows/bld-build.yml) runs the complete `./gradlew --no-daemon --stacktrace --continue build dokkaJar` workload on Linux with JDK 11, including Android, formatting, static analysis, documentation and the native test suite. Its Kubo integration uses an owned temporary repository and allocated loopback endpoints; readiness checks both the process and its peer ID. A [prior green combined-source run](https://github.com/CodexCoder21Organization/jvm-libp2p/actions/runs/40629198115) passed 1,443 cases with two existing skips. Releases remain manual as described below; this verification does not publish artifacts.
+> **Native verification:** [bld-build](.github/workflows/bld-build.yml) runs the complete `./gradlew --no-daemon --stacktrace --continue build dokkaJar` workload on Linux with JDK 11, including Android, formatting, static analysis, documentation and the native test suite. The legacy [build workflow](.github/workflows/build.yml) calls that same job. Both entry points are checked against the real Java Kubo consumer before the full build. Its Kubo integration uses an owned temporary repository and allocated loopback endpoints; readiness checks both the process and its peer ID. A [prior green combined-source run](https://github.com/CodexCoder21Organization/jvm-libp2p/actions/runs/40629198115) passed 1,443 cases with two existing skips. Releases remain manual as described below; this verification does not publish artifacts.
 
 To run the Kubo integration locally with the same ownership checks (using an installed Kubo 0.34.1 binary):
 

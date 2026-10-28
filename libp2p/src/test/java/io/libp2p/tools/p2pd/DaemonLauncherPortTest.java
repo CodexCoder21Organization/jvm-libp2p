@@ -21,20 +21,37 @@ class DaemonLauncherPortTest {
   void commandEndpointIsAllocatedByTheChildAndUsedByTheHost() throws Exception {
     Path launcher = directory.resolve("daemon");
     String java = Path.of(System.getProperty("java.home"), "bin", "java").toString();
-    String classes = Path.of(CommandPeer.class.getProtectionDomain().getCodeSource().getLocation().toURI()).toString();
-    String response = Base64.getEncoder().encodeToString(P2Pd.Response.newBuilder()
-        .setType(P2Pd.Response.Type.OK)
-        .setIdentify(P2Pd.IdentifyResponse.newBuilder().setId(ByteString.copyFrom(new byte[32])))
-        .build().toByteArray());
-    Files.writeString(launcher, "#!/bin/sh\nexec '" + java.replace("'", "'\\''") + "' -cp '"
-        + classes.replace("'", "'\\''") + "' '" + CommandPeer.class.getName() + "' '" + response + "' \"$@\"\n",
+    String classes =
+        Path.of(CommandPeer.class.getProtectionDomain().getCodeSource().getLocation().toURI())
+            .toString();
+    String response =
+        Base64.getEncoder()
+            .encodeToString(
+                P2Pd.Response.newBuilder()
+                    .setType(P2Pd.Response.Type.OK)
+                    .setIdentify(
+                        P2Pd.IdentifyResponse.newBuilder().setId(ByteString.copyFrom(new byte[32])))
+                    .build()
+                    .toByteArray());
+    Files.writeString(
+        launcher,
+        "#!/bin/sh\nexec '"
+            + java.replace("'", "'\\''")
+            + "' -cp '"
+            + classes.replace("'", "'\\''")
+            + "' '"
+            + CommandPeer.class.getName()
+            + "' '"
+            + response
+            + "' \"$@\"\n",
         StandardCharsets.UTF_8);
     Assertions.assertTrue(launcher.toFile().setExecutable(true));
     try (ServerSocket occupied = new ServerSocket(11111)) {
       DaemonLauncher.Daemon daemon = new DaemonLauncher(launcher.toString()).launch(0);
       try {
-        byte[] peerId = CompletableFuture.supplyAsync(() -> daemon.host.getMyId().getIdBytes())
-            .get(5, TimeUnit.SECONDS);
+        byte[] peerId =
+            CompletableFuture.supplyAsync(() -> daemon.host.getMyId().getIdBytes())
+                .get(5, TimeUnit.SECONDS);
         Assertions.assertArrayEquals(new byte[32], peerId);
       } finally {
         daemon.host.close();
@@ -62,7 +79,8 @@ class DaemonLauncherPortTest {
           int value;
           do {
             value = client.getInputStream().read();
-            if (value < 0) throw new java.io.EOFException("Command request ended before its length");
+            if (value < 0)
+              throw new java.io.EOFException("Command request ended before its length");
             length |= (value & 127) << shift;
             shift += 7;
           } while ((value & 128) != 0);

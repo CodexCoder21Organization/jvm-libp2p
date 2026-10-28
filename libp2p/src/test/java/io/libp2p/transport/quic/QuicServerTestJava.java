@@ -306,12 +306,20 @@ public class QuicServerTestJava {
     serverStarted.get(5, TimeUnit.SECONDS);
     System.out.println("Server started " + serverHost.getPeerId());
 
-    localTcpListenAddress = serverHost.listenAddresses().stream()
-        .map(Multiaddr::toString).filter(address -> address.contains("/tcp/"))
-        .findFirst().orElseThrow().split("/p2p/")[0];
-    localQuicListenAddress = serverHost.listenAddresses().stream()
-        .map(Multiaddr::toString).filter(address -> address.contains("/udp/"))
-        .findFirst().orElseThrow().split("/p2p/")[0];
+    localTcpListenAddress =
+        serverHost.listenAddresses().stream()
+            .map(Multiaddr::toString)
+            .filter(address -> address.contains("/tcp/"))
+            .findFirst()
+            .orElseThrow()
+            .split("/p2p/")[0];
+    localQuicListenAddress =
+        serverHost.listenAddresses().stream()
+            .map(Multiaddr::toString)
+            .filter(address -> address.contains("/udp/"))
+            .findFirst()
+            .orElseThrow()
+            .split("/p2p/")[0];
     Assertions.assertNotEquals("/ip4/127.0.0.1/tcp/0", localTcpListenAddress);
     Assertions.assertNotEquals("/ip4/127.0.0.1/udp/0/quic-v1", localQuicListenAddress);
     Assertions.assertEquals(0, clientHost.listenAddresses().size());

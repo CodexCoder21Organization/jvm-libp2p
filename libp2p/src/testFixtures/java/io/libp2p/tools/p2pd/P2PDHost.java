@@ -198,31 +198,36 @@ public class P2PDHost implements Host {
                 advertised = listenMultiaddr;
               }
               return daemonExecutor.executeWithDaemon(
-                    handler ->
-                        handler.call(
-                            P2Pd.Request.newBuilder()
-                                .setType(P2Pd.Request.Type.STREAM_HANDLER)
-                                .setStreamHandler(
-                                    P2Pd.StreamHandlerRequest.newBuilder()
-                                        .setAddr(ByteString.copyFrom(advertised.serialize()))
-                                        .addAllProto(
-                                            muxerAdress.getProtocols().stream()
-                                                .map(Protocol::getName)
-                                                .collect(Collectors.toList()))
-                                        .build())
-                                .build(),
-                            new DaemonChannelHandler.SimpleResponseBuilder()));
+                  handler ->
+                      handler.call(
+                          P2Pd.Request.newBuilder()
+                              .setType(P2Pd.Request.Type.STREAM_HANDLER)
+                              .setStreamHandler(
+                                  P2Pd.StreamHandlerRequest.newBuilder()
+                                      .setAddr(ByteString.copyFrom(advertised.serialize()))
+                                      .addAllProto(
+                                          muxerAdress.getProtocols().stream()
+                                              .map(Protocol::getName)
+                                              .collect(Collectors.toList()))
+                                      .build())
+                              .build(),
+                          new DaemonChannelHandler.SimpleResponseBuilder()));
             })
-        .whenComplete((response, failure) -> {
-          if (failure == null) {
-            result.complete(ret);
-          } else {
-            channelFuture.channel().close().addListener(closed -> {
-              if (!closed.isSuccess()) failure.addSuppressed(closed.cause());
-              result.completeExceptionally(failure);
+        .whenComplete(
+            (response, failure) -> {
+              if (failure == null) {
+                result.complete(ret);
+              } else {
+                channelFuture
+                    .channel()
+                    .close()
+                    .addListener(
+                        closed -> {
+                          if (!closed.isSuccess()) failure.addSuppressed(closed.cause());
+                          result.completeExceptionally(failure);
+                        });
+              }
             });
-          }
-        });
     return result;
   }
 

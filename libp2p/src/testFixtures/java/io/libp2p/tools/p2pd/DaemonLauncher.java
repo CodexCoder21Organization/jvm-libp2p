@@ -1,10 +1,10 @@
 package io.libp2p.tools.p2pd;
 
-import java.io.IOException;
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
 import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
@@ -52,29 +52,35 @@ public class DaemonLauncher {
     args.add("-listen");
     args.add("/ip4/127.0.0.1/tcp/0");
     try {
-      Process process = new ProcessBuilder(args).redirectError(ProcessBuilder.Redirect.INHERIT).start();
+      Process process =
+          new ProcessBuilder(args).redirectError(ProcessBuilder.Redirect.INHERIT).start();
       CompletableFuture<InetSocketAddress> endpoint = new CompletableFuture<>();
-      Thread output = new Thread(() -> {
-        try (BufferedReader reader = new BufferedReader(
-            new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
-          String line;
-          while ((line = reader.readLine()) != null) {
-            System.out.println(line);
-            String prefix = "Control socket: /ip4/127.0.0.1/tcp/";
-            if (line.startsWith(prefix)) {
-              int port = Integer.parseInt(line.substring(prefix.length()).trim());
-              if (port <= 0 || port > 65535) {
-                throw new IOException("p2pd reported an invalid control endpoint: " + line);
-              }
-              endpoint.complete(new InetSocketAddress("127.0.0.1", port));
-            }
-          }
-          endpoint.completeExceptionally(new IOException("p2pd exited before reporting its control endpoint"));
-        } catch (Exception failure) {
-          // If startup already completed, process shutdown can close this reader.
-          endpoint.completeExceptionally(failure);
-        }
-      }, "p2pd-output");
+      Thread output =
+          new Thread(
+              () -> {
+                try (BufferedReader reader =
+                    new BufferedReader(
+                        new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
+                  String line;
+                  while ((line = reader.readLine()) != null) {
+                    System.out.println(line);
+                    String prefix = "Control socket: /ip4/127.0.0.1/tcp/";
+                    if (line.startsWith(prefix)) {
+                      int port = Integer.parseInt(line.substring(prefix.length()).trim());
+                      if (port <= 0 || port > 65535) {
+                        throw new IOException("p2pd reported an invalid control endpoint: " + line);
+                      }
+                      endpoint.complete(new InetSocketAddress("127.0.0.1", port));
+                    }
+                  }
+                  endpoint.completeExceptionally(
+                      new IOException("p2pd exited before reporting its control endpoint"));
+                } catch (Exception failure) {
+                  // If startup already completed, process shutdown can close this reader.
+                  endpoint.completeExceptionally(failure);
+                }
+              },
+              "p2pd-output");
       output.setDaemon(true);
       output.start();
       try {
@@ -82,7 +88,8 @@ public class DaemonLauncher {
       } catch (Exception failure) {
         process.destroyForcibly();
         if (failure instanceof InterruptedException) Thread.currentThread().interrupt();
-        throw new IllegalStateException("p2pd did not report an allocated control endpoint for " + args, failure);
+        throw new IllegalStateException(
+            "p2pd did not report an allocated control endpoint for " + args, failure);
       }
     } catch (IOException e) {
       throw new RuntimeException(e);

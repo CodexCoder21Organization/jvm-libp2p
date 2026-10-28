@@ -205,7 +205,7 @@ configure(configuredProjects) {
     }
 
     extensions.configure(DokkaExtension) { dokka ->
-        dokka.dokkaGeneratorIsolation.set(dokka.ClassLoaderIsolation())
+        dokka.dokkaGeneratorIsolation.set(objects.newInstance(org.jetbrains.dokka.gradle.workers.WorkerIsolation.ClassLoader))
         dokka.dokkaPublications.configureEach { publication ->
             publication.finalizeCoroutines.set(true)
         }

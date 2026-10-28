@@ -12,6 +12,19 @@ import java.util.concurrent.TimeUnit.SECONDS
 
 class ListenerPortAllocationTest {
     @Test
+    fun `transport fixtures work with preheld legacy endpoints`() {
+        val sockets = mutableListOf<ServerSocket>()
+        try {
+            for (port in listOf(21100, 21000, 21001, 21002, 21003, 21004)) {
+                LegacyPortGuard.holdIfFree(port)?.let { sockets.add(it) }
+            }
+            `transport fixtures work while their legacy endpoints are owned`()
+        } finally {
+            sockets.forEach { it.close() }
+        }
+    }
+
+    @Test
     fun `transport fixtures work while their legacy endpoints are owned`() {
         val sockets = listOf(21100, 21000, 21001, 21002, 21003, 21004).map { ServerSocket(it) }
         try {

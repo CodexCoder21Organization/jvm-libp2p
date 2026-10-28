@@ -7,6 +7,7 @@ import io.libp2p.tools.p2pd.libp2pj.Muxer.MuxerAdress;
 import io.libp2p.tools.p2pd.libp2pj.StreamHandler;
 import java.io.Closeable;
 import java.net.InetSocketAddress;
+import io.libp2p.tools.LegacyPortGuard;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.concurrent.CompletableFuture;
@@ -16,6 +17,20 @@ import org.junit.jupiter.api.Test;
 import p2pd.pb.P2Pd;
 
 class P2PDPortAllocationTest {
+  @Test
+  void callbackWorksWithPreheldCounterSelectedPort() throws Exception {
+    try (ServerSocket owner = LegacyPortGuard.holdIfFree(46667)) {
+      callbackDoesNotUseCounterSelectedPort();
+    }
+  }
+
+  @Test
+  void callbackWorksWithPreheldAdvertisedPort() throws Exception {
+    try (ServerSocket owner = LegacyPortGuard.holdIfFree(46666)) {
+      callbackAdvertisesTheEndpointItOwns();
+    }
+  }
+
   @Test
   void callbackDoesNotUseCounterSelectedPort() throws Exception {
     try (ServerSocket occupied = new ServerSocket(46667)) {

@@ -1,6 +1,7 @@
 package io.libp2p.tools.p2pd;
 
 import com.google.protobuf.ByteString;
+import io.libp2p.tools.LegacyPortGuard;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
@@ -16,6 +17,13 @@ import p2pd.pb.P2Pd;
 
 class DaemonLauncherPortTest {
   @TempDir Path directory;
+
+  @Test
+  void commandEndpointWorksWithPreheldLegacyEndpoint() throws Exception {
+    try (ServerSocket owner = LegacyPortGuard.holdIfFree(11111)) {
+      commandEndpointIsAllocatedByTheChildAndUsedByTheHost();
+    }
+  }
 
   @Test
   void commandEndpointIsAllocatedByTheChildAndUsedByTheHost() throws Exception {

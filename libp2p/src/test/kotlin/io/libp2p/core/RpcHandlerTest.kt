@@ -1,7 +1,6 @@
 package io.libp2p.core
 
 import io.libp2p.core.dsl.host
-import io.libp2p.core.multiformats.Multiaddr
 import io.libp2p.core.multistream.ProtocolBinding
 import io.libp2p.core.multistream.ProtocolDescriptor
 import io.libp2p.core.multistream.ProtocolMatcher
@@ -133,7 +132,7 @@ class RpcHandlerTest {
                 +RpcProtocol()
             }
             network {
-                listen("/ip4/0.0.0.0/tcp/40002")
+                listen("/ip4/127.0.0.1/tcp/0")
             }
             debug {
                 muxFramesHandler.addLogger(LogLevel.ERROR, "Host-2")
@@ -153,7 +152,7 @@ class RpcHandlerTest {
         host2.addStreamVisitor { streamCounter2++ }
 
         run {
-            val ctr = host1.newStream<OpController>(listOf(protoPrefix + protoAdd), host2.peerId, Multiaddr("/ip4/127.0.0.1/tcp/40002"))
+            val ctr = host1.newStream<OpController>(listOf(protoPrefix + protoAdd), host2.peerId, host2.listenAddresses().single())
                 .controller.get(5, TimeUnit.SECONDS)
             println("Controller created")
             val res = ctr.calculate(100, 10).get(5, TimeUnit.SECONDS)
@@ -177,7 +176,7 @@ class RpcHandlerTest {
         val connection = host1.network.connections[0]
 
         run {
-            val ctr = host1.newStream<OpController>(listOf(protoPrefix + protoMul), host2.peerId, Multiaddr("/ip4/127.0.0.1/tcp/40002"))
+            val ctr = host1.newStream<OpController>(listOf(protoPrefix + protoMul), host2.peerId, host2.listenAddresses().single())
                 .controller.get(5, TimeUnit.SECONDS)
             println("Controller created")
             val res = ctr.calculate(100, 10).get(5, TimeUnit.SECONDS)

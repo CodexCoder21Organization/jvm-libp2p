@@ -14,10 +14,44 @@ jobs:
   documentation:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    strategy:
-      fail-fast: false
-      matrix:
-        javadoc-alias: [intact, unwired]
+    steps:
+      - uses: actions/checkout@v4
+
+      # Android SDK setup uses JDK 17; the project build itself remains on JDK 11.
+      - name: Set up JDK 17 for Android SDK tools
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Install Android compile SDK
+        run: '"$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-30" "build-tools;30.0.3"'
+
+      - name: Set up JDK 11 for Gradle
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 11
+
+      - name: Verify documentation contract
+        run: python3 scripts/verify-documentation.py
+
+      - name: Verify ordinary commands keep documentation dependencies lazy
+        run: python3 scripts/verify-documentation-laziness.py
+
+      - name: Upload documentation verification reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: documentation-verification-intact
+          path: build/documentation-verification/
+          if-no-files-found: warn
+          retention-days: 14
+
+  javadoc-alias-reversal:
+    needs: documentation
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 
@@ -38,7 +72,6 @@ jobs:
           java-version: 11
 
       - name: Remove only the Javadoc alias dependency for the reversal control
-        if: matrix.javadoc-alias == 'unwired'
         run: |
           python3 - <<'PYTHON'
           from pathlib import Path
@@ -55,12 +88,7 @@ jobs:
           path.write_text(source.replace(original, replacement))
           PYTHON
 
-      - name: Verify documentation contract
-        if: matrix.javadoc-alias == 'intact'
-        run: python3 scripts/verify-documentation.py
-
       - name: Verify that the guard rejects a valid but unwired Javadoc alias
-        if: matrix.javadoc-alias == 'unwired'
         run: |
           python3 - <<'PYTHON'
           import subprocess
@@ -78,15 +106,11 @@ jobs:
           print("PASS: standalone alias assertion rejected missing output; all eight existing cases passed")
           PYTHON
 
-      - name: Verify ordinary commands keep documentation dependencies lazy
-        if: matrix.javadoc-alias == 'intact'
-        run: python3 scripts/verify-documentation-laziness.py
-
       - name: Upload documentation verification reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: documentation-verification-${{ matrix.javadoc-alias }}
+          name: documentation-verification-unwired
           path: build/documentation-verification/
           if-no-files-found: warn
           retention-days: 14

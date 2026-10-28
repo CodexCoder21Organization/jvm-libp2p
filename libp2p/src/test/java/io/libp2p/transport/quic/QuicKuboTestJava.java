@@ -62,7 +62,8 @@ public class QuicKuboTestJava {
   }
 
   private static String getKuboPeerId() throws IOException, URISyntaxException {
-    String url = System.getenv().getOrDefault("KUBO_API_URL", "http://localhost:5001") + "/api/v0/id";
+    String url =
+        System.getenv().getOrDefault("KUBO_API_URL", "http://localhost:5001") + "/api/v0/id";
     HttpURLConnection conn = (HttpURLConnection) new URI(url).toURL().openConnection();
     conn.setConnectTimeout(1_000);
     conn.setDoInput(true);

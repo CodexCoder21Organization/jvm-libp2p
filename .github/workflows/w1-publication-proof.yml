@@ -1,0 +1,56 @@
+name: W1 merged Netty consumer proof
+on:
+  push:
+    branches: [proof/w1-netty-publication-012118]
+permissions:
+  contents: read
+jobs:
+  targeted:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/checkout@v4
+        with:
+          repository: CodexCoder21Organization/netty
+          ref: c96e9dd2697ca1dc84ca423edc62bed6d204ae02
+          path: netty-source
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 11
+          cache: maven
+      - uses: gradle/gradle-build-action@v2
+      - name: Build locally from exact merged Netty source
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence release
+          git -C netty-source rev-parse HEAD | tee evidence/netty-source.txt
+          test "$(git -C netty-source rev-parse HEAD)" = c96e9dd2697ca1dc84ca423edc62bed6d204ae02
+          cd netty-source
+          ./mvnw -B -ntp -f transport/pom.xml package -Dtest=DefaultChannelPipelineAutoReadTest 2>&1 | tee ../evidence/netty-build.log
+          version=4.2.10.1-codexcoder21-auto-read
+          cp transport/target/netty-transport-$version.jar transport/target/netty-transport-$version-sources.jar ../release/
+          cp transport/pom.xml ../release/netty-transport-$version.pom
+          cp transport/target/surefire-reports/TEST-io.netty.channel.DefaultChannelPipelineAutoReadTest.xml ../evidence/
+          cd ..
+          sha256sum release/* | tee evidence/sha256.txt
+          python3 .github/proof/w1-consumer-prepare.py
+      - name: Verify resolved transport and run expanded and original develop Yamux cases
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew --no-daemon --stacktrace -I /tmp/w1-local-netty.init.gradle :libp2p:w1TransportProof :libp2p:test --tests 'io.libp2p.mux.yamux.YamuxPausedStreamKeepsConnectionReadingTest' --tests 'io.libp2p.mux.yamux.DevelopYamuxPausedStreamKeepsConnectionReadingTest' --tests 'io.libp2p.mux.PausedChild*' --tests 'io.libp2p.mux.ChildReadPauseTcpTest' 2>&1 | tee evidence/consumer.log
+          cp libp2p/build/test-results/test/TEST-*.xml evidence/
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: merged-netty-consumer-proof
+          path: |
+            evidence/
+            release/
+            libp2p/build/test-results/test/TEST-*.xml
+          if-no-files-found: error

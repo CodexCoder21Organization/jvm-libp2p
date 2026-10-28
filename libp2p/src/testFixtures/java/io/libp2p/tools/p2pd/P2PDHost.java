@@ -155,9 +155,8 @@ public class P2PDHost implements Host {
     ControlConnector connector;
     if (daemonExecutor.getAddress() instanceof InetSocketAddress) {
       connector = new TCPControlConnector();
-      int port = 46666 + counter.incrementAndGet();
-      listenAddr = new InetSocketAddress("127.0.0.1", port);
-      listenMultiaddr = new Multiaddr("/ip4/127.0.0.1/tcp/46666");
+      listenAddr = new InetSocketAddress("127.0.0.1", 0);
+      listenMultiaddr = null;
     } else if (daemonExecutor.getAddress() instanceof DomainSocketAddress) {
       connector = new UnixSocketControlConnector();
       String path = "/tmp/p2pd.client." + counter.incrementAndGet();
@@ -187,25 +186,44 @@ public class P2PDHost implements Host {
         (ChannelFutureListener) future -> activeChannels.add(() -> future.channel().close()));
 
     Closeable ret = () -> channelFuture.channel().close();
-    return Util.channelFutureToJava(channelFuture)
+    CompletableFuture<Closeable> result = new CompletableFuture<>();
+    Util.channelFutureToJava(channelFuture)
         .thenCompose(
-            channel ->
-                daemonExecutor.executeWithDaemon(
+            channel -> {
+              Multiaddr advertised;
+              if (channel.localAddress() instanceof InetSocketAddress) {
+                InetSocketAddress bound = (InetSocketAddress) channel.localAddress();
+                advertised = new Multiaddr("/ip4/127.0.0.1/tcp/" + bound.getPort());
+              } else {
+                advertised = listenMultiaddr;
+              }
+              return daemonExecutor.executeWithDaemon(
                     handler ->
                         handler.call(
                             P2Pd.Request.newBuilder()
                                 .setType(P2Pd.Request.Type.STREAM_HANDLER)
                                 .setStreamHandler(
                                     P2Pd.StreamHandlerRequest.newBuilder()
-                                        .setAddr(ByteString.copyFrom(listenMultiaddr.serialize()))
+                                        .setAddr(ByteString.copyFrom(advertised.serialize()))
                                         .addAllProto(
                                             muxerAdress.getProtocols().stream()
                                                 .map(Protocol::getName)
                                                 .collect(Collectors.toList()))
                                         .build())
                                 .build(),
-                            new DaemonChannelHandler.SimpleResponseBuilder())))
-        .thenApply(resp1 -> ret);
+                            new DaemonChannelHandler.SimpleResponseBuilder()));
+            })
+        .whenComplete((response, failure) -> {
+          if (failure == null) {
+            result.complete(ret);
+          } else {
+            channelFuture.channel().close().addListener(closed -> {
+              if (!closed.isSuccess()) failure.addSuppressed(closed.cause());
+              result.completeExceptionally(failure);
+            });
+          }
+        });
+    return result;
   }
 
   @Override

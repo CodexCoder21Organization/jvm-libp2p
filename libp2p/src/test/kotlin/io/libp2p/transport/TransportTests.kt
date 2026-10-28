@@ -20,17 +20,17 @@ import java.util.concurrent.atomic.AtomicBoolean
 @Tag("transport")
 abstract class TransportTests {
     protected abstract fun makeTransport(): Transport
-    protected abstract fun localAddress(portNumber: Int = 20000): Multiaddr
+    protected abstract fun localAddress(portNumber: Int = 0): Multiaddr
     protected abstract fun badAddress(): Multiaddr
     protected lateinit var transportUnderTest: Transport
 
     protected val nullConnHandler = ConnectionHandler { }
     protected val logger = LoggerFactory.getLogger("test")
 
-    protected fun startListeners(server: Transport, startPortNumber: Int, howMany: Int) {
+    protected fun startListeners(server: Transport, howMany: Int) {
         val listening = (0 until howMany).map {
             val bindComplete = server.listen(
-                localAddress(startPortNumber + it),
+                localAddress(0),
                 nullConnHandler
             )
             bindComplete.handle { _, u -> logger.info("Bound #$it", u) }
@@ -52,7 +52,7 @@ abstract class TransportTests {
     } // dialConnections
 
     protected fun connectClientAndServer(server: Transport, connectionCount: Int): Transport {
-        val address = localAddress(21100)
+        val address = localAddress(0)
 
         val inboundConnections = object : ConnectionHandler {
             var count = 0
@@ -66,7 +66,7 @@ abstract class TransportTests {
         logger.info("Server is listening")
 
         val client = makeTransport()
-        dialConnections(client, address, connectionCount)
+        dialConnections(client, server.listenAddresses().single(), connectionCount)
         assertEquals(connectionCount, client.activeConnections)
 
         // give the server time to acknowledge connections
@@ -97,8 +97,8 @@ abstract class TransportTests {
 
     @Test
     fun `dial should invoke preHandler before connection handlers`() {
-        startListeners(transportUnderTest, 21100, 1)
-        val address = localAddress(21100)
+        startListeners(transportUnderTest, 1)
+        val address = transportUnderTest.listenAddresses().single()
         val preHandlerCalled = AtomicBoolean(false)
         transportUnderTest.dial(address, {
             assert(preHandlerCalled.get())
@@ -109,7 +109,7 @@ abstract class TransportTests {
 
     @Test
     fun `listen should invoke preHandler before connection handlers`() {
-        val address = localAddress(21100)
+        val address = localAddress(0)
         val preHandlerCalled = AtomicBoolean(false)
         val connectionHandlerFuture = CompletableFuture<Unit>()
         transportUnderTest.listen(address, {
@@ -121,7 +121,7 @@ abstract class TransportTests {
         }, {
             preHandlerCalled.set(true)
         }).join()
-        transportUnderTest.dial(address, { })
+        transportUnderTest.dial(transportUnderTest.listenAddresses().single(), { })
 
         connectionHandlerFuture.join()
     }
@@ -152,9 +152,8 @@ abstract class TransportTests {
 
     @Test
     fun `listen then close transport`() {
-        val portNumber = 21000
         val listenerCount = 5
-        startListeners(transportUnderTest, portNumber, listenerCount)
+        startListeners(transportUnderTest, listenerCount)
 
         transportUnderTest.close().get(5, SECONDS)
         assertEquals(0, transportUnderTest.activeListeners, "Not all listeners closed")
@@ -162,13 +161,12 @@ abstract class TransportTests {
 
     @Test
     fun `listen then unlisten`() {
-        val portNumber = 21000
         val listenerCount = 5
-        startListeners(transportUnderTest, portNumber, listenerCount)
+        startListeners(transportUnderTest, listenerCount)
 
-        val unlistening = (0 until listenerCount).map {
+        val unlistening = transportUnderTest.listenAddresses().mapIndexed { it, address ->
             val unbindComplete = transportUnderTest.unlisten(
-                localAddress(portNumber + it)
+                address
             )
             unbindComplete.handle { _, u -> logger.info("Unbound #$it", u) }
             logger.info("Unbinding #$it")

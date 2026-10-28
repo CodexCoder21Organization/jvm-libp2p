@@ -20,13 +20,12 @@ import io.libp2p.protocol.Ping
 import io.libp2p.security.noise.NoiseXXSecureChannel
 import io.libp2p.transport.tcp.TcpTransport
 import io.netty.handler.logging.LogLevel
-import java.util.*
 import java.util.concurrent.TimeUnit
 
 class HostFactory {
 
     var keyType = KeyType.ECDSA
-    var tcpPort = Random().nextInt(10_000) + 6000
+    var tcpPort = 0
     var transportCtor = ::TcpTransport
     var secureCtor: SecureChannelCtor = ::NoiseXXSecureChannel
     var mplexCtor = ::MplexStreamMuxer
@@ -39,7 +38,7 @@ class HostFactory {
 
     fun createHost(): TestHost {
         val keys = generateKeyPair(keyType)
-        val port = tcpPort++
+        val port = tcpPort
         val address = Multiaddr.fromString("/ip4/127.0.0.1/tcp/$port")
 
         val host = host {
@@ -71,7 +70,7 @@ class HostFactory {
         }
         host.start().get(5, TimeUnit.SECONDS)
 
-        return TestHost(host, keys.first, keys.second, PeerId.fromPubKey(keys.second), address)
+        return TestHost(host, keys.first, keys.second, PeerId.fromPubKey(keys.second), host.listenAddresses().single())
             .also { createdHosts += it }
     }
 

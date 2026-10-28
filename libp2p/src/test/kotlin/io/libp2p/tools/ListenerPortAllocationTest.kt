@@ -39,9 +39,10 @@ class ListenerPortAllocationTest {
         val first = HostFactory()
         val second = HostFactory()
         try {
+            val firstHost = ServerSocket(first.tcpPort).use { first.createHost() }
             assertEquals(0, first.tcpPort, "Default factory listener must request OS allocation")
             assertEquals(0, second.tcpPort, "Each factory must request OS allocation")
-            val hosts = listOf(first.createHost(), first.createHost(), second.createHost())
+            val hosts = listOf(firstHost, first.createHost(), second.createHost())
             assertEquals(3, hosts.map { it.listenPort }.toSet().size)
             hosts.forEach {
                 assertNotEquals(0, it.listenPort)

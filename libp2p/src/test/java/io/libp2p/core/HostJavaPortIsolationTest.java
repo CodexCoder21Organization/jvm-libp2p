@@ -7,7 +7,7 @@ class HostJavaPortIsolationTest {
   @Test
   void javaHostFixtureWorksWhileLegacyEndpointIsOwned() throws Exception {
     try (ServerSocket occupied = new ServerSocket(40002)) {
-      new HostTestJava().ping();
+      new HostTestJava().largeBlob();
     }
   }
 }

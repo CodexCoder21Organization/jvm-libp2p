@@ -1,38 +1,10 @@
 name: Dokka original cap and maintained regression controls 011701
 on:
   push:
-    branches: [proof/dokka-controls-011701]
+    branches: [proof/dokka-finalization-011701]
 permissions:
   contents: read
 jobs:
-  native-red:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/checkout@v4
-        with:
-          ref: b9cc2c88dce03e2fab971dc243fcf01216f82c59
-          fetch-depth: 30
-          path: candidate
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
-      - run: '"$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-30" "build-tools;30.0.3"'
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '11'
-      - run: python3 diagnostics/mutate.py candidate native-red
-      - run: python3 diagnostics/control.py native-red
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: original-native-red
-          path: |
-            native-proof/**
-            candidate/build/dokka-budget-proof/**
   green:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -40,7 +12,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/checkout@v4
         with:
-          ref: b9cc2c88dce03e2fab971dc243fcf01216f82c59
+          ref: 40e791e318566f7b8fd7f59bdad99e027476664d
           fetch-depth: 30
           path: candidate
       - uses: actions/setup-java@v4
@@ -67,7 +39,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/checkout@v4
         with:
-          ref: b9cc2c88dce03e2fab971dc243fcf01216f82c59
+          ref: 40e791e318566f7b8fd7f59bdad99e027476664d
           fetch-depth: 30
           path: candidate
       - uses: actions/setup-java@v4
@@ -95,12 +67,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        mode: [budget, html_alias, javadoc_alias, archive, metadata, original_memory]
+        mode: [budget, html_alias, javadoc_alias, archive, metadata, original_memory, retained_runtime]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/checkout@v4
         with:
-          ref: b9cc2c88dce03e2fab971dc243fcf01216f82c59
+          ref: 40e791e318566f7b8fd7f59bdad99e027476664d
           fetch-depth: 30
           path: candidate
       - uses: actions/setup-java@v4

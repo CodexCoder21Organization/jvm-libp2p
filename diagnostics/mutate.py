@@ -12,7 +12,11 @@ elif mode == 'budget':
     subprocess.run(['git', 'restore', '--source=6406e6ca7ce3dd3fa0b7092685432d02471a0642', '--', 'build.gradle.kts', 'gradle.properties'], cwd=checkout, check=True)
 else:
     text = root.read_text()
-    if mode == 'html_alias':
+    if mode == 'retained_runtime':
+        before = 'finalizeCoroutines.set(true)'
+        assert before in text
+        text = text.replace(before, 'finalizeCoroutines.set(false)')
+    elif mode == 'html_alias':
         before = 'dependsOn(dokkaHtmlTask)'
         assert before in text
         text = text.replace(before, 'dependsOn("dokkaGenerateHtml")', 1)

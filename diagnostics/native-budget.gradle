@@ -30,6 +30,15 @@ def record = { task, phase, state ->
         rootPid: rootPid, rootMetaspace: meta.used, rootMetaspaceCommitted: meta.committed,
         rootMetaspaceMax: meta.max, workers: workerPids]) + '\n'
     memory(rootPid, label + '-root')
+    def threads = new File(reports, label + '-coroutine-threads.jsonl')
+    Thread.getAllStackTraces().each { thread, stack ->
+        if (thread.name.startsWith('DefaultDispatcher-worker')) {
+            threads << JsonOutput.toJson([name: thread.name, loader: thread.contextClassLoader?.toString(),
+                loaderIdentity: System.identityHashCode(thread.contextClassLoader),
+                stack: stack.collect { it.toString() }]) + '\n'
+        }
+    }
+
     workerPids.each { pid -> memory(pid, label + '-worker') }
 }
 gradle.taskGraph.beforeTask { task ->

@@ -20,8 +20,8 @@ case = ET.SubElement(result, 'testcase', classname='DocumentationBuildBudgetTest
 try:
     command = ['./gradlew', '--no-daemon', '--stacktrace', '--continue', '--parallel',
                '-I', str(init_script)]
-    if len(sys.argv) > 4 and sys.argv[4] == 'strict-red':
-        command += ['-Dorg.gradle.jvmargs=-Xmx2G -XX:MaxMetaspaceSize=400m -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=build/root400.hprof']
+    if len(sys.argv) > 4 and sys.argv[4] == 'retention-red':
+        command += ['-Dorg.gradle.jvmargs=-Xmx3G -XX:MaxMetaspaceSize=512m -XX:+ExitOnOutOfMemoryError']
     command += ['dokkaHtml'] if html_mode else ['assemble', 'spotlessCheck', 'detekt', 'testClasses', 'dokkaJar']
     with (proof / 'gradle.log').open('w') as output:
         build = subprocess.run(command, cwd=checkout, stdout=output, stderr=subprocess.STDOUT, timeout=1200)

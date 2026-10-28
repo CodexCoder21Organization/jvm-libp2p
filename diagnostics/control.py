@@ -5,8 +5,11 @@ import xml.etree.ElementTree as ET
 
 candidate = Path('candidate')
 mode = sys.argv[1]
-if mode in ('native-red', 'original_memory'):
-    result = subprocess.run(['python3', 'diagnostics/native-verify.py', str(candidate), 'diagnostics/native-budget.gradle', 'native-proof'])
+if mode in ('native-red', 'original_memory', 'retained_runtime'):
+    command = ['python3', 'diagnostics/native-verify.py', str(candidate), 'diagnostics/native-budget.gradle', 'native-proof']
+    if mode == 'retained_runtime':
+        command.append('retention-red')
+    result = subprocess.run(command)
     suite = ET.parse('native-proof/TEST-DocumentationBuildBudgetTest.xml').getroot()
     assert result.returncode == 1 and suite.get('failures') == '1'
     assert 'java.lang.OutOfMemoryError: Metaspace' in Path('native-proof/gradle.log').read_text()

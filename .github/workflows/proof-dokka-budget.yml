@@ -1,7 +1,7 @@
 name: Dokka original cap and maintained regression controls 022124
 on:
   push:
-    branches: [proof/dokka-plugin-boundary-proof-022124]
+    branches: [proof/dokka-renderer-proof-022124]
 permissions:
   contents: read
 jobs:
@@ -12,7 +12,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/checkout@v4
         with:
-          ref: 3476b30f0774bba7cf929443bb2816f78132d40d
+          ref: fc2e953936d1a6f0fb14a75b083cf23de9756fd1
           fetch-depth: 30
           path: candidate
       - uses: actions/setup-java@v4
@@ -32,6 +32,35 @@ jobs:
         with:
           name: maintained-candidate
           path: candidate/build/documentation-verification/**
+  lazy-red:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          ref: fc2e953936d1a6f0fb14a75b083cf23de9756fd1
+          fetch-depth: 30
+          path: candidate
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - run: '"$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-30" "build-tools;30.0.3"'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '11'
+      - name: Populate the ordinary Gradle plugin cache
+        working-directory: candidate
+        run: ./gradlew --no-daemon help
+      - name: Confirm the no-documentation-resolution assertion is red
+        run: python3 diagnostics/lazy-red.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lazy-red
+          path: candidate/build/documentation-verification/**
   native-green:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -39,7 +68,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/checkout@v4
         with:
-          ref: 3476b30f0774bba7cf929443bb2816f78132d40d
+          ref: fc2e953936d1a6f0fb14a75b083cf23de9756fd1
           fetch-depth: 30
           path: candidate
       - uses: actions/setup-java@v4
@@ -67,12 +96,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        mode: [budget, html_alias, javadoc_alias, archive, metadata, original_memory, plugin_boundary, no_service, buildscript_compiler]
+        mode: [budget, html_alias, javadoc_alias, archive, metadata, original_memory, plugin_boundary, compiler_boundary, no_service, buildscript_compiler]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/checkout@v4
         with:
-          ref: 3476b30f0774bba7cf929443bb2816f78132d40d
+          ref: fc2e953936d1a6f0fb14a75b083cf23de9756fd1
           fetch-depth: 30
           path: candidate
       - uses: actions/setup-java@v4

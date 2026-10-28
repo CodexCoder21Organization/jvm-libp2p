@@ -77,6 +77,12 @@ class NoiseHandshakeOffEventLoopTest {
         }
     }
 
+    @RepeatedTest(10)
+    fun `single inline fixture drains queued callbacks before admission`() {
+        val processOutput = runNoiseHandshakeHarness("inline-queued", 10)
+        assertThat(processOutput).contains("Noise handshake inline path:")
+    }
+
     @Test
     fun `single Noise handshake runs crypto inline on event loops`() {
         val processOutput = runNoiseHandshakeHarness("inline", 10)
@@ -595,6 +601,7 @@ object NoiseHandshakePathHarness {
     fun main(args: Array<String>) {
         when (args.singleOrNull()) {
             "inline" -> verifySingleInlineHandshake()
+            "inline-queued" -> verifySingleInlineHandshake(queuedCallbacks = true)
             "sequential" -> verifySequentialInlineHandshakes()
             "sequential-queued" -> verifySequentialInlineHandshakes(queuedCallbacks = true)
             "saturated" -> verifySaturatedRemoteWaitsTimeOut()
@@ -605,17 +612,19 @@ object NoiseHandshakePathHarness {
         }
     }
 
-    private fun verifySingleInlineHandshake() {
+    private fun verifySingleInlineHandshake(queuedCallbacks: Boolean = false) {
         val executionRecorder = NoiseHandshakeExecutionRecorder().also { it.install() }
         val hosts = mutableListOf<Host>()
+        val callbacks = AtomicInteger()
         try {
-            val relay = newNoiseHost(listen = true).also { hosts += it }
-            val dialer = newNoiseHost().also { hosts += it }
+            val relay = newInlineNoiseHost(listen = true, queuedCallbacks = queuedCallbacks, callback = { callbacks.incrementAndGet() }).also { hosts += it }
+            val dialer = newInlineNoiseHost(queuedCallbacks = queuedCallbacks, callback = { callbacks.incrementAndGet() }).also { hosts += it }
             startNoiseHosts(hosts)
 
             dialer.network.connect(relay.peerId, relay.listenAddresses().single())
                 .get(5, TimeUnit.SECONDS)
 
+            if (queuedCallbacks) check(callbacks.get() > 0) { "Queued fixture callbacks must execute" }
             val execution = executionRecorder.snapshot()
             check(execution.inlineHandshakes == 2 && execution.offloadedHandshakes == 0) {
                 "Expected both sides of one uncontended Noise handshake to use the inline path, but execution was $execution"

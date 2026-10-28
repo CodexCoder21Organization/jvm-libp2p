@@ -12,6 +12,7 @@ import io.netty.util.ReferenceCountUtil
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.RepeatedTest
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CopyOnWriteArrayList
@@ -20,11 +21,24 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 
 class NoiseReadyReentryTest {
+    @RepeatedTest(10)
+    fun `stress concurrent ready callback reentry`() {
+        // Each child owns real TCP connections and its own one-worker loop.
+        CompletableFuture.allOf(
+            *Array(4) {
+                CompletableFuture.runAsync {
+                    `ready callback retains its loop entry during synchronous reentry`()
+                }
+            }
+        ).get(25, TimeUnit.SECONDS)
+    }
+
     @Test
     fun `ready callback retains its loop entry during synchronous reentry`() {
         val process = ProcessBuilder(
             java.nio.file.Paths.get(System.getProperty("java.home"), "bin", "java").toString(),
             "-Dio.netty.eventLoopThreads=1",
+            "-Xmx128m",
             "-cp",
             System.getProperty("java.class.path"),
             NoiseReadyReentryHarness::class.java.name

@@ -13,6 +13,7 @@ import io.libp2p.core.multiformats.Multiaddr
 import io.libp2p.core.multiformats.Protocol
 import io.libp2p.core.mux.StreamMuxer
 import io.libp2p.core.mux.StreamMuxerProtocol
+import io.libp2p.core.security.SecureChannel
 import io.libp2p.etc.CONNECTION
 import io.libp2p.multistream.MultistreamProtocolDebugV1
 import io.libp2p.protocol.Ping
@@ -20,6 +21,7 @@ import io.libp2p.tools.TestChannel
 import io.netty.buffer.ByteBuf
 import io.netty.buffer.Unpooled
 import io.netty.channel.ChannelHandlerContext
+import io.netty.channel.ChannelInboundHandlerAdapter
 import io.netty.channel.ChannelOutboundHandlerAdapter
 import io.netty.channel.ChannelPromise
 import io.netty.channel.embedded.EmbeddedChannel
@@ -86,6 +88,12 @@ class NoiseHandshakeOffEventLoopTest {
     fun `twenty sequential Noise handshakes stay inline and within the latency budget`() {
         val processOutput = runNoiseHandshakeHarness("sequential", 25)
 
+        assertThat(processOutput).contains("Sequential Noise handshakes:")
+    }
+
+    @Test
+    fun `sequential inline fixture drains queued callbacks before admission`() {
+        val processOutput = runNoiseHandshakeHarness("sequential-queued", 25)
         assertThat(processOutput).contains("Sequential Noise handshakes:")
     }
 
@@ -588,6 +596,7 @@ object NoiseHandshakePathHarness {
         when (args.singleOrNull()) {
             "inline" -> verifySingleInlineHandshake()
             "sequential" -> verifySequentialInlineHandshakes()
+            "sequential-queued" -> verifySequentialInlineHandshakes(queuedCallbacks = true)
             "saturated" -> verifySaturatedRemoteWaitsTimeOut()
             else -> error(
                 "Expected exactly one harness mode: 'inline', 'sequential', or 'saturated'; " +
@@ -620,12 +629,12 @@ object NoiseHandshakePathHarness {
         }
     }
 
-    private fun verifySequentialInlineHandshakes() {
+    private fun verifySequentialInlineHandshakes(queuedCallbacks: Boolean = false) {
         val executionRecorder = NoiseHandshakeExecutionRecorder().also { it.install() }
         val hosts = mutableListOf<Host>()
         try {
-            val relay = newNoiseHost(listen = true).also { hosts += it }
-            val dialer = newNoiseHost().also { hosts += it }
+            val relay = newInlineNoiseHost(listen = true, queuedCallbacks = queuedCallbacks).also { hosts += it }
+            val dialer = newInlineNoiseHost(queuedCallbacks = queuedCallbacks).also { hosts += it }
             startNoiseHosts(hosts)
             val relayAddress = relay.listenAddresses().single()
 
@@ -884,6 +893,35 @@ private class NoiseHandshakeExecutionRecorder {
         generateSequence(failure) { current -> current.cause?.takeUnless { it === current } }
             .any(type::isInstance)
     }
+}
+
+private fun newInlineNoiseHost(listen: Boolean = false, queuedCallbacks: Boolean = false): Host = host {
+    identity { random(KeyType.ED25519) }
+    if (listen) network { listen("/ip4/$NOISE_TEST_HOST/tcp/0") }
+    secureChannels {
+        add { key, _ ->
+            val noise = NoiseXXSecureChannel(key)
+            object : SecureChannel {
+                override val protocolDescriptor = noise.protocolDescriptor
+                override fun initChannel(ch: P2PChannel, selectedProtocol: String): CompletableFuture<SecureChannel.Session> {
+                    if (queuedCallbacks) {
+                        ch.pushHandler(object : ChannelInboundHandlerAdapter() {
+                            override fun channelActive(ctx: ChannelHandlerContext) {
+                                ctx.executor().execute { ctx.channel().isActive }
+                                ctx.fireChannelActive()
+                            }
+                            override fun channelRead(ctx: ChannelHandlerContext, msg: Any) {
+                                ctx.executor().execute { ctx.channel().isActive }
+                                ctx.fireChannelRead(msg)
+                            }
+                        })
+                    }
+                    return noise.initChannel(ch, selectedProtocol)
+                }
+            }
+        }
+    }
+    protocols { +Ping() }
 }
 
 private fun newNoiseHost(listen: Boolean = false, listenPort: Int = 0): Host = host {

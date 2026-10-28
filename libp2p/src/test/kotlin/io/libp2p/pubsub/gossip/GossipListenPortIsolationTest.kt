@@ -23,7 +23,10 @@ class GossipListenPortIsolationTest {
             assertEquals(4, addresses.toSet().size)
         } finally {
             CompletableFuture.allOf(
-                first.host1.stop(), first.host2.stop(), second.host1.stop(), second.host2.stop()
+                first.host1.stop(),
+                first.host2.stop(),
+                second.host1.stop(),
+                second.host2.stop()
             ).get(5, TimeUnit.SECONDS)
         }
     }

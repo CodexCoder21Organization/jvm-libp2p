@@ -2,6 +2,7 @@ import com.diffplug.gradle.spotless.SpotlessExtension
 import org.gradle.api.JavaVersion
 import org.gradle.api.Project
 import org.gradle.api.file.DuplicatesStrategy
+import org.gradle.api.model.ObjectFactory
 import org.gradle.api.plugins.JavaBasePlugin
 import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.api.services.BuildService
@@ -42,9 +43,22 @@ description = 'a libp2p implementation for the JVM, written in Kotlin'
 
 abstract class DokkaWorkerBudget implements BuildService<BuildServiceParameters.None> {}
 
-// Bound the number of documentation engines alive at once.
 def dokkaWorkerBudget = gradle.sharedServices.registerIfAbsent('dokkaWorkerBudget', DokkaWorkerBudget) {
     maxParallelUsages.set(1)
+}
+
+def configureSharedGeneration(DokkaExtension dokka, ObjectFactory objects) {
+    def isolation = objects.newInstance(org.jetbrains.dokka.gradle.workers.WorkerIsolation.Process)
+    isolation.maxHeapSize.set('1G')
+    isolation.jvmArgs.add('-XX:MaxMetaspaceSize=144m')
+    dokka.dokkaGeneratorIsolation.set(isolation)
+}
+
+boolean isDokkaPlugin(File jar) {
+    if (!jar.name.endsWith('.jar')) return false
+    new java.util.zip.ZipFile(jar).withCloseable { archive ->
+        archive.getEntry('META-INF/services/org.jetbrains.dokka.plugability.DokkaPlugin') != null
+    }
 }
 
 boolean getBooleanPropertyOrFalse(Project project, String propName) {
@@ -205,10 +219,7 @@ configure(configuredProjects) {
     }
 
     extensions.configure(DokkaExtension) { dokka ->
-        dokka.dokkaGeneratorIsolation.set(objects.newInstance(org.jetbrains.dokka.gradle.workers.WorkerIsolation.ClassLoader))
-        dokka.dokkaPublications.configureEach { publication ->
-            publication.finalizeCoroutines.set(true)
-        }
+        configureSharedGeneration(dokka, objects)
         dokka.dokkaPublications.named('html') { publication ->
             publication.outputDirectory.set(layout.buildDirectory.dir('dokka'))
         }
@@ -283,5 +294,24 @@ configure(configuredProjects) {
     detekt {
         config.from "$rootDir/detekt/config.yml"
         buildUponDefaultConfig = true
+    }
+}
+
+// Use the same engine classpath for both formats so Gradle reuses one worker.
+// All plugins stay together in each generator's loader, including their static resources.
+gradle.projectsEvaluated {
+    def htmlRuntime = tasks.named('dokkaGeneratePublicationHtml', DokkaGeneratePublicationTask).get().runtimeClasspath.files
+    def javadocRuntime = tasks.named('dokkaGeneratePublicationJavadoc', DokkaGeneratePublicationTask).get().runtimeClasspath.files
+    def sharedRuntime = (htmlRuntime + javadocRuntime).findAll { file ->
+        !isDokkaPlugin(file)
+    }.sort { it.absolutePath }
+    def generators = configuredProjects.collectMany { project ->
+        project.tasks.withType(DokkaGenerateTask).collect { task ->
+            [task: task, plugins: task.runtimeClasspath.files.findAll { isDokkaPlugin(it) }]
+        }
+    }
+    generators.each { generator ->
+        generator.task.generator.pluginsClasspath.from(generator.plugins)
+        generator.task.runtimeClasspath.setFrom(sharedRuntime)
     }
 }

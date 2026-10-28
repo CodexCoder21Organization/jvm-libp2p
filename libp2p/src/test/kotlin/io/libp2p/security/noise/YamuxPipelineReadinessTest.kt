@@ -22,7 +22,8 @@ class YamuxPipelineReadinessTest {
             File(System.getProperty("java.home"), "bin/java").absolutePath,
             "-Xmx128m",
             "-javaagent:$agent",
-            "-cp", System.getProperty("java.class.path"),
+            "-cp",
+            System.getProperty("java.class.path"),
             "io.libp2p.security.noise.YamuxPipelineReadinessProbe"
         ).redirectErrorStream(true).redirectOutput(output.toFile()).start()
         try {
@@ -32,7 +33,11 @@ class YamuxPipelineReadinessTest {
             assertEquals(0, process.exitValue(), text)
         } finally {
             process.destroyForcibly().waitFor(5, TimeUnit.SECONDS)
-            try { Files.deleteIfExists(agent) } finally { Files.deleteIfExists(output) }
+            try {
+                Files.deleteIfExists(agent)
+            } finally {
+                Files.deleteIfExists(output)
+            }
         }
     }
 }
@@ -52,7 +57,7 @@ object YamuxPipelineReadinessProbe {
             protocols { +Ping() }
             network { listen("/ip4/127.0.0.1/tcp/0") }
         }
-        var observed: List<String>? = null
+        val observed: List<String>
         try {
             client.start().get(10, TimeUnit.SECONDS)
             server.start().get(10, TimeUnit.SECONDS)
@@ -61,7 +66,9 @@ object YamuxPipelineReadinessProbe {
             }
             NoiseClassLoadObserver.begin()
             val opened = client.newStream<PingController>(
-                listOf("/ipfs/ping/1.0.0"), server.peerId, *server.listenAddresses().toTypedArray()
+                listOf("/ipfs/ping/1.0.0"),
+                server.peerId,
+                *server.listenAddresses().toTypedArray()
             )
             try {
                 val controller = opened.controller.get(10, TimeUnit.SECONDS)
@@ -79,7 +86,11 @@ object YamuxPipelineReadinessProbe {
                 "Host.start returned before Yamux codec/handler initialization: ${loads.size} first-dial class-load events: $names"
             }
         } finally {
-            try { client.stop().get(10, TimeUnit.SECONDS) } finally { server.stop().get(10, TimeUnit.SECONDS) }
+            try {
+                client.stop().get(10, TimeUnit.SECONDS)
+            } finally {
+                server.stop().get(10, TimeUnit.SECONDS)
+            }
             NoiseClassLoadObserver.close()
         }
     }

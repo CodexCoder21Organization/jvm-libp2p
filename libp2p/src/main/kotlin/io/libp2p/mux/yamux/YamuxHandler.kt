@@ -57,8 +57,13 @@ open class YamuxHandler(
             maxBufferedConnectionWrites: Int,
             ackBacklogLimit: Int
         ) = YamuxHandler(
-            multistreamProtocol, maxFrameDataLength, ready, inboundStreamHandler,
-            connectionInitiator, maxBufferedConnectionWrites, ackBacklogLimit
+            multistreamProtocol,
+            maxFrameDataLength,
+            ready,
+            inboundStreamHandler,
+            connectionInitiator,
+            maxBufferedConnectionWrites,
+            ackBacklogLimit
         )
     }
 

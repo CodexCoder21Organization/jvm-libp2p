@@ -221,8 +221,15 @@ configure(
             }
         }
     }
+    val htmlWorkerIsolation = extensions.getByType<DokkaExtension>().ProcessIsolation {
+        maxHeapSize.set("1G")
+        jvmArgs.add("-XX:MaxMetaspaceSize=192m")
+    }
     tasks.withType<DokkaGenerateTask>().configureEach {
         usesService(dokkaWorkerBudget)
+        if (name.endsWith("Html")) {
+            workerIsolation.set(htmlWorkerIsolation)
+        }
     }
 
     val dokkaHtmlTask = tasks.named<DokkaGeneratePublicationTask>("dokkaGeneratePublicationHtml")

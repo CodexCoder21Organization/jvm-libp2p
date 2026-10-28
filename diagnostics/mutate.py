@@ -12,19 +12,17 @@ if mode in ('original_memory', 'native-red', 'budget'):
     subprocess.run(['git', 'restore', '--source='+source, '--', 'build.gradle.kts', 'libp2p/build.gradle.kts', 'interop-test-client/build.gradle.kts', 'gradle.properties', 'examples/android-chatter/build.gradle'], cwd=checkout, check=True)
 else:
     text = root.read_text()
-    if mode == 'retained_runtime':
-        before = 'publication.finalizeCoroutines.set(true)'
+    if mode == 'plugin_boundary':
+        before = "    def sharedRuntime = (htmlRuntime + javadocRuntime).findAll { file ->\n        !isDokkaPlugin(file)"
         assert before in text
-        text = text.replace(before, 'publication.finalizeCoroutines.set(false)')
+        text = text.replace(before, "    def commonFiles = htmlRuntime.intersect(javadocRuntime)\n    def sharedRuntime = (htmlRuntime + javadocRuntime).findAll { file ->\n        commonFiles.contains(file) || !isDokkaPlugin(file)")
     elif mode == 'no_service':
         before = 'usesService(dokkaWorkerBudget)'
         assert before in text
         text = text.replace(before, '// Service deliberately removed for this control')
     elif mode == 'buildscript_compiler':
-        for name in ['build.gradle', 'libp2p/build.gradle', 'interop-test-client/build.gradle']:
-            (checkout / name).unlink()
-        subprocess.run(['git', 'restore', '--source=40e791e318566f7b8fd7f59bdad99e027476664d', '--', 'build.gradle.kts', 'libp2p/build.gradle.kts', 'interop-test-client/build.gradle.kts'], cwd=checkout, check=True)
-        sys.exit(0)
+        (checkout / 'compiler-control.gradle.kts').write_text('logger.lifecycle("Original Kotlin buildscript compiler loaded")\n')
+        text += "\napply from: 'compiler-control.gradle.kts'\n"
     elif mode == 'html_alias':
         before = 'dependsOn dokkaHtmlTask'
         assert before in text

@@ -5,9 +5,9 @@ import xml.etree.ElementTree as ET
 
 candidate = Path('candidate')
 mode = sys.argv[1]
-if mode in ('native-red', 'original_memory', 'retained_runtime', 'no_service', 'buildscript_compiler'):
+if mode in ('native-red', 'original_memory', 'buildscript_compiler'):
     command = ['python3', 'diagnostics/native-verify.py', str(candidate), 'diagnostics/native-budget.gradle', 'native-proof']
-    if mode in ('retained_runtime', 'no_service', 'buildscript_compiler'):
+    if mode == 'buildscript_compiler':
         command.append('retention-red')
     result = subprocess.run(command)
     suite = ET.parse('native-proof/TEST-DocumentationBuildBudgetTest.xml').getroot()
@@ -20,10 +20,13 @@ else:
     log = (reports / 'gradle.log').read_text()
     cases = {case.get('name'): case for case in suite.findall('testcase')}
     assert result.returncode == 1
-    if mode in ('budget', 'separate_runtimes'):
+    if mode in ('budget', 'no_service'):
         failure = cases['aggregateRootAndDokkaWorkerMetaspaceBudget'].find('failure')
         expected = '855638016' if mode == 'budget' else '687865856'
         assert failure is not None and expected in failure.text, failure
+    elif mode == 'plugin_boundary':
+        assert cases['combinedBuildAndShutdown'].find('failure') is not None
+        assert '/static_res: The source file doesn' in log
     elif mode in ('html_alias', 'javadoc_alias'):
         task = 'dokkaGenerateHtml' if mode == 'html_alias' else 'dokkaGenerateJavadoc'
         assert cases['combinedBuildAndShutdown'].find('failure') is not None

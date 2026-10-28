@@ -60,6 +60,14 @@ Legend:
 
 For autonomous Netty loops, another connection on the same loop, competing handshakes or queued work send computation to the shared workers. This keeps established connections responsive while a new connection is set up, including when the established connection uses another secure protocol. An isolated loop keeps computation inline; closing its other connections restores that path. Once a handshake uses the workers, subsequent computations keep their per-channel order there. Embedded channels remain synchronous on their caller-driven loops.
 
+## Ping stream lifecycle
+
+Closing one Ping stream leaves its siblings and later streams usable. Replies and stream closure
+release that stream's pending timeout tasks. The protocol retires a default scheduler after its
+last initiating stream closes, and creates another when later streams need one. A scheduler
+assigned through `PingProtocol.timeoutScheduler` stays owned by its caller and is never shut down
+by the protocol.
+
 ## Noise algorithm preparation
 
 TCP and WebSocket hosts built with `host { ... }` prepare the configured Noise handshake and cipher algorithm

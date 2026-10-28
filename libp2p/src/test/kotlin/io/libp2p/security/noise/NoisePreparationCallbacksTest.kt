@@ -22,7 +22,8 @@ class NoisePreparationCallbacksTest {
         val process = ProcessBuilder(
             File(System.getProperty("java.home"), "bin/java").absolutePath,
             "-Xmx128m",
-            "-cp", System.getProperty("java.class.path"),
+            "-cp",
+            System.getProperty("java.class.path"),
             "io.libp2p.security.noise.NoisePreparationCallbacksProbe"
         ).redirectErrorStream(true).redirectOutput(output.toFile()).start()
         try {
@@ -71,7 +72,9 @@ object NoisePreparationCallbacksProbe {
                 "Noise preparation opened a connection"
             }
             val opened = client.newStream<PingController>(
-                listOf("/ipfs/ping/1.0.0"), server.peerId, *server.listenAddresses().toTypedArray()
+                listOf("/ipfs/ping/1.0.0"),
+                server.peerId,
+                *server.listenAddresses().toTypedArray()
             )
             try {
                 check(opened.controller.get(10, TimeUnit.SECONDS).ping().get(10, TimeUnit.SECONDS) >= 0)
@@ -84,7 +87,11 @@ object NoisePreparationCallbacksProbe {
                 opened.stream.get(10, TimeUnit.SECONDS).close().get(10, TimeUnit.SECONDS)
             }
         } finally {
-            try { client.stop().get(10, TimeUnit.SECONDS) } finally { server.stop().get(10, TimeUnit.SECONDS) }
+            try {
+                client.stop().get(10, TimeUnit.SECONDS)
+            } finally {
+                server.stop().get(10, TimeUnit.SECONDS)
+            }
         }
     }
 }

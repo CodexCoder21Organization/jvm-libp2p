@@ -46,6 +46,9 @@ jobs:
       - name: Verify documentation contract
         run: python3 scripts/verify-documentation.py
 
+      - name: Verify ordinary commands keep documentation dependencies lazy
+        run: python3 scripts/verify-documentation-laziness.py
+
       - name: Upload documentation verification reports
         if: always()
         uses: actions/upload-artifact@v4

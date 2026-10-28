@@ -3,6 +3,8 @@
 
 Run after a normal build has populated Gradle's plugin cache.
 """
+import os
+import signal
 import subprocess
 import tempfile
 import traceback
@@ -29,10 +31,19 @@ try:
 }
 ''')
         with (reports / 'gradle.log').open('w') as output:
-            result = subprocess.run(['./gradlew', '--no-daemon', '--offline', '--stacktrace',
-                                     '-I', str(init), 'help'], cwd=checkout,
-                                    stdout=output, stderr=subprocess.STDOUT, timeout=180)
-        assert result.returncode == 0, ('Gradle help must succeed without resolving documentation engines:\n' +
+            process = subprocess.Popen(['./gradlew', '--no-daemon', '--offline', '--stacktrace',
+                                        '-I', str(init), 'help'], cwd=checkout,
+                                       stdout=output, stderr=subprocess.STDOUT, start_new_session=True)
+            try:
+                return_code = process.wait(timeout=180)
+            except BaseException:
+                try:
+                    os.killpg(process.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+                process.wait(timeout=5)
+                raise
+        assert return_code == 0, ('Gradle help must succeed without resolving documentation engines:\n' +
                                        (reports / 'gradle.log').read_text())
 except BaseException:
     suite.set('failures', '1')

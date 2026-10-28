@@ -404,7 +404,9 @@ Run `python3 scripts/verify-documentation.py` to verify both documentation comma
 archive contents, Kotlin metadata and the total 512 MiB Metaspace cap. This check
 requires JDK 11 and Android SDK platform 30/build tools 30.0.3, and runs in CI.
 It rebuilds from clean outputs and writes logs and JUnit results to
-`build/documentation-verification`.
+`build/documentation-verification`. After a build,
+`python3 scripts/verify-documentation-laziness.py` checks that ordinary commands such as
+`help` do not resolve the documentation engines, including in offline mode.
 
 After the build is complete you may find the library `.jar` file here: `jvm-libp2p/build/libs/jvm-libp2p-X.Y.Z-RELEASE.jar`
 

@@ -398,7 +398,7 @@ private fun dispatchLoopCompletion(completion: ChildLoopCompletion) {
     if (!completion.active) return
     try {
         completion.loop.execute(completion.operation)
-    } catch (rejected: RejectedExecutionException) {
+    } catch (ignored: RejectedExecutionException) {
         if (completion.loop.inEventLoop()) {
             completion.operation.run()
         } else if (!completion.loop.isShuttingDown) {

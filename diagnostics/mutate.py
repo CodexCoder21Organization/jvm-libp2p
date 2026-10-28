@@ -12,10 +12,19 @@ if mode in ('original_memory', 'native-red', 'budget'):
     subprocess.run(['git', 'restore', '--source='+source, '--', 'build.gradle.kts', 'libp2p/build.gradle.kts', 'interop-test-client/build.gradle.kts', 'gradle.properties', 'examples/android-chatter/build.gradle'], cwd=checkout, check=True)
 else:
     text = root.read_text()
-    if mode == 'separate_runtimes':
-        marker = '// Share the compiler and runtime across formats;'
-        assert marker in text
-        text = text[:text.index(marker)]
+    if mode == 'retained_runtime':
+        before = 'publication.finalizeCoroutines.set(true)'
+        assert before in text
+        text = text.replace(before, 'publication.finalizeCoroutines.set(false)')
+    elif mode == 'no_service':
+        before = 'usesService(dokkaWorkerBudget)'
+        assert before in text
+        text = text.replace(before, '// Service deliberately removed for this control')
+    elif mode == 'buildscript_compiler':
+        for name in ['build.gradle', 'libp2p/build.gradle', 'interop-test-client/build.gradle']:
+            (checkout / name).unlink()
+        subprocess.run(['git', 'restore', '--source=40e791e318566f7b8fd7f59bdad99e027476664d', '--', 'build.gradle.kts', 'libp2p/build.gradle.kts', 'interop-test-client/build.gradle.kts'], cwd=checkout, check=True)
+        sys.exit(0)
     elif mode == 'html_alias':
         before = 'dependsOn dokkaHtmlTask'
         assert before in text

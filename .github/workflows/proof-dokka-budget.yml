@@ -1,7 +1,7 @@
 name: Dokka original cap and maintained regression controls 022124
 on:
   push:
-    branches: [proof/dokka-minimal-proof-022124]
+    branches: [proof/dokka-classloader-proof-022124]
 permissions:
   contents: read
 jobs:
@@ -12,7 +12,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/checkout@v4
         with:
-          ref: 37f07a3bdb2476d691358653134559f47bab45f3
+          ref: 5beb1a8138a0a2947896167ca7620d9bad46c6a6
           fetch-depth: 30
           path: candidate
       - uses: actions/setup-java@v4
@@ -39,7 +39,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/checkout@v4
         with:
-          ref: 37f07a3bdb2476d691358653134559f47bab45f3
+          ref: 5beb1a8138a0a2947896167ca7620d9bad46c6a6
           fetch-depth: 30
           path: candidate
       - uses: actions/setup-java@v4
@@ -67,12 +67,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        mode: [budget, html_alias, javadoc_alias, archive, metadata, original_memory, separate_runtimes]
+        mode: [budget, html_alias, javadoc_alias, archive, metadata, original_memory, retained_runtime, no_service, buildscript_compiler]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/checkout@v4
         with:
-          ref: 37f07a3bdb2476d691358653134559f47bab45f3
+          ref: 5beb1a8138a0a2947896167ca7620d9bad46c6a6
           fetch-depth: 30
           path: candidate
       - uses: actions/setup-java@v4

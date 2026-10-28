@@ -5,9 +5,9 @@ import xml.etree.ElementTree as ET
 
 candidate = Path('candidate')
 mode = sys.argv[1]
-if mode in ('native-red', 'original_memory', 'retained_runtime'):
+if mode in ('native-red', 'original_memory', 'retained_runtime', 'no_service', 'buildscript_compiler'):
     command = ['python3', 'diagnostics/native-verify.py', str(candidate), 'diagnostics/native-budget.gradle', 'native-proof']
-    if mode == 'retained_runtime':
+    if mode in ('retained_runtime', 'no_service', 'buildscript_compiler'):
         command.append('retention-red')
     result = subprocess.run(command)
     suite = ET.parse('native-proof/TEST-DocumentationBuildBudgetTest.xml').getroot()

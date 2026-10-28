@@ -34,10 +34,8 @@ jobs:
         with:
           distribution: temurin
           java-version: '11'
-      - name: Prepare the Kubo integration-test node
+      - name: Install the Kubo integration-test binary
         shell: bash
-        env:
-          IPFS_PATH: ${{ runner.temp }}/bld-kubo-repo
         run: |
           set -euo pipefail
           archive="$RUNNER_TEMP/bld-kubo.tar.gz"
@@ -46,24 +44,13 @@ jobs:
           echo "42045802fe60c64fb01350bc071190c534d600fe269759c06e27e22b2012fd3e  $archive" | sha256sum --check
           mkdir "$RUNNER_TEMP/bld-kubo"
           tar -xzf "$archive" -C "$RUNNER_TEMP/bld-kubo"
-          ipfs="$RUNNER_TEMP/bld-kubo/kubo/ipfs"
-          "$ipfs" init
-          "$ipfs" config Bootstrap --json '[]'
-          "$ipfs" config Addresses.Swarm --json '["/ip4/127.0.0.1/udp/4001/quic-v1"]'
-          "$ipfs" config Addresses.API /ip4/127.0.0.1/tcp/5001
-          "$ipfs" daemon --routing=none > "$RUNNER_TEMP/bld-kubo.log" 2>&1 &
-          pid=$!
-          echo "$pid" > "$RUNNER_TEMP/bld-kubo.pid"
-          python3 .github/scripts/kubo-node.py "$pid" http://127.0.0.1:5001 "$("$ipfs" config Identity.PeerID)"
+      - name: Verify Kubo process ownership and failure handling
+        run: KUBO_BINARY="$RUNNER_TEMP/bld-kubo/kubo/ipfs" python3 .github/scripts/test_kubo_node.py
       - name: Build and run the full native suite
-        run: ./gradlew --no-daemon --stacktrace --continue build dokkaJar
-      - name: Stop the Kubo node
-        if: always()
-        shell: bash
-        run: |
-          if [ -f "$RUNNER_TEMP/bld-kubo.pid" ]; then
-            kill "$(cat "$RUNNER_TEMP/bld-kubo.pid")"
-          fi
+        run: >-
+          python3 .github/scripts/kubo-node.py run
+          "$RUNNER_TEMP/bld-kubo/kubo/ipfs" "$RUNNER_TEMP/bld-kubo.log"
+          ./gradlew --no-daemon --stacktrace --continue build dokkaJar
       - name: Upload test and build reports
         if: always()
         uses: actions/upload-artifact@v4

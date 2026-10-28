@@ -19,6 +19,8 @@ public class QuicKuboTestJava {
   void pingKubo() throws Exception {
     if (System.getProperty("os.name").toLowerCase().startsWith("windows")) return;
     PeerId peerId = PeerId.fromBase58(getKuboPeerId());
+    Assertions.assertEquals(
+        System.getenv().getOrDefault("KUBO_PEER_ID", peerId.toBase58()), peerId.toBase58());
 
     Host clientHost =
         new HostBuilder().keyType(KeyType.ED25519).secureTransport(QuicTransport::ECDSA).build();
@@ -32,7 +34,11 @@ public class QuicKuboTestJava {
     StreamPromise<PingController> ping =
         clientHost
             .getNetwork()
-            .connect(peerId, new Multiaddr("/ip4/127.0.0.1/udp/4001/quic-v1"))
+            .connect(
+                peerId,
+                new Multiaddr(
+                    System.getenv()
+                        .getOrDefault("KUBO_SWARM_ADDRESS", "/ip4/127.0.0.1/udp/4001/quic-v1")))
             .thenApply(it -> it.muxerSession().createStream(new Ping()))
             .get(5, TimeUnit.SECONDS);
 
@@ -56,7 +62,7 @@ public class QuicKuboTestJava {
   }
 
   private static String getKuboPeerId() throws IOException, URISyntaxException {
-    String url = "http://localhost:5001/api/v0/id";
+    String url = System.getenv().getOrDefault("KUBO_API_URL", "http://localhost:5001") + "/api/v0/id";
     HttpURLConnection conn = (HttpURLConnection) new URI(url).toURL().openConnection();
     conn.setConnectTimeout(1_000);
     conn.setDoInput(true);

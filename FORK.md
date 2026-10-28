@@ -61,7 +61,7 @@ This is a standard Gradle project (JDK 11+). It is **built with Gradle** and the
 ./gradlew :libp2p:spotlessCheck :libp2p:detekt   # formatting + static analysis gates
 ```
 
-> **Note:** the fork's GitHub Actions workflows (`build.yml` / `publish.yml`) are currently failing at startup (an org-side Actions configuration issue), so there is **no green CI check and no CI auto-publish**. Until that is fixed, builds are verified locally with the commands above and releases are published manually as described below. A couple of suites that need native libraries absent from the CI/dev image (`io.libp2p.transport.quic.*`, `io.libp2p.security.tls.*`) fail with `SSLException: failed to create an SSL_CTX`, and some host tests intermittently fail with `BindException` under parallel execution — these are environmental, not regressions.
+> **Native verification:** [bld-build](.github/workflows/bld-build.yml) runs the complete `./gradlew --no-daemon --stacktrace --continue build dokkaJar` workload on Linux with JDK 11, including Android, formatting, static analysis, documentation and the native test suite. Its Kubo integration uses an owned temporary repository and allocated loopback endpoints; readiness checks both the process and its peer ID. The [first green combined-source run](https://github.com/CodexCoder21Organization/jvm-libp2p/actions/runs/40629198115) passed 1,443 cases with two existing skips. Releases remain manual as described below; this verification does not publish artifacts.
 
 ### Cut a release
 

@@ -1,0 +1,56 @@
+name: W2 retirement publication proof
+on:
+  push:
+    branches: [proof/w2-retirement-red-081647, proof/w2-retirement-final-081647]
+permissions:
+  contents: read
+jobs:
+  proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 999c16440b46611acbc92f746292e00e64a8ceb5
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Prepare Android SDK
+        run: '"$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platform-tools" "platforms;android-30" "build-tools;30.0.3"'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '11'
+      - name: Run exact-source targeted proof
+        shell: bash
+        run: |
+          set +e
+          ./gradlew --no-daemon --stacktrace :libp2p:test --tests io.libp2p.network.NetworkRetirementOwnershipTest > proof.log 2>&1
+          result=$?
+          set -e
+          cat proof.log
+          python3 - "$result" <<'PY'
+          import sys, pathlib, xml.etree.ElementTree as ET
+          files=list(pathlib.Path('libp2p/build/test-results/test').glob('TEST-*.xml'))
+          assert files, 'No test XML'
+          cases=[c for p in files for c in ET.parse(p).getroot().iter('testcase')]
+          assert len(cases)==2, len(cases)
+          failed=[c for c in cases if c.find('failure') is not None]
+          assert int(sys.argv[1])!=0, 'Old fixture unexpectedly passed'
+          assert not any(c.find('error') is not None or c.find('skipped') is not None for c in cases)
+          assert failed, 'Missing expected assertion failure'
+          for c in failed:
+              f=c.find('failure'); print(c.attrib, f.attrib, f.text)
+              assert 'Expected size: 1 but was: 0' in f.attrib.get('message',''), f.attrib
+              assert 'AssertionError' in f.attrib.get('type',''), f.attrib
+          print('RED: real local dial completed with peer publication pending; exact size assertion failed')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: retirement-proof
+          path: |
+            proof.log
+            libp2p/build/test-results/**
+            libp2p/build/reports/tests/**

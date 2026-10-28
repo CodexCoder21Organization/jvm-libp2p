@@ -1,29 +1,37 @@
-name: Collect existing W2 proof results
+name: Stop unintended legacy builds of evidence branches
 on:
   push:
     branches: [proof/w2-yamux232805-collect]
 permissions:
-  actions: read
+  actions: write
   contents: write
 jobs:
-  collect:
+  cleanup:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - run: '40605274562'
-            artifact: 'yamux-proof-*'
-          - run: '40604806030'
-            artifact: 'dokka-budget232805-candidate'
-          - run: '40605138469'
-            artifact: 'dokka-budget232805-html'
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
-      - name: Collect the existing result without running tests
+      - name: Stop only this collector's legacy builds
         env:
           GH_TOKEN: ${{ github.token }}
-          PROOF_RUN: ${{ matrix.run }}
-          PROOF_ARTIFACT: ${{ matrix.artifact }}
-        run: python3 .github/proof/collect-existing-results.py
+        run: |
+          python3 - <<'PY'
+          import json, subprocess
+          from pathlib import Path
+          repo='CodexCoder21Organization/jvm-libp2p'
+          result=[]
+          for run in json.loads(subprocess.check_output(['gh','api',f'repos/{repo}/actions/runs?per_page=100']))['workflow_runs']:
+              if run['name']=='build' and run['head_branch'].startswith('proof/w2-results232805-'):
+                  result.append({k:run[k] for k in ['id','html_url','head_branch','status','conclusion']})
+                  if run['status']!='completed':
+                      subprocess.run(['gh','api','--method','POST',f'repos/{repo}/actions/runs/{run["id"]}/cancel'],check=True)
+          Path('evidence').mkdir(exist_ok=True)
+          Path('evidence/collector-cleanup.json').write_text(json.dumps(result,indent=2))
+          print(json.dumps(result,indent=2))
+          PY
+          git config user.name Codex
+          git config user.email codex@openai.com
+          git switch -c proof/w2-yamux232805-collector-cleanup
+          git add evidence/collector-cleanup.json
+          git commit -m 'Record cancellation of unintended legacy evidence builds'
+          git push origin HEAD:refs/heads/proof/w2-yamux232805-collector-cleanup

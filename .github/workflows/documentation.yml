@@ -14,6 +14,10 @@ jobs:
   documentation:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        javadoc-alias: [intact, unwired]
     steps:
       - uses: actions/checkout@v4
 
@@ -43,17 +47,56 @@ jobs:
         with:
           cache-disabled: true
 
+      - name: Remove only the Javadoc alias dependency for the reversal control
+        if: matrix.javadoc-alias == 'unwired'
+        run: |
+          python3 - <<'PYTHON'
+          from pathlib import Path
+          path = Path("build.gradle")
+          source = path.read_text()
+          original = """    tasks.register('dokkaJavadoc') {
+                  group = JavaBasePlugin.DOCUMENTATION_GROUP
+                  dependsOn dokkaJavadocTask
+              }"""
+          replacement = """    tasks.register('dokkaJavadoc') {
+                  group = JavaBasePlugin.DOCUMENTATION_GROUP
+              }"""
+          assert source.count(original) == 1, "Expected exactly one Javadoc alias dependency to remove"
+          path.write_text(source.replace(original, replacement))
+          PYTHON
+
       - name: Verify documentation contract
+        if: matrix.javadoc-alias == 'intact'
         run: python3 scripts/verify-documentation.py
 
+      - name: Verify that the guard rejects a valid but unwired Javadoc alias
+        if: matrix.javadoc-alias == 'unwired'
+        run: |
+          python3 - <<'PYTHON'
+          import subprocess
+          import xml.etree.ElementTree as ET
+          result = subprocess.run(["python3", "scripts/verify-documentation.py"], check=False)
+          suite = ET.parse("build/documentation-verification/TEST-DocumentationContractTest.xml").getroot()
+          failures = [(case.get("name"), case.findtext("failure", ""))
+                      for case in suite.findall("testcase") if case.find("failure") is not None]
+          assert result.returncode == 1, f"Unwired alias must make the guard exit 1, got {result.returncode}"
+          assert suite.get("tests") == "9", f"Expected all nine guard cases, got {suite.attrib}"
+          assert len(failures) == 1, f"Only the standalone alias case should fail: {failures}"
+          name, detail = failures[0]
+          assert name == "standaloneJavadocAliasGeneratesPublicApiPages", failures
+          assert "Standalone dokkaJavadoc: libp2p: expected a nonempty Javadoc index" in detail, detail
+          print("PASS: standalone alias assertion rejected missing output; all eight existing cases passed")
+          PYTHON
+
       - name: Verify ordinary commands keep documentation dependencies lazy
+        if: matrix.javadoc-alias == 'intact'
         run: python3 scripts/verify-documentation-laziness.py
 
       - name: Upload documentation verification reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: documentation-verification
+          name: documentation-verification-${{ matrix.javadoc-alias }}
           path: build/documentation-verification/
           if-no-files-found: warn
           retention-days: 14

@@ -171,7 +171,7 @@ def run_build(command, checkout: Path, timeout: float, output):
 
 def replace_owned_report(output_directory: Path, source_directory: Path):
     output_directory.mkdir(parents=True, exist_ok=True)
-    for name in ("gradle.log", "TEST-DocumentationContractTest.xml", "profiles", "runtime-stdlib.json"):
+    for name in ("gradle.log", "TEST-DocumentationContractTest.xml", "profiles", "runtime-stdlib.json", "standalone-javadoc"):
         target = output_directory / name
         if target.is_dir():
             shutil.rmtree(target)
@@ -239,6 +239,58 @@ def main() -> int:
         work_reports.mkdir(parents=True)
         gradle_log = work_reports / "gradle.log"
         verifier = Verification()
+
+        def verify_standalone_javadoc_alias():
+            # Copy the current source, including any control mutation, but no generated outputs.
+            # A separate directory prevents dokkaJar or a previous build from satisfying this case.
+            standalone_checkout = temporary_root / "standalone-checkout"
+            shutil.copytree(
+                checkout,
+                standalone_checkout,
+                ignore=shutil.ignore_patterns(".git", ".gradle", "build", "__pycache__"),
+            )
+            standalone_reports = work_reports / "standalone-javadoc"
+            standalone_reports.mkdir()
+            for module in MODULES:
+                output = standalone_checkout / module / "build" / "dokkaJavadoc"
+                require(not output.exists(), f"Standalone Javadoc output must start absent: {output}")
+            command = [
+                "./gradlew",
+                "--no-daemon",
+                "--stacktrace",
+                "--no-build-cache",
+                "-I",
+                str(standalone_checkout / "scripts" / "documentation-profile.gradle"),
+                f"-PdocumentationVerificationOutput={standalone_reports}",
+                "dokkaJavadoc",
+            ]
+            standalone_log = standalone_reports / "gradle.log"
+            with standalone_log.open("w", encoding="utf-8") as log:
+                log.write(f"COMMAND: {command_text(command)}\n\n")
+                log.flush()
+                return_code, timed_out = run_build(
+                    command, standalone_checkout, remaining_seconds(deadline), log
+                )
+            require(return_code == 0 and not timed_out,
+                    f"Standalone dokkaJavadoc must exit 0 before the documentation deadline; "
+                    f"exit={return_code}, timed_out={timed_out}. See standalone-javadoc/gradle.log.")
+            require("BUILD SUCCESSFUL" in normalized_log(standalone_log),
+                    "Standalone dokkaJavadoc exited 0 without a BUILD SUCCESSFUL shutdown summary")
+            for module in MODULES:
+                output = standalone_checkout / module / "build" / "dokkaJavadoc"
+                index = output / "index.html"
+                require(index.is_file() and index.stat().st_size > 0,
+                        f"Standalone dokkaJavadoc: {module}: expected a nonempty Javadoc index at {index}")
+                require(any(page != index and page.stat().st_size > 0 for page in output.rglob("*.html")),
+                        f"Standalone dokkaJavadoc: {module}: no nonempty API page besides {index}")
+            host_page = standalone_checkout / "libp2p/build/dokkaJavadoc/io/libp2p/core/Host.html"
+            require(host_page.is_file(), f"Standalone dokkaJavadoc: expected public Host API page at {host_page}")
+            host_content = host_page.read_text(encoding="utf-8")
+            require("newStream" in host_content and "start" in host_content,
+                    f"Standalone dokkaJavadoc: {host_page} is missing Host methods newStream and start")
+            return "dokkaJavadoc alone generated all seven source modules and the public Host API page"
+
+        verifier.case("standaloneJavadocAliasGeneratesPublicApiPages", verify_standalone_javadoc_alias)
 
         def build_documentation():
             init_script = checkout / "scripts" / "documentation-profile.gradle"

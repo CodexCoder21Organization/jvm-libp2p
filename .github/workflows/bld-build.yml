@@ -7,6 +7,7 @@ on:
     branches: [develop]
   merge_group:
   workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read
@@ -44,6 +45,10 @@ jobs:
           echo "42045802fe60c64fb01350bc071190c534d600fe269759c06e27e22b2012fd3e  $archive" | sha256sum --check
           mkdir "$RUNNER_TEMP/bld-kubo"
           tar -xzf "$archive" -C "$RUNNER_TEMP/bld-kubo"
+      - name: Install the workflow integration-test dependency
+        run: python3 -m pip install PyYAML==6.0.3
+      - name: Verify workflow fixtures with the Java consumer
+        run: python3 .github/scripts/test_kubo_workflows.py --runner-temp "$RUNNER_TEMP"
       - name: Verify Kubo process ownership and failure handling
         run: python3 .github/scripts/test_kubo_node.py "$RUNNER_TEMP/bld-kubo/kubo/ipfs"
       - name: Build and run the full native suite
@@ -58,6 +63,7 @@ jobs:
         with:
           name: bld-build-reports
           path: |
+            build/kubo-workflow-results/**
             **/build/test-results/**
             **/build/reports/**
             ${{ runner.temp }}/bld-kubo.log

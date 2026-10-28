@@ -8,7 +8,6 @@ starting a JVM, for a quick regression/reversal check.
 """
 
 import argparse
-import os
 from pathlib import Path
 import shlex
 import subprocess

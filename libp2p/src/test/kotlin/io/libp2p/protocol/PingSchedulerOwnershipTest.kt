@@ -45,7 +45,10 @@ class PingSchedulerOwnershipTest {
                     val stream = sibling.stream.get(10, TimeUnit.SECONDS)
                     try {
                         val controller = sibling.controller.get(10, TimeUnit.SECONDS)
-                        assertTrue(controller.ping().thenApply { elapsed -> stream.close(); elapsed }.get(10, TimeUnit.SECONDS) >= 0)
+                        assertTrue(controller.ping().thenApply { elapsed ->
+                            stream.close()
+                            elapsed
+                        }.get(10, TimeUnit.SECONDS) >= 0)
                         stream.closeFuture().get(10, TimeUnit.SECONDS)
                         assertTrue(anchorController.ping().get(10, TimeUnit.SECONDS) >= 0)
                     } finally {
@@ -90,6 +93,28 @@ class PingSchedulerOwnershipTest {
             assertEquals(7, scheduler.submit<Int> { 7 }.get(10, TimeUnit.SECONDS))
         } finally {
             scheduler.shutdownNow()
+        }
+    }
+
+    @Test
+    fun `replacing a scheduler retires the owned default and keeps the replacement running`() {
+        val replacement = ScheduledThreadPoolExecutor(1).apply { removeOnCancelPolicy = true }
+        val protocol = PingProtocol()
+        var owned: java.util.concurrent.ScheduledExecutorService? = null
+        try {
+            withRealPingNodes(protocol) { client, server ->
+                val opened = client.newStream<PingController>(listOf("/ipfs/ping/1.0.0"), server.peerId, *server.listenAddresses().toTypedArray())
+                val controller = opened.controller.get(10, TimeUnit.SECONDS)
+                assertTrue(controller.ping().get(10, TimeUnit.SECONDS) >= 0)
+                owned = protocol.timeoutScheduler
+                protocol.timeoutScheduler = replacement
+                assertTrue(controller.ping().get(10, TimeUnit.SECONDS) >= 0)
+            }
+            assertTrue(owned!!.isShutdown, "The protocol must retire its default scheduler after the last stream closes")
+            assertFalse(replacement.isShutdown, "Replacing a scheduler must leave the caller's replacement running")
+        } finally {
+            owned?.shutdownNow()
+            replacement.shutdownNow()
         }
     }
 

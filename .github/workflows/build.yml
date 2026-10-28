@@ -1,27 +1,33 @@
-name: build
+name: Noise fixture targeted proof
 on:
   workflow_dispatch:
-  push:
-    paths-ignore:
-      - '**/*.md'
-      - 'docs/**'
-      - '.gitignore'
-      - 'LICENSE-APACHE'
-      - 'LICENSE-MIT'
-      - 'funding.json'
-      - '.github/ISSUE_TEMPLATE/**'
-  pull_request:
-    paths-ignore:
-      - '**/*.md'
-      - 'docs/**'
-      - '.gitignore'
-      - 'LICENSE-APACHE'
-      - 'LICENSE-MIT'
-      - 'funding.json'
-      - '.github/ISSUE_TEMPLATE/**'
 permissions:
   contents: read
-
 jobs:
-  gradle:
-    uses: ./.github/workflows/bld-build.yml
+  targeted:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Prepare Android SDK
+        run: '"$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-30" "build-tools;30.0.3"'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '11'
+      - name: Targeted first attempt
+        run: >-
+          ./gradlew --no-daemon --stacktrace :libp2p:test
+          --tests 'io.libp2p.security.noise.NoiseReadyReentryTest'
+          --tests 'io.libp2p.security.noise.NoiseHandshakeOffEventLoopTest.*inline fixture*'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: noise-targeted-proof
+          path: |
+            **/build/test-results/**
+            **/build/reports/tests/**

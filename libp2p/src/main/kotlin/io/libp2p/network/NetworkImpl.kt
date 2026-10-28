@@ -26,8 +26,11 @@ class NetworkImpl(
     override val connections = CopyOnWriteArrayList<Connection>()
 
     override fun reserveConnection(connection: Connection): CompletableFuture<Boolean> =
-        if (connectionEligible(connection)) io.libp2p.network.reserveConnection(connection)
-        else CompletableFuture.completedFuture(false)
+        if (connectionEligible(connection)) {
+            io.libp2p.network.reserveConnection(connection)
+        } else {
+            CompletableFuture.completedFuture(false)
+        }
 
     private val pendingDials = ConcurrentHashMap<PendingDialKey, CompletableFuture<Connection>>()
 

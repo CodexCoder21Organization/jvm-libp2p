@@ -1,24 +1,40 @@
 name: W2 Dokka strict validation and controls
 on:
   push:
-    branches: [proof/w2-dokka232805-html-budget]
+    branches: [proof/w2-dokka232805-html-controls]
 permissions:
   contents: read
   actions: read
 jobs:
-  verify:
+  controls:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:
-        mode: [html]
+        mode: [worker, alias]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/checkout@v4
         with:
           ref: 6406e6ca7ce3dd3fa0b7092685432d02471a0642
+          fetch-depth: 3
           path: candidate
+      - name: Restore only the initial HTML worker budget
+        if: matrix.mode == 'worker'
+        working-directory: candidate
+        run: git checkout 56fa8e02807b2ba38a5ca4dbf1eb6c899e2f32b8 -- build.gradle.kts
+      - name: Restore only the invalid legacy alias
+        if: matrix.mode == 'alias'
+        working-directory: candidate
+        run: |
+          python3 - <<'PYCODE'
+          from pathlib import Path
+          p=Path('build.gradle.kts')
+          s=p.read_text()
+          assert 'dependsOn(dokkaHtmlTask)' in s
+          p.write_text(s.replace('dependsOn(dokkaHtmlTask)','dependsOn("dokkaGenerateHtml")'))
+          PYCODE
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -29,27 +45,36 @@ jobs:
         with:
           distribution: temurin
           java-version: '11'
-      - name: Check all documentation outcomes and reject new build errors
+      - name: Confirm the exact original HTML failure returns
         env:
-          DOKKA_WORKER_METASPACE: 192m
-        run: python3 investigations/dokka232805/verify.py candidate investigations/dokka232805/budget.gradle proof ${{ matrix.mode }}
-      - name: Record the public library metadata version
-        if: always()
+          CONTROL: ${{ matrix.mode }}
         run: |
-          if [ -f candidate/libp2p/build/classes/kotlin/main/io/libp2p/core/Host.class ]; then
-            javap -v -classpath candidate/libp2p/build/classes/kotlin/main io.libp2p.core.Host > proof/host-class.txt
-          fi
+          set +e
+          python3 investigations/dokka232805/verify.py candidate investigations/dokka232805/budget.gradle proof html-reversal
+          result=$?
+          set -e
+          test "$result" -eq 1
+          python3 - <<'PYCODE'
+          from pathlib import Path
+          import os
+          import xml.etree.ElementTree as ET
+          x=ET.parse('proof/TEST-DocumentationBuildBudgetTest.xml').getroot()
+          assert x.get('failures')=='1'
+          log=Path('proof/gradle.log').read_text()
+          if os.environ['CONTROL']=='worker':
+              assert 'java.lang.OutOfMemoryError' in log
+          else:
+              assert "Task with path 'dokkaGenerateHtml' not found" in log
+          PYCODE
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: dokka-budget232805-html-budget-green
+          name: dokka-budget232805-html-control-${{ matrix.mode }}
           path: |
             proof/**
             candidate/build/dokka-budget-proof/**
-            candidate/**/build/libs/*-javadoc.jar
-            candidate/**/build/dokka/**
   collect:
-    needs: [verify]
+    needs: [controls]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5

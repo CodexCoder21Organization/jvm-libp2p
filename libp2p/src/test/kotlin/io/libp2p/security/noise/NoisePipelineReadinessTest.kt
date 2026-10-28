@@ -52,7 +52,7 @@ object NoisePipelineReadinessProbe {
             protocols { +Ping() }
             network { listen("/ip4/127.0.0.1/tcp/0") }
         }
-        var observed: List<String>? = null
+        val observed: List<String>
         try {
             client.start().get(10, TimeUnit.SECONDS)
             server.start().get(10, TimeUnit.SECONDS)

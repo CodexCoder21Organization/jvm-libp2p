@@ -62,7 +62,7 @@ def publicClassLoaderChain = {
     chain
 }
 
-def appendDiagnostic = { long pid, String command, File target ->
+def appendDiagnostic = { Long pid, String command, File target ->
     if (!target.parentFile.exists() && !target.parentFile.mkdirs()) {
         throw new GradleException("Could not create documentation profile directory ${target.parentFile}")
     }
@@ -102,7 +102,7 @@ def recordDocumentationTask = { task, state ->
     rootReport << "\nPUBLIC_URL_CLASSLOADER_CHAIN ${JsonOutput.toJson(rootClassLoaders)}\n"
     appendDiagnostic(processId, 'GC.heap_info', rootReport)
 
-    def workerReports = workers.collect { long workerPid ->
+    def workerReports = workers.collect { Long workerPid ->
         def workerReport = new File(profileDirectory, "${safeTaskName}-worker-${workerPid}.txt")
         workerReport << "DOKKA_WORKER_LABEL task=${task.path} pid=${workerPid} main=GradleWorkerMain\n"
         def commandLine = appendDiagnostic(workerPid, 'VM.command_line', workerReport)

@@ -25,6 +25,9 @@ class NetworkImpl(
      */
     override val connections = CopyOnWriteArrayList<Connection>()
 
+    override fun reserveConnection(connection: Connection): CompletableFuture<Boolean> =
+        CompletableFuture.completedFuture(!connection.closeFuture().isDone)
+
     private val pendingDials = ConcurrentHashMap<PendingDialKey, CompletableFuture<Connection>>()
 
     /**

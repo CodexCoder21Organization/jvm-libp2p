@@ -24,6 +24,14 @@ interface Network {
     val connections: List<Connection>
 
     /**
+     * Atomically retains [connection] for new streams if it is eligible for selection.
+     * Returns false when it is closing, closed, or excluded by duplicate retirement.
+     * Retention lasts for the physical connection's lifetime; explicit close still applies.
+     * This operation opens no stream and does not prevent a later transport failure or close.
+     */
+    fun reserveConnection(connection: Connection): CompletableFuture<Boolean>
+
+    /**
      * Starts listening on specified address. The returned future asynchronously
      * notifies on success or error
      * All the incoming connections are handled with [connectionHandler]

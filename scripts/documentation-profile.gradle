@@ -200,7 +200,7 @@ gradle.projectsEvaluated {
 
             def badVersions = components.findAll { it.version != '1.6.21' }
             def missingConfigurations = requiredConfigurations - inspectedConfigurations
-            def configurationsWithStdlib = components.collect { "${it.project}:${it.configuration}" } as Set
+            def configurationsWithStdlib = components.collect { "${it.project}:${it.configuration}".toString() } as Set
             def missingStdlibConfigurations = requiredConfigurations - configurationsWithStdlib
             if (components.isEmpty() || !badVersions.isEmpty() || !missingConfigurations.isEmpty() ||
                     !missingStdlibConfigurations.isEmpty()) {

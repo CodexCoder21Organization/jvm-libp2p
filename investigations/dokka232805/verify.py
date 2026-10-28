@@ -11,7 +11,7 @@ checkout = Path(sys.argv[1]).resolve()
 init_script = Path(sys.argv[2]).resolve()
 proof = Path(sys.argv[3]).resolve()
 proof.mkdir(parents=True, exist_ok=True)
-html_mode = len(sys.argv) > 4 and sys.argv[4] == 'html'
+html_mode = len(sys.argv) > 4 and sys.argv[4] in ('html', 'html-reversal')
 started = time.monotonic()
 result = ET.Element('testsuite', name='DocumentationBuildBudgetTest', tests='1', failures='0')
 case = ET.SubElement(result, 'testcase', classname='DocumentationBuildBudgetTest',
@@ -23,6 +23,8 @@ try:
     with (proof / 'gradle.log').open('w') as output:
         build = subprocess.run(command, cwd=checkout, stdout=output, stderr=subprocess.STDOUT, timeout=1200)
     print('Gradle exit:', build.returncode, flush=True)
+    if html_mode:
+        assert build.returncode == 0, 'The legacy dokkaHtml command must generate HTML successfully. Gradle failed:\n' + (proof / 'gradle.log').read_text()
     ledger = checkout / 'build/dokka-budget-proof/tasks.jsonl'
     assert ledger.exists(), 'The build did not reach documentation generation; read gradle.log for the original failure.'
     entries = [json.loads(line) for line in ledger.read_text().splitlines()]

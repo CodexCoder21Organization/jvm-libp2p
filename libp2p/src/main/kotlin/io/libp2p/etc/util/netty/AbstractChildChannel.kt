@@ -7,7 +7,6 @@ import io.netty.channel.ChannelId
 import io.netty.channel.ChannelMetadata
 import io.netty.channel.ChannelPromise
 import io.netty.channel.DefaultChannelConfig
-import io.netty.channel.DefaultChannelPipeline
 import io.netty.channel.EventLoop
 import io.netty.util.concurrent.Future
 import io.netty.util.concurrent.GenericFutureListener
@@ -65,12 +64,6 @@ abstract class AbstractChildChannel(parent: Channel, id: ChannelId?) : AbstractC
         } finally {
             closeImplicitly = false
         }
-    }
-
-    override fun newChannelPipeline(): DefaultChannelPipeline = object : DefaultChannelPipeline(this) {
-        // The muxer drives automatic delivery. Netty follow-up reads must not become manual
-        // demand if a caller pauses this child while an automatic read is being dispatched.
-        override fun shouldAutoRead(): Boolean = false
     }
 
     override fun metadata(): ChannelMetadata = ChannelMetadata(false)

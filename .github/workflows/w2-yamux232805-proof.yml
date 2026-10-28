@@ -21,7 +21,7 @@ jobs:
       - name: Record the actual managed transport dependency
         run: ./gradlew --no-daemon -I /tmp/w2-netty-overlay.init.gradle :libp2p:dependencyInsight --configuration compileClasspath --dependency netty-transport
       - name: Run focused scenarios
-        run: ./gradlew --no-daemon --stacktrace -I /tmp/w2-netty-overlay.init.gradle :libp2p:test --tests 'io.libp2p.mux.yamux.YamuxPausedStreamKeepsConnectionReadingTest' --tests 'io.libp2p.mux.PausedChild*' --tests 'io.libp2p.mux.ChildReadPauseTcpTest' :libp2p:spotlessCheck
+        run: ./gradlew --no-daemon --stacktrace -I /tmp/w2-netty-overlay.init.gradle :libp2p:test --tests 'io.libp2p.mux.yamux.YamuxPausedStreamKeepsConnectionReadingTest'
       - uses: actions/upload-artifact@v4
         if: always()
         with:

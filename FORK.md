@@ -58,6 +58,10 @@ This is a standard Gradle project (JDK 11+). It is **built with Gradle** and the
 
 ### Build & test
 
+The Android example uses the published R8/D8 8.1.56 compiler fix for unnamed
+enum parameters in the Netty organization jars. Its Android Gradle plugin,
+SDK targets and build checks remain unchanged.
+
 While the transport candidate is unpublished, the native and documentation CI
 jobs build its reviewed Netty source locally before running Gradle. This setup
 exposes only the candidate transport version from Maven local and performs no

@@ -91,7 +91,7 @@ class NoiseHandshakeOffEventLoopTest {
         assertThat(processOutput).contains("Sequential Noise handshakes:")
     }
 
-    @Test
+    @RepeatedTest(10)
     fun `sequential inline fixture drains queued callbacks before admission`() {
         val processOutput = runNoiseHandshakeHarness("sequential-queued", 25)
         assertThat(processOutput).contains("Sequential Noise handshakes:")
@@ -632,9 +632,10 @@ object NoiseHandshakePathHarness {
     private fun verifySequentialInlineHandshakes(queuedCallbacks: Boolean = false) {
         val executionRecorder = NoiseHandshakeExecutionRecorder().also { it.install() }
         val hosts = mutableListOf<Host>()
+        val callbacks = AtomicInteger()
         try {
-            val relay = newInlineNoiseHost(listen = true, queuedCallbacks = queuedCallbacks).also { hosts += it }
-            val dialer = newInlineNoiseHost(queuedCallbacks = queuedCallbacks).also { hosts += it }
+            val relay = newInlineNoiseHost(listen = true, queuedCallbacks = queuedCallbacks, callback = { callbacks.incrementAndGet() }).also { hosts += it }
+            val dialer = newInlineNoiseHost(queuedCallbacks = queuedCallbacks, callback = { callbacks.incrementAndGet() }).also { hosts += it }
             startNoiseHosts(hosts)
             val relayAddress = relay.listenAddresses().single()
 
@@ -646,6 +647,7 @@ object NoiseHandshakePathHarness {
                 waitForConnectionsToClose(dialer, relay)
             }
             val elapsedMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt)
+            if (queuedCallbacks) check(callbacks.get() > 0) { "Queued fixture callbacks must execute" }
             val execution = executionRecorder.snapshot()
             check(execution.inlineHandshakes == SEQUENTIAL_HANDSHAKES * 2 && execution.offloadedHandshakes == 0) {
                 "Expected all $SEQUENTIAL_HANDSHAKES sequential Noise handshakes on both peers to stay inline, " +
@@ -895,7 +897,11 @@ private class NoiseHandshakeExecutionRecorder {
     }
 }
 
-private fun newInlineNoiseHost(listen: Boolean = false, queuedCallbacks: Boolean = false): Host = host {
+private fun newInlineNoiseHost(
+    listen: Boolean = false,
+    queuedCallbacks: Boolean = false,
+    callback: () -> Unit = {}
+): Host = host {
     identity { random(KeyType.ED25519) }
     if (listen) network { listen("/ip4/$NOISE_TEST_HOST/tcp/0") }
     secureChannels {
@@ -907,11 +913,11 @@ private fun newInlineNoiseHost(listen: Boolean = false, queuedCallbacks: Boolean
                     if (queuedCallbacks) {
                         ch.pushHandler(object : ChannelInboundHandlerAdapter() {
                             override fun channelActive(ctx: ChannelHandlerContext) {
-                                ctx.executor().execute { ctx.channel().isActive }
+                                ctx.executor().execute { callback() }
                                 ctx.fireChannelActive()
                             }
                             override fun channelRead(ctx: ChannelHandlerContext, msg: Any) {
-                                ctx.executor().execute { ctx.channel().isActive }
+                                ctx.executor().execute { callback() }
                                 ctx.fireChannelRead(msg)
                             }
                         })

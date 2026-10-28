@@ -400,6 +400,13 @@ Generate Javadoc archives with `./gradlew dokkaJar` and HTML documentation with
 `./gradlew dokkaHtml`. The generated HTML remains in each module's `build/dokka` directory;
 Javadoc remains in `build/dokkaJavadoc` and the archives in `build/libs`.
 
+Run `python3 scripts/verify-documentation.py` to verify both documentation commands,
+archive contents, Kotlin metadata and the total 512 MiB Metaspace cap. This check
+requires JDK 11 and Android SDK platform 30/build tools 30.0.3, and runs in CI.
+It rebuilds from clean outputs and writes logs and JUnit results to
+`build/documentation-verification`.
+
+
 After the build is complete you may find the library `.jar` file here: `jvm-libp2p/build/libs/jvm-libp2p-X.Y.Z-RELEASE.jar`
 
 ## Notable users

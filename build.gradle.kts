@@ -34,7 +34,7 @@ plugins {
 
 abstract class DokkaWorkerBudget : BuildService<BuildServiceParameters.None>
 
-// Keep generation serial so Javadoc tasks reuse one worker across modules.
+// Keep Dokka generation serial so one generator runs at a time.
 val dokkaWorkerBudget = gradle.sharedServices.registerIfAbsent("dokkaWorkerBudget", DokkaWorkerBudget::class) {
     maxParallelUsages.set(1)
 }
@@ -203,10 +203,7 @@ configure(
     }
 
     configure<DokkaExtension> {
-        dokkaGeneratorIsolation.set(ProcessIsolation {
-            maxHeapSize.set("1G")
-            jvmArgs.add("-XX:MaxMetaspaceSize=112m")
-        })
+        dokkaGeneratorIsolation.set(ClassLoaderIsolation())
         dokkaPublications.named("html") {
             outputDirectory.set(layout.buildDirectory.dir("dokka"))
         }
@@ -221,15 +218,8 @@ configure(
             }
         }
     }
-    val htmlWorkerIsolation = extensions.getByType<DokkaExtension>().ProcessIsolation {
-        maxHeapSize.set("1G")
-        jvmArgs.add("-XX:MaxMetaspaceSize=192m")
-    }
     tasks.withType<DokkaGenerateTask>().configureEach {
         usesService(dokkaWorkerBudget)
-        if (name.endsWith("Html")) {
-            workerIsolation.set(htmlWorkerIsolation)
-        }
     }
 
     val dokkaHtmlTask = tasks.named<DokkaGeneratePublicationTask>("dokkaGeneratePublicationHtml")

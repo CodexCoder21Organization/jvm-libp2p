@@ -192,9 +192,6 @@ gradle.projectsEvaluated {
                     }
                 }
             }
-            components.sort { left, right ->
-                [left.project, left.module, left.version] <=> [right.project, right.module, right.version]
-            }
             def report = [expectedVersion: '1.6.21', inspectedConfigurations: inspectedConfigurations.sort(),
                           components: components]
             def reportFile = new File(outputDirectory, 'runtime-stdlib.json')

@@ -1,19 +1,25 @@
-name: Dokka classloader diagnosis 011701
+name: Dokka maintained guard red 011701
 on:
   push:
     branches: [proof/dokka-budget-011701]
 permissions:
   contents: read
 jobs:
-  profile:
+  red:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        source: [original, current]
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/checkout@v4
         with:
-          ref: 6406e6ca7ce3dd3fa0b7092685432d02471a0642
-          path: candidate
+          ref: b734e831
+          fetch-depth: 30
+      - name: Restore original develop build configuration
+        if: matrix.source == 'original'
+        run: git restore --source=00dad34506398205174487a506c6cc6e4f8d2643 -- build.gradle.kts gradle.properties examples/android-chatter/build.gradle
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -23,13 +29,10 @@ jobs:
         with:
           distribution: temurin
           java-version: '11'
-      - name: Capture real classloader allocations
-        working-directory: candidate
-        run: ./gradlew --no-daemon --stacktrace --continue --parallel -I ../diagnostics/profile.gradle assemble spotlessCheck detekt testClasses dokkaJar > gradle-profile.log 2>&1
+      - name: Run maintained regression assertions before repair
+        run: python3 scripts/verify-documentation.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: classloader-diagnosis
-          path: |
-            candidate/build/classloader-diagnosis/**
-            candidate/gradle-profile.log
+          name: maintained-red-${{ matrix.source }}
+          path: build/documentation-verification/**

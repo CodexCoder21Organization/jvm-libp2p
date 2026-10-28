@@ -399,8 +399,10 @@ To build the library from the `jvm-libp2p` folder, run:
 Generate Javadoc archives with `./gradlew dokkaJar` and HTML documentation with
 `./gradlew dokkaHtml`. The generated HTML remains in each module's `build/dokka` directory;
 Javadoc remains in `build/dokkaJavadoc` and the archives in `build/libs`.
+Generate Javadoc without packaging archives with `./gradlew dokkaJavadoc`.
 
-Run `python3 scripts/verify-documentation.py` to verify both documentation commands,
+Run `python3 scripts/verify-documentation.py` to verify the standalone Javadoc command
+in an independent clean source copy, the combined documentation build,
 archive contents, Kotlin metadata and the total 512 MiB Metaspace cap. This check
 requires JDK 11 and Android SDK platform 30/build tools 30.0.3, and runs in CI.
 It rebuilds from clean outputs and writes logs and JUnit results to

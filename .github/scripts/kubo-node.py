@@ -15,6 +15,8 @@ import urllib.request
 
 
 def require_running(pid):
+    if pid <= 0:
+        raise RuntimeError(f"Kubo PID must be positive, but received {pid}.")
     try:
         os.kill(pid, 0)
         # A child that exited but has not been reaped still answers kill(pid, 0).
@@ -46,22 +48,30 @@ def wait_for_node(pid, api, peer_id):
     raise RuntimeError(f"Kubo API {api} was not ready after 60 readiness probes.")
 
 
+def signal_group(pid, signum):
+    try:
+        os.killpg(pid, signum)
+    except ProcessLookupError:
+        pass  # The owned process group already exited.
+
+
 def stop(process, process_group=False):
     if process_group:
-        try:
-            os.killpg(process.pid, signal.SIGTERM)
-        except ProcessLookupError:
-            pass  # The owned group already exited.
+        signal_group(process.pid, signal.SIGTERM)
     elif process.poll() is None:
         process.terminate()
     try:
         process.wait(timeout=10)
     except subprocess.TimeoutExpired:
         if process_group:
-            os.killpg(process.pid, signal.SIGKILL)
+            signal_group(process.pid, signal.SIGKILL)
         else:
             process.kill()
         process.wait(timeout=10)
+    finally:
+        if process_group:
+            # A completed leader does not imply that its descendants exited.
+            signal_group(process.pid, signal.SIGKILL)
 
 
 def run_with_node(ipfs, log_path, fixture_path, command):

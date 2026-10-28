@@ -56,8 +56,10 @@ This is a standard Gradle project (JDK 11+). It is **built with Gradle** and the
 ### Build & test
 
 ```bash
-./gradlew :libp2p:build          # full build
-./gradlew :libp2p:test           # run the test suite (excludes the `interop` tag)
+# Full build with an installed Kubo 0.34.1 binary:
+python3 .github/scripts/kubo-node.py run /path/to/ipfs /tmp/kubo-native.log \
+  libp2p/build/kubo-node.properties ./gradlew :libp2p:build
+# For only the test suite (excluding the interop tag), replace :libp2p:build with :libp2p:test.
 ./gradlew :libp2p:spotlessCheck :libp2p:detekt   # formatting + static analysis gates
 ```
 

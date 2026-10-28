@@ -7,6 +7,7 @@ import os
 import re
 import shutil
 import signal
+import socket
 from pathlib import Path
 import subprocess
 import sys
@@ -99,6 +100,19 @@ class KuboReadinessTest(unittest.TestCase):
                     f"Kubo API {api} returned peer ID {foreign_peer}; "
                     f"expected owned node peer ID {peer}.\n", result.stderr,
                 )
+
+    def test_non_positive_pid_cannot_accept_a_live_endpoint(self):
+        with self.node() as (_, api, peer, _):
+            for pid in [0, -1]:
+                with self.subTest(pid=pid):
+                    result = subprocess.run(
+                        [sys.executable, str(SCRIPT), "ready", str(pid), api, peer],
+                        text=True, capture_output=True, timeout=65,
+                    )
+                    self.assertEqual(1, result.returncode, "Process-group value was accepted as a Kubo PID")
+                    self.assertEqual(
+                        f"Kubo PID must be positive, but received {pid}.\n", result.stderr,
+                    )
 
     def test_owned_node_is_ready(self):
         with self.node() as (owned, api, peer, _):
@@ -194,6 +208,33 @@ class KuboCommandTest(unittest.TestCase):
                                 pass  # Already reaped on the successful cleanup path.
                     if child and Path(child["repo"]).exists():
                         shutil.rmtree(child["repo"])
+
+    def test_descendant_ignoring_term_cannot_outlive_completed_leader(self):
+        descendant = (
+            "import os,signal,socket,time; "
+            "signal.signal(signal.SIGTERM,signal.SIG_IGN); "
+            "listener=socket.socket(); listener.bind(('127.0.0.1',0)); listener.listen(); "
+            "print('Descendant',os.getpid(),listener.getsockname()[1],flush=True); time.sleep(60)"
+        )
+        result = self.run_command(
+            "import subprocess,sys; "
+            "child=subprocess.Popen([" + repr(sys.executable) + ",'-c'," + repr(descendant) +
+            "],stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,text=True); "
+            "print(child.stdout.readline(),end='',flush=True); raise SystemExit(23)"
+        )
+        match = re.search(r"Descendant (\d+) (\d+)", result.stdout)
+        self.assertIsNotNone(match, result.stdout + result.stderr)
+        pid, port = map(int, match.groups())
+        try:
+            self.assertEqual(23, result.returncode, result.stderr)
+            with self.assertRaises(ConnectionRefusedError, msg="Descendant endpoint remained live"):
+                with socket.create_connection(("127.0.0.1", port), timeout=1):
+                    pass
+        finally:
+            try:
+                os.kill(pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass  # Already stopped by the wrapper on the successful path.
 
     def test_existing_fixture_is_never_replaced(self):
         with tempfile.TemporaryDirectory(prefix="kubo-fixture-collision-") as directory:

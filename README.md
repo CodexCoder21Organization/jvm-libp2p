@@ -391,10 +391,12 @@ For building a version with the latest updates clone the `develop` (default) bra
 git clone https://github.com/libp2p/jvm-libp2p
 ```
 
-To build the library from the `jvm-libp2p` folder, run:
+To build this fork from the `jvm-libp2p` folder, run with an installed Kubo 0.34.1 binary so the integration tests receive an owned node:
 ```bash
-./gradlew build
+python3 .github/scripts/kubo-node.py run /path/to/ipfs /tmp/kubo-native.log \
+  libp2p/build/kubo-node.properties ./gradlew build
 ```
+See [fork build and test instructions](FORK.md#build--test) for targeted checks.
 
 Generate Javadoc archives with `./gradlew dokkaJar` and HTML documentation with
 `./gradlew dokkaHtml`. The generated HTML remains in each module's `build/dokka` directory;

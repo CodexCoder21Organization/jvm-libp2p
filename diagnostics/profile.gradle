@@ -18,3 +18,6 @@ gradle.taskGraph.afterTask { task, state ->
         ProcessHandle.current().descendants().filter { it.info().commandLine().orElse('').contains('GradleWorkerMain') }.forEach { capture(it.pid(), tag + '-worker') }
     }
 }
+gradle.buildFinished {
+    capture(ProcessHandle.current().pid(), 'final-root')
+}

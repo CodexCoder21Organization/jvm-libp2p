@@ -1,0 +1,48 @@
+import groovy.json.JsonOutput
+import java.lang.management.ManagementFactory
+import java.util.concurrent.TimeUnit
+
+def reports = new File(gradle.startParameter.currentDir, 'build/dokka-budget-proof')
+reports.mkdirs()
+def rootPid = ProcessHandle.current().pid()
+def ledger = new File(reports, 'tasks.jsonl')
+def memory = { pid, label ->
+    def target = new File(reports, "${label}-${pid}.txt")
+    for (command in ['VM.command_line', 'VM.classloader_stats', 'GC.heap_info']) {
+        target << "\nCOMMAND ${command}\n"
+        def child = new ProcessBuilder(new File(System.getProperty('java.home'), 'bin/jcmd').path,
+                pid.toString(), command).redirectErrorStream(true)
+                .redirectOutput(ProcessBuilder.Redirect.appendTo(target)).start()
+        if (!child.waitFor(20, TimeUnit.SECONDS)) {
+            child.destroyForcibly()
+            throw new GradleException("Diagnostic ${command} did not finish for ${pid}")
+        }
+        if (child.exitValue() != 0) throw new GradleException("Diagnostic ${command} failed: ${target.text}")
+    }
+}
+def record = { task, phase, state ->
+    def label = task.path.replace(':', '_') + '-' + phase
+    def workerPids = ProcessHandle.current().descendants().filter { process ->
+        process.info().commandLine().orElse('').contains('GradleWorkerMain')
+    }.map { it.pid() }.collect(java.util.stream.Collectors.toList())
+    def meta = ManagementFactory.memoryPoolMXBeans.find { it.name == 'Metaspace' }.usage
+    ledger << JsonOutput.toJson([task: task.path, phase: phase, failure: state?.failure?.toString(),
+        rootPid: rootPid, rootMetaspace: meta.used, rootMetaspaceCommitted: meta.committed,
+        rootMetaspaceMax: meta.max, workers: workerPids]) + '\n'
+    memory(rootPid, label + '-root')
+    workerPids.each { pid -> memory(pid, label + '-worker') }
+}
+gradle.taskGraph.beforeTask { task ->
+    if ((task.name.startsWith('dokkaGenerate') && task.hasProperty('workerIsolation')) || task.name == 'dokkaJavadoc') {
+        record(task, 'before', null)
+    }
+}
+gradle.taskGraph.afterTask { task, state ->
+    if ((task.name.startsWith('dokkaGenerate') && task.hasProperty('workerIsolation')) || task.name == 'dokkaJavadoc') {
+        record(task, 'after', state)
+    }
+}
+
+gradle.buildFinished {
+    memory(rootPid, 'final-root')
+}

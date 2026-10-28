@@ -70,7 +70,7 @@ try:
     print('Root peak used Metaspace:', max(entry['rootMetaspace'] for entry in entries), flush=True)
     if 'pluginMode=V2Enabled' in (checkout / 'gradle.properties').read_text():
         assert len(worker_pids) == 1, f'Javadoc generations must reuse one owned worker, observed {worker_pids}'
-        assert all(entry['rootMetaspaceMax'] == 400 * 1024 * 1024 for entry in entries), 'Gradle Metaspace budget changed'
+        assert all(entry['rootMetaspaceMax'] == 512 * 1024 * 1024 for entry in entries), 'The original Gradle Metaspace budget must remain512MiB'
         worker_reports = list((checkout / 'build/dokka-budget-proof').glob('*-worker-*.txt'))
         assert worker_reports, 'The documentation worker JVM budget was not recorded'
         assert all('-XX:MaxMetaspaceSize=112m' in path.read_text() and '-Xmx1G' in path.read_text()

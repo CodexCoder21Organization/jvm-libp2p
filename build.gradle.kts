@@ -114,7 +114,7 @@ configure(
 
     dependencies {
 
-        implementation(kotlin("stdlib-jdk8"))
+        implementation(kotlin("stdlib-jdk8", "1.6.21"))
         implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core")
 
         implementation("com.google.guava:guava")

@@ -1,0 +1,91 @@
+name: Bld - Build and Test
+
+on:
+  push:
+    branches: [develop]
+  pull_request:
+    branches: [develop]
+  merge_group:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bld-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/share/boost
+          df -h /
+      - name: Use JDK 17 for the Android SDK tools
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Prepare Android SDK
+        run: |
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platform-tools" "platforms;android-30" "build-tools;30.0.3"
+      - name: Verify the JDK 11 minimum
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '11'
+      - name: Prepare the Kubo integration-test node
+        shell: bash
+        env:
+          IPFS_PATH: ${{ runner.temp }}/bld-kubo-repo
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/bld-kubo.tar.gz"
+          curl --fail --location --show-error --connect-timeout 30 --max-time 180 \
+            https://dist.ipfs.io/kubo/v0.34.1/kubo_v0.34.1_linux-amd64.tar.gz -o "$archive"
+          echo "42045802fe60c64fb01350bc071190c534d600fe269759c06e27e22b2012fd3e  $archive" | sha256sum --check
+          mkdir "$RUNNER_TEMP/bld-kubo"
+          tar -xzf "$archive" -C "$RUNNER_TEMP/bld-kubo"
+          ipfs="$RUNNER_TEMP/bld-kubo/kubo/ipfs"
+          "$ipfs" init
+          "$ipfs" config Bootstrap --json '[]'
+          "$ipfs" config Addresses.Swarm --json '["/ip4/127.0.0.1/udp/4001/quic-v1"]'
+          "$ipfs" config Addresses.API /ip4/127.0.0.1/tcp/5001
+          "$ipfs" daemon --routing=none > "$RUNNER_TEMP/bld-kubo.log" 2>&1 &
+          pid=$!
+          echo "$pid" > "$RUNNER_TEMP/bld-kubo.pid"
+          for attempt in {1..60}; do
+            if curl --silent --show-error --fail --max-time 1 --request POST http://127.0.0.1:5001/api/v0/id; then
+              exit 0
+            fi
+            if ! kill -0 "$pid" 2>/dev/null; then
+              cat "$RUNNER_TEMP/bld-kubo.log"
+              echo "Kubo exited before its local API became ready." >&2
+              exit 1
+            fi
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/bld-kubo.log"
+          echo "Kubo did not expose its local API after 60 readiness probes." >&2
+          exit 1
+      - name: Build and run the full native suite
+        run: ./gradlew --no-daemon --stacktrace --continue build dokkaJar
+      - name: Stop the Kubo node
+        if: always()
+        shell: bash
+        run: |
+          if [ -f "$RUNNER_TEMP/bld-kubo.pid" ]; then
+            kill "$(cat "$RUNNER_TEMP/bld-kubo.pid")"
+          fi
+      - name: Upload test and build reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bld-build-reports
+          path: |
+            **/build/test-results/**
+            **/build/reports/**
+            ${{ runner.temp }}/bld-kubo.log
+      - name: Check disk space
+        if: always()
+        run: df -h /

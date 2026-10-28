@@ -268,7 +268,7 @@ class NoiseHandshakeOffEventLoopTest {
                 protocols { +Ping() }
                 muxers {
                     +StreamMuxerProtocol { multistream, protocols ->
-                        val delegate = StreamMuxerProtocol.getYamux().createMuxer(multistream, protocols)
+                        val delegate = StreamMuxerProtocol.Mplex.createMuxer(multistream, protocols)
                         object : StreamMuxer by delegate {
                             override fun initChannel(
                                 ch: P2PChannel,

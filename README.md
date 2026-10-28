@@ -379,6 +379,13 @@ Add the library to the `dependencies` section of the pom file:
 
 ## Building the project 
 
+This fork uses `io.netty:netty-transport:4.2.10.1-codexcoder21-auto-read` from
+[kotlin.directory](https://kotlin.directory/io/netty/netty-transport/4.2.10.1-codexcoder21-auto-read/)
+to keep paused child delivery separate from explicit read requests. The
+[release backport](https://github.com/CodexCoder21Organization/netty/pull/5) contains the
+[automatic-read policy change](https://github.com/CodexCoder21Organization/netty/pull/4).
+Other Netty modules continue to use the upstream `4.2.10.Final` release.
+
 To build the library you will need just 
 - JDK (Java Development Kit) of version 11 or higher
  

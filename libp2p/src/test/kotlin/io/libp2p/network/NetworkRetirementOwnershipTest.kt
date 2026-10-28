@@ -2,8 +2,14 @@ package io.libp2p.network
 
 import io.libp2p.core.ChannelVisitor
 import io.libp2p.core.ConnectionClosedException
+import io.libp2p.core.ConnectionHandler
+import io.libp2p.core.P2PChannel
 import io.libp2p.core.Stream
 import io.libp2p.core.dsl.host
+import io.libp2p.core.multistream.Multistream
+import io.libp2p.core.multistream.MultistreamProtocol
+import io.libp2p.core.multistream.MultistreamProtocolV1
+import io.libp2p.core.multistream.ProtocolBinding
 import io.libp2p.core.multistream.StrictProtocolBinding
 import io.libp2p.core.mux.StreamMuxerProtocol
 import io.libp2p.protocol.ProtocolHandler
@@ -11,31 +17,39 @@ import io.libp2p.protocol.ProtocolMessageHandler
 import io.libp2p.security.noise.NoiseXXSecureChannel
 import io.libp2p.tools.Echo
 import io.libp2p.tools.EchoController
+import io.libp2p.transport.implementation.ConnectionOverNetty
 import io.netty.buffer.ByteBuf
 import io.netty.buffer.Unpooled
 import io.netty.channel.ChannelHandlerContext
 import io.netty.channel.ChannelOutboundHandlerAdapter
 import io.netty.channel.ChannelPromise
 import org.assertj.core.api.Assertions.assertThat
-import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit.SECONDS
 import java.util.concurrent.atomic.AtomicInteger
 
 class NetworkRetirementOwnershipTest {
-    @Test
-    fun `an older failed approval cannot release another retirement exclusion`() {
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun `an older failed approval cannot release another retirement exclusion`(holdPeerPublication: Boolean) {
+        val publication = CompletableFuture<Unit>()
+        if (!holdPeerPublication) publication.complete(Unit)
+        val registered = CompletableFuture<Unit>()
         val a = host {
             secureChannels { add(::NoiseXXSecureChannel) }
             muxers { add(StreamMuxerProtocol.getYamux()) }
             protocols { add(Echo()) }
         }
         val b = host {
+            muxerMultistreamProtocol = RetirementPublicationProtocol(publication)
             network { listen("/ip4/127.0.0.1/tcp/0") }
             secureChannels { add(::NoiseXXSecureChannel) }
             muxers { add(StreamMuxerProtocol.getYamux()) }
             protocols { add(Echo()) }
         }
+        b.addConnectionHandler(ConnectionHandler.create { registered.complete(Unit) })
         val held = CompletableFuture<() -> CompletableFuture<Unit>>()
         val reset = CompletableFuture<Unit>()
         val replies = AtomicInteger()
@@ -76,6 +90,7 @@ class NetworkRetirementOwnershipTest {
             a.start().get(10, SECONDS)
             b.start().get(10, SECONDS)
             val parent = a.network.connect(b.peerId, *b.listenAddresses().toTypedArray()).get(10, SECONDS)
+            assertThat(b.network.connections).hasSize(1)
             val remote = b.network.connections.single()
             val first = parent.muxerSession().createStream(listOf(OwnershipRetirementBinding()))
             val failed = first.controller.handle { _, failure -> failure }.get(10, SECONDS)
@@ -103,6 +118,7 @@ class NetworkRetirementOwnershipTest {
             }
             assertThat(replies.get()).isEqualTo(2)
         } finally {
+            publication.complete(Unit)
             if (!released && held.isDone) held.get(10, SECONDS).invoke().get(10, SECONDS)
             try {
                 a.stop().get(10, SECONDS)
@@ -143,3 +159,22 @@ private class OwnershipRetirementBinding : StrictProtocolBinding<Boolean>(
         }
     }
 )
+
+private class RetirementPublicationProtocol(private val publication: CompletableFuture<Unit>) : MultistreamProtocol {
+    override val version = MultistreamProtocolV1.version
+
+    override fun <T> createMultistream(bindings: List<ProtocolBinding<T>>): Multistream<T> {
+        val delegate = MultistreamProtocolV1.createMultistream(bindings)
+        return object : Multistream<T> {
+            override val bindings = delegate.bindings
+
+            override fun initChannel(ch: P2PChannel): CompletableFuture<T> =
+                delegate.initChannel(ch).thenCompose { controller ->
+                    publication.thenApplyAsync(
+                        { controller },
+                        (ch as ConnectionOverNetty).nettyChannel.eventLoop()
+                    )
+                }
+        }
+    }
+}

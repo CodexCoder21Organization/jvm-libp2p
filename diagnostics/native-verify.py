@@ -26,6 +26,15 @@ try:
     with (proof / 'gradle.log').open('w') as output:
         build = subprocess.run(command, cwd=checkout, stdout=output, stderr=subprocess.STDOUT, timeout=1200)
     print('Gradle exit:', build.returncode, flush=True)
+    if len(sys.argv) > 4 and sys.argv[4] == 'retention-red':
+        import shutil
+        daemon_directory = proof / 'gradle-daemons'
+        daemon_directory.mkdir(exist_ok=True)
+        for daemon_log in (Path.home() / '.gradle/daemon/8.14.3').glob('daemon-*.out.log'):
+            shutil.copy2(daemon_log, daemon_directory / daemon_log.name)
+            with (proof / 'gradle.log').open('a') as combined:
+                combined.write('\n=== ACTUAL GRADLE DAEMON LOG: ' + daemon_log.name + ' ===\n')
+                combined.write(daemon_log.read_text(errors='replace'))
     log = (proof / 'gradle.log').read_text()
     assert 'java.lang.OutOfMemoryError' not in log, 'The complete build must finish without an OutOfMemoryError, including Gradle shutdown:\n' + log
     assert 'Could not stop all services' not in log, 'Gradle service shutdown failed:\n' + log

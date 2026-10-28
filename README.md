@@ -68,6 +68,12 @@ last initiating stream closes, and creates another when later streams need one. 
 assigned through `PingProtocol.timeoutScheduler` stays owned by its caller and is never shut down
 by the protocol.
 
+## Multistream readiness
+
+Default multistream bindings prepare negotiation before host readiness. Starting a host opens no
+preparation connection and invokes no application callback. Each connection retains its own
+negotiation progress, framing state and timeout; closing one negotiation leaves the others usable.
+
 ## Noise algorithm preparation
 
 TCP and WebSocket hosts built with `host { ... }` prepare the configured Noise handshake and cipher algorithm

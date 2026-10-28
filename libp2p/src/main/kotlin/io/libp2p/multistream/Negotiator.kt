@@ -49,11 +49,14 @@ object Negotiator {
     val MESSAGE_SUFFIX_LENGTH = MESSAGE_SUFFIX.toString().toByteArray(Charsets.UTF_8).size
     val MAX_PROTOCOL_ID_LENGTH = MAX_MULTISTREAM_MESSAGE_LENGTH - MESSAGE_SUFFIX_LENGTH
 
+    private val requesters = RequesterHandler
+    private val responders = ResponderHandler
+
     fun createRequesterInitializer(negotiationTimeLimit: Duration, vararg protocols: String): ChannelInitializer<Channel> {
         return nettyInitializer {
             initNegotiator(
                 it,
-                RequesterHandler(listOf(*protocols), negotiationTimeLimit)
+                requesters.create(listOf(*protocols), negotiationTimeLimit)
             )
         }
     }
@@ -62,7 +65,7 @@ object Negotiator {
         return nettyInitializer {
             initNegotiator(
                 it,
-                ResponderHandler(protocols, negotiationTimeLimit)
+                responders.create(protocols, negotiationTimeLimit)
             )
         }
     }
@@ -72,17 +75,29 @@ object Negotiator {
         ch.addLastLocal(handler)
     }
 
-    abstract class GenericHandler(val negotiationTimeLimit: Duration) : SimpleChannelInboundHandler<String>() {
+    abstract class GenericHandler(val negotiationTimeLimit: Duration) : SimpleChannelInboundHandler<String>(String::class.java) {
+        internal companion object Factory {
+            private val timeouts = TotalTimeoutHandler
+            private val frameDecoders = LimitedProtobufVarint32FrameDecoder
+            private val suffixCodecs = StringSuffixCodec
+
+            // These codecs are immutable and explicitly Sharable in Netty.
+            private val lengthEncoder = ProtobufVarint32LengthFieldPrepender()
+            private val stringDecoder = StringDecoder(Charsets.UTF_8)
+            private val stringEncoder = StringEncoder(Charsets.UTF_8)
+
+            fun prehandlers(negotiationTimeLimit: Duration) = listOf(
+                timeouts.create(negotiationTimeLimit),
+                frameDecoders.create(MAX_MULTISTREAM_MESSAGE_LENGTH),
+                lengthEncoder,
+                stringDecoder,
+                stringEncoder,
+                suffixCodecs.create(MESSAGE_SUFFIX)
+            )
+        }
         open val initialProtocolAnnounce: String? = null
 
-        val prehandlers = listOf(
-            TotalTimeoutHandler(negotiationTimeLimit),
-            LimitedProtobufVarint32FrameDecoder(MAX_MULTISTREAM_MESSAGE_LENGTH),
-            ProtobufVarint32LengthFieldPrepender(),
-            StringDecoder(Charsets.UTF_8),
-            StringEncoder(Charsets.UTF_8),
-            StringSuffixCodec(MESSAGE_SUFFIX)
-        )
+        val prehandlers = prehandlers(negotiationTimeLimit)
 
         var headerRead = false
 
@@ -127,6 +142,11 @@ object Negotiator {
     }
 
     class RequesterHandler(val protocols: List<String>, negotiationTimeLimit: Duration) : GenericHandler(negotiationTimeLimit) {
+        internal companion object Factory {
+            fun create(protocols: List<String>, negotiationTimeLimit: Duration) =
+                RequesterHandler(protocols, negotiationTimeLimit)
+        }
+
         override val initialProtocolAnnounce = protocols[0]
         var i = 0
 
@@ -147,6 +167,11 @@ object Negotiator {
     }
 
     class ResponderHandler(val protocols: List<ProtocolMatcher>, negotiationTimeLimit: Duration) : GenericHandler(negotiationTimeLimit) {
+        internal companion object Factory {
+            fun create(protocols: List<ProtocolMatcher>, negotiationTimeLimit: Duration) =
+                ResponderHandler(protocols, negotiationTimeLimit)
+        }
+
         override fun processMsg(ctx: ChannelHandlerContext, msg: String): Any? {
             return when {
                 protocols.any { it.matches(msg) } -> {

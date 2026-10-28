@@ -108,6 +108,8 @@ class LimitedProtobufVarint32FrameDecoder(private val maxDataLength: Int) : Byte
     }
 
     companion object {
+        internal fun create(maxDataLength: Int) = LimitedProtobufVarint32FrameDecoder(maxDataLength)
+
         /**
          * Reads variable length 32bit int from buffer
          *

@@ -38,6 +38,9 @@ import java.util.concurrent.TimeUnit
  * that closes while still in the OPEN state, which is the common case here).
  */
 class TotalTimeoutHandler(val timeout: Duration) : ChannelHandlerAdapter() {
+    internal companion object Factory {
+        fun create(timeout: Duration) = TotalTimeoutHandler(timeout)
+    }
     private var timeoutTask: ScheduledFuture<*>? = null
     private var closeListener: ChannelFutureListener? = null
 

@@ -1,4 +1,4 @@
-name: W2 retirement final proof
+name: W2 retirement reversal control
 on:
   push:
     branches: [proof/w2-retirement-final-081647]
@@ -22,33 +22,9 @@ jobs:
         with:
           distribution: temurin
           java-version: '11'
-      - name: Exact product positive with close and retirement neighbors
+      - name: Reverse only the already-proven product wait
         run: |
-          mkdir -p proof-results/green
-          set +e
-          ./gradlew --no-daemon --stacktrace :libp2p:spotlessCheck :libp2p:detekt :libp2p:test \
-            --tests io.libp2p.network.NetworkRetirementOwnershipTest \
-            --tests io.libp2p.network.NetworkRetirementCloseRaceTest \
-            --tests io.libp2p.transport.ConnectionCloseRetryTest \
-            --tests io.libp2p.transport.RetryCloseInactiveReviewTest > proof-results/green/build.log 2>&1
-          result=$?
-          set -e
-          cp -R libp2p/build/test-results/test proof-results/green/xml
-          cat proof-results/green/build.log
-          python3 - "$result" <<'PY'
-          import pathlib, sys, xml.etree.ElementTree as ET
-          assert int(sys.argv[1])==0, 'Exact-source positive Gradle failure'
-          cases=[c for p in pathlib.Path('proof-results/green/xml').glob('TEST-*.xml') for c in ET.parse(p).getroot().iter('testcase')]
-          expected={'NetworkRetirementOwnershipTest':2,'NetworkRetirementCloseRaceTest':1,'ConnectionCloseRetryTest':7,'RetryCloseInactiveReviewTest':5}
-          actual={name:sum(c.attrib['classname'].endswith('.'+name) for c in cases) for name in expected}
-          print('Actual case counts:', actual)
-          for name,count in actual.items(): assert count>=1, (name,count)
-          assert actual['NetworkRetirementOwnershipTest']==2, actual
-          assert not any(c.find('failure') is not None or c.find('error') is not None or c.find('skipped') is not None for c in cases)
-          print('GREEN:', len(cases),'cases; no failures, errors or skips')
-          PY
-      - name: Remove only the publication wait after green
-        run: |
+          mkdir -p proof-results/reversal
           python3 - <<'PY'
           from pathlib import Path
           p=Path('libp2p/src/test/kotlin/io/libp2p/network/NetworkRetirementOwnershipTest.kt')
@@ -59,7 +35,10 @@ jobs:
           '''
           old=old.replace('                      ', '            ')
           assert s.count(old)==1, repr(old)
-          p.write_text(s.replace(old,''))
+          s=s.replace(old,'')
+          s=s.replace('            val connectedBy = System.nanoTime() + SECONDS.toNanos(10)\n','')
+          s=s.replace('import java.util.concurrent.TimeUnit.NANOSECONDS\n','')
+          p.write_text(s)
           PY
           git diff > proof-results/wait-removal.diff
           mkdir -p proof-results/reversal
@@ -86,5 +65,5 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: retirement-final-proof
+          name: retirement-reversal-control
           path: proof-results/**

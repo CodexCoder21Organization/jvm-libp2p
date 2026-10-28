@@ -1,0 +1,27 @@
+name: Noise publication ordering proof 024054
+on:
+  push:
+    branches: ['proof/noise-publication-*-024054']
+permissions:
+  contents: read
+jobs:
+  targeted:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '11'
+      - name: Run the exact concurrent Noise scenario
+        shell: bash
+        run: |
+          unset ANDROID_HOME ANDROID_SDK_ROOT
+          ./gradlew --no-daemon --stacktrace :libp2p:test --tests 'io.libp2p.security.noise.NoiseHandshakeOffEventLoopTest.concurrent handshakes*'
+      - name: Upload targeted results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: noise-publication-results
+          path: libp2p/build/test-results/**

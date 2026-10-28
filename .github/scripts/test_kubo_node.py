@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Real Kubo regression tests. Run with KUBO_BINARY=/path/to/ipfs python3 this-file."""
+"""Real Kubo regression tests. Run with python3 this-file /path/to/ipfs."""
 
 import contextlib
 import json
@@ -16,7 +16,7 @@ import unittest
 import urllib.request
 
 SCRIPT = Path(__file__).with_name("kubo-node.py")
-IPFS = os.environ["KUBO_BINARY"]
+IPFS = sys.argv.pop(1)
 
 
 class KuboReadinessTest(unittest.TestCase):
@@ -24,8 +24,7 @@ class KuboReadinessTest(unittest.TestCase):
     def node(self, api_address="/ip4/127.0.0.1/tcp/0", start=True):
         with tempfile.TemporaryDirectory(prefix="kubo-readiness-test-") as directory:
             repo = Path(directory)
-            env = dict(os.environ, IPFS_PATH=directory)
-            subprocess.run([IPFS, "init"], env=env, check=True, capture_output=True)
+            subprocess.run([IPFS, "--repo-dir", directory, "init"], check=True, capture_output=True)
             config_path = repo / "config"
             config = json.loads(config_path.read_text())
             config["Bootstrap"] = []
@@ -36,7 +35,7 @@ class KuboReadinessTest(unittest.TestCase):
             config_path.write_text(json.dumps(config))
             with (repo / "daemon.log").open("w+") as log:
                 process = subprocess.Popen(
-                    [IPFS, "daemon", "--routing=none"], env=env, stdout=log, stderr=log
+                    [IPFS, "--repo-dir", directory, "daemon", "--routing=none"], stdout=log, stderr=log
                 )
                 try:
                     if start:
@@ -111,8 +110,9 @@ class KuboCommandTest(unittest.TestCase):
     def run_command(self, code):
         with tempfile.TemporaryDirectory(prefix="kubo-command-test-") as directory:
             log = Path(directory) / "node.log"
+            fixture = Path(directory) / "fixture.properties"
             result = subprocess.run(
-                [sys.executable, str(SCRIPT), "run", IPFS, str(log), sys.executable, "-c", code],
+                [sys.executable, str(SCRIPT), "run", IPFS, str(log), str(fixture), sys.executable, "-c", code, str(fixture)],
                 text=True, capture_output=True, timeout=75,
             )
             match = re.search(r"Owned Kubo PID (\d+)", result.stdout)
@@ -122,17 +122,19 @@ class KuboCommandTest(unittest.TestCase):
                 os.kill(pid, 0)
             repo = re.search(r"initializing IPFS node at (.+)", result.stdout)[1]
             self.assertFalse(Path(repo).exists(), "Owned repository was not removed")
+            self.assertFalse(fixture.exists(), "Owned fixture was not removed")
             return result
 
     def test_command_receives_owned_endpoints_and_exit_status(self):
         result = self.run_command(
-            "import os,json,urllib.request; "
+            "import json,sys,urllib.request; from pathlib import Path; "
+            "fixture=dict(line.split('=',1) for line in Path(sys.argv[1]).read_text().splitlines()); "
             "identity=json.load(urllib.request.urlopen(urllib.request.Request("
-            "os.environ['KUBO_API_URL']+'/api/v0/id',data=b''))); "
-            "assert identity['ID']==os.environ['KUBO_PEER_ID']; "
-            "assert os.environ['KUBO_SWARM_ADDRESS']+'/p2p/'+identity['ID'] in identity['Addresses']; "
-            "assert ':0' not in os.environ['KUBO_API_URL']; "
-            "assert '/udp/0/' not in os.environ['KUBO_SWARM_ADDRESS']; "
+            "fixture['api']+'/api/v0/id',data=b''))); "
+            "assert identity['ID']==fixture['peerId']; "
+            "assert fixture['swarm']+'/p2p/'+identity['ID'] in identity['Addresses']; "
+            "assert ':0' not in fixture['api']; "
+            "assert '/udp/0/' not in fixture['swarm']; "
             "raise SystemExit(23)"
         )
         self.assertEqual(23, result.returncode, result.stdout + result.stderr)
@@ -141,14 +143,18 @@ class KuboCommandTest(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="kubo-termination-test-") as directory:
             directory = Path(directory)
             state = directory / "state.json"
+            fixture = directory / "fixture.properties"
             log = directory / "node.log"
             with (directory / "output.log").open("w+") as output:
                 wrapper = subprocess.Popen(
-                    [sys.executable, str(SCRIPT), "run", IPFS, str(log), sys.executable, "-c",
-                     "import json,os,time; from pathlib import Path; "
+                    [sys.executable, str(SCRIPT), "run", IPFS, str(log), str(fixture), sys.executable, "-c",
+                     "import json,os,time,signal,subprocess; from pathlib import Path; "
+                     "fixture=dict(line.split('=',1) for line in Path(" + repr(str(fixture)) + ").read_text().splitlines()); "
+                     "grandchild=subprocess.Popen([" + repr(sys.executable) + ",'-c','import time; time.sleep(60)']); "
+                     "signal.signal(signal.SIGTERM,lambda *_: (grandchild.wait(),exit(0))); "
                      "state=Path(" + repr(str(state)) + "); temporary=state.with_suffix('.tmp'); "
                      "temporary.write_text(json.dumps("
-                     "{'pid':os.getpid(),'repo':os.environ['IPFS_PATH']})); "
+                     "{'pid':os.getpid(),'grandchild':grandchild.pid,'repo':fixture['repo']})); "
                      "temporary.replace(state); time.sleep(60)"],
                     stdout=output, stderr=output,
                 )
@@ -169,14 +175,18 @@ class KuboCommandTest(unittest.TestCase):
                         os.kill(node_pid, 0)
                     with self.assertRaises(ProcessLookupError, msg="Command outlived its wrapper"):
                         os.kill(child["pid"], 0)
+                    with self.assertRaises(ProcessLookupError, msg="Descendant outlived its wrapper"):
+                        os.kill(child["grandchild"], 0)
                     self.assertFalse(Path(child["repo"]).exists())
+                    self.assertFalse(fixture.exists())
                     self.assertEqual(143, result)
                 finally:
                     if wrapper.poll() is None:
                         wrapper.kill()
                     wrapper.wait(timeout=10)
                     # Reversal controls deliberately leave children; clean those exact PIDs.
-                    for pid in [node_pid, child["pid"] if child else None]:
+                    for pid in [node_pid, child["pid"] if child else None,
+                                child["grandchild"] if child else None]:
                         if pid is not None:
                             try:
                                 os.kill(pid, signal.SIGKILL)
@@ -185,10 +195,28 @@ class KuboCommandTest(unittest.TestCase):
                     if child and Path(child["repo"]).exists():
                         shutil.rmtree(child["repo"])
 
+    def test_existing_fixture_is_never_replaced(self):
+        with tempfile.TemporaryDirectory(prefix="kubo-fixture-collision-") as directory:
+            fixture = Path(directory) / "fixture.properties"
+            original = "peerId=another-owned-run\n"
+            fixture.write_text(original)
+            result = subprocess.run(
+                [sys.executable, str(SCRIPT), "run", IPFS, str(Path(directory) / "node.log"),
+                 str(fixture), sys.executable, "-c", "raise SystemExit(0)"],
+                text=True, capture_output=True, timeout=75,
+            )
+            self.assertEqual(1, result.returncode, "A second wrapper accepted an occupied fixture")
+            self.assertEqual(
+                f"Kubo fixture {fixture} already exists; refusing to replace another run's input.\n",
+                result.stderr,
+            )
+            self.assertEqual(original, fixture.read_text())
+
     def test_node_exit_fails_an_inflight_command(self):
         result = self.run_command(
-            "import os,subprocess,time; "
-            "subprocess.run([" + repr(IPFS) + ", 'shutdown'],check=True); time.sleep(60)"
+            "import sys,subprocess,time; from pathlib import Path; "
+            "fixture=dict(line.split('=',1) for line in Path(sys.argv[1]).read_text().splitlines()); "
+            "subprocess.run([" + repr(IPFS) + ", '--repo-dir', fixture['repo'], 'shutdown'],check=True); time.sleep(60)"
         )
         self.assertEqual(1, result.returncode, result.stdout + result.stderr)
         self.assertIn("exited before verification completed", result.stderr)

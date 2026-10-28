@@ -45,11 +45,12 @@ jobs:
           mkdir "$RUNNER_TEMP/bld-kubo"
           tar -xzf "$archive" -C "$RUNNER_TEMP/bld-kubo"
       - name: Verify Kubo process ownership and failure handling
-        run: KUBO_BINARY="$RUNNER_TEMP/bld-kubo/kubo/ipfs" python3 .github/scripts/test_kubo_node.py
+        run: python3 .github/scripts/test_kubo_node.py "$RUNNER_TEMP/bld-kubo/kubo/ipfs"
       - name: Build and run the full native suite
         run: >-
           python3 .github/scripts/kubo-node.py run
           "$RUNNER_TEMP/bld-kubo/kubo/ipfs" "$RUNNER_TEMP/bld-kubo.log"
+          libp2p/build/kubo-node.properties
           ./gradlew --no-daemon --stacktrace --continue build dokkaJar
       - name: Upload test and build reports
         if: always()

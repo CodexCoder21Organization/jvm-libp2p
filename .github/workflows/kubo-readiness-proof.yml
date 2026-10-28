@@ -41,11 +41,12 @@ jobs:
           mkdir "$RUNNER_TEMP/bld-kubo"
           tar -xzf "$archive" -C "$RUNNER_TEMP/bld-kubo"
       - name: Verify Kubo process ownership and failure handling
-        run: KUBO_BINARY="$RUNNER_TEMP/bld-kubo/kubo/ipfs" python3 .github/scripts/test_kubo_node.py
+        run: python3 .github/scripts/test_kubo_node.py "$RUNNER_TEMP/bld-kubo/kubo/ipfs"
       - name: Run the unchanged QUIC assertions and formatting gate
         run: >-
           python3 .github/scripts/kubo-node.py run
           "$RUNNER_TEMP/bld-kubo/kubo/ipfs" "$RUNNER_TEMP/bld-kubo.log"
+          libp2p/build/kubo-node.properties
           ./gradlew --no-daemon --stacktrace :libp2p:test --tests io.libp2p.transport.quic.QuicKuboTestJava :libp2p:spotlessCheck
       - name: Upload test and build reports
         if: always()

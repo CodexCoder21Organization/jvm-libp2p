@@ -8,6 +8,7 @@ import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.api.services.BuildService
 import org.gradle.api.services.BuildServiceParameters
 import org.gradle.api.tasks.Copy
+import org.gradle.api.tasks.Sync
 import org.gradle.api.tasks.bundling.Jar
 import org.gradle.api.tasks.testing.Test
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat
@@ -61,8 +62,13 @@ boolean isDokkaPlugin(File jar) {
     }
 }
 
-boolean isDokkaRendererDependency(File jar) {
-    jar.name.startsWith('dokka-base-') || jar.name.startsWith('freemarker-')
+// The shared renderer needs Javadoc assets on its own classpath as well.
+def javadocRuntimeResources = objects.fileCollection()
+def sharedResourcesDirectory = layout.buildDirectory.dir('dokka-runtime-resources')
+def dokkaJavadocResources = tasks.register('dokkaJavadocResources', Sync) {
+    into sharedResourcesDirectory
+    from providers.provider { javadocRuntimeResources.files.collect { zipTree(it) } }
+    include 'static_res/**'
 }
 
 boolean getBooleanPropertyOrFalse(Project project, String propName) {
@@ -241,6 +247,7 @@ configure(configuredProjects) {
 
     tasks.withType(DokkaGenerateTask).configureEach {
         usesService(dokkaWorkerBudget)
+        dependsOn dokkaJavadocResources
     }
 
     def dokkaHtmlTask = tasks.named('dokkaGeneratePublicationHtml', DokkaGeneratePublicationTask)
@@ -302,22 +309,23 @@ configure(configuredProjects) {
 }
 
 // Use the same engine classpath for both formats so Gradle reuses one worker.
-// Keep renderer libraries with format plugins so resource lookup sees each format's assets.
+// Keep the original renderer libraries together and share Javadoc assets with that loader.
 gradle.taskGraph.whenReady { graph ->
     if (!graph.allTasks.any { it instanceof DokkaGenerateTask }) return
     def htmlRuntime = tasks.named('dokkaGeneratePublicationHtml', DokkaGeneratePublicationTask).get().runtimeClasspath.files
     def javadocRuntime = tasks.named('dokkaGeneratePublicationJavadoc', DokkaGeneratePublicationTask).get().runtimeClasspath.files
+    javadocRuntimeResources.setFrom(javadocRuntime.findAll { isDokkaPlugin(it) })
     def commonFiles = htmlRuntime.intersect(javadocRuntime)
     def sharedRuntime = (htmlRuntime + javadocRuntime).findAll { file ->
-        !isDokkaRendererDependency(file) && (commonFiles.contains(file) || !isDokkaPlugin(file))
+        commonFiles.contains(file) || !isDokkaPlugin(file)
     }.sort { it.absolutePath }
     def generators = configuredProjects.collectMany { project ->
         project.tasks.withType(DokkaGenerateTask).collect { task ->
-            [task: task, plugins: task.runtimeClasspath.files.findAll { isDokkaPlugin(it) || isDokkaRendererDependency(it) }.sort { it.absolutePath }]
+            [task: task, plugins: task.runtimeClasspath.files.findAll { isDokkaPlugin(it) }.sort { it.absolutePath }]
         }
     }
     generators.each { generator ->
         generator.task.generator.pluginsClasspath.from(generator.plugins)
-        generator.task.runtimeClasspath.setFrom(sharedRuntime)
+        generator.task.runtimeClasspath.setFrom(sharedRuntime, sharedResourcesDirectory)
     }
 }

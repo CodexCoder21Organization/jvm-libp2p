@@ -58,6 +58,11 @@ This is a standard Gradle project (JDK 11+). It is **built with Gradle** and the
 
 ### Build & test
 
+While the transport candidate is unpublished, the native and documentation CI
+jobs build its reviewed Netty source locally before running Gradle. This setup
+exposes only the candidate transport version from Maven local and performs no
+remote publication.
+
 ```bash
 # Full build with an installed Kubo 0.34.1 binary:
 python3 .github/scripts/kubo-node.py run /path/to/ipfs /tmp/kubo-native.log \

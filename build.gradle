@@ -5,8 +5,6 @@ import org.gradle.api.file.DuplicatesStrategy
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.plugins.JavaBasePlugin
 import org.gradle.api.publish.maven.MavenPublication
-import org.gradle.api.services.BuildService
-import org.gradle.api.services.BuildServiceParameters
 import org.gradle.api.tasks.Copy
 import org.gradle.api.tasks.bundling.Jar
 import org.gradle.api.tasks.testing.Test
@@ -40,13 +38,6 @@ description = 'a libp2p implementation for the JVM, written in Kotlin'
 
 // To publish the release artifact to CloudSmith repo run the following :
 // ./gradlew publish -PcloudsmithUser=<user> -PcloudsmithApiKey=<api-key>
-
-abstract class DokkaWorkerBudget implements BuildService<BuildServiceParameters.None> {}
-
-// Keep Dokka generation serial so one generator runs at a time.
-def dokkaWorkerBudget = gradle.sharedServices.registerIfAbsent('dokkaWorkerBudget', DokkaWorkerBudget) {
-    maxParallelUsages.set(1)
-}
 
 def configureSharedGeneration(DokkaExtension dokka, ObjectFactory objects) {
     def isolation = objects.newInstance(org.jetbrains.dokka.gradle.workers.WorkerIsolation.Process)
@@ -235,9 +226,6 @@ configure(configuredProjects) {
             }
         }
     }
-    tasks.withType(DokkaGenerateTask).configureEach {
-        usesService(dokkaWorkerBudget)
-    }
 
     def dokkaHtmlTask = tasks.named('dokkaGeneratePublicationHtml', DokkaGeneratePublicationTask)
     tasks.register('dokkaHtml') {
@@ -297,25 +285,22 @@ configure(configuredProjects) {
     }
 }
 
-// Share the compiler and runtime across formats; each generation still selects its own plugins.
-def htmlRuntime = objects.fileCollection().from(
-        tasks.named('dokkaGeneratePublicationHtml', DokkaGeneratePublicationTask).get().runtimeClasspath.from)
-def javadocRuntime = objects.fileCollection().from(
-        tasks.named('dokkaGeneratePublicationJavadoc', DokkaGeneratePublicationTask).get().runtimeClasspath.from)
-def sharedRuntime = providers.provider {
-    def htmlFiles = htmlRuntime.files
-    def javadocFiles = javadocRuntime.files
-    def commonFiles = htmlFiles.intersect(javadocFiles)
-    (htmlFiles + javadocFiles).findAll { file ->
+// Use the same engine classpath for both formats so Gradle reuses one worker.
+// Format-specific plugins remain on each generator's plugin classpath.
+gradle.projectsEvaluated {
+    def htmlRuntime = tasks.named('dokkaGeneratePublicationHtml', DokkaGeneratePublicationTask).get().runtimeClasspath.files
+    def javadocRuntime = tasks.named('dokkaGeneratePublicationJavadoc', DokkaGeneratePublicationTask).get().runtimeClasspath.files
+    def commonFiles = htmlRuntime.intersect(javadocRuntime)
+    def sharedRuntime = (htmlRuntime + javadocRuntime).findAll { file ->
         commonFiles.contains(file) || !isDokkaPlugin(file)
     }.sort { it.absolutePath }
-}
-configure(configuredProjects) {
-    tasks.withType(DokkaGenerateTask).configureEach { task ->
-        def originalRuntime = objects.fileCollection().from(task.runtimeClasspath.from)
-        task.generator.pluginsClasspath.from(providers.provider {
-            originalRuntime.files.findAll { isDokkaPlugin(it) }
-        })
-        task.runtimeClasspath.setFrom(sharedRuntime)
+    def generators = configuredProjects.collectMany { project ->
+        project.tasks.withType(DokkaGenerateTask).collect { task ->
+            [task: task, plugins: task.runtimeClasspath.files.findAll { isDokkaPlugin(it) }]
+        }
+    }
+    generators.each { generator ->
+        generator.task.generator.pluginsClasspath.from(generator.plugins)
+        generator.task.runtimeClasspath.setFrom(sharedRuntime)
     }
 }

@@ -298,12 +298,13 @@ configure(configuredProjects) {
 }
 
 // Use the same engine classpath for both formats so Gradle reuses one worker.
-// All plugins stay together in each generator's loader, including their static resources.
+// Keep the base renderer with format plugins so its resource lookup sees each format's assets.
 gradle.projectsEvaluated {
     def htmlRuntime = tasks.named('dokkaGeneratePublicationHtml', DokkaGeneratePublicationTask).get().runtimeClasspath.files
     def javadocRuntime = tasks.named('dokkaGeneratePublicationJavadoc', DokkaGeneratePublicationTask).get().runtimeClasspath.files
+    def commonFiles = htmlRuntime.intersect(javadocRuntime)
     def sharedRuntime = (htmlRuntime + javadocRuntime).findAll { file ->
-        !isDokkaPlugin(file)
+        (commonFiles.contains(file) && !file.name.startsWith('dokka-base-')) || !isDokkaPlugin(file)
     }.sort { it.absolutePath }
     def generators = configuredProjects.collectMany { project ->
         project.tasks.withType(DokkaGenerateTask).collect { task ->

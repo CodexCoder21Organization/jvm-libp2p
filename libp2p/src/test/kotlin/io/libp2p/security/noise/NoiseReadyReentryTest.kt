@@ -21,8 +21,9 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
 
 class NoiseReadyReentryTest {
     @RepeatedTest(10)
@@ -79,6 +80,19 @@ object NoiseReadyReentryHarness {
         val secondChannel = AtomicReference<Channel>()
         val secondObservation = CompletableFuture<NoiseHandshakeComputation>()
         val reentered = CompletableFuture<Unit>()
+        val firstReadyCallbacks = AtomicInteger()
+        val firstConnectionReady = {
+            if (firstReadyCallbacks.incrementAndGet() == 2) {
+                // The earlier endpoint has returned; this last ready callback still owns its entry.
+                try {
+                    gates[1].release()
+                    reentered.complete(Unit)
+                } catch (failure: Throwable) {
+                    reentered.completeExceptionally(failure)
+                    throw failure
+                }
+            }
+        }
         try {
             val relay = host {
                 identity { random(KeyType.ED25519) }
@@ -101,8 +115,7 @@ object NoiseReadyReentryHarness {
                                     if (gates[0] === gate) {
                                         // Re-enter through the existing public pipeline while this ready callback is active.
                                         try {
-                                            gates[1].release()
-                                            reentered.complete(Unit)
+                                            firstConnectionReady()
                                         } finally {
                                             relayReadyReturned.countDown()
                                         }
@@ -123,7 +136,22 @@ object NoiseReadyReentryHarness {
                 } else {
                     key
                 }
-                host { identity { factory = { identity } } }.also { hosts.add(it) }
+                host {
+                    identity { factory = { identity } }
+                    secureChannels {
+                        add { localKey, _ ->
+                            val noise = NoiseXXSecureChannel(localKey)
+                            object : SecureChannel {
+                                override val protocolDescriptor = noise.protocolDescriptor
+                                override fun initChannel(ch: P2PChannel, selectedProtocol: String): CompletableFuture<SecureChannel.Session> {
+                                    val ready = noise.initChannel(ch, selectedProtocol)
+                                    if (index == 0) ready.thenRun { firstConnectionReady() }
+                                    return ready
+                                }
+                            }
+                        }
+                    }
+                }.also { hosts.add(it) }
             }
             CompletableFuture.allOf(*hosts.map { it.start() }.toTypedArray()).get(5, TimeUnit.SECONDS)
             // Retain both first frames until both relay handshakes are installed.
@@ -144,7 +172,8 @@ object NoiseReadyReentryHarness {
             reentered.get(5, TimeUnit.SECONDS)
             val observation = secondObservation.get(5, TimeUnit.SECONDS)
             println("Reentrant ready publication: pending=${observation.pendingHandshakesOnLoop}, onLoop=${observation.onEventLoop}")
-            assertEquals(3, observation.pendingHandshakesOnLoop, "The first relay's active ready callback and both endpoints of the second connection must remain pending")
+            assertEquals(2, firstReadyCallbacks.get(), "Both endpoints of the first connection must have published")
+            assertEquals(3, observation.pendingHandshakesOnLoop, "The first connection's last ready callback and both endpoints of the second connection must remain pending")
             assertFalse(observation.onEventLoop, "Synchronous reentry must not run computation ahead of the active ready callback")
             CompletableFuture.allOf(first, second).get(5, TimeUnit.SECONDS)
         } finally {

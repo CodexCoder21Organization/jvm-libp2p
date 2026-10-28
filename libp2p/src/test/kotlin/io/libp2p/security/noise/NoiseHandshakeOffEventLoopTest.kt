@@ -27,6 +27,7 @@ import io.netty.channel.ChannelPromise
 import io.netty.channel.embedded.EmbeddedChannel
 import io.netty.handler.timeout.ReadTimeoutException
 import io.netty.util.ReferenceCountUtil
+import io.netty.util.concurrent.SingleThreadEventExecutor
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.catchThrowable
 import org.junit.jupiter.api.RepeatedTest
@@ -931,6 +932,7 @@ private fun newInlineNoiseHost(
                             }
                         })
                     }
+                    ch.pushHandler(NoiseInlineAdmissionGate())
                     return noise.initChannel(ch, selectedProtocol)
                 }
             }
@@ -938,6 +940,72 @@ private fun newInlineNoiseHost(
     }
     protocols { +Ping() }
 }
+
+// The inline fixture owns its admission order: finish queued callbacks before admitting crypto.
+private class NoiseInlineAdmissionGate : ChannelInboundHandlerAdapter() {
+    private val events = java.util.ArrayDeque<Any>()
+    private var scheduled = false
+    private var closed = false
+
+    override fun channelActive(ctx: ChannelHandlerContext) = enqueue(ctx, NoiseInlineEvent.ACTIVE)
+
+    override fun channelRead(ctx: ChannelHandlerContext, msg: Any) = enqueue(ctx, msg)
+
+    override fun channelReadComplete(ctx: ChannelHandlerContext) = enqueue(ctx, NoiseInlineEvent.READ_COMPLETE)
+
+    private fun enqueue(ctx: ChannelHandlerContext, event: Any) {
+        if (closed) {
+            ReferenceCountUtil.release(event)
+            return
+        }
+        events.addLast(event)
+        schedule(ctx)
+    }
+
+    private fun schedule(ctx: ChannelHandlerContext) {
+        if (scheduled || closed) return
+        scheduled = true
+        try {
+            ctx.executor().execute {
+                scheduled = false
+                drain(ctx)
+            }
+        } catch (failure: Throwable) {
+            scheduled = false
+            releaseEvents()
+            throw failure
+        }
+    }
+
+    private fun drain(ctx: ChannelHandlerContext) {
+        val loop = ctx.executor() as SingleThreadEventExecutor
+        while (events.isNotEmpty() && !closed) {
+            if (loop.pendingTasks() > 0) {
+                schedule(ctx)
+                return
+            }
+            when (val event = events.removeFirst()) {
+                NoiseInlineEvent.ACTIVE -> ctx.fireChannelActive()
+                NoiseInlineEvent.READ_COMPLETE -> ctx.fireChannelReadComplete()
+                else -> ctx.fireChannelRead(event)
+            }
+        }
+    }
+
+    override fun channelInactive(ctx: ChannelHandlerContext) {
+        releaseEvents()
+        ctx.fireChannelInactive()
+    }
+
+    override fun handlerRemoved(ctx: ChannelHandlerContext) = releaseEvents()
+
+    private fun releaseEvents() {
+        closed = true
+        while (events.isNotEmpty()) ReferenceCountUtil.release(events.removeFirst())
+    }
+}
+
+private enum class NoiseInlineEvent { ACTIVE, READ_COMPLETE }
 
 private fun newNoiseHost(listen: Boolean = false, listenPort: Int = 0): Host = host {
     identity {
@@ -969,7 +1037,12 @@ private fun runNoiseHandshakeHarness(
 ): String {
     val javaExecutable = java.nio.file.Paths.get(System.getProperty("java.home"), "bin", "java").toString()
     // One shared network worker makes the established Noise anchor visible to every saturation handshake.
-    val eventLoopArguments = if (mode == "saturated") listOf("-Dio.netty.eventLoopThreads=1") else emptyList()
+    // Each endpoint of the inline fixture owns a separate loop; only one connection is live at a time.
+    val eventLoopArguments = if (mode == "saturated") {
+        listOf("-Dio.netty.eventLoopThreads=1")
+    } else {
+        listOf("-Dio.netty.eventLoopThreads=2")
+    }
     val command = listOf(javaExecutable) + eventLoopArguments + listOf(
         "-cp",
         System.getProperty("java.class.path"),

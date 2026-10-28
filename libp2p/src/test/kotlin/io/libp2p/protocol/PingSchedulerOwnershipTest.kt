@@ -45,10 +45,12 @@ class PingSchedulerOwnershipTest {
                     val stream = sibling.stream.get(10, TimeUnit.SECONDS)
                     try {
                         val controller = sibling.controller.get(10, TimeUnit.SECONDS)
-                        assertTrue(controller.ping().thenApply { elapsed ->
-                            stream.close()
-                            elapsed
-                        }.get(10, TimeUnit.SECONDS) >= 0)
+                        assertTrue(
+                            controller.ping().thenApply { elapsed ->
+                                stream.close()
+                                elapsed
+                            }.get(10, TimeUnit.SECONDS) >= 0
+                        )
                         stream.closeFuture().get(10, TimeUnit.SECONDS)
                         assertTrue(anchorController.ping().get(10, TimeUnit.SECONDS) >= 0)
                     } finally {

@@ -1,0 +1,55 @@
+name: Noise publication green and reversal 024054
+on:
+  push:
+    branches: ['proof/noise-publication-green-024054']
+permissions:
+  contents: read
+jobs:
+  targeted:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '11'
+      - name: Verify static checks and changed test neighbors
+        shell: bash
+        run: |
+          unset ANDROID_HOME ANDROID_SDK_ROOT
+          ./gradlew --no-daemon --stacktrace :libp2p:spotlessCheck :libp2p:detekt :libp2p:test --tests 'io.libp2p.security.noise.NoiseHandshakeOffEventLoopTest' --tests 'io.libp2p.security.noise.NoiseMatcherReadinessTest' --tests 'io.libp2p.transport.NestedConnectionCloseNotificationTest'
+          mkdir -p proof-results/green
+          cp -a libp2p/build/test-results/test/. proof-results/green/
+      - name: Restore only the premature assertion ordering and confirm red
+        shell: bash
+        run: |
+          unset ANDROID_HOME ANDROID_SDK_ROOT
+          git fetch origin 378e6719250cc4c69b64533fd3099b1593af0bec
+          git show 378e6719250cc4c69b64533fd3099b1593af0bec:libp2p/src/test/kotlin/io/libp2p/security/noise/NoiseHandshakeOffEventLoopTest.kt > libp2p/src/test/kotlin/io/libp2p/security/noise/NoiseHandshakeOffEventLoopTest.kt
+          if ./gradlew --no-daemon --stacktrace :libp2p:test --tests 'io.libp2p.security.noise.NoiseHandshakeOffEventLoopTest.concurrent handshakes*'; then
+            echo 'The old premature assertion unexpectedly passed.' >&2
+            exit 1
+          fi
+          mkdir -p proof-results/reversal
+          cp -a libp2p/build/test-results/test/. proof-results/reversal/
+          python3 - <<'CHECK'
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+          cases = [case for path in Path('proof-results/reversal').glob('TEST-*.xml') for case in ET.parse(path).iter('testcase')]
+          assert len(cases) == 1, len(cases)
+          failure = cases[0].find('failure')
+          assert failure is not None, 'Reversal did not fail as an assertion.'
+          assert 'Expected size: 32 but was: 0' in failure.get('message', ''), failure.get('message')
+          print('Confirmed original ordering fails with 32 clients ready and zero server publications.')
+          CHECK
+          git checkout -- libp2p/src/test/kotlin/io/libp2p/security/noise/NoiseHandshakeOffEventLoopTest.kt
+      - name: Upload targeted results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: noise-publication-results
+          path: |
+            proof-results/**
+            libp2p/build/test-results/**
+            libp2p/build/reports/detekt/**

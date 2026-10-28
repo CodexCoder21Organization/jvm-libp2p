@@ -18,16 +18,20 @@ proof='4.2.10-w2-auto-read-proof'
 repo=root/'repo'; dest=repo/f'io/netty/netty-transport/{proof}'; dest.mkdir(parents=True,exist_ok=True)
 jar=dest/f'netty-transport-{proof}.jar'; shutil.copy(deps/'netty-transport.jar',jar)
 subprocess.run(['jar','uf',str(jar),'-C',str(classes),'.'],check=True)
+abi=subprocess.check_output(['javap','-p','-classpath',str(jar),'io.netty.channel.DefaultChannelPipeline'],text=True)
+assert 'protected boolean shouldAutoRead();' in abi, abi
+# Use the same dependency-management pin the real consumer will use after publication.
+versions=Path('versions.gradle')
+configuration=versions.read_text().replace("            entry 'netty-transport'\n",'')
+configuration=configuration.replace('        dependencySet(group: "io.netty", version: "4.2.10.Final") {',
+    f'        dependency "io.netty:netty-transport:{proof}"\n        dependencySet(group: "io.netty", version: "4.2.10.Final") {{')
+versions.write_text(configuration)
+
 pom=urllib.request.urlopen(f'https://repo.maven.apache.org/maven2/io/netty/netty-transport/{version}/netty-transport-{version}.pom').read().decode()
 pom=pom.replace('<artifactId>netty-transport</artifactId>',f'<artifactId>netty-transport</artifactId>\n  <version>{proof}</version>',1).replace('${project.version}',version)
 (dest/f'netty-transport-{proof}.pom').write_text(pom)
 Path('/tmp/w2-netty-overlay.init.gradle').write_text('''settingsEvaluated { settings ->
  settings.dependencyResolutionManagement.repositories.maven { url = uri("REPO") }
-}
-allprojects {
- configurations.all {
-  resolutionStrategy.force("io.netty:netty-transport:VERSION")
- }
 }
 '''.replace('REPO',str(repo)).replace('VERSION',proof))
 print('Built temporary source-based Netty transport overlay:',jar)

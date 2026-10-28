@@ -31,7 +31,7 @@ for p in (root/'artifact').rglob('*.xml'):
 (root/'summary.json').write_text(json.dumps(summary,indent=2))
 print(json.dumps(summary,indent=2),flush=True)
 for cmd in [['git','config','user.name','Codex'],['git','config','user.email','codex@openai.com'],
-            ['git','switch','-c',f'proof/w2-results232805-{run}'],['git','add',str(root)],
+            ['git','switch','-c',f'proof/w2-yamux232805-results-{run}-full'],['git','add','-f',str(root)],
             ['git','commit','-m',f'Preserve existing proof results for run {run}'],
-            ['git','push','origin',f'HEAD:refs/heads/proof/w2-results232805-{run}']]:
+            ['git','push','origin',f'HEAD:refs/heads/proof/w2-yamux232805-results-{run}-full']]:
     subprocess.run(cmd,check=True)

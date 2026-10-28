@@ -288,6 +288,16 @@ entry. If the peer keeps both parents, this side preserves both until explicit c
 failure or shutdown. Inbound reuse still interoperates with such peers, but their own duplicate
 decisions cannot provide this fork's cross-endpoint lifetime guarantee.
 
+Consumers selecting a candidate from `Network.connections` or a connection callback can call
+`Network.reserveConnection(candidate)` and await its `CompletableFuture<Boolean>` before opening
+streams on that parent. A `true` result atomically retains that exact physical connection against
+coordinated duplicate retirement, using the same reservation as the library's own stream creation.
+A closing, closed or retirement-excluded candidate returns `false`; choose another candidate or use
+`Network.connect`. Repeated successful reservations are idempotent and last for the parent's
+lifetime, with no release call. Reservation opens no stream and cannot prevent a later explicit
+close, transport failure or host shutdown. Custom transports without retirement coordination retain
+their existing open-connection check.
+
 Connection close and transport shutdown share one physical close operation for each Netty
 parent channel. Repeated calls wait for that operation and report its original failure if it
 fails; they do not issue another close. Completing or cancelling one caller's returned future

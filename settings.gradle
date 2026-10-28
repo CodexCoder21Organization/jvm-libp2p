@@ -1,4 +1,15 @@
 pluginManagement {
+    // Older D8 fails on the unnamed enum parameters in the Netty .2 family.
+    // Use the published upstream fix without changing Android Gradle plugin.
+    buildscript {
+        repositories {
+            google()
+            mavenCentral()
+        }
+        dependencies {
+            classpath 'com.android.tools:r8:8.1.56'
+        }
+    }
     repositories {
         gradlePluginPortal()
         mavenCentral()

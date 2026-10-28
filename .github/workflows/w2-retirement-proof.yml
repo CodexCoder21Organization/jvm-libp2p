@@ -1,0 +1,90 @@
+name: W2 retirement final proof
+on:
+  push:
+    branches: [proof/w2-retirement-final-081647]
+permissions:
+  contents: read
+jobs:
+  proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 24a1860d9a08cb0acdc049180b4e35cfc54be970
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Prepare Android SDK
+        run: '"$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platform-tools" "platforms;android-30" "build-tools;30.0.3"'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '11'
+      - name: Exact product positive with close and retirement neighbors
+        run: |
+          mkdir -p proof-results/green
+          set +e
+          ./gradlew --no-daemon --stacktrace :libp2p:spotlessCheck :libp2p:detekt :libp2p:test \
+            --tests io.libp2p.network.NetworkRetirementOwnershipTest \
+            --tests io.libp2p.network.NetworkRetirementCloseRaceTest \
+            --tests io.libp2p.transport.ConnectionCloseRetryTest \
+            --tests io.libp2p.transport.RetryCloseInactiveReviewTest > proof-results/green/build.log 2>&1
+          result=$?
+          set -e
+          cp -R libp2p/build/test-results/test proof-results/green/xml
+          cat proof-results/green/build.log
+          python3 - "$result" <<'PY'
+          import pathlib, sys, xml.etree.ElementTree as ET
+          assert int(sys.argv[1])==0, 'Exact-source positive Gradle failure'
+          cases=[c for p in pathlib.Path('proof-results/green/xml').glob('TEST-*.xml') for c in ET.parse(p).getroot().iter('testcase')]
+          expected={'NetworkRetirementOwnershipTest':2,'NetworkRetirementCloseRaceTest':1,'ConnectionCloseRetryTest':7,'RetryCloseInactiveReviewTest':5}
+          actual={name:sum(c.attrib['classname'].endswith('.'+name) for c in cases) for name in expected}
+          print('Actual case counts:', actual)
+          for name,count in actual.items(): assert count>=1, (name,count)
+          assert actual['NetworkRetirementOwnershipTest']==2, actual
+          assert not any(c.find('failure') is not None or c.find('error') is not None or c.find('skipped') is not None for c in cases)
+          print('GREEN:', len(cases),'cases; no failures, errors or skips')
+          PY
+      - name: Remove only the publication wait after green
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('libp2p/src/test/kotlin/io/libp2p/network/NetworkRetirementOwnershipTest.kt')
+          s=p.read_text()
+          old='''            publication.complete(Unit)
+                      // Local dial completion does not publish the independently scheduled peer.
+                      registered.get(maxOf(0L, connectedBy - System.nanoTime()), NANOSECONDS)
+          '''
+          old=old.replace('                      ', '            ')
+          assert s.count(old)==1, repr(old)
+          p.write_text(s.replace(old,''))
+          PY
+          git diff > proof-results/wait-removal.diff
+          mkdir -p proof-results/reversal
+          set +e
+          ./gradlew --no-daemon --stacktrace :libp2p:cleanTest :libp2p:test --tests io.libp2p.network.NetworkRetirementOwnershipTest > proof-results/reversal/build.log 2>&1
+          result=$?
+          set -e
+          cp -R libp2p/build/test-results/test proof-results/reversal/xml
+          cat proof-results/reversal/build.log
+          python3 - "$result" <<'PY'
+          import pathlib, sys, xml.etree.ElementTree as ET
+          cases=[c for p in pathlib.Path('proof-results/reversal/xml').glob('TEST-*.xml') for c in ET.parse(p).getroot().iter('testcase')]
+          assert int(sys.argv[1])!=0, 'Old fixture unexpectedly passed'
+          assert len(cases)==2, len(cases)
+          assert not any(c.find('error') is not None or c.find('skipped') is not None for c in cases)
+          failures=[c for c in cases if c.find('failure') is not None]
+          assert any(c.attrib['name']=='[2] true' for c in failures), [c.attrib for c in failures]
+          for c in failures:
+              f=c.find('failure'); print(c.attrib,f.attrib,f.text)
+              assert 'Expected size: 1 but was: 0' in f.attrib.get('message',''), f.attrib
+              assert f.attrib.get('type')=='java.lang.AssertionError', f.attrib
+          print('REVERSAL: exact peer-table assertion red, no errors/skips')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: retirement-final-proof
+          path: proof-results/**

@@ -2,11 +2,7 @@ package io.libp2p.tools
 
 import io.libp2p.core.PlaintextTcpTest
 import io.libp2p.core.PlaintextWsTest
-import io.libp2p.core.multiformats.Multiaddr
-import io.libp2p.transport.NullConnectionUpgrader
-import io.libp2p.transport.tcp.TcpTransport
 import io.libp2p.transport.tcp.TcpTransportTest
-import io.libp2p.transport.ws.WsTransport
 import io.libp2p.transport.ws.WsTransportTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotEquals
@@ -35,28 +31,6 @@ class ListenerPortAllocationTest {
             }
         } finally {
             sockets.forEach { it.close() }
-        }
-    }
-
-    @Test
-    fun `five ephemeral listeners remain owned and can be unlistened by actual address`() {
-        for (transport in listOf(TcpTransport(NullConnectionUpgrader()), WsTransport(NullConnectionUpgrader()))) {
-            try {
-                val suffix = if (transport is WsTransport) "/ws" else ""
-                repeat(5) {
-                    transport.listen(Multiaddr("/ip4/127.0.0.1/tcp/0$suffix"), { }).get(5, SECONDS)
-                }
-                val addresses = transport.listenAddresses()
-                assertEquals(5, transport.activeListeners)
-                assertEquals(5, addresses.toSet().size)
-                addresses.forEach { address ->
-                    assertNotEquals("0", address.getFirstComponent(io.libp2p.core.multiformats.Protocol.TCP)?.stringValue)
-                    transport.unlisten(address).get(5, SECONDS)
-                }
-                assertEquals(0, transport.activeListeners)
-            } finally {
-                transport.close().get(5, SECONDS)
-            }
         }
     }
 

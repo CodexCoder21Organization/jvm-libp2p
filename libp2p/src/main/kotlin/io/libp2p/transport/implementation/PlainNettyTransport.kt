@@ -52,7 +52,7 @@ abstract class PlainNettyTransport(
     // monitor before reading either map — see close() for the race that
     // motivated this. Holding the monitor while iterating also guarantees we
     // are reading a snapshot rather than a concurrently-mutated collection.
-    private val listeners = mutableMapOf<Multiaddr, Channel>()
+    private val listeners = mutableMapOf<Channel, Multiaddr>()
     private val channels = mutableListOf<Channel>()
 
     // The NIO worker group is a PROCESS-WIDE SHARED singleton (see the companion
@@ -90,13 +90,15 @@ abstract class PlainNettyTransport(
     }
 
     override val activeListeners: Int
-        get() = listeners.size
+        get() = synchronized(this) { listeners.size }
     override val activeConnections: Int
         get() = channels.size
 
     override fun listenAddresses(): List<Multiaddr> {
-        return listeners.values.map {
-            toMultiaddr(it.localAddress() as InetSocketAddress)
+        return synchronized(this) {
+            listeners.keys.mapNotNull { channel ->
+                channel.localAddress()?.let { toMultiaddr(it) }
+            }
         }
     }
 
@@ -166,7 +168,7 @@ abstract class PlainNettyTransport(
         val channelsToClose: List<Channel>
         synchronized(this@PlainNettyTransport) {
             closed = true
-            listenersToClose = listeners.values.toList()
+            listenersToClose = listeners.keys.toList()
             channelsToClose = channels.toList()
         }
 
@@ -259,10 +261,10 @@ abstract class PlainNettyTransport(
                 )
 
             val cf = listener.bind(fromMultiaddr(addr))
-            listeners += addr to cf.channel()
+            listeners += cf.channel() to addr
             cf.channel().closeFuture().addListener {
                 synchronized(this@PlainNettyTransport) {
-                    listeners -= addr
+                    listeners -= cf.channel()
                 }
             }
             cf
@@ -276,9 +278,17 @@ abstract class PlainNettyTransport(
         addr: Multiaddr
     ): ChannelHandler?
 
+    /**
+     * Closes the listener at its actual bound address, or the oldest remaining listener
+     * created with [addr]. Repeated port-zero requests therefore unlisten one at a time.
+     */
     override fun unlisten(addr: Multiaddr): CompletableFuture<Unit> {
-        return listeners[addr]?.let { closeNettyChannelOnce(it) }
-            ?: throw Libp2pException("No listeners on address $addr")
+        val channel = synchronized(this) {
+            listeners.entries.firstOrNull { (channel, requested) ->
+                requested == addr || channel.localAddress()?.let { toMultiaddr(it) } == addr
+            }?.key
+        } ?: throw Libp2pException("No listeners on address $addr")
+        return closeNettyChannelOnce(channel)
     } // unlisten
 
     override fun dial(

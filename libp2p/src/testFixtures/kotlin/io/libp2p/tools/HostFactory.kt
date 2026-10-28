@@ -58,7 +58,11 @@ class HostFactory {
                 listen(address.toString())
             }
             protocols {
-                addAll(protocols)
+                addAll(
+                    protocols.map { binding ->
+                        if (binding is Identify && binding.protocol.idMessage == null) Identify() else binding
+                    }
+                )
             }
             debug {
                 muxLogLevel?.also {

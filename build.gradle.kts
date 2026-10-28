@@ -1,6 +1,7 @@
 import com.diffplug.gradle.spotless.SpotlessExtension
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import org.jetbrains.dokka.gradle.internal.InternalDokkaGradlePluginApi
 import org.jetbrains.dokka.gradle.DokkaExtension
 import org.jetbrains.dokka.gradle.tasks.DokkaGenerateTask
 import org.jetbrains.dokka.gradle.tasks.DokkaGeneratePublicationTask
@@ -37,6 +38,15 @@ abstract class DokkaWorkerBudget : BuildService<BuildServiceParameters.None>
 // Keep Dokka generation serial so one generator runs at a time.
 val dokkaWorkerBudget = gradle.sharedServices.registerIfAbsent("dokkaWorkerBudget", DokkaWorkerBudget::class) {
     maxParallelUsages.set(1)
+}
+
+@OptIn(InternalDokkaGradlePluginApi::class)
+fun DokkaExtension.configureInProcessGeneration() {
+    dokkaGeneratorIsolation.set(ClassLoaderIsolation())
+    // Each generation owns its coroutine executors as well as its classloader.
+    dokkaPublications.configureEach {
+        finalizeCoroutines.set(true)
+    }
 }
 
 fun Project.getBooleanPropertyOrFalse(propName: String) =
@@ -203,7 +213,7 @@ configure(
     }
 
     configure<DokkaExtension> {
-        dokkaGeneratorIsolation.set(ClassLoaderIsolation())
+        configureInProcessGeneration()
         dokkaPublications.named("html") {
             outputDirectory.set(layout.buildDirectory.dir("dokka"))
         }

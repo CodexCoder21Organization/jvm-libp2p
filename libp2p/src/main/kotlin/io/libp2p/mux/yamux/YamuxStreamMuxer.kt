@@ -17,17 +17,20 @@ class YamuxStreamMuxer(
     private val ackBacklogLimit: Int
 ) : StreamMuxer, StreamMuxerDebug {
 
+    private val codecs = YamuxFrameCodec
+    private val handlers = YamuxHandler
+
     override val protocolDescriptor = ProtocolDescriptor("/yamux/1.0.0")
     override var muxFramesDebugHandler: ChannelVisitor<Connection>? = null
 
     override fun initChannel(ch: P2PChannel, selectedProtocol: String): CompletableFuture<out StreamMuxer.Session> {
         val muxSessionReady = CompletableFuture<StreamMuxer.Session>()
 
-        val yamuxFrameCodec = YamuxFrameCodec()
+        val yamuxFrameCodec = codecs.create()
         ch.pushHandler(yamuxFrameCodec)
         muxFramesDebugHandler?.also { it.visit(ch as Connection) }
         ch.pushHandler(
-            YamuxHandler(
+            handlers.create(
                 multistreamProtocol,
                 yamuxFrameCodec.maxFrameDataLength,
                 muxSessionReady,

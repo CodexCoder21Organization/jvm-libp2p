@@ -12,11 +12,14 @@ if mode in ('original_memory', 'native-red', 'budget'):
     subprocess.run(['git', 'restore', '--source='+source, '--', 'build.gradle.kts', 'libp2p/build.gradle.kts', 'interop-test-client/build.gradle.kts', 'gradle.properties', 'examples/android-chatter/build.gradle'], cwd=checkout, check=True)
 else:
     text = root.read_text()
-    if mode in ('plugin_boundary', 'compiler_boundary'):
-        before = "(commonFiles.contains(file) && !file.name.startsWith('dokka-base-')) || !isDokkaPlugin(file)"
+    if mode == 'plugin_boundary':
+        before = 'generator.task.runtimeClasspath.setFrom(sharedRuntime, sharedResourcesDirectory)'
         assert before in text
-        after = "commonFiles.contains(file) || !isDokkaPlugin(file)" if mode == 'plugin_boundary' else "!isDokkaPlugin(file)"
-        text = text.replace(before, after)
+        text = text.replace(before, 'generator.task.runtimeClasspath.setFrom(sharedRuntime)')
+    elif mode == 'compiler_boundary':
+        before = 'commonFiles.contains(file) || !isDokkaPlugin(file)'
+        assert before in text
+        text = text.replace(before, '!isDokkaPlugin(file)')
     elif mode == 'no_service':
         before = 'usesService(dokkaWorkerBudget)'
         assert before in text

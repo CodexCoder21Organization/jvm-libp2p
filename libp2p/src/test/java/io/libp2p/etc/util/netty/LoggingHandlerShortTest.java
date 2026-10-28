@@ -3,6 +3,7 @@ package io.libp2p.etc.util.netty;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.netty.buffer.ByteBuf;
@@ -217,6 +218,41 @@ class LoggingHandlerShortTest {
       } finally {
         channel.finishAndReleaseAll();
         if (buffer.refCnt() > 0) buffer.release();
+      }
+    }
+  }
+
+  @Test
+  void invalidRetainedCountsKeepDescriptiveErrors() {
+    for (int setting = 0; setting < 4; setting++) {
+      LoggingHandlerShort logger =
+          new LoggingHandlerShort("short-invalid-" + setting, LogLevel.INFO);
+      logger.setMaxHeadingLines(1);
+      logger.setMaxTrailingLines(1);
+      logger.setLinesCutThreshold(0);
+      logger.setMaxLineHeadingChars(10000);
+      logger.setMaxLineTrailingChars(0);
+      logger.setCharsCutThreshold(0);
+      if (setting == 0) logger.setMaxHeadingLines(-1);
+      if (setting == 1) logger.setMaxTrailingLines(-1);
+      if (setting == 2) logger.setMaxLineHeadingChars(-1);
+      if (setting == 3) {
+        logger.setMaxLineHeadingChars(0);
+        logger.setMaxLineTrailingChars(-1);
+      }
+      EmbeddedChannel channel = new EmbeddedChannel(logger);
+      try {
+        IllegalArgumentException failure =
+            assertThrows(
+                IllegalArgumentException.class,
+                () -> channel.writeOutbound("first\nsecond\nthird"));
+        assertEquals(
+            setting < 2
+                ? "Requested element count -1 is less than zero."
+                : "Requested character count -1 is less than zero.",
+            failure.getMessage());
+      } finally {
+        channel.finishAndReleaseAll();
       }
     }
   }

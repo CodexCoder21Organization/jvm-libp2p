@@ -51,7 +51,12 @@ private class ShortLogLine(val text: String, val start: Int = 0, val end: Int = 
 private fun shortLogLine(line: ShortLogLine, logger: LoggingHandlerShort): String {
     val extra = line.end.toLong() - line.start - logger.maxLineHeadingChars - logger.maxLineTrailingChars
     return if (extra > logger.charsCutThreshold) {
-        require(logger.maxLineHeadingChars >= 0 && logger.maxLineTrailingChars >= 0)
+        require(logger.maxLineHeadingChars >= 0) {
+            "Requested character count ${logger.maxLineHeadingChars} is less than zero."
+        }
+        require(logger.maxLineTrailingChars >= 0) {
+            "Requested character count ${logger.maxLineTrailingChars} is less than zero."
+        }
         val headingEnd = minOf(line.end.toLong(), line.start.toLong() + logger.maxLineHeadingChars).toInt()
         val trailingStart = maxOf(line.start.toLong(), line.end.toLong() - logger.maxLineTrailingChars).toInt()
         line.text.substring(line.start, headingEnd) +
@@ -70,7 +75,12 @@ private fun shortLogLines(
     val extra = count.toLong() - logger.maxHeadingLines - logger.maxTrailingLines
     val lines = mutableListOf<String>()
     if (extra > logger.linesCutThreshold) {
-        require(logger.maxHeadingLines >= 0 && logger.maxTrailingLines >= 0)
+        require(logger.maxHeadingLines >= 0) {
+            "Requested element count ${logger.maxHeadingLines} is less than zero."
+        }
+        require(logger.maxTrailingLines >= 0) {
+            "Requested element count ${logger.maxTrailingLines} is less than zero."
+        }
         repeat(minOf(count, logger.maxHeadingLines)) { lines += shortLogLine(lineAt(it), logger) }
         lines += shortLogLine(ShortLogLine(""), logger)
         lines += shortLogLine(ShortLogLine("............. more $extra lines ............."), logger)

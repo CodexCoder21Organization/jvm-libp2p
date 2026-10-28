@@ -56,12 +56,25 @@ This is a standard Gradle project (JDK 11+). It is **built with Gradle** and the
 ### Build & test
 
 ```bash
-./gradlew :libp2p:build          # full build
-./gradlew :libp2p:test           # run the test suite (excludes the `interop` tag)
+# Full build with an installed Kubo 0.34.1 binary:
+python3 .github/scripts/kubo-node.py run /path/to/ipfs /tmp/kubo-native.log \
+  libp2p/build/kubo-node.properties ./gradlew :libp2p:build
+# For only the test suite (excluding the interop tag), replace :libp2p:build with :libp2p:test.
 ./gradlew :libp2p:spotlessCheck :libp2p:detekt   # formatting + static analysis gates
 ```
 
-> **Note:** the fork's GitHub Actions workflows (`build.yml` / `publish.yml`) are currently failing at startup (an org-side Actions configuration issue), so there is **no green CI check and no CI auto-publish**. Until that is fixed, builds are verified locally with the commands above and releases are published manually as described below. A couple of suites that need native libraries absent from the CI/dev image (`io.libp2p.transport.quic.*`, `io.libp2p.security.tls.*`) fail with `SSLException: failed to create an SSL_CTX`, and some host tests intermittently fail with `BindException` under parallel execution — these are environmental, not regressions.
+> **Native verification:** [bld-build](.github/workflows/bld-build.yml) runs the complete `./gradlew --no-daemon --stacktrace --continue build dokkaJar` workload on Linux with JDK 11, including Android, formatting, static analysis, documentation and the native test suite. Its Kubo integration uses an owned temporary repository and allocated loopback endpoints; readiness checks both the process and its peer ID. A [prior green combined-source run](https://github.com/CodexCoder21Organization/jvm-libp2p/actions/runs/40629198115) passed 1,443 cases with two existing skips. Releases remain manual as described below; this verification does not publish artifacts.
+
+To run the Kubo integration locally with the same ownership checks (using an installed Kubo 0.34.1 binary):
+
+```bash
+python3 .github/scripts/test_kubo_node.py /path/to/ipfs
+python3 .github/scripts/kubo-node.py run /path/to/ipfs /tmp/kubo-native.log \
+  libp2p/build/kubo-node.properties \
+  ./gradlew --no-daemon :libp2p:test --tests io.libp2p.transport.quic.QuicKuboTestJava
+```
+
+The wrapper creates and removes the fixture used by the test; an existing fixture is rejected to keep concurrent runs separate.
 
 ### Cut a release
 

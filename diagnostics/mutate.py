@@ -16,6 +16,10 @@ else:
         before = 'generator.task.runtimeClasspath.setFrom(sharedRuntime, sharedResourcesDirectory)'
         assert before in text
         text = text.replace(before, 'generator.task.runtimeClasspath.setFrom(sharedRuntime)')
+    elif mode == 'html_templates':
+        before = 'commonFiles.contains(file) || !isDokkaPlugin(file)'
+        assert before in text
+        text = text.replace(before, "(commonFiles.contains(file) && !file.name.startsWith('dokka-base-')) || !isDokkaPlugin(file)")
     elif mode == 'compiler_boundary':
         before = 'commonFiles.contains(file) || !isDokkaPlugin(file)'
         assert before in text

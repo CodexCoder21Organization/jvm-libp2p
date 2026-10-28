@@ -1,75 +1,17 @@
 name: Dokka original cap and maintained regression controls 022124
 on:
   push:
-    branches: [proof/dokka-shared-assets-proof-022124]
+    branches: [proof/dokka-template-control-022124]
 permissions:
   contents: read
 jobs:
-  green:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/checkout@v4
-        with:
-          ref: f6717ac782ab521ed39cdca7ab0eb024352b7fd7
-          fetch-depth: 30
-          path: candidate
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
-      - run: '"$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-30" "build-tools;30.0.3"'
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '11'
-      - name: Run maintained capped contract
-        working-directory: candidate
-        run: |
-          python3 scripts/verify-documentation.py
-          python3 scripts/verify-documentation-laziness.py
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: maintained-candidate
-          path: candidate/build/documentation-verification/**
-  native-green:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/checkout@v4
-        with:
-          ref: f6717ac782ab521ed39cdca7ab0eb024352b7fd7
-          fetch-depth: 30
-          path: candidate
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
-      - run: '"$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-30" "build-tools;30.0.3"'
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '11'
-      - name: Run exact original native preparation and Javadoc workload
-        run: python3 diagnostics/native-verify.py candidate diagnostics/native-budget.gradle native-proof
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: native-candidate
-          path: |
-            native-proof/**
-            candidate/build/dokka-budget-proof/**
   controls:
-    needs: [green, native-green]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
-        mode: [budget, html_alias, javadoc_alias, archive, metadata, original_memory, plugin_boundary, compiler_boundary, no_service, buildscript_compiler, eager_resolution]
+        mode: [html_templates]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/checkout@v4

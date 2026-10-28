@@ -31,6 +31,11 @@ else:
         failure = cases['aggregateRootAndDokkaWorkerMetaspaceBudget'].find('failure')
         expected = '855638016' if mode == 'budget' else '687865856'
         assert failure is not None and expected in failure.text, failure
+    elif mode == 'html_templates':
+        assert cases['combinedBuildAndShutdown'].find('failure') is not None
+        assert cases['allSourceModulesHaveHtmlContent'].find('failure') is not None
+        assert 'Template not found for name "base.ftl"' in log
+        assert 'java.lang.OutOfMemoryError' not in log
     elif mode == 'compiler_boundary':
         assert cases['combinedBuildAndShutdown'].find('failure') is not None
         assert 'java.lang.NoSuchFieldError: MESSAGE_COLLECTOR_KEY' in log

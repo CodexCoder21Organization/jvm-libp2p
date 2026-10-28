@@ -379,6 +379,10 @@ Add the library to the `dependencies` section of the pom file:
 
 ## Building the project 
 
+This fork uses a [Netty transport backport](https://github.com/CodexCoder21Organization/netty/pull/4)
+from kotlin.directory to keep paused child delivery separate from explicit read requests.
+Other Netty modules continue to use the upstream `4.2.10.Final` release.
+
 To build the library you will need just 
 - JDK (Java Development Kit) of version 11 or higher
  

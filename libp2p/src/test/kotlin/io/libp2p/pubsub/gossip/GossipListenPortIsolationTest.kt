@@ -3,6 +3,7 @@ package io.libp2p.pubsub.gossip
 import io.libp2p.core.RpcHandlerTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.RepeatedTest
+import java.net.ServerSocket
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
 
@@ -28,6 +29,13 @@ class GossipListenPortIsolationTest {
                 second.host1.stop(),
                 second.host2.stop()
             ).get(5, TimeUnit.SECONDS)
+        }
+    }
+
+    @RepeatedTest(10)
+    fun `rpc fixture works while its legacy endpoint is owned`() {
+        ServerSocket(40002).use {
+            RpcHandlerTest().test1()
         }
     }
 

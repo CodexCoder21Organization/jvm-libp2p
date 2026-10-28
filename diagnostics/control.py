@@ -5,7 +5,14 @@ import xml.etree.ElementTree as ET
 
 candidate = Path('candidate')
 mode = sys.argv[1]
-if mode in ('native-red', 'original_memory', 'buildscript_compiler'):
+if mode == 'eager_resolution':
+    subprocess.run(['./gradlew', '--no-daemon', 'help'], cwd=candidate, check=True)
+    result = subprocess.run(['python3', 'scripts/verify-documentation-laziness.py'], cwd=candidate)
+    reports = candidate / 'build/documentation-verification/laziness'
+    suite = ET.parse(reports / 'TEST-DocumentationResolutionTest.xml').getroot()
+    assert result.returncode == 1 and suite.get('failures') == '1'
+    assert 'A non-documentation command attempted to resolve Dokka configuration' in (reports / 'gradle.log').read_text()
+elif mode in ('native-red', 'original_memory', 'buildscript_compiler'):
     command = ['python3', 'diagnostics/native-verify.py', str(candidate), 'diagnostics/native-budget.gradle', 'native-proof']
     if mode == 'buildscript_compiler':
         command.append('retention-red')

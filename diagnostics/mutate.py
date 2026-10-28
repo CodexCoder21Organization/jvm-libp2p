@@ -24,6 +24,10 @@ else:
     elif mode == 'buildscript_compiler':
         (checkout / 'compiler-control.gradle.kts').write_text('logger.lifecycle("Original Kotlin buildscript compiler loaded")\n')
         text += "\napply from: 'compiler-control.gradle.kts'\n"
+    elif mode == 'eager_resolution':
+        before = "gradle.taskGraph.whenReady { graph ->\n    if (!graph.allTasks.any { it instanceof DokkaGenerateTask }) return"
+        assert before in text
+        text = text.replace(before, 'gradle.projectsEvaluated {')
     elif mode == 'html_alias':
         before = 'dependsOn dokkaHtmlTask'
         assert before in text

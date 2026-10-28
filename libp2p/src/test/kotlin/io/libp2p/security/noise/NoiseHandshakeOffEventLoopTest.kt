@@ -630,7 +630,7 @@ object NoiseHandshakePathHarness {
             check(execution.inlineHandshakes == 2 && execution.offloadedHandshakes == 0) {
                 "Expected both sides of one uncontended Noise handshake to use the inline path, but execution was $execution"
             }
-            check(execution.inlineCryptoTasks > 0 && execution.inlineCryptoTasksOffEventLoop == 0) {
+            check(execution.inlineCryptoTasks > 0 && execution.inlineCryptoTasksOffEventLoop == 0 && execution.offloadedCryptoTasks == 0) {
                 "Expected all inline Noise crypto tasks to run on their Netty event loops, but execution was $execution"
             }
             println("Noise handshake inline path: execution=$execution")
@@ -663,7 +663,7 @@ object NoiseHandshakePathHarness {
                 "Expected all $SEQUENTIAL_HANDSHAKES sequential Noise handshakes on both peers to stay inline, " +
                     "but execution was $execution"
             }
-            check(execution.inlineCryptoTasks > 0 && execution.inlineCryptoTasksOffEventLoop == 0) {
+            check(execution.inlineCryptoTasks > 0 && execution.inlineCryptoTasksOffEventLoop == 0 && execution.offloadedCryptoTasks == 0) {
                 "Expected all sequential inline Noise crypto tasks to run on their Netty event loops, " +
                     "but execution was $execution"
             }

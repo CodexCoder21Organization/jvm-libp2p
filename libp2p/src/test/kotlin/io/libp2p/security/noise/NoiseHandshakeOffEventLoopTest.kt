@@ -13,6 +13,7 @@ import io.libp2p.core.multiformats.Multiaddr
 import io.libp2p.core.multiformats.Protocol
 import io.libp2p.core.mux.StreamMuxer
 import io.libp2p.core.mux.StreamMuxerProtocol
+import io.libp2p.core.security.SecureChannel
 import io.libp2p.etc.CONNECTION
 import io.libp2p.multistream.MultistreamProtocolDebugV1
 import io.libp2p.protocol.Ping
@@ -20,11 +21,13 @@ import io.libp2p.tools.TestChannel
 import io.netty.buffer.ByteBuf
 import io.netty.buffer.Unpooled
 import io.netty.channel.ChannelHandlerContext
+import io.netty.channel.ChannelInboundHandlerAdapter
 import io.netty.channel.ChannelOutboundHandlerAdapter
 import io.netty.channel.ChannelPromise
 import io.netty.channel.embedded.EmbeddedChannel
 import io.netty.handler.timeout.ReadTimeoutException
 import io.netty.util.ReferenceCountUtil
+import io.netty.util.concurrent.SingleThreadEventExecutor
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.catchThrowable
 import org.junit.jupiter.api.RepeatedTest
@@ -75,6 +78,12 @@ class NoiseHandshakeOffEventLoopTest {
         }
     }
 
+    @RepeatedTest(10)
+    fun `single inline fixture drains queued callbacks before admission`() {
+        val processOutput = runNoiseHandshakeHarness("inline-queued", 10)
+        assertThat(processOutput).contains("Noise handshake inline path:")
+    }
+
     @Test
     fun `single Noise handshake runs crypto inline on event loops`() {
         val processOutput = runNoiseHandshakeHarness("inline", 10)
@@ -86,6 +95,12 @@ class NoiseHandshakeOffEventLoopTest {
     fun `twenty sequential Noise handshakes stay inline and within the latency budget`() {
         val processOutput = runNoiseHandshakeHarness("sequential", 25)
 
+        assertThat(processOutput).contains("Sequential Noise handshakes:")
+    }
+
+    @RepeatedTest(10)
+    fun `sequential inline fixture drains queued callbacks before admission`() {
+        val processOutput = runNoiseHandshakeHarness("sequential-queued", 25)
         assertThat(processOutput).contains("Sequential Noise handshakes:")
     }
 
@@ -587,7 +602,9 @@ object NoiseHandshakePathHarness {
     fun main(args: Array<String>) {
         when (args.singleOrNull()) {
             "inline" -> verifySingleInlineHandshake()
+            "inline-queued" -> verifySingleInlineHandshake(queuedCallbacks = true)
             "sequential" -> verifySequentialInlineHandshakes()
+            "sequential-queued" -> verifySequentialInlineHandshakes(queuedCallbacks = true)
             "saturated" -> verifySaturatedRemoteWaitsTimeOut()
             else -> error(
                 "Expected exactly one harness mode: 'inline', 'sequential', or 'saturated'; " +
@@ -596,22 +613,35 @@ object NoiseHandshakePathHarness {
         }
     }
 
-    private fun verifySingleInlineHandshake() {
-        val executionRecorder = NoiseHandshakeExecutionRecorder().also { it.install() }
+    private fun verifySingleInlineHandshake(queuedCallbacks: Boolean = false) {
+        val computations = ConcurrentLinkedQueue<NoiseHandshakeComputation>()
         val hosts = mutableListOf<Host>()
+        val callbacks = AtomicInteger()
         try {
-            val relay = newNoiseHost(listen = true).also { hosts += it }
-            val dialer = newNoiseHost().also { hosts += it }
+            val relay = newInlineNoiseHost(
+                listen = true,
+                queuedCallbacks = queuedCallbacks,
+                computationObserver = { computations += it },
+                callback = { callbacks.incrementAndGet() }
+            ).also { hosts += it }
+            val dialer = newInlineNoiseHost(
+                queuedCallbacks = queuedCallbacks,
+                computationObserver = { computations += it },
+                callback = { callbacks.incrementAndGet() }
+            ).also { hosts += it }
             startNoiseHosts(hosts)
 
             dialer.network.connect(relay.peerId, relay.listenAddresses().single())
                 .get(5, TimeUnit.SECONDS)
 
-            val execution = executionRecorder.snapshot()
-            check(execution.inlineHandshakes == 2 && execution.offloadedHandshakes == 0) {
+            if (queuedCallbacks) check(callbacks.get() > 0) { "Queued fixture callbacks must execute" }
+            val execution = computations.toList()
+            val inlineHandshakes = execution.filter { it.onEventLoop }.map { it.channelId }.toSet()
+            val offloadedHandshakes = execution.filterNot { it.onEventLoop }.map { it.channelId }.toSet()
+            check(inlineHandshakes.size == 2 && offloadedHandshakes.isEmpty()) {
                 "Expected both sides of one uncontended Noise handshake to use the inline path, but execution was $execution"
             }
-            check(execution.inlineCryptoTasks > 0 && execution.inlineCryptoTasksOffEventLoop == 0) {
+            check(execution.isNotEmpty() && execution.all { it.onEventLoop }) {
                 "Expected all inline Noise crypto tasks to run on their Netty event loops, but execution was $execution"
             }
             println("Noise handshake inline path: execution=$execution")
@@ -620,12 +650,22 @@ object NoiseHandshakePathHarness {
         }
     }
 
-    private fun verifySequentialInlineHandshakes() {
-        val executionRecorder = NoiseHandshakeExecutionRecorder().also { it.install() }
+    private fun verifySequentialInlineHandshakes(queuedCallbacks: Boolean = false) {
+        val computations = ConcurrentLinkedQueue<NoiseHandshakeComputation>()
         val hosts = mutableListOf<Host>()
+        val callbacks = AtomicInteger()
         try {
-            val relay = newNoiseHost(listen = true).also { hosts += it }
-            val dialer = newNoiseHost().also { hosts += it }
+            val relay = newInlineNoiseHost(
+                listen = true,
+                queuedCallbacks = queuedCallbacks,
+                computationObserver = { computations += it },
+                callback = { callbacks.incrementAndGet() }
+            ).also { hosts += it }
+            val dialer = newInlineNoiseHost(
+                queuedCallbacks = queuedCallbacks,
+                computationObserver = { computations += it },
+                callback = { callbacks.incrementAndGet() }
+            ).also { hosts += it }
             startNoiseHosts(hosts)
             val relayAddress = relay.listenAddresses().single()
 
@@ -637,12 +677,15 @@ object NoiseHandshakePathHarness {
                 waitForConnectionsToClose(dialer, relay)
             }
             val elapsedMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt)
-            val execution = executionRecorder.snapshot()
-            check(execution.inlineHandshakes == SEQUENTIAL_HANDSHAKES * 2 && execution.offloadedHandshakes == 0) {
+            if (queuedCallbacks) check(callbacks.get() > 0) { "Queued fixture callbacks must execute" }
+            val execution = computations.toList()
+            val inlineHandshakes = execution.filter { it.onEventLoop }.map { it.channelId }.toSet()
+            val offloadedHandshakes = execution.filterNot { it.onEventLoop }.map { it.channelId }.toSet()
+            check(inlineHandshakes.size == SEQUENTIAL_HANDSHAKES * 2 && offloadedHandshakes.isEmpty()) {
                 "Expected all $SEQUENTIAL_HANDSHAKES sequential Noise handshakes on both peers to stay inline, " +
                     "but execution was $execution"
             }
-            check(execution.inlineCryptoTasks > 0 && execution.inlineCryptoTasksOffEventLoop == 0) {
+            check(execution.isNotEmpty() && execution.all { it.onEventLoop }) {
                 "Expected all sequential inline Noise crypto tasks to run on their Netty event loops, " +
                     "but execution was $execution"
             }
@@ -886,6 +929,107 @@ private class NoiseHandshakeExecutionRecorder {
     }
 }
 
+private fun newInlineNoiseHost(
+    listen: Boolean = false,
+    queuedCallbacks: Boolean = false,
+    computationObserver: (NoiseHandshakeComputation) -> Unit,
+    callback: () -> Unit = {}
+): Host = host {
+    identity { random(KeyType.ED25519) }
+    if (listen) network { listen("/ip4/$NOISE_TEST_HOST/tcp/0") }
+    secureChannels {
+        add { key, _ ->
+            val noise = NoiseXXSecureChannel(key, computationObserver = computationObserver)
+            object : SecureChannel {
+                override val protocolDescriptor = noise.protocolDescriptor
+                override fun initChannel(ch: P2PChannel, selectedProtocol: String): CompletableFuture<SecureChannel.Session> {
+                    if (queuedCallbacks) {
+                        ch.pushHandler(object : ChannelInboundHandlerAdapter() {
+                            override fun channelActive(ctx: ChannelHandlerContext) {
+                                ctx.executor().execute { callback() }
+                                ctx.fireChannelActive()
+                            }
+                            override fun channelRead(ctx: ChannelHandlerContext, msg: Any) {
+                                ctx.executor().execute { callback() }
+                                ctx.fireChannelRead(msg)
+                            }
+                        })
+                    }
+                    ch.pushHandler(NoiseInlineAdmissionGate())
+                    return noise.initChannel(ch, selectedProtocol)
+                }
+            }
+        }
+    }
+    protocols { +Ping() }
+}
+
+// The inline fixture owns its admission order: finish queued callbacks before admitting crypto.
+private class NoiseInlineAdmissionGate : ChannelInboundHandlerAdapter() {
+    private val events = java.util.ArrayDeque<Any>()
+    private var scheduled = false
+    private var closed = false
+
+    override fun channelActive(ctx: ChannelHandlerContext) = enqueue(ctx, NoiseInlineEvent.ACTIVE)
+
+    override fun channelRead(ctx: ChannelHandlerContext, msg: Any) = enqueue(ctx, msg)
+
+    override fun channelReadComplete(ctx: ChannelHandlerContext) = enqueue(ctx, NoiseInlineEvent.READ_COMPLETE)
+
+    private fun enqueue(ctx: ChannelHandlerContext, event: Any) {
+        if (closed) {
+            ReferenceCountUtil.release(event)
+            return
+        }
+        events.addLast(event)
+        schedule(ctx)
+    }
+
+    private fun schedule(ctx: ChannelHandlerContext) {
+        if (scheduled || closed) return
+        scheduled = true
+        try {
+            ctx.executor().execute {
+                scheduled = false
+                drain(ctx)
+            }
+        } catch (failure: Throwable) {
+            scheduled = false
+            releaseEvents()
+            throw failure
+        }
+    }
+
+    private fun drain(ctx: ChannelHandlerContext) {
+        val loop = ctx.executor() as SingleThreadEventExecutor
+        while (events.isNotEmpty() && !closed) {
+            if (loop.pendingTasks() > 0) {
+                schedule(ctx)
+                return
+            }
+            when (val event = events.removeFirst()) {
+                NoiseInlineEvent.ACTIVE -> ctx.fireChannelActive()
+                NoiseInlineEvent.READ_COMPLETE -> ctx.fireChannelReadComplete()
+                else -> ctx.fireChannelRead(event)
+            }
+        }
+    }
+
+    override fun channelInactive(ctx: ChannelHandlerContext) {
+        releaseEvents()
+        ctx.fireChannelInactive()
+    }
+
+    override fun handlerRemoved(ctx: ChannelHandlerContext) = releaseEvents()
+
+    private fun releaseEvents() {
+        closed = true
+        while (events.isNotEmpty()) ReferenceCountUtil.release(events.removeFirst())
+    }
+}
+
+private enum class NoiseInlineEvent { ACTIVE, READ_COMPLETE }
+
 private fun newNoiseHost(listen: Boolean = false, listenPort: Int = 0): Host = host {
     identity {
         random(KeyType.ED25519)
@@ -916,8 +1060,13 @@ private fun runNoiseHandshakeHarness(
 ): String {
     val javaExecutable = java.nio.file.Paths.get(System.getProperty("java.home"), "bin", "java").toString()
     // One shared network worker makes the established Noise anchor visible to every saturation handshake.
-    val eventLoopArguments = if (mode == "saturated") listOf("-Dio.netty.eventLoopThreads=1") else emptyList()
-    val command = listOf(javaExecutable) + eventLoopArguments + listOf(
+    // Each endpoint of the inline fixture owns a separate loop; only one connection is live at a time.
+    val eventLoopArguments = if (mode == "saturated") {
+        listOf("-Dio.netty.eventLoopThreads=1")
+    } else {
+        listOf("-Dio.netty.eventLoopThreads=2")
+    }
+    val command = listOf(javaExecutable, "-Xmx128m") + eventLoopArguments + listOf(
         "-cp",
         System.getProperty("java.class.path"),
         NoiseHandshakePathHarness::class.java.name,

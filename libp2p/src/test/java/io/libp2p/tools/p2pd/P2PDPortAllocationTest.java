@@ -3,11 +3,11 @@ package io.libp2p.tools.p2pd;
 import com.google.protobuf.ByteString;
 import io.libp2p.core.multiformats.Multiaddr;
 import io.libp2p.core.multiformats.Protocol;
+import io.libp2p.tools.LegacyPortGuard;
 import io.libp2p.tools.p2pd.libp2pj.Muxer.MuxerAdress;
 import io.libp2p.tools.p2pd.libp2pj.StreamHandler;
 import java.io.Closeable;
 import java.net.InetSocketAddress;
-import io.libp2p.tools.LegacyPortGuard;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.concurrent.CompletableFuture;
@@ -33,41 +33,45 @@ class P2PDPortAllocationTest {
 
   @Test
   void callbackDoesNotUseCounterSelectedPort() throws Exception {
-    try (ServerSocket occupied = new ServerSocket(46667)) {
+    try (ServerSocket occupied = LegacyPortGuard.holdIfFree(46667)) {
       checkCallback(false);
     }
   }
 
   @Test
   void callbackAdvertisesTheEndpointItOwns() throws Exception {
-    try (ServerSocket occupied = new ServerSocket(46666)) {
-      Thread wrongOwner =
-          new Thread(
-              () -> {
-                try (Socket connection = occupied.accept()) {
-                  P2Pd.StreamInfo.parseDelimitedFrom(connection.getInputStream());
-                  connection
-                      .getOutputStream()
-                      .write("wrongown".getBytes(java.nio.charset.StandardCharsets.UTF_8));
-                  connection.getOutputStream().flush();
-                  connection.getInputStream().read();
-                } catch (java.net.SocketException failure) {
-                  // The corrected fixture never contacts this endpoint; closing the guard ends
-                  // accept().
-                  if (!occupied.isClosed()) throw new AssertionError(failure);
-                } catch (Exception failure) {
-                  throw new AssertionError(failure);
-                }
-              },
-              "legacy-callback-owner");
-      wrongOwner.setDaemon(true);
-      wrongOwner.start();
-      try {
+    try (ServerSocket occupied = LegacyPortGuard.holdIfFree(46666)) {
+      if (occupied == null) {
         checkCallback(false);
-      } finally {
-        occupied.close();
-        wrongOwner.join(5000);
-        Assertions.assertFalse(wrongOwner.isAlive(), "Legacy endpoint owner must terminate");
+      } else {
+        Thread wrongOwner =
+            new Thread(
+                () -> {
+                  try (Socket connection = occupied.accept()) {
+                    P2Pd.StreamInfo.parseDelimitedFrom(connection.getInputStream());
+                    connection
+                        .getOutputStream()
+                        .write("wrongown".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                    connection.getOutputStream().flush();
+                    connection.getInputStream().read();
+                  } catch (java.net.SocketException failure) {
+                    // The corrected fixture never contacts this endpoint; closing the guard ends
+                    // accept().
+                    if (!occupied.isClosed()) throw new AssertionError(failure);
+                  } catch (Exception failure) {
+                    throw new AssertionError(failure);
+                  }
+                },
+                "legacy-callback-owner");
+        wrongOwner.setDaemon(true);
+        wrongOwner.start();
+        try {
+          checkCallback(false);
+        } finally {
+          occupied.close();
+          wrongOwner.join(5000);
+          Assertions.assertFalse(wrongOwner.isAlive(), "Legacy endpoint owner must terminate");
+        }
       }
     }
   }

@@ -54,7 +54,7 @@ class DaemonLauncherPortTest {
             + "' \"$@\"\n",
         StandardCharsets.UTF_8);
     Assertions.assertTrue(launcher.toFile().setExecutable(true));
-    try (ServerSocket occupied = new ServerSocket(11111)) {
+    try (ServerSocket occupied = LegacyPortGuard.holdIfFree(11111)) {
       DaemonLauncher.Daemon daemon = new DaemonLauncher(launcher.toString()).launch(0);
       try {
         byte[] peerId =

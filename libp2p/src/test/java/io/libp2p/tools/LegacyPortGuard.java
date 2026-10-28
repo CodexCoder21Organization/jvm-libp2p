@@ -16,7 +16,8 @@ public final class LegacyPortGuard {
     } catch (BindException failure) {
       // Only an existing owner satisfies the guard's precondition. Other bind failures must fail.
       if (!"Address already in use".equals(failure.getMessage())
-          && !"Address already in use: bind".equals(failure.getMessage())) {
+          && !"Address already in use: bind".equals(failure.getMessage())
+          && !"Address already in use (Bind failed)".equals(failure.getMessage())) {
         throw failure;
       }
       System.out.println("Legacy TCP port " + port + ": already held by another owner");

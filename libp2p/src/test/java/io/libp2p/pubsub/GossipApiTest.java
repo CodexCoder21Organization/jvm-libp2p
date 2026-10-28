@@ -63,10 +63,10 @@ public class GossipApiTest {
     List<TestPubsubMessage> delivered = new ArrayList<>();
     List<WBytes> canonicalIds = new ArrayList<>();
     List<Integer> createdCounts = new ArrayList<>();
-    Rpc.RPC firstDelivery = newMessage("Hello-1");
-    Rpc.RPC duplicateDelivery = newMessage("Hello-1");
 
     try {
+      Rpc.RPC firstDelivery = newMessage("Hello-1");
+      Rpc.RPC duplicateDelivery = newMessage("Hello-1");
       // An empty delivery queue does not acknowledge a queued inbound task.
       // Inspect each message only after onInbound returns on the router event thread.
       router

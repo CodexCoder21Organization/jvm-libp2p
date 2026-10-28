@@ -42,7 +42,7 @@ jobs:
           set -euo pipefail
           archive="$RUNNER_TEMP/bld-kubo.tar.gz"
           curl --fail --location --show-error --connect-timeout 30 --max-time 180 \
-            https://dist.ipfs.io/kubo/v0.34.1/kubo_v0.34.1_linux-amd64.tar.gz -o "$archive"
+            https://github.com/ipfs/kubo/releases/download/v0.34.1/kubo_v0.34.1_linux-amd64.tar.gz -o "$archive"
           echo "42045802fe60c64fb01350bc071190c534d600fe269759c06e27e22b2012fd3e  $archive" | sha256sum --check
           mkdir "$RUNNER_TEMP/bld-kubo"
           tar -xzf "$archive" -C "$RUNNER_TEMP/bld-kubo"

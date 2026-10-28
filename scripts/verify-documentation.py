@@ -256,6 +256,7 @@ def main() -> int:
                 "spotlessCheck",
                 "testClasses",
                 "dokkaJar",
+                "dokkaJavadoc",
                 "dokkaHtml",
                 ":examples:android-chatter:assembleDebug",
                 "verifyDocumentationRuntimeStdlib",

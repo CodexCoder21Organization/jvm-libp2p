@@ -1,0 +1,263 @@
+Classfile /home/runner/work/jvm-libp2p/jvm-libp2p/candidate/libp2p/build/classes/kotlin/main/io/libp2p/core/Host.class
+  Last modified Oct 28, 2026; size 3773 bytes
+  MD5 checksum 544f729d89ee5019f31d7c06581b8de4
+  Compiled from "Host.kt"
+public interface io.libp2p.core.Host
+  minor version: 0
+  major version: 55
+  flags: (0x0601) ACC_PUBLIC, ACC_INTERFACE, ACC_ABSTRACT
+  this_class: #2                          // io/libp2p/core/Host
+  super_class: #4                         // java/lang/Object
+  interfaces: 0, fields: 0, methods: 17, attributes: 2
+Constant pool:
+   #1 = Utf8               io/libp2p/core/Host
+   #2 = Class              #1             // io/libp2p/core/Host
+   #3 = Utf8               java/lang/Object
+   #4 = Class              #3             // java/lang/Object
+   #5 = Utf8               getPrivKey
+   #6 = Utf8               ()Lio/libp2p/core/crypto/PrivKey;
+   #7 = Utf8               Lorg/jetbrains/annotations/NotNull;
+   #8 = Utf8               getPeerId
+   #9 = Utf8               ()Lio/libp2p/core/PeerId;
+  #10 = Utf8               getNetwork
+  #11 = Utf8               ()Lio/libp2p/core/Network;
+  #12 = Utf8               getAddressBook
+  #13 = Utf8               ()Lio/libp2p/core/AddressBook;
+  #14 = Utf8               listenAddresses
+  #15 = Utf8               ()Ljava/util/List;
+  #16 = Utf8               ()Ljava/util/List<Lio/libp2p/core/multiformats/Multiaddr;>;
+  #17 = Utf8               getStreams
+  #18 = Utf8               ()Ljava/util/List<Lio/libp2p/core/Stream;>;
+  #19 = Utf8               start
+  #20 = Utf8               ()Ljava/util/concurrent/CompletableFuture;
+  #21 = Utf8               ()Ljava/util/concurrent/CompletableFuture<Ljava/lang/Void;>;
+  #22 = Utf8               stop
+  #23 = Utf8               addStreamVisitor
+  #24 = Utf8               (Lio/libp2p/core/ChannelVisitor;)V
+  #25 = Utf8               (Lio/libp2p/core/ChannelVisitor<Lio/libp2p/core/Stream;>;)V
+  #26 = Utf8               removeStreamVisitor
+  #27 = Utf8               addProtocolHandler
+  #28 = Utf8               (Lio/libp2p/core/multistream/ProtocolBinding;)V
+  #29 = Utf8               (Lio/libp2p/core/multistream/ProtocolBinding<+Ljava/lang/Object;>;)V
+  #30 = Utf8               getProtocols
+  #31 = Utf8               ()Ljava/util/List<Lio/libp2p/core/multistream/ProtocolBinding<Ljava/lang/Object;>;>;
+  #32 = Utf8               removeProtocolHandler
+  #33 = Utf8               addConnectionHandler
+  #34 = Utf8               (Lio/libp2p/core/ConnectionHandler;)V
+  #35 = Utf8               removeConnectionHandler
+  #36 = Utf8               newStream
+  #37 = Utf8               (Ljava/util/List;Lio/libp2p/core/Connection;)Lio/libp2p/core/StreamPromise;
+  #38 = Utf8               <TController:Ljava/lang/Object;>(Ljava/util/List<Ljava/lang/String;>;Lio/libp2p/core/Connection;)Lio/libp2p/core/StreamPromise<TTController;>;
+  #39 = Utf8               (Ljava/util/List;Lio/libp2p/core/PeerId;[Lio/libp2p/core/multiformats/Multiaddr;)Lio/libp2p/core/StreamPromise;
+  #40 = Utf8               <TController:Ljava/lang/Object;>(Ljava/util/List<Ljava/lang/String;>;Lio/libp2p/core/PeerId;[Lio/libp2p/core/multiformats/Multiaddr;)Lio/libp2p/core/StreamPromise<TTController;>;
+  #41 = Utf8               Lkotlin/Metadata;
+  #42 = Utf8               mv
+  #43 = Integer            1
+  #44 = Integer            6
+  #45 = Integer            0
+  #46 = Utf8               k
+  #47 = Utf8               xi
+  #48 = Integer            48
+  #49 = Utf8               d1
+  #50 = Utf8               \u0000\u0088\u0001\n\u0002\u0018\u0002\n\u0002\u0010\u0000\n\u0000\n\u0002\u0018\u0002\n\u0002\b\u0003\n\u0002\u0018\u0002\n\u0002\b\u0003\n\u0002\u0018\u0002\n\u0002\b\u0003\n\u0002\u0018\u0002\n\u0002\b\u0003\n\u0002\u0010 \n\u0002\u0018\u0002\n\u0002\b\u0003\n\u0002\u0010\u0002\n\u0000\n\u0002\u0018\u0002\n\u0002\b\u0002\n\u0002\u0018\u0002\n\u0002\b\u0002\n\u0002\u0018\u0002\n\u0002\b\u0002\n\u0002\u0018\u0002\n\u0000\n\u0002\u0018\u0002\n\u0002\b\u0002\n\u0002\u0010\u000e\n\u0002\u0018\u0002\n\u0000\n\u0002\u0018\u0002\n\u0002\b\u0002\n\u0002\u0010\u0011\n\u0002\b\u0005\n\u0002\u0018\u0002\n\u0002\u0018\u0002\n\u0002\b\u0002\bf\u0018\u00002\u00020\u0001J\u0010\u0010\u0017\u001a\u00020\u00182\u0006\u0010\u0019\u001a\u00020\u001aH&J\u0016\u0010\u001b\u001a\u00020\u00182\f\u0010\u001c\u001a\b\u0012\u0004\u0012\u00020\u00010\u001dH&J\u0016\u0010\u001e\u001a\u00020\u00182\f\u0010\u001f\u001a\b\u0012\u0004\u0012\u00020\u00140 H&J\u0014\u0010!\u001a\u000e\u0012\n\u0012\b\u0012\u0004\u0012\u00020\u00010\u001d0\u0013H&J\u000e\u0010\"\u001a\b\u0012\u0004\u0012\u00020#0\u0013H&J.\u0010$\u001a\b\u0012\u0004\u0012\u0002H&0%\"\u0004\b\u0000\u0010&2\u0010\u0010\'\u001a\f\u0012\b\u0012\u00060(j\u0002`)0\u00132\u0006\u0010*\u001a\u00020+H&JG\u0010$\u001a\b\u0012\u0004\u0012\u0002H&0%\"\u0004\b\u0000\u0010&2\u0010\u0010\'\u001a\f\u0012\b\u0012\u00060(j\u0002`)0\u00132\u0006\u0010,\u001a\u00020\u000b2\u0012\u0010-\u001a\n\u0012\u0006\b\u0001\u0012\u00020#0.\"\u00020#H&¢\u0006\u0002\u0010/J\u0010\u00100\u001a\u00020\u00182\u0006\u0010\u0019\u001a\u00020\u001aH&J\u0016\u00101\u001a\u00020\u00182\f\u0010\u001c\u001a\b\u0012\u0004\u0012\u00020\u00010\u001dH&J\u0016\u00102\u001a\u00020\u00182\f\u0010\u001f\u001a\b\u0012\u0004\u0012\u00020\u00140 H&J\u000e\u00103\u001a\b\u0012\u0004\u0012\u00020504H&J\u000e\u00106\u001a\b\u0012\u0004\u0012\u00020504H&R\u0012\u0010\u0002\u001a\u00020\u0003X¦\u0004¢\u0006\u0006\u001a\u0004\b\u0004\u0010\u0005R\u0012\u0010\u0006\u001a\u00020\u0007X¦\u0004¢\u0006\u0006\u001a\u0004\b\b\u0010\tR\u0012\u0010\n\u001a\u00020\u000bX¦\u0004¢\u0006\u0006\u001a\u0004\b\f\u0010\rR\u0012\u0010\u000e\u001a\u00020\u000fX¦\u0004¢\u0006\u0006\u001a\u0004\b\u0010\u0010\u0011R\u0018\u0010\u0012\u001a\b\u0012\u0004\u0012\u00020\u00140\u0013X¦\u0004¢\u0006\u0006\u001a\u0004\b\u0015\u0010\u0016ø\u0001\u0000\u0082\u0002\u0006\n\u0004\b!0\u0001¨\u00067À\u0006\u0001
+  #51 = Utf8               d2
+  #52 = Utf8               Lio/libp2p/core/Host;
+  #53 = Utf8
+  #54 = Utf8               addressBook
+  #55 = Utf8               Lio/libp2p/core/AddressBook;
+  #56 = Utf8               network
+  #57 = Utf8               Lio/libp2p/core/Network;
+  #58 = Utf8               peerId
+  #59 = Utf8               Lio/libp2p/core/PeerId;
+  #60 = Utf8               privKey
+  #61 = Utf8               Lio/libp2p/core/crypto/PrivKey;
+  #62 = Utf8               streams
+  #63 = Utf8               Lio/libp2p/core/Stream;
+  #64 = Utf8               handler
+  #65 = Utf8               Lio/libp2p/core/ConnectionHandler;
+  #66 = Utf8               protocolBinding
+  #67 = Utf8               Lio/libp2p/core/multistream/ProtocolBinding;
+  #68 = Utf8               streamVisitor
+  #69 = Utf8               Lio/libp2p/core/ChannelVisitor;
+  #70 = Utf8               Lio/libp2p/core/multiformats/Multiaddr;
+  #71 = Utf8               Lio/libp2p/core/StreamPromise;
+  #72 = Utf8               TController
+  #73 = Utf8               protocols
+  #74 = Utf8               Lio/libp2p/core/multistream/ProtocolId;
+  #75 = Utf8               conn
+  #76 = Utf8               Lio/libp2p/core/Connection;
+  #77 = Utf8               peer
+  #78 = Utf8               addr
+  #79 = Utf8               Ljava/util/concurrent/CompletableFuture;
+  #80 = Utf8               Ljava/lang/Void;
+  #81 = Utf8               libp2p
+  #82 = Utf8               Host.kt
+  #83 = Utf8               RuntimeInvisibleAnnotations
+  #84 = Utf8               Signature
+  #85 = Utf8               RuntimeInvisibleParameterAnnotations
+  #86 = Utf8               SourceFile
+  #87 = Utf8               RuntimeVisibleAnnotations
+{
+  public abstract io.libp2p.core.crypto.PrivKey getPrivKey();
+    descriptor: ()Lio/libp2p/core/crypto/PrivKey;
+    flags: (0x0401) ACC_PUBLIC, ACC_ABSTRACT
+    RuntimeInvisibleAnnotations:
+      0: #7()
+        org.jetbrains.annotations.NotNull
+
+  public abstract io.libp2p.core.PeerId getPeerId();
+    descriptor: ()Lio/libp2p/core/PeerId;
+    flags: (0x0401) ACC_PUBLIC, ACC_ABSTRACT
+    RuntimeInvisibleAnnotations:
+      0: #7()
+        org.jetbrains.annotations.NotNull
+
+  public abstract io.libp2p.core.Network getNetwork();
+    descriptor: ()Lio/libp2p/core/Network;
+    flags: (0x0401) ACC_PUBLIC, ACC_ABSTRACT
+    RuntimeInvisibleAnnotations:
+      0: #7()
+        org.jetbrains.annotations.NotNull
+
+  public abstract io.libp2p.core.AddressBook getAddressBook();
+    descriptor: ()Lio/libp2p/core/AddressBook;
+    flags: (0x0401) ACC_PUBLIC, ACC_ABSTRACT
+    RuntimeInvisibleAnnotations:
+      0: #7()
+        org.jetbrains.annotations.NotNull
+
+  public abstract java.util.List<io.libp2p.core.multiformats.Multiaddr> listenAddresses();
+    descriptor: ()Ljava/util/List;
+    flags: (0x0401) ACC_PUBLIC, ACC_ABSTRACT
+    Signature: #16                          // ()Ljava/util/List<Lio/libp2p/core/multiformats/Multiaddr;>;
+    RuntimeInvisibleAnnotations:
+      0: #7()
+        org.jetbrains.annotations.NotNull
+
+  public abstract java.util.List<io.libp2p.core.Stream> getStreams();
+    descriptor: ()Ljava/util/List;
+    flags: (0x0401) ACC_PUBLIC, ACC_ABSTRACT
+    Signature: #18                          // ()Ljava/util/List<Lio/libp2p/core/Stream;>;
+    RuntimeInvisibleAnnotations:
+      0: #7()
+        org.jetbrains.annotations.NotNull
+
+  public abstract java.util.concurrent.CompletableFuture<java.lang.Void> start();
+    descriptor: ()Ljava/util/concurrent/CompletableFuture;
+    flags: (0x0401) ACC_PUBLIC, ACC_ABSTRACT
+    Signature: #21                          // ()Ljava/util/concurrent/CompletableFuture<Ljava/lang/Void;>;
+    RuntimeInvisibleAnnotations:
+      0: #7()
+        org.jetbrains.annotations.NotNull
+
+  public abstract java.util.concurrent.CompletableFuture<java.lang.Void> stop();
+    descriptor: ()Ljava/util/concurrent/CompletableFuture;
+    flags: (0x0401) ACC_PUBLIC, ACC_ABSTRACT
+    Signature: #21                          // ()Ljava/util/concurrent/CompletableFuture<Ljava/lang/Void;>;
+    RuntimeInvisibleAnnotations:
+      0: #7()
+        org.jetbrains.annotations.NotNull
+
+  public abstract void addStreamVisitor(io.libp2p.core.ChannelVisitor<io.libp2p.core.Stream>);
+    descriptor: (Lio/libp2p/core/ChannelVisitor;)V
+    flags: (0x0401) ACC_PUBLIC, ACC_ABSTRACT
+    Signature: #25                          // (Lio/libp2p/core/ChannelVisitor<Lio/libp2p/core/Stream;>;)V
+    RuntimeInvisibleParameterAnnotations:
+      parameter 0:
+        0: #7()
+          org.jetbrains.annotations.NotNull
+
+  public abstract void removeStreamVisitor(io.libp2p.core.ChannelVisitor<io.libp2p.core.Stream>);
+    descriptor: (Lio/libp2p/core/ChannelVisitor;)V
+    flags: (0x0401) ACC_PUBLIC, ACC_ABSTRACT
+    Signature: #25                          // (Lio/libp2p/core/ChannelVisitor<Lio/libp2p/core/Stream;>;)V
+    RuntimeInvisibleParameterAnnotations:
+      parameter 0:
+        0: #7()
+          org.jetbrains.annotations.NotNull
+
+  public abstract void addProtocolHandler(io.libp2p.core.multistream.ProtocolBinding<? extends java.lang.Object>);
+    descriptor: (Lio/libp2p/core/multistream/ProtocolBinding;)V
+    flags: (0x0401) ACC_PUBLIC, ACC_ABSTRACT
+    Signature: #29                          // (Lio/libp2p/core/multistream/ProtocolBinding<+Ljava/lang/Object;>;)V
+    RuntimeInvisibleParameterAnnotations:
+      parameter 0:
+        0: #7()
+          org.jetbrains.annotations.NotNull
+
+  public abstract java.util.List<io.libp2p.core.multistream.ProtocolBinding<java.lang.Object>> getProtocols();
+    descriptor: ()Ljava/util/List;
+    flags: (0x0401) ACC_PUBLIC, ACC_ABSTRACT
+    Signature: #31                          // ()Ljava/util/List<Lio/libp2p/core/multistream/ProtocolBinding<Ljava/lang/Object;>;>;
+    RuntimeInvisibleAnnotations:
+      0: #7()
+        org.jetbrains.annotations.NotNull
+
+  public abstract void removeProtocolHandler(io.libp2p.core.multistream.ProtocolBinding<? extends java.lang.Object>);
+    descriptor: (Lio/libp2p/core/multistream/ProtocolBinding;)V
+    flags: (0x0401) ACC_PUBLIC, ACC_ABSTRACT
+    Signature: #29                          // (Lio/libp2p/core/multistream/ProtocolBinding<+Ljava/lang/Object;>;)V
+    RuntimeInvisibleParameterAnnotations:
+      parameter 0:
+        0: #7()
+          org.jetbrains.annotations.NotNull
+
+  public abstract void addConnectionHandler(io.libp2p.core.ConnectionHandler);
+    descriptor: (Lio/libp2p/core/ConnectionHandler;)V
+    flags: (0x0401) ACC_PUBLIC, ACC_ABSTRACT
+    RuntimeInvisibleParameterAnnotations:
+      parameter 0:
+        0: #7()
+          org.jetbrains.annotations.NotNull
+
+  public abstract void removeConnectionHandler(io.libp2p.core.ConnectionHandler);
+    descriptor: (Lio/libp2p/core/ConnectionHandler;)V
+    flags: (0x0401) ACC_PUBLIC, ACC_ABSTRACT
+    RuntimeInvisibleParameterAnnotations:
+      parameter 0:
+        0: #7()
+          org.jetbrains.annotations.NotNull
+
+  public abstract <TController extends java.lang.Object> io.libp2p.core.StreamPromise<TController> newStream(java.util.List<java.lang.String>, io.libp2p.core.Connection);
+    descriptor: (Ljava/util/List;Lio/libp2p/core/Connection;)Lio/libp2p/core/StreamPromise;
+    flags: (0x0401) ACC_PUBLIC, ACC_ABSTRACT
+    Signature: #38                          // <TController:Ljava/lang/Object;>(Ljava/util/List<Ljava/lang/String;>;Lio/libp2p/core/Connection;)Lio/libp2p/core/StreamPromise<TTController;>;
+    RuntimeInvisibleAnnotations:
+      0: #7()
+        org.jetbrains.annotations.NotNull
+    RuntimeInvisibleParameterAnnotations:
+      parameter 0:
+        0: #7()
+          org.jetbrains.annotations.NotNull
+      parameter 1:
+        0: #7()
+          org.jetbrains.annotations.NotNull
+
+  public abstract <TController extends java.lang.Object> io.libp2p.core.StreamPromise<TController> newStream(java.util.List<java.lang.String>, io.libp2p.core.PeerId, io.libp2p.core.multiformats.Multiaddr...);
+    descriptor: (Ljava/util/List;Lio/libp2p/core/PeerId;[Lio/libp2p/core/multiformats/Multiaddr;)Lio/libp2p/core/StreamPromise;
+    flags: (0x0481) ACC_PUBLIC, ACC_VARARGS, ACC_ABSTRACT
+    Signature: #40                          // <TController:Ljava/lang/Object;>(Ljava/util/List<Ljava/lang/String;>;Lio/libp2p/core/PeerId;[Lio/libp2p/core/multiformats/Multiaddr;)Lio/libp2p/core/StreamPromise<TTController;>;
+    RuntimeInvisibleAnnotations:
+      0: #7()
+        org.jetbrains.annotations.NotNull
+    RuntimeInvisibleParameterAnnotations:
+      parameter 0:
+        0: #7()
+          org.jetbrains.annotations.NotNull
+      parameter 1:
+        0: #7()
+          org.jetbrains.annotations.NotNull
+      parameter 2:
+        0: #7()
+          org.jetbrains.annotations.NotNull
+}
+SourceFile: "Host.kt"
+RuntimeVisibleAnnotations:
+  0: #41(#42=[I#43,I#44,I#45],#46=I#43,#47=I#48,#49=[s#50],#51=[s#52,s#53,s#54,s#55,s#12,s#13,s#56,s#57,s#10,s#11,s#58,s#59,s#8,s#9,s#60,s#61,s#5,s#6,s#62,s#53,s#63,s#17,s#15,s#33,s#53,s#64,s#65,s#27,s#66,s#67,s#23,s#68,s#69,s#30,s#14,s#70,s#36,s#71,s#72,s#73,s#53,s#74,s#75,s#76,s#77,s#78,s#53,s#39,s#35,s#32,s#26,s#19,s#79,s#80,s#22,s#81])
+    kotlin.Metadata(
+      mv=[1,6,0]
+      k=1
+      xi=48
+      d1=["\u0000\u0088\u0001\n\u0002\u0018\u0002\n\u0002\u0010\u0000\n\u0000\n\u0002\u0018\u0002\n\u0002\b\u0003\n\u0002\u0018\u0002\n\u0002\b\u0003\n\u0002\u0018\u0002\n\u0002\b\u0003\n\u0002\u0018\u0002\n\u0002\b\u0003\n\u0002\u0010 \n\u0002\u0018\u0002\n\u0002\b\u0003\n\u0002\u0010\u0002\n\u0000\n\u0002\u0018\u0002\n\u0002\b\u0002\n\u0002\u0018\u0002\n\u0002\b\u0002\n\u0002\u0018\u0002\n\u0002\b\u0002\n\u0002\u0018\u0002\n\u0000\n\u0002\u0018\u0002\n\u0002\b\u0002\n\u0002\u0010\u000e\n\u0002\u0018\u0002\n\u0000\n\u0002\u0018\u0002\n\u0002\b\u0002\n\u0002\u0010\u0011\n\u0002\b\u0005\n\u0002\u0018\u0002\n\u0002\u0018\u0002\n\u0002\b\u0002\bf\u0018\u00002\u00020\u0001J\u0010\u0010\u0017\u001a\u00020\u00182\u0006\u0010\u0019\u001a\u00020\u001aH&J\u0016\u0010\u001b\u001a\u00020\u00182\f\u0010\u001c\u001a\b\u0012\u0004\u0012\u00020\u00010\u001dH&J\u0016\u0010\u001e\u001a\u00020\u00182\f\u0010\u001f\u001a\b\u0012\u0004\u0012\u00020\u00140 H&J\u0014\u0010!\u001a\u000e\u0012\n\u0012\b\u0012\u0004\u0012\u00020\u00010\u001d0\u0013H&J\u000e\u0010\"\u001a\b\u0012\u0004\u0012\u00020#0\u0013H&J.\u0010$\u001a\b\u0012\u0004\u0012\u0002H&0%\"\u0004\b\u0000\u0010&2\u0010\u0010\'\u001a\f\u0012\b\u0012\u00060(j\u0002`)0\u00132\u0006\u0010*\u001a\u00020+H&JG\u0010$\u001a\b\u0012\u0004\u0012\u0002H&0%\"\u0004\b\u0000\u0010&2\u0010\u0010\'\u001a\f\u0012\b\u0012\u00060(j\u0002`)0\u00132\u0006\u0010,\u001a\u00020\u000b2\u0012\u0010-\u001a\n\u0012\u0006\b\u0001\u0012\u00020#0.\"\u00020#H&¢\u0006\u0002\u0010/J\u0010\u00100\u001a\u00020\u00182\u0006\u0010\u0019\u001a\u00020\u001aH&J\u0016\u00101\u001a\u00020\u00182\f\u0010\u001c\u001a\b\u0012\u0004\u0012\u00020\u00010\u001dH&J\u0016\u00102\u001a\u00020\u00182\f\u0010\u001f\u001a\b\u0012\u0004\u0012\u00020\u00140 H&J\u000e\u00103\u001a\b\u0012\u0004\u0012\u00020504H&J\u000e\u00106\u001a\b\u0012\u0004\u0012\u00020504H&R\u0012\u0010\u0002\u001a\u00020\u0003X¦\u0004¢\u0006\u0006\u001a\u0004\b\u0004\u0010\u0005R\u0012\u0010\u0006\u001a\u00020\u0007X¦\u0004¢\u0006\u0006\u001a\u0004\b\b\u0010\tR\u0012\u0010\n\u001a\u00020\u000bX¦\u0004¢\u0006\u0006\u001a\u0004\b\f\u0010\rR\u0012\u0010\u000e\u001a\u00020\u000fX¦\u0004¢\u0006\u0006\u001a\u0004\b\u0010\u0010\u0011R\u0018\u0010\u0012\u001a\b\u0012\u0004\u0012\u00020\u00140\u0013X¦\u0004¢\u0006\u0006\u001a\u0004\b\u0015\u0010\u0016ø\u0001\u0000\u0082\u0002\u0006\n\u0004\b!0\u0001¨\u00067À\u0006\u0001"]
+      d2=["Lio/libp2p/core/Host;","","addressBook","Lio/libp2p/core/AddressBook;","getAddressBook","()Lio/libp2p/core/AddressBook;","network","Lio/libp2p/core/Network;","getNetwork","()Lio/libp2p/core/Network;","peerId","Lio/libp2p/core/PeerId;","getPeerId","()Lio/libp2p/core/PeerId;","privKey","Lio/libp2p/core/crypto/PrivKey;","getPrivKey","()Lio/libp2p/core/crypto/PrivKey;","streams","","Lio/libp2p/core/Stream;","getStreams","()Ljava/util/List;","addConnectionHandler","","handler","Lio/libp2p/core/ConnectionHandler;","addProtocolHandler","protocolBinding","Lio/libp2p/core/multistream/ProtocolBinding;","addStreamVisitor","streamVisitor","Lio/libp2p/core/ChannelVisitor;","getProtocols","listenAddresses","Lio/libp2p/core/multiformats/Multiaddr;","newStream","Lio/libp2p/core/StreamPromise;","TController","protocols","","Lio/libp2p/core/multistream/ProtocolId;","conn","Lio/libp2p/core/Connection;","peer","addr","","(Ljava/util/List;Lio/libp2p/core/PeerId;[Lio/libp2p/core/multiformats/Multiaddr;)Lio/libp2p/core/StreamPromise;","removeConnectionHandler","removeProtocolHandler","removeStreamVisitor","start","Ljava/util/concurrent/CompletableFuture;","Ljava/lang/Void;","stop","libp2p"]
+    )

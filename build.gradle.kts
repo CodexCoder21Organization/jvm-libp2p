@@ -34,6 +34,7 @@ plugins {
 
 abstract class DokkaWorkerBudget : BuildService<BuildServiceParameters.None>
 
+// Keep generation serial so Javadoc tasks reuse one worker across modules.
 val dokkaWorkerBudget = gradle.sharedServices.registerIfAbsent("dokkaWorkerBudget", DokkaWorkerBudget::class) {
     maxParallelUsages.set(1)
 }
@@ -224,9 +225,10 @@ configure(
         usesService(dokkaWorkerBudget)
     }
 
+    val dokkaHtmlTask = tasks.named<DokkaGeneratePublicationTask>("dokkaGeneratePublicationHtml")
     tasks.register("dokkaHtml") {
         group = JavaBasePlugin.DOCUMENTATION_GROUP
-        dependsOn("dokkaGenerateHtml")
+        dependsOn(dokkaHtmlTask)
     }
     val dokkaJavadocTask = tasks.named<DokkaGeneratePublicationTask>("dokkaGeneratePublicationJavadoc")
     tasks.register("dokkaJavadoc") {

@@ -1,0 +1,217 @@
+import groovy.json.JsonOutput
+import org.gradle.api.artifacts.component.ModuleComponentIdentifier
+
+import java.lang.management.ManagementFactory
+import java.net.URL
+import java.net.URLClassLoader
+import java.nio.charset.StandardCharsets
+import java.util.concurrent.TimeUnit
+
+def rootDirectory = gradle.startParameter.currentDir
+def outputArgument = gradle.startParameter.projectProperties.get('documentationVerificationOutput')
+def outputDirectory = outputArgument == null
+        ? new File(rootDirectory, 'build/documentation-verification')
+        : new File(outputArgument)
+def profileDirectory = new File(outputDirectory, 'profiles')
+profileDirectory.mkdirs()
+
+def ledger = new File(profileDirectory, 'tasks.jsonl')
+ledger.text = ''
+
+def processId = ProcessHandle.current().pid()
+def jcmdName = System.getProperty('os.name').toLowerCase().contains('windows') ? 'jcmd.exe' : 'jcmd'
+def jcmd = new File(new File(System.getProperty('java.home'), 'bin'), jcmdName)
+def classicDokkaProjects = new HashSet<String>()
+
+def parseSize = { String raw ->
+    def match = raw =~ /(?i)^([0-9]+)([kmgt]?)$/
+    if (!match.matches()) return null
+    long amount = Long.parseLong(match.group(1))
+    switch (match.group(2).toLowerCase()) {
+        case 'k': return amount * 1024L
+        case 'm': return amount * 1024L * 1024L
+        case 'g': return amount * 1024L * 1024L * 1024L
+        case 't': return amount * 1024L * 1024L * 1024L * 1024L
+        default: return amount
+    }
+}
+
+def parseMetaspaceCap = { String commandLine ->
+    def match = commandLine =~ /(?i)(?:^|\s)-XX:MaxMetaspaceSize=([^\s]+)/
+    match.find() ? parseSize(match.group(1)) : null
+}
+
+def publicClassLoaderChain = {
+    def chain = []
+    ClassLoader loader = Thread.currentThread().getContextClassLoader()
+    int depth = 0
+    while (loader != null && depth < 16) {
+        def entry = [
+                label: loader.toString(),
+                className: loader.getClass().getName(),
+                parentClass: loader.getParent() == null ? null : loader.getParent().getClass().getName()
+        ]
+        if (loader instanceof URLClassLoader) {
+            URL[] urls = ((URLClassLoader) loader).getURLs()
+            entry.urls = urls.collect { it.toExternalForm() }
+        }
+        chain << entry
+        loader = loader.getParent()
+        depth++
+    }
+    chain
+}
+
+def appendDiagnostic = { long pid, String command, File target ->
+    if (!target.parentFile.exists() && !target.parentFile.mkdirs()) {
+        throw new GradleException("Could not create documentation profile directory ${target.parentFile}")
+    }
+    long previousLength = target.exists() ? target.length() : 0L
+    target << "\nCOMMAND ${command}\n"
+    def diagnostic = new ProcessBuilder(jcmd.path, pid.toString(), command)
+            .redirectErrorStream(true)
+            .redirectOutput(ProcessBuilder.Redirect.appendTo(target))
+            .start()
+    if (!diagnostic.waitFor(20, TimeUnit.SECONDS)) {
+        diagnostic.destroyForcibly()
+        diagnostic.waitFor(5, TimeUnit.SECONDS)
+        throw new GradleException("jcmd ${command} did not finish for JVM ${pid} within 20 seconds")
+    }
+    if (diagnostic.exitValue() != 0) {
+        throw new GradleException("jcmd ${command} failed for JVM ${pid}: ${target.text}")
+    }
+    byte[] bytes = target.bytes
+    new String(bytes, (int) previousLength, bytes.length - (int) previousLength, StandardCharsets.UTF_8)
+}
+
+def recordDocumentationTask = { task, state ->
+    def meta = ManagementFactory.memoryPoolMXBeans.find { it.name == 'Metaspace' }?.usage
+    if (meta == null) throw new GradleException('The Gradle JVM did not expose its Metaspace memory pool')
+
+    def workers = ProcessHandle.current().descendants()
+            .filter { process -> process.info().commandLine().orElse('').contains('GradleWorkerMain') }
+            .map { process -> process.pid() }
+            .collect(java.util.stream.Collectors.toList())
+            .sort()
+
+    def safeTaskName = task.path.replaceAll('[^A-Za-z0-9_.-]', '_')
+    def rootReport = new File(profileDirectory, "${safeTaskName}-root-${processId}.txt")
+    def rootCommandLine = appendDiagnostic(processId, 'VM.command_line', rootReport)
+    appendDiagnostic(processId, 'VM.classloader_stats', rootReport)
+    def rootClassLoaders = publicClassLoaderChain()
+    rootReport << "\nPUBLIC_URL_CLASSLOADER_CHAIN ${JsonOutput.toJson(rootClassLoaders)}\n"
+    appendDiagnostic(processId, 'GC.heap_info', rootReport)
+
+    def workerReports = workers.collect { long workerPid ->
+        def workerReport = new File(profileDirectory, "${safeTaskName}-worker-${workerPid}.txt")
+        workerReport << "DOKKA_WORKER_LABEL task=${task.path} pid=${workerPid} main=GradleWorkerMain\n"
+        def commandLine = appendDiagnostic(workerPid, 'VM.command_line', workerReport)
+        appendDiagnostic(workerPid, 'VM.classloader_stats', workerReport)
+        appendDiagnostic(workerPid, 'GC.heap_info', workerReport)
+        [pid: workerPid, commandLine: commandLine, maxMetaspaceBytes: parseMetaspaceCap(commandLine)]
+    }
+
+    def record = [
+            task: task.path,
+            phase: 'after',
+            failure: state.failure == null ? null : state.failure.toString(),
+            rootPid: processId,
+            rootMetaspaceUsedBytes: meta.used,
+            rootMetaspaceCommittedBytes: meta.committed,
+            rootMetaspaceMaxBytes: meta.max,
+            rootCommandLine: rootCommandLine,
+            rootClassLoaders: rootClassLoaders,
+            workers: workerReports
+    ]
+    ledger << JsonOutput.toJson(record) + '\n'
+    ledger.withWriterAppend('UTF-8') { it.flush() }
+}
+
+gradle.taskGraph.afterTask { task, state ->
+    String name = task.name.toLowerCase(Locale.ROOT)
+    boolean documentationGeneration = name.startsWith('dokkagenerate') ||
+            (classicDokkaProjects.contains(task.project.path) &&
+                    (name.startsWith('dokkahtml') || name.startsWith('dokkajavadoc')) && !name.endsWith('jar'))
+    if (documentationGeneration) recordDocumentationTask(task, state)
+}
+
+gradle.projectsEvaluated {
+    gradle.rootProject.allprojects.each { project ->
+        if (project.plugins.hasPlugin('org.jetbrains.dokka')) {
+            boolean dokkaV2 = project.tasks.names.any { it.toLowerCase(Locale.ROOT).startsWith('dokkagenerate') }
+            if (dokkaV2) {
+                def dokkaExtension = project.extensions.findByName('dokka')
+                if (dokkaExtension == null) {
+                    throw new GradleException("Dokka v2 is applied to ${project.path}, but its public 'dokka' extension is missing")
+                }
+                dokkaExtension.dokkaPublications.configureEach { publication ->
+                    publication.offlineMode.set(true)
+                }
+            } else {
+                classicDokkaProjects.add(project.path)
+                project.tasks.configureEach { task ->
+                    String name = task.name.toLowerCase(Locale.ROOT)
+                    if (name.startsWith('dokkahtml') || name.startsWith('dokkajavadoc')) {
+                        task.offlineMode.set(true)
+                    }
+                }
+            }
+        }
+    }
+
+    gradle.rootProject.tasks.register('verifyDocumentationRuntimeStdlib') {
+        group = 'verification'
+        description = 'Records and verifies the Kotlin standard library versions resolved by runtimeClasspath.'
+        doLast {
+            def components = []
+            def requiredConfigurations = [
+                    ':libp2p:runtimeClasspath',
+                    ':examples:android-chatter:debugRuntimeClasspath',
+                    ':examples:android-chatter:releaseRuntimeClasspath'
+            ] as Set
+            def inspectedConfigurations = [] as Set
+            gradle.rootProject.allprojects.each { project ->
+                def configurationNames = ['runtimeClasspath']
+                if (project.path == ':examples:android-chatter') {
+                    configurationNames.addAll(['debugRuntimeClasspath', 'releaseRuntimeClasspath'])
+                }
+                configurationNames.each { configurationName ->
+                    def runtimeClasspath = project.configurations.findByName(configurationName)
+                    if (runtimeClasspath != null && runtimeClasspath.canBeResolved) {
+                        String configurationKey = "${project.path}:${runtimeClasspath.name}"
+                        inspectedConfigurations << configurationKey
+                        runtimeClasspath.incoming.resolutionResult.allComponents.each { component ->
+                            def identifier = component.id
+                            if (identifier instanceof ModuleComponentIdentifier &&
+                                    identifier.group == 'org.jetbrains.kotlin' &&
+                                    identifier.module.startsWith('kotlin-stdlib')) {
+                                components << [project: project.path, configuration: runtimeClasspath.name,
+                                               group: identifier.group, module: identifier.module, version: identifier.version]
+                            }
+                        }
+                    }
+                }
+            }
+            components.sort { left, right ->
+                [left.project, left.module, left.version] <=> [right.project, right.module, right.version]
+            }
+            def report = [expectedVersion: '1.6.21', inspectedConfigurations: inspectedConfigurations.sort(),
+                          components: components]
+            def reportFile = new File(outputDirectory, 'runtime-stdlib.json')
+            reportFile.parentFile.mkdirs()
+            reportFile.text = JsonOutput.prettyPrint(JsonOutput.toJson(report)) + '\n'
+
+            def badVersions = components.findAll { it.version != '1.6.21' }
+            def missingConfigurations = requiredConfigurations - inspectedConfigurations
+            def configurationsWithStdlib = components.collect { "${it.project}:${it.configuration}" } as Set
+            def missingStdlibConfigurations = requiredConfigurations - configurationsWithStdlib
+            if (components.isEmpty() || !badVersions.isEmpty() || !missingConfigurations.isEmpty() ||
+                    !missingStdlibConfigurations.isEmpty()) {
+                throw new GradleException("Expected every resolved org.jetbrains.kotlin:kotlin-stdlib* runtime dependency to be 1.6.21 " +
+                        "and required runtime configurations to contain a stdlib component; " +
+                        "missing=${missingConfigurations}, missingStdlib=${missingStdlibConfigurations}, " +
+                        "resolved=${JsonOutput.toJson(components)}. Report: ${reportFile}")
+            }
+        }
+    }
+}

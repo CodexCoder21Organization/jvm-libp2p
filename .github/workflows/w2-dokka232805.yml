@@ -1,7 +1,7 @@
 name: W2 Dokka strict validation and controls
 on:
   push:
-    branches: [proof/w2-dokka232805]
+    branches: [proof/w2-dokka232805-html-budget]
 permissions:
   contents: read
   actions: read
@@ -12,7 +12,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        mode: [candidate, html]
+        mode: [html]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/checkout@v4
@@ -40,102 +40,14 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: dokka-budget232805-fixed-${{ matrix.mode }}
+          name: dokka-budget232805-html-budget-red
           path: |
             proof/**
             candidate/build/dokka-budget-proof/**
             candidate/**/build/libs/*-javadoc.jar
             candidate/**/build/dokka/**
-  controls:
-    needs: verify
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    strategy:
-      fail-fast: false
-      matrix:
-        mode: [memory, html, metadata]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/checkout@v4
-        with:
-          ref: 56fa8e02807b2ba38a5ca4dbf1eb6c899e2f32b8
-          fetch-depth: 4
-          path: candidate
-      - name: Restore exact develop build files for the original memory control
-        if: matrix.mode == 'memory'
-        working-directory: candidate
-        run: git checkout 00dad34506398205174487a506c6cc6e4f8d2643 -- build.gradle.kts gradle.properties README.md examples/android-chatter/build.gradle
-      - name: Restore only the old HTML dependency
-        if: matrix.mode == 'html'
-        working-directory: candidate
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          path=Path('build.gradle.kts')
-          text=path.read_text()
-          assert 'dependsOn(dokkaHtmlTask)' in text
-          path.write_text(text.replace('dependsOn(dokkaHtmlTask)','dependsOn("dokkaGenerateHtml")'))
-          PY
-      - name: Restore only the incompatible runtime selection
-        if: matrix.mode == 'metadata'
-        working-directory: candidate
-        run: |
-          git checkout 00dad34506398205174487a506c6cc6e4f8d2643 -- examples/android-chatter/build.gradle
-          python3 - <<'PY'
-          from pathlib import Path
-          path=Path('build.gradle.kts')
-          text=path.read_text()
-          assert 'implementation(kotlin("stdlib-jdk8", "1.6.21"))' in text
-          path.write_text(text.replace('implementation(kotlin("stdlib-jdk8", "1.6.21"))','implementation(kotlin("stdlib-jdk8"))'))
-          path=Path('gradle.properties')
-          path.write_text(path.read_text().replace('kotlin.stdlib.default.dependency=false',''))
-          PY
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
-      - name: Prepare Android build prerequisites
-        run: '"$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platform-tools" "platforms;android-30" "build-tools;30.0.3"'
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '11'
-      - name: Confirm the original failure returns as an assertion
-        env:
-          CONTROL: ${{ matrix.mode }}
-        run: |
-          mode=reversal
-          if [ "$CONTROL" = html ]; then mode=html-reversal; fi
-          if [ "$CONTROL" = metadata ]; then mode=metadata-reversal; fi
-          set +e
-          python3 investigations/dokka232805/verify.py candidate investigations/dokka232805/budget.gradle proof "$mode"
-          result=$?
-          set -e
-          test "$result" -eq 1
-          python3 - <<'PY'
-          from pathlib import Path
-          import os
-          import xml.etree.ElementTree as ET
-          suite=ET.parse('proof/TEST-DocumentationBuildBudgetTest.xml').getroot()
-          assert suite.get('failures')=='1'
-          text=Path('proof/gradle.log').read_text()
-          if os.environ['CONTROL']=='memory':
-              assert 'java.lang.OutOfMemoryError: Metaspace' in text
-          elif os.environ['CONTROL']=='metadata':
-              assert 'Module was compiled with an incompatible version of Kotlin' in text
-              assert 'java.lang.OutOfMemoryError' not in text
-          else:
-              assert "Task with path 'dokkaGenerateHtml' not found" in text
-          PY
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: dokka-budget232805-control-${{ matrix.mode }}
-          path: |
-            proof/**
-            candidate/build/dokka-budget-proof/**
   collect:
-    needs: [verify, controls]
+    needs: [verify]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5

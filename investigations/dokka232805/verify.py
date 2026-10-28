@@ -1,5 +1,7 @@
 import json
 import re
+import os
+import signal
 from pathlib import Path
 import subprocess
 import sys
@@ -24,7 +26,21 @@ try:
         command += ['-Dorg.gradle.jvmargs=-Xmx2G -XX:MaxMetaspaceSize=400m -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=build/root400.hprof']
     command += ['dokkaHtml'] if html_mode else ['assemble', 'spotlessCheck', 'detekt', 'testClasses', 'dokkaJar']
     with (proof / 'gradle.log').open('w') as output:
-        build = subprocess.run(command, cwd=checkout, stdout=output, stderr=subprocess.STDOUT, timeout=1200)
+        build = subprocess.Popen(command, cwd=checkout, stdout=subprocess.PIPE,
+                                 stderr=subprocess.STDOUT, text=True, start_new_session=True)
+        try:
+            for line in build.stdout:
+                output.write(line)
+                output.flush()
+                print(line, end='', flush=True)
+                if 'java.lang.OutOfMemoryError' in line:
+                    os.killpg(build.pid, signal.SIGTERM)
+                    break
+            build.wait(timeout=1200)
+        finally:
+            if build.poll() is None:
+                os.killpg(build.pid, signal.SIGKILL)
+                build.wait(timeout=10)
     print('Gradle exit:', build.returncode, flush=True)
     log = (proof / 'gradle.log').read_text()
     assert 'java.lang.OutOfMemoryError' not in log, 'The complete build must finish without an OutOfMemoryError, including Gradle shutdown:\n' + log

@@ -40,9 +40,12 @@ On top of the upstream `develop` snapshot (which already provides the #412 threa
 Fork releases are published to [kotlin.directory](https://kotlin.directory) under an **unambiguously non-upstream** Maven coordinate (the `community.kotlin.libp2p` group is owned by CodexCoder21 — we deliberately do **not** publish under `io.libp2p`, which belongs to upstream):
 
 The version assigned to the current source is below; publication is a separate release step.
+This release uses `io.netty:netty-transport:4.2.10.3-codexcoder21-auto-read`, which
+combines the child-channel automatic-read policy with the organization's Netty
+4.2.10.2 shutdown fixes. Other Netty pins remain unchanged.
 
 ```
-community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-41
+community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-42
 ```
 
 ## When this fork goes away

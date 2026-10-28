@@ -27,6 +27,7 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.TimeUnit.NANOSECONDS
 import java.util.concurrent.TimeUnit.SECONDS
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -89,7 +90,15 @@ class NetworkRetirementOwnershipTest {
         try {
             a.start().get(10, SECONDS)
             b.start().get(10, SECONDS)
+            val connectedBy = System.nanoTime() + SECONDS.toNanos(10)
             val parent = a.network.connect(b.peerId, *b.listenAddresses().toTypedArray()).get(10, SECONDS)
+            if (holdPeerPublication) {
+                assertThat(b.network.connections).isEmpty()
+                assertThat(registered.isDone).isFalse()
+            }
+            publication.complete(Unit)
+            // Local dial completion does not publish the independently scheduled peer.
+            registered.get(maxOf(0L, connectedBy - System.nanoTime()), NANOSECONDS)
             assertThat(b.network.connections).hasSize(1)
             val remote = b.network.connections.single()
             val first = parent.muxerSession().createStream(listOf(OwnershipRetirementBinding()))

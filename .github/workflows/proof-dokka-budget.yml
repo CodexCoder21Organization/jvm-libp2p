@@ -1,0 +1,35 @@
+name: Dokka classloader diagnosis 011701
+on:
+  push:
+    branches: [proof/dokka-budget-011701]
+permissions:
+  contents: read
+jobs:
+  profile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          ref: 6406e6ca7ce3dd3fa0b7092685432d02471a0642
+          path: candidate
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - run: '"$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-30" "build-tools;30.0.3"'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '11'
+      - name: Capture real classloader allocations
+        working-directory: candidate
+        run: ./gradlew --no-daemon --stacktrace --continue --parallel -I ../diagnostics/profile.gradle assemble spotlessCheck detekt testClasses dokkaJar > gradle-profile.log 2>&1
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: classloader-diagnosis
+          path: |
+            candidate/build/classloader-diagnosis/**
+            candidate/gradle-profile.log

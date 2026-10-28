@@ -1,0 +1,20 @@
+import java.util.concurrent.TimeUnit
+import java.lang.management.ManagementFactory
+
+def reports = new File(gradle.startParameter.currentDir, 'build/classloader-diagnosis')
+reports.mkdirs()
+def capture = { pid, tag ->
+    for (cmd in [['VM.command_line'], ['VM.classloader_stats'], ['VM.classloaders', 'show-classes=true', 'verbose=true'], ['GC.heap_info']]) {
+        def target = new File(reports, tag + '-' + pid + '-' + cmd[0] + '.txt')
+        def command = [new File(System.getProperty('java.home'), 'bin/jcmd').path, pid.toString()] + cmd
+        def child = new ProcessBuilder(command).redirectErrorStream(true).redirectOutput(target).start()
+        if (!child.waitFor(30, TimeUnit.SECONDS)) { child.destroyForcibly(); throw new GradleException('Diagnostic timed out: ' + command) }
+    }
+}
+gradle.taskGraph.afterTask { task, state ->
+    if (task.path == ':libp2p:detekt' || task.path == ':tools:simulator:dokkaGeneratePublicationJavadoc') {
+        def tag = task.path.replace(':','_')
+        capture(ProcessHandle.current().pid(), tag + '-root')
+        ProcessHandle.current().descendants().filter { it.info().commandLine().orElse('').contains('GradleWorkerMain') }.forEach { capture(it.pid(), tag + '-worker') }
+    }
+}

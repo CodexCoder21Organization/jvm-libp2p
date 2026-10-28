@@ -1,6 +1,7 @@
 package io.libp2p.core
 
 import io.libp2p.core.dsl.host
+import io.libp2p.core.multiformats.Multiaddr
 import io.libp2p.core.multistream.ProtocolBinding
 import io.libp2p.core.multistream.ProtocolDescriptor
 import io.libp2p.core.multistream.ProtocolMatcher
@@ -92,6 +93,8 @@ class OpClientHandler(val stream: Stream, val activationFut: CompletableFuture<O
 
 class RpcHandlerTest {
 
+    var onListening: (Multiaddr) -> Unit = {}
+
     @Test
     fun test1() {
         val host1 = host {
@@ -145,6 +148,7 @@ class RpcHandlerTest {
         println("Host #1 started")
         start2.get(5, TimeUnit.SECONDS)
         println("Host #2 started")
+        onListening(host2.listenAddresses().single())
 
         var streamCounter1 = 0
         host1.addStreamVisitor { streamCounter1++ }

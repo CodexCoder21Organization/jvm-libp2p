@@ -54,20 +54,7 @@ jobs:
           "$ipfs" daemon --routing=none > "$RUNNER_TEMP/bld-kubo.log" 2>&1 &
           pid=$!
           echo "$pid" > "$RUNNER_TEMP/bld-kubo.pid"
-          for attempt in {1..60}; do
-            if curl --silent --show-error --fail --max-time 1 --request POST http://127.0.0.1:5001/api/v0/id; then
-              exit 0
-            fi
-            if ! kill -0 "$pid" 2>/dev/null; then
-              cat "$RUNNER_TEMP/bld-kubo.log"
-              echo "Kubo exited before its local API became ready." >&2
-              exit 1
-            fi
-            sleep 1
-          done
-          cat "$RUNNER_TEMP/bld-kubo.log"
-          echo "Kubo did not expose its local API after 60 readiness probes." >&2
-          exit 1
+          python3 .github/scripts/kubo-node.py "$pid" http://127.0.0.1:5001 "$("$ipfs" config Identity.PeerID)"
       - name: Build and run the full native suite
         run: ./gradlew --no-daemon --stacktrace --continue build dokkaJar
       - name: Stop the Kubo node

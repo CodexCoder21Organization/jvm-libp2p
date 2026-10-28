@@ -1,0 +1,54 @@
+name: W1 published Netty pin proof
+on:
+  push:
+    branches: [proof/w1-published-pin-012118]
+permissions:
+  contents: read
+jobs:
+  targeted:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 14a7bf2a583c82d36ac6d092c288fa3248a57553
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 11
+      - uses: gradle/gradle-build-action@v2
+      - name: Run ordinary published pin and targeted scenarios at exact final head
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          git rev-parse HEAD | tee evidence/consumer-source.txt
+          test "$(git rev-parse HEAD)" = 14a7bf2a583c82d36ac6d092c288fa3248a57553
+          cat > /tmp/w1-published-check.init.gradle <<'GRADLE'
+          allprojects { p ->
+              afterEvaluate {
+                  if (p.path == ':libp2p') {
+                      tasks.register('w1PublishedTransportProof') {
+                          doLast {
+                              def a = configurations.compileClasspath.resolvedConfiguration.resolvedArtifacts.findAll { it.moduleVersion.id.group == 'io.netty' && it.name == 'netty-transport' }
+                              assert a.size() == 1
+                              assert a[0].moduleVersion.id.version == '4.2.10.1-codexcoder21-auto-read'
+                              def f = a[0].file
+                              def sha = java.security.MessageDigest.getInstance('SHA-256').digest(f.bytes).encodeHex().toString()
+                              assert sha == '935148afdfb90334d2b0f46337fabd5a31f6c37930a6c64f7b0ade4215032cc9' : sha
+                              println 'PUBLISHED_TRANSPORT_PROOF ' + a[0].moduleVersion.id + ' ' + f + ' SHA256=' + sha
+                          }
+                      }
+                  }
+              }
+          }
+          GRADLE
+          ./gradlew --no-daemon --stacktrace -I /tmp/w1-published-check.init.gradle :libp2p:w1PublishedTransportProof :libp2p:test --tests 'io.libp2p.mux.yamux.YamuxPausedStreamKeepsConnectionReadingTest' --tests 'io.libp2p.mux.PausedChild*' --tests 'io.libp2p.mux.ChildReadPauseTcpTest' :libp2p:spotlessCheck 2>&1 | tee evidence/published-consumer.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: published-pin-targeted
+          path: |
+            evidence/
+            libp2p/build/test-results/test/TEST-*.xml
+          if-no-files-found: error

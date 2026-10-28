@@ -614,23 +614,34 @@ object NoiseHandshakePathHarness {
     }
 
     private fun verifySingleInlineHandshake(queuedCallbacks: Boolean = false) {
-        val executionRecorder = NoiseHandshakeExecutionRecorder().also { it.install() }
+        val computations = ConcurrentLinkedQueue<NoiseHandshakeComputation>()
         val hosts = mutableListOf<Host>()
         val callbacks = AtomicInteger()
         try {
-            val relay = newInlineNoiseHost(listen = true, queuedCallbacks = queuedCallbacks, callback = { callbacks.incrementAndGet() }).also { hosts += it }
-            val dialer = newInlineNoiseHost(queuedCallbacks = queuedCallbacks, callback = { callbacks.incrementAndGet() }).also { hosts += it }
+            val relay = newInlineNoiseHost(
+                listen = true,
+                queuedCallbacks = queuedCallbacks,
+                computationObserver = { computations += it },
+                callback = { callbacks.incrementAndGet() }
+            ).also { hosts += it }
+            val dialer = newInlineNoiseHost(
+                queuedCallbacks = queuedCallbacks,
+                computationObserver = { computations += it },
+                callback = { callbacks.incrementAndGet() }
+            ).also { hosts += it }
             startNoiseHosts(hosts)
 
             dialer.network.connect(relay.peerId, relay.listenAddresses().single())
                 .get(5, TimeUnit.SECONDS)
 
             if (queuedCallbacks) check(callbacks.get() > 0) { "Queued fixture callbacks must execute" }
-            val execution = executionRecorder.snapshot()
-            check(execution.inlineHandshakes == 2 && execution.offloadedHandshakes == 0) {
+            val execution = computations.toList()
+            val inlineHandshakes = execution.filter { it.onEventLoop }.map { it.channelId }.toSet()
+            val offloadedHandshakes = execution.filterNot { it.onEventLoop }.map { it.channelId }.toSet()
+            check(inlineHandshakes.size == 2 && offloadedHandshakes.isEmpty()) {
                 "Expected both sides of one uncontended Noise handshake to use the inline path, but execution was $execution"
             }
-            check(execution.inlineCryptoTasks > 0 && execution.inlineCryptoTasksOffEventLoop == 0 && execution.offloadedCryptoTasks == 0) {
+            check(execution.isNotEmpty() && execution.all { it.onEventLoop }) {
                 "Expected all inline Noise crypto tasks to run on their Netty event loops, but execution was $execution"
             }
             println("Noise handshake inline path: execution=$execution")
@@ -640,12 +651,21 @@ object NoiseHandshakePathHarness {
     }
 
     private fun verifySequentialInlineHandshakes(queuedCallbacks: Boolean = false) {
-        val executionRecorder = NoiseHandshakeExecutionRecorder().also { it.install() }
+        val computations = ConcurrentLinkedQueue<NoiseHandshakeComputation>()
         val hosts = mutableListOf<Host>()
         val callbacks = AtomicInteger()
         try {
-            val relay = newInlineNoiseHost(listen = true, queuedCallbacks = queuedCallbacks, callback = { callbacks.incrementAndGet() }).also { hosts += it }
-            val dialer = newInlineNoiseHost(queuedCallbacks = queuedCallbacks, callback = { callbacks.incrementAndGet() }).also { hosts += it }
+            val relay = newInlineNoiseHost(
+                listen = true,
+                queuedCallbacks = queuedCallbacks,
+                computationObserver = { computations += it },
+                callback = { callbacks.incrementAndGet() }
+            ).also { hosts += it }
+            val dialer = newInlineNoiseHost(
+                queuedCallbacks = queuedCallbacks,
+                computationObserver = { computations += it },
+                callback = { callbacks.incrementAndGet() }
+            ).also { hosts += it }
             startNoiseHosts(hosts)
             val relayAddress = relay.listenAddresses().single()
 
@@ -658,12 +678,14 @@ object NoiseHandshakePathHarness {
             }
             val elapsedMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt)
             if (queuedCallbacks) check(callbacks.get() > 0) { "Queued fixture callbacks must execute" }
-            val execution = executionRecorder.snapshot()
-            check(execution.inlineHandshakes == SEQUENTIAL_HANDSHAKES * 2 && execution.offloadedHandshakes == 0) {
+            val execution = computations.toList()
+            val inlineHandshakes = execution.filter { it.onEventLoop }.map { it.channelId }.toSet()
+            val offloadedHandshakes = execution.filterNot { it.onEventLoop }.map { it.channelId }.toSet()
+            check(inlineHandshakes.size == SEQUENTIAL_HANDSHAKES * 2 && offloadedHandshakes.isEmpty()) {
                 "Expected all $SEQUENTIAL_HANDSHAKES sequential Noise handshakes on both peers to stay inline, " +
                     "but execution was $execution"
             }
-            check(execution.inlineCryptoTasks > 0 && execution.inlineCryptoTasksOffEventLoop == 0 && execution.offloadedCryptoTasks == 0) {
+            check(execution.isNotEmpty() && execution.all { it.onEventLoop }) {
                 "Expected all sequential inline Noise crypto tasks to run on their Netty event loops, " +
                     "but execution was $execution"
             }
@@ -910,13 +932,14 @@ private class NoiseHandshakeExecutionRecorder {
 private fun newInlineNoiseHost(
     listen: Boolean = false,
     queuedCallbacks: Boolean = false,
+    computationObserver: (NoiseHandshakeComputation) -> Unit,
     callback: () -> Unit = {}
 ): Host = host {
     identity { random(KeyType.ED25519) }
     if (listen) network { listen("/ip4/$NOISE_TEST_HOST/tcp/0") }
     secureChannels {
         add { key, _ ->
-            val noise = NoiseXXSecureChannel(key)
+            val noise = NoiseXXSecureChannel(key, computationObserver = computationObserver)
             object : SecureChannel {
                 override val protocolDescriptor = noise.protocolDescriptor
                 override fun initChannel(ch: P2PChannel, selectedProtocol: String): CompletableFuture<SecureChannel.Session> {
@@ -1043,7 +1066,7 @@ private fun runNoiseHandshakeHarness(
     } else {
         listOf("-Dio.netty.eventLoopThreads=2")
     }
-    val command = listOf(javaExecutable) + eventLoopArguments + listOf(
+    val command = listOf(javaExecutable, "-Xmx128m") + eventLoopArguments + listOf(
         "-cp",
         System.getProperty("java.class.path"),
         NoiseHandshakePathHarness::class.java.name,

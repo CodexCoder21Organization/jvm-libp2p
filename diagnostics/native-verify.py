@@ -22,7 +22,7 @@ try:
                '-I', str(init_script)]
     if len(sys.argv) > 4 and sys.argv[4] == 'strict-red':
         command += ['-Dorg.gradle.jvmargs=-Xmx2G -XX:MaxMetaspaceSize=400m -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=build/root400.hprof']
-    command += ['dokkaHtml'] if html_mode else ['assemble', 'spotlessCheck', 'detekt', 'testClasses', 'dokkaJar', 'dokkaHtml']
+    command += ['dokkaHtml'] if html_mode else ['assemble', 'spotlessCheck', 'detekt', 'testClasses', 'dokkaJar']
     with (proof / 'gradle.log').open('w') as output:
         build = subprocess.run(command, cwd=checkout, stdout=output, stderr=subprocess.STDOUT, timeout=1200)
     print('Gradle exit:', build.returncode, flush=True)

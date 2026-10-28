@@ -46,3 +46,10 @@ gradle.taskGraph.afterTask { task, state ->
 gradle.buildFinished {
     memory(rootPid, 'final-root')
 }
+
+gradle.buildFinished {
+    def target = new File(reports, 'final-classloaders.txt')
+    def command = [new File(System.getProperty('java.home'), 'bin/jcmd').path, rootPid.toString(), 'VM.classloaders', 'show-classes=true', 'verbose=true', 'fold=false']
+    def process = new ProcessBuilder(command).redirectErrorStream(true).redirectOutput(target).start()
+    if (!process.waitFor(30, TimeUnit.SECONDS)) { process.destroyForcibly(); throw new GradleException('Final classloader diagnostic did not finish') }
+}

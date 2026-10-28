@@ -1,25 +1,20 @@
-name: Dokka maintained guard red 011701
+name: Dokka original cap and maintained regression controls 011701
 on:
   push:
-    branches: [proof/dokka-budget-011701]
+    branches: [proof/dokka-controls-011701]
 permissions:
   contents: read
 jobs:
-  red:
+  native-red:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    strategy:
-      fail-fast: false
-      matrix:
-        source: [original, current]
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
-          ref: 90770ed03914800e7b459f3f018bb6df1c6814f9
+          ref: b9cc2c88dce03e2fab971dc243fcf01216f82c59
           fetch-depth: 30
-      - name: Restore original develop build configuration
-        if: matrix.source == 'original'
-        run: git restore --source=00dad34506398205174487a506c6cc6e4f8d2643 -- build.gradle.kts gradle.properties examples/android-chatter/build.gradle
+          path: candidate
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -29,10 +24,102 @@ jobs:
         with:
           distribution: temurin
           java-version: '11'
-      - name: Run maintained regression assertions before repair
+      - run: python3 diagnostics/mutate.py candidate native-red
+      - run: python3 diagnostics/control.py native-red
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: original-native-red
+          path: |
+            native-proof/**
+            candidate/build/dokka-budget-proof/**
+  green:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          ref: b9cc2c88dce03e2fab971dc243fcf01216f82c59
+          fetch-depth: 30
+          path: candidate
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - run: '"$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-30" "build-tools;30.0.3"'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '11'
+      - name: Run maintained capped contract
+        working-directory: candidate
         run: python3 scripts/verify-documentation.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: maintained-red-${{ matrix.source }}
-          path: build/documentation-verification/**
+          name: maintained-candidate
+          path: candidate/build/documentation-verification/**
+  native-green:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          ref: b9cc2c88dce03e2fab971dc243fcf01216f82c59
+          fetch-depth: 30
+          path: candidate
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - run: '"$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-30" "build-tools;30.0.3"'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '11'
+      - name: Run exact original native preparation and Javadoc workload
+        run: python3 diagnostics/native-verify.py candidate diagnostics/native-budget.gradle native-proof
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-candidate
+          path: |
+            native-proof/**
+            candidate/build/dokka-budget-proof/**
+  controls:
+    needs: [green, native-green]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [budget, html_alias, javadoc_alias, archive, metadata, original_memory]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          ref: b9cc2c88dce03e2fab971dc243fcf01216f82c59
+          fetch-depth: 30
+          path: candidate
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - run: '"$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-30" "build-tools;30.0.3"'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '11'
+      - run: python3 diagnostics/mutate.py candidate ${{ matrix.mode }}
+      - name: Verify the named assertion returns red after reversal
+        run: python3 diagnostics/control.py ${{ matrix.mode }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: reversal-${{ matrix.mode }}
+          path: |
+            native-proof/**
+            candidate/build/dokka-budget-proof/**
+            candidate/build/documentation-verification/**

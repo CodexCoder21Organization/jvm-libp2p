@@ -1,0 +1,61 @@
+name: Kubo readiness targeted proof
+
+on:
+  push:
+    branches: [proof/kubo-readiness-green-043124]
+
+permissions:
+  contents: read
+
+jobs:
+  kubo-targeted:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/share/boost
+          df -h /
+      - name: Use JDK 17 for the Android SDK tools
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Prepare Android SDK
+        run: |
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platform-tools" "platforms;android-30" "build-tools;30.0.3"
+      - name: Verify the JDK 11 minimum
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '11'
+      - name: Install the Kubo integration-test binary
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/bld-kubo.tar.gz"
+          curl --fail --location --show-error --connect-timeout 30 --max-time 180 \
+            https://github.com/ipfs/kubo/releases/download/v0.34.1/kubo_v0.34.1_linux-amd64.tar.gz -o "$archive"
+          echo "42045802fe60c64fb01350bc071190c534d600fe269759c06e27e22b2012fd3e  $archive" | sha256sum --check
+          mkdir "$RUNNER_TEMP/bld-kubo"
+          tar -xzf "$archive" -C "$RUNNER_TEMP/bld-kubo"
+      - name: Verify Kubo process ownership and failure handling
+        run: KUBO_BINARY="$RUNNER_TEMP/bld-kubo/kubo/ipfs" python3 .github/scripts/test_kubo_node.py
+      - name: Run the unchanged QUIC assertions and formatting gate
+        run: >-
+          python3 .github/scripts/kubo-node.py run
+          "$RUNNER_TEMP/bld-kubo/kubo/ipfs" "$RUNNER_TEMP/bld-kubo.log"
+          ./gradlew --no-daemon --stacktrace :libp2p:test --tests io.libp2p.transport.quic.QuicKuboTestJava :libp2p:spotlessCheck
+      - name: Upload test and build reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bld-build-reports
+          path: |
+            **/build/test-results/**
+            **/build/reports/**
+            ${{ runner.temp }}/bld-kubo.log
+      - name: Check disk space
+        if: always()
+        run: df -h /

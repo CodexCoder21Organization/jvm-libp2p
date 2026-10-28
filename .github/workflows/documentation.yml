@@ -6,12 +6,19 @@ on:
     branches:
       - develop
   workflow_dispatch:
+    inputs:
+      noise_ready_baseline:
+        description: Run only the targeted NoiseReadyReentryTest baseline proof
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
 jobs:
   documentation:
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.noise_ready_baseline != true }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -49,6 +56,7 @@ jobs:
           retention-days: 14
 
   javadoc-alias-reversal:
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.noise_ready_baseline != true }}
     needs: documentation
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -112,5 +120,107 @@ jobs:
         with:
           name: documentation-verification-unwired
           path: build/documentation-verification/
+          if-no-files-found: warn
+          retention-days: 14
+
+  noise-ready-reentry-baseline:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.noise_ready_baseline == true }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create baseline evidence directory
+        run: mkdir -p build/baseline-proof
+
+      # Keep the repository's Android SDK setup order and JDK 11 test runtime.
+      - name: Set up JDK 17 for Android SDK tools
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Install Android compile SDK
+        run: '"$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-30" "build-tools;30.0.3"'
+
+      - name: Set up JDK 11 for Gradle
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 11
+
+      - name: Run the unchanged target until the exact baseline assertion appears
+        run: |
+          python3 - <<'PYTHON'
+          import shutil
+          import subprocess
+          import sys
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          root = Path.cwd()
+          evidence = root / "build/baseline-proof"
+          report = root / "libp2p/build/test-results/test/TEST-io.libp2p.security.noise.NoiseReadyReentryTest.xml"
+          expected_case = "ready callback retains its loop entry during synchronous reentry()"
+
+          def stop(message, code):
+              (evidence / "summary.txt").write_text(message + "\n")
+              print(message, flush=True)
+              sys.exit(code)
+
+          command = [
+              "./gradlew", "--no-daemon", ":libp2p:cleanTest", ":libp2p:test",
+              "--tests", "io.libp2p.security.noise.NoiseReadyReentryTest",
+          ]
+
+          for attempt in range(1, 21):
+              attempt_dir = evidence / f"attempt-{attempt:02d}"
+              attempt_dir.mkdir(parents=True, exist_ok=True)
+              log_path = attempt_dir / "gradle.log"
+              try:
+                  with log_path.open("wb") as log:
+                      result = subprocess.run(
+                          command, cwd=root, stdout=log, stderr=subprocess.STDOUT,
+                          timeout=900, check=False,
+                      )
+              except subprocess.TimeoutExpired:
+                  stop(f"RUN ERROR: attempt {attempt} exceeded its 900-second deadline; see {log_path}", 2)
+
+              if not report.is_file():
+                  stop(f"RUN ERROR: attempt {attempt} exited {result.returncode} without JUnit XML; see {log_path}", 2)
+              saved_report = attempt_dir / report.name
+              shutil.copy2(report, saved_report)
+              suite = ET.parse(saved_report).getroot()
+              cases = suite.findall("testcase")
+              if len(cases) != 1 or cases[0].get("name") != expected_case:
+                  stop(f"RUN ERROR: attempt {attempt} did not execute exactly the expected case: {[case.get('name') for case in cases]}", 2)
+
+              case = cases[0]
+              failure = case.find("failure")
+              error = case.find("error")
+              skipped = case.find("skipped")
+              if failure is not None:
+                  detail = (failure.get("message", "") + "\n" + (failure.text or ""))
+                  if (
+                      "Reentrant ready publication: pending=4, onLoop=false" in detail
+                      and "expected: <3> but was: <4>" in detail
+                  ):
+                      stop(f"REPRODUCED: exact expected3/actual4 assertion on attempt {attempt}; XML={saved_report}; log={log_path}", 0)
+                  stop(f"ASSERTION FAILURE: attempt {attempt} failed differently; XML={saved_report}; log={log_path}", 3)
+              if error is not None or skipped is not None or result.returncode != 0:
+                  stop(f"RUN ERROR: attempt {attempt} had a JUnit error, skip, or Gradle exit {result.returncode}; XML={saved_report}; log={log_path}", 2)
+
+              (attempt_dir / "result.txt").write_text("PASS: expected case completed without failures\n")
+              print(f"PASS: attempt {attempt}/20", flush=True)
+
+          stop("NOT REPRODUCED: exact assertion did not occur in 20 targeted attempts", 1)
+          PYTHON
+
+      - name: Upload baseline attempt evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: noise-ready-baseline-evidence
+          path: build/baseline-proof/
           if-no-files-found: warn
           retention-days: 14

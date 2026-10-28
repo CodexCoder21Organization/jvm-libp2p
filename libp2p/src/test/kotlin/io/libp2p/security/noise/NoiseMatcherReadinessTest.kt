@@ -29,6 +29,7 @@ class NoiseMatcherReadinessTest {
             val process = matcherProcess().redirectErrorStream(true).redirectOutput(output.toFile()).start()
             val observation = java.util.concurrent.CompletableFuture.supplyAsync { awaitNoiseProbe(process, output) }
             var primaryFailure: Throwable? = null
+            var shutdownFailure: Throwable? = null
             try {
                 val endpointDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30)
                 var endpoint: String? = null
@@ -69,13 +70,17 @@ class NoiseMatcherReadinessTest {
                         observation.get(5, TimeUnit.SECONDS)
                     } catch (cleanupFailure: Throwable) {
                         val original = primaryFailure
-                        if (original == null) throw cleanupFailure
-                        if (original !== cleanupFailure) original.addSuppressed(cleanupFailure)
+                        if (original == null) {
+                            shutdownFailure = cleanupFailure
+                        } else if (original !== cleanupFailure) {
+                            original.addSuppressed(cleanupFailure)
+                        }
                     } finally {
                         Files.deleteIfExists(output)
                     }
                 }
             }
+            shutdownFailure?.let { throw it }
         } finally {
             peer.stop().get(10, TimeUnit.SECONDS)
         }

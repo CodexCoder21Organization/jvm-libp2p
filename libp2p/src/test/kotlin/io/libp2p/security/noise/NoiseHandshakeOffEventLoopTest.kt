@@ -11,6 +11,8 @@ import io.libp2p.core.crypto.generateKeyPair
 import io.libp2p.core.dsl.host
 import io.libp2p.core.multiformats.Multiaddr
 import io.libp2p.core.multiformats.Protocol
+import io.libp2p.core.mux.StreamMuxer
+import io.libp2p.core.mux.StreamMuxerProtocol
 import io.libp2p.etc.CONNECTION
 import io.libp2p.multistream.MultistreamProtocolDebugV1
 import io.libp2p.protocol.Ping
@@ -258,8 +260,37 @@ class NoiseHandshakeOffEventLoopTest {
     @Test
     fun `concurrent handshakes preserve both peer identities and immediate mux negotiation`() {
         val hosts = mutableListOf<Host>()
+        val publishRelay = CompletableFuture<Unit>()
+        val relayPublished = CompletableFuture<Unit>()
+        val relayConnectionCount = AtomicInteger()
         try {
-            val relay = newNoiseHost(listen = true).also { hosts += it }
+            val relay = host {
+                identity { random(KeyType.ED25519) }
+                network { listen("/ip4/$NOISE_TEST_HOST/tcp/0") }
+                protocols { +Ping() }
+                // Keep the server's publication pending after its real muxer is ready.
+                muxers {
+                    +StreamMuxerProtocol { multistream, protocols ->
+                        val delegate = StreamMuxerProtocol.Mplex.createMuxer(multistream, protocols)
+                        object : StreamMuxer by delegate {
+                            override fun initChannel(
+                                ch: P2PChannel,
+                                selectedProtocol: String
+                            ): CompletableFuture<out StreamMuxer.Session> =
+                                delegate.initChannel(ch, selectedProtocol).thenCompose { session ->
+                                    publishRelay.thenApply { session }
+                                }
+                        }
+                    }
+                }
+            }.also { hosts += it }
+            relay.addConnectionHandler(
+                ConnectionHandler.create {
+                    if (relayConnectionCount.incrementAndGet() == CONCURRENT_DIALERS) {
+                        relayPublished.complete(Unit)
+                    }
+                }
+            )
             val dialers = List(CONCURRENT_DIALERS) { newNoiseHost().also { host -> hosts += host } }
             startNoiseHosts(hosts)
 
@@ -267,7 +298,11 @@ class NoiseHandshakeOffEventLoopTest {
             val outboundConnections = dialers.map {
                 it.network.connect(relay.peerId, relayAddress)
             }
-            CompletableFuture.allOf(*outboundConnections.toTypedArray()).get(20, TimeUnit.SECONDS)
+            CompletableFuture.allOf(*outboundConnections.toTypedArray())
+                .thenCompose {
+                    publishRelay.complete(Unit)
+                    relayPublished
+                }.get(20, TimeUnit.SECONDS)
 
             outboundConnections.forEachIndexed { index, connectionFuture ->
                 val session = connectionFuture.join().secureSession()
@@ -281,6 +316,7 @@ class NoiseHandshakeOffEventLoopTest {
             assertThat(relay.network.connections.map { it.secureSession().remoteId }.toSet())
                 .containsExactlyInAnyOrderElementsOf(dialers.map { it.peerId })
         } finally {
+            publishRelay.complete(Unit)
             stopNoiseHosts(hosts)
         }
     }

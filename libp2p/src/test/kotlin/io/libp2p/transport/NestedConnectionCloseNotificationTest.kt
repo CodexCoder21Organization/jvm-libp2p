@@ -50,6 +50,7 @@ object NestedConnectionCloseProbe {
         val drained = CountDownLatch(2048)
         val observed = CompletableFuture<CompletableFuture<Unit>>()
         var primaryFailure: Throwable? = null
+        var shutdownFailure: Throwable? = null
         try {
             server.start().get(5, TimeUnit.SECONDS)
             client.start().get(5, TimeUnit.SECONDS)
@@ -100,8 +101,9 @@ object NestedConnectionCloseProbe {
                 CompletableFuture.allOf(client.stop(), server.stop()).get(10, TimeUnit.SECONDS)
             } catch (cleanupFailure: Throwable) {
                 val primary = primaryFailure
-                if (primary == null) throw cleanupFailure else primary.addSuppressed(cleanupFailure)
+                if (primary == null) shutdownFailure = cleanupFailure else primary.addSuppressed(cleanupFailure)
             }
         }
+        shutdownFailure?.let { throw it }
     }
 }

@@ -1,4 +1,5 @@
 import json
+import re
 from pathlib import Path
 import subprocess
 import sys
@@ -19,10 +20,27 @@ case = ET.SubElement(result, 'testcase', classname='DocumentationBuildBudgetTest
 try:
     command = ['./gradlew', '--no-daemon', '--stacktrace', '--continue', '--parallel',
                '-I', str(init_script)]
+    if len(sys.argv) > 4 and sys.argv[4] == 'strict-red':
+        command += ['-Dorg.gradle.jvmargs=-Xmx2G -XX:MaxMetaspaceSize=400m -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=build/root400.hprof']
     command += ['dokkaHtml'] if html_mode else ['assemble', 'spotlessCheck', 'detekt', 'testClasses', 'dokkaJar']
     with (proof / 'gradle.log').open('w') as output:
         build = subprocess.run(command, cwd=checkout, stdout=output, stderr=subprocess.STDOUT, timeout=1200)
     print('Gradle exit:', build.returncode, flush=True)
+    log = (proof / 'gradle.log').read_text()
+    assert 'java.lang.OutOfMemoryError' not in log, 'The complete build must finish without an OutOfMemoryError, including Gradle shutdown:\n' + log
+    assert 'Could not stop all services' not in log, 'Gradle service shutdown failed:\n' + log
+    assert 'Module was compiled with an incompatible version of Kotlin' not in log, 'The build introduced an incompatible Kotlin metadata version:\n' + log
+    if not html_mode and build.returncode != 0:
+        failed_tasks = re.findall(r'^> Task (\S+) FAILED$', log, re.MULTILINE)
+        assert build.returncode == 1 and failed_tasks == [':libp2p:detekt'], 'Unexpected build failure outside the known develop Detekt findings:\n' + log
+        expected = [
+            'MuxChannel.kt:401:14: The caught exception is swallowed. The original exception could be lost. [SwallowedException]',
+            'NestedConnectionCloseNotificationTest.kt:103:38: Do not throw an exception within a finally statement. This can discard exceptions and is confusing. [ThrowingExceptionFromFinally]',
+            'NoiseMatcherReadinessTest.kt:72:47: Do not throw an exception within a finally statement. This can discard exceptions and is confusing. [ThrowingExceptionFromFinally]'
+        ]
+        assert all(message in log for message in expected), 'The Detekt outcome differs from the recorded develop baseline:\n' + log
+        assert log.count('FAILURE: Build failed with an exception.') == 1, 'The build reports an additional failure:\n' + log
+        assert '> Analysis failed with 3 weighted issues.' in log, 'The Detekt issue count changed:\n' + log
     if html_mode:
         assert build.returncode == 0, 'The legacy dokkaHtml command must generate HTML successfully. Gradle failed:\n' + (proof / 'gradle.log').read_text()
     ledger = checkout / 'build/dokka-budget-proof/tasks.jsonl'

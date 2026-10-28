@@ -95,10 +95,10 @@ abstract class PlainNettyTransport(
         get() = channels.size
 
     override fun listenAddresses(): List<Multiaddr> {
-        return synchronized(this) {
-            listeners.keys.mapNotNull { channel ->
-                channel.localAddress()?.let { toMultiaddr(it) }
-            }
+        val currentListeners = synchronized(this) { listeners.keys.toList() }
+        // A custom address converter may re-enter close(), including from another thread.
+        return currentListeners.mapNotNull { channel ->
+            channel.localAddress()?.let { toMultiaddr(it) }
         }
     }
 
@@ -283,11 +283,10 @@ abstract class PlainNettyTransport(
      * created with [addr]. Repeated port-zero requests therefore unlisten one at a time.
      */
     override fun unlisten(addr: Multiaddr): CompletableFuture<Unit> {
-        val channel = synchronized(this) {
-            listeners.entries.firstOrNull { (channel, requested) ->
-                requested == addr || channel.localAddress()?.let { toMultiaddr(it) } == addr
-            }?.key
-        } ?: throw Libp2pException("No listeners on address $addr")
+        val currentListeners = synchronized(this) { listeners.toList() }
+        val channel = currentListeners.firstOrNull { (channel, requested) ->
+            requested == addr || channel.localAddress()?.let { toMultiaddr(it) } == addr
+        }?.first ?: throw Libp2pException("No listeners on address $addr")
         return closeNettyChannelOnce(channel)
     } // unlisten
 

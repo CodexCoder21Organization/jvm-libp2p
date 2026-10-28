@@ -43,7 +43,8 @@ class MultistreamConcurrentConnectionsTest {
                     start.await()
                     repeat(20) {
                         val opened = client.newStream<PingController>(
-                            listOf("/ipfs/ping/1.0.0"), server.peerId,
+                            listOf("/ipfs/ping/1.0.0"),
+                            server.peerId,
                             *server.listenAddresses().toTypedArray()
                         )
                         try {
@@ -67,7 +68,8 @@ class MultistreamConcurrentConnectionsTest {
 
             clients[0].stop().get(10, TimeUnit.SECONDS)
             val remaining = clients[1].newStream<PingController>(
-                listOf("/ipfs/ping/1.0.0"), server.peerId,
+                listOf("/ipfs/ping/1.0.0"),
+                server.peerId,
                 *server.listenAddresses().toTypedArray()
             )
             try {

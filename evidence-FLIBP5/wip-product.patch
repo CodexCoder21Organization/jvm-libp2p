@@ -1,0 +1,237 @@
+diff --git a/FORK.md b/FORK.md
+index ca0d2317..f3e2eb75 100644
+--- a/FORK.md
++++ b/FORK.md
+@@ -42,7 +42,7 @@ Fork releases are published to [kotlin.directory](https://kotlin.directory) unde
+ The version assigned to the current source is below; publication is a separate release step.
+ 
+ ```
+-community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-41
++community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-42
+ ```
+ 
+ ## When this fork goes away
+diff --git a/README.md b/README.md
+index f13bad6f..fa46e537 100644
+--- a/README.md
++++ b/README.md
+@@ -305,6 +305,12 @@ fun retryConnectionClose(connection: Connection): CompletableFuture<Unit> =
+ Other `Connection` implementations inherit a default that delegates to their `close()` operation.
+ An implementation that retains failed close results must override `retryClose()` to support a new attempt.
+ 
++TCP, WebSocket and QUIC transport shutdown always waits for the event-loop groups owned by
++that transport to terminate, including when a listener or connection close fails. The returned
++future retains the original channel-close failure after cleanup. Cancelling or completing that
++future does not stop the owned cleanup. TCP and WebSocket leave their shared worker group running
++for other transports.
++
+ ## Gossip simulator
+ 
+ Deterministic Gossip simulator which may simulate networks as large as 10000 of peers
+diff --git a/build.gradle.kts b/build.gradle.kts
+index 31f69e9e..af3088a1 100644
+--- a/build.gradle.kts
++++ b/build.gradle.kts
+@@ -84,7 +84,7 @@ configure(
+     // snapshot-36: drain accepted child writes before half-close with Yamux and Mplex.
+     // snapshot-37: pause Yamux delivery and credit per stream while parent reads continue.
+     // snapshot-41 preserves completed future results when listener dispatch is unavailable.
+-    version = "1.3.0-codexcoder21-snapshot-41"
++    version = "1.3.0-codexcoder21-snapshot-42"
+ 
+     apply(plugin = "kotlin")
+     apply(plugin = "idea")
+diff --git a/libp2p/src/main/kotlin/io/libp2p/transport/implementation/PlainNettyTransport.kt b/libp2p/src/main/kotlin/io/libp2p/transport/implementation/PlainNettyTransport.kt
+index 75d16781..1502b12e 100644
+--- a/libp2p/src/main/kotlin/io/libp2p/transport/implementation/PlainNettyTransport.kt
++++ b/libp2p/src/main/kotlin/io/libp2p/transport/implementation/PlainNettyTransport.kt
+@@ -182,14 +182,15 @@ abstract class PlainNettyTransport(
+         val everythingThatNeedsToClose = unbindsCompleted.union(channelsClosed)
+         val allClosed = CompletableFuture.allOf(*everythingThatNeedsToClose.toTypedArray())
+ 
+-        return allClosed.thenCompose {
++        // Cleanup observes every channel outcome independently of the caller's future.
++        val groupClosed = allClosed.handle { _, _ ->
+             // Use an explicit quietPeriod = 0 instead of relying on Netty's default
+             // (DefaultEventExecutor.DEFAULT_SHUTDOWN_QUIET_PERIOD = 2 SECONDS).
+             //
+             // The quiet period is the time `shutdownGracefully` keeps the event loop
+             // alive AFTER its last task finished, in case more work is submitted. Once
+-            // we have called close() on this transport every existing channel has been
+-            // closed, the transport is marked closed (so listen()/dial() throw), and
++            // we have called close() on this transport every channel close attempt has
++            // settled, the transport is marked closed (so listen()/dial() throw), and
+             // there is by construction no path that submits new work to either group.
+             // Waiting 2 seconds for "more work that isn't coming" is pure latency.
+             //
+@@ -215,10 +216,10 @@ abstract class PlainNettyTransport(
+             // single transport — a daemon group cannot hold the JVM open, so leaving it
+             // running is safe, and shutting it down here would tear the worker loop out
+             // from under every other live host in the JVM.
+-            CompletableFuture.allOf(
+-                bossGroup.shutdownGracefully(0, 5, TimeUnit.SECONDS).toVoidCompletableFuture()
+-            ).thenApply { }
+-        }
++            bossGroup.shutdownGracefully(0, 5, TimeUnit.SECONDS).toVoidCompletableFuture()
++        }.thenCompose { it }
++        // Keep the channel result first so its original failure remains primary.
++        return CompletableFuture.allOf(allClosed, groupClosed).thenApply { }
+     } // close
+ 
+     override fun listen(
+diff --git a/libp2p/src/main/kotlin/io/libp2p/transport/quic/QuicTransport.kt b/libp2p/src/main/kotlin/io/libp2p/transport/quic/QuicTransport.kt
+index 8fffa1d9..cadb36f1 100644
+--- a/libp2p/src/main/kotlin/io/libp2p/transport/quic/QuicTransport.kt
++++ b/libp2p/src/main/kotlin/io/libp2p/transport/quic/QuicTransport.kt
+@@ -142,7 +142,8 @@ class QuicTransport(
+         val everythingThatNeedsToClose = unbindsCompleted.union(channelsClosed)
+         val allClosed = CompletableFuture.allOf(*everythingThatNeedsToClose.toTypedArray())
+ 
+-        return allClosed.thenCompose {
++        // Cleanup observes every channel outcome independently of the caller's future.
++        val groupClosed = allClosed.handle { _, _ ->
+             // See PlainNettyTransport.close() for the full rationale: the no-arg
+             // shutdownGracefully() falls through to Netty's default 2-second
+             // quietPeriod, which adds 2 s of pure latency to every close() once
+@@ -150,7 +151,9 @@ class QuicTransport(
+             // as soon as it notices the shutdown flag; the 5-second timeout caps
+             // how long shutdownGracefully will wait for that exit.
+             workerGroup.shutdownGracefully(0, 5, TimeUnit.SECONDS).toVoidCompletableFuture()
+-        }
++        }.thenCompose { it }
++        // Keep the channel result first so its original failure remains primary.
++        return CompletableFuture.allOf(allClosed, groupClosed).thenApply { }
+     }
+ 
+     override fun listen(
+diff --git a/libp2p/src/test/kotlin/io/libp2p/transport/PlainNettyTransportFailedCloseTest.kt b/libp2p/src/test/kotlin/io/libp2p/transport/PlainNettyTransportFailedCloseTest.kt
+index 74d11b1a..8e0aa7c7 100644
+--- a/libp2p/src/test/kotlin/io/libp2p/transport/PlainNettyTransportFailedCloseTest.kt
++++ b/libp2p/src/test/kotlin/io/libp2p/transport/PlainNettyTransportFailedCloseTest.kt
+@@ -42,6 +42,7 @@ class PlainNettyTransportFailedCloseTest {
+         var listener: Channel? = null
+         var connectionChannel: Channel? = null
+         var failingChannel: Channel? = null
++        var closeAttempted = false
+         val pendingClose = CompletableFuture<Pair<ChannelHandlerContext, ChannelPromise>>()
+         val failure = IOException("The test channel refused its close operation")
+         try {
+@@ -69,7 +70,7 @@ class PlainNettyTransportFailedCloseTest {
+                     }
+                 })
+                 target.eventLoop().submit { }.get(10, TimeUnit.SECONDS)
+-                val shutdown = server.close()
++                val shutdown = server.close().also { closeAttempted = true }
+                 if (outcome.startsWith("caller-")) {
+                     if (outcome == "caller-cancel") shutdown.cancel(false) else shutdown.complete(Unit)
+                     val (context, promise) = pendingClose.get(10, TimeUnit.SECONDS)
+@@ -81,9 +82,10 @@ class PlainNettyTransportFailedCloseTest {
+                     assertSame(failure, error.cause, "Transport close must retain the original channel-close failure")
+                 }
+             } else {
+-                server.close().get(10, TimeUnit.SECONDS)
++                server.close().also { closeAttempted = true }.get(10, TimeUnit.SECONDS)
+             }
+             assertTrue(group.isTerminated, "Transport close must terminate the owned acceptor group after $outcome")
++            assertFalse(acceptor.isOpen, "The terminated group must release its listener channel")
+             assertTrue(group.terminationFuture().isSuccess, "The acceptor termination future must succeed")
+             threads.forEach { thread ->
+                 thread.join(10000)
+@@ -91,13 +93,20 @@ class PlainNettyTransportFailedCloseTest {
+             }
+             assertFalse(child.eventLoop().isShuttingDown, "Closing a transport must preserve the shared worker group")
+         } finally {
+-            failingChannel?.let { channel ->
+-                channel.pipeline().context("refuse-close")?.let { channel.pipeline().remove(it.handler()) }
++            try {
++                failingChannel?.takeIf { it.isOpen }?.let { channel ->
++                    channel.pipeline().context("refuse-close")?.let { channel.pipeline().remove(it.handler()) }
++                }
++                connectionChannel?.takeIf { it.isOpen }?.close()?.syncUninterruptibly()
++                listener?.takeIf { it.isOpen }?.close()?.syncUninterruptibly()
++                listener?.eventLoop()?.parent()?.shutdownGracefully(0, 5, TimeUnit.SECONDS)?.syncUninterruptibly()
++            } finally {
++                try {
++                    if (!closeAttempted) server.close().get(10, TimeUnit.SECONDS)
++                } finally {
++                    client.close().get(10, TimeUnit.SECONDS)
++                }
+             }
+-            connectionChannel?.takeIf { it.isOpen }?.close()?.syncUninterruptibly()
+-            listener?.takeIf { it.isOpen }?.close()?.syncUninterruptibly()
+-            listener?.eventLoop()?.parent()?.shutdownGracefully(0, 5, TimeUnit.SECONDS)?.syncUninterruptibly()
+-            client.close().get(10, TimeUnit.SECONDS)
+         }
+     }
+ }
+diff --git a/libp2p/src/test/kotlin/io/libp2p/transport/QuicTransportFailedCloseTest.kt b/libp2p/src/test/kotlin/io/libp2p/transport/QuicTransportFailedCloseTest.kt
+index f09f14e3..897402eb 100644
+--- a/libp2p/src/test/kotlin/io/libp2p/transport/QuicTransportFailedCloseTest.kt
++++ b/libp2p/src/test/kotlin/io/libp2p/transport/QuicTransportFailedCloseTest.kt
+@@ -1,11 +1,11 @@
+ package io.libp2p.transport
+ 
+ import io.libp2p.core.Connection
++import io.libp2p.core.PeerId
+ import io.libp2p.core.multiformats.Multiaddr
++import io.libp2p.crypto.keys.generateEd25519KeyPair
+ import io.libp2p.transport.implementation.ConnectionOverNetty
+ import io.libp2p.transport.quic.QuicTransport
+-import io.libp2p.core.PeerId
+-import io.libp2p.crypto.keys.generateEd25519KeyPair
+ import io.netty.channel.Channel
+ import io.netty.channel.ChannelHandlerContext
+ import io.netty.channel.ChannelOutboundHandlerAdapter
+@@ -31,6 +31,7 @@ class QuicTransportFailedCloseTest {
+         val accepted = CompletableFuture<Connection>()
+         var listener: Channel? = null
+         var failingChannel: Channel? = null
++        var closeAttempted = false
+         val pendingClose = CompletableFuture<Pair<ChannelHandlerContext, ChannelPromise>>()
+         val failure = IOException("The test channel refused its close operation")
+         try {
+@@ -56,7 +57,7 @@ class QuicTransportFailedCloseTest {
+                     }
+                 })
+                 target.eventLoop().submit { }.get(10, TimeUnit.SECONDS)
+-                val shutdown = server.close()
++                val shutdown = server.close().also { closeAttempted = true }
+                 if (outcome.startsWith("caller-")) {
+                     if (outcome == "caller-cancel") shutdown.cancel(false) else shutdown.complete(Unit)
+                     val (context, promise) = pendingClose.get(10, TimeUnit.SECONDS)
+@@ -68,21 +69,29 @@ class QuicTransportFailedCloseTest {
+                     assertSame(failure, error.cause, "Transport close must retain the original channel-close failure")
+                 }
+             } else {
+-                server.close().get(10, TimeUnit.SECONDS)
++                server.close().also { closeAttempted = true }.get(10, TimeUnit.SECONDS)
+             }
+             assertTrue(group.isTerminated, "Transport close must terminate the owned QUIC worker group after $outcome")
++            assertFalse(acceptor.isOpen, "The terminated group must release its listener channel")
+             assertTrue(group.terminationFuture().isSuccess, "The QUIC worker termination future must succeed")
+             threads.forEach { thread ->
+                 thread.join(10000)
+                 assertFalse(thread.isAlive, "QUIC worker thread ${thread.name} must terminate after $outcome")
+             }
+         } finally {
+-            failingChannel?.let { channel ->
+-                channel.pipeline().context("refuse-close")?.let { channel.pipeline().remove(it.handler()) }
++            try {
++                failingChannel?.takeIf { it.isOpen }?.let { channel ->
++                    channel.pipeline().context("refuse-close")?.let { channel.pipeline().remove(it.handler()) }
++                }
++                listener?.takeIf { it.isOpen }?.close()?.syncUninterruptibly()
++                listener?.eventLoop()?.parent()?.shutdownGracefully(0, 5, TimeUnit.SECONDS)?.syncUninterruptibly()
++            } finally {
++                try {
++                    if (!closeAttempted) server.close().get(10, TimeUnit.SECONDS)
++                } finally {
++                    client.close().get(10, TimeUnit.SECONDS)
++                }
+             }
+-            listener?.takeIf { it.isOpen }?.close()?.syncUninterruptibly()
+-            listener?.eventLoop()?.parent()?.shutdownGracefully(0, 5, TimeUnit.SECONDS)?.syncUninterruptibly()
+-            client.close().get(10, TimeUnit.SECONDS)
+         }
+     }
+ }

@@ -11,3 +11,5 @@
 - ConnectionBuilder establishment chains and transport dial/listen readiness chains are startup paths, not close stages. Existing callback/error handlers close failed channels; no further thenCompose/thenApply cleanup stage found there.
 
 Additional test surface: cancellation of returned transport close future while a listener close is pending can prevent a success-only thenCompose action from running; add a deterministic public-API regression before selecting the final completion shape.
+
+Additional close-callback checks: HostImpl's stream table and NetworkImpl's connection table remove entries from physical closeFuture continuations. Native Netty Channel.closeFuture completes on physical close (successful terminal close), rather than with the separately retained failed request promise, so a refused close correctly keeps its still-open channel registered until real closure. TotalTimeoutHandler releases its scheduled task from channel closure/handler removal, without a success-only future stage. Existing MuxChannel doClose disposal is in finally; no new skip-after-failure group/channel/timer chain was found beyond the two transport methods.

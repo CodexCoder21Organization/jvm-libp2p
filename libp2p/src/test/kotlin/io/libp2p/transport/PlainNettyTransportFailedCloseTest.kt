@@ -23,7 +23,7 @@ import java.util.concurrent.TimeUnit
 
 class PlainNettyTransportFailedCloseTest {
     @ParameterizedTest
-    @ValueSource(strings = ["listener", "connection", "listener-throw", "listener-deferred", "success"])
+    @ValueSource(strings = ["listener", "connection", "listener-throw", "listener-deferred", "caller-cancel", "caller-complete", "success"])
     fun closeTerminatesEveryAcceptorThread(outcome: String) {
         val serverHost = host {
             transports { add(::TcpTransport) }
@@ -42,7 +42,7 @@ class PlainNettyTransportFailedCloseTest {
         var listener: Channel? = null
         var connectionChannel: Channel? = null
         var failingChannel: Channel? = null
-        val pendingClose = CompletableFuture<ChannelPromise>()
+        val pendingClose = CompletableFuture<Pair<ChannelHandlerContext, ChannelPromise>>()
         val failure = IOException("The test channel refused its close operation")
         try {
             serverHost.addConnectionHandler { accepted.complete(it) }
@@ -61,14 +61,25 @@ class PlainNettyTransportFailedCloseTest {
                 target.pipeline().addFirst("refuse-close", object : ChannelOutboundHandlerAdapter() {
                     override fun close(ctx: ChannelHandlerContext, promise: ChannelPromise) {
                         if (outcome == "listener-throw") throw failure
-                        if (outcome == "listener-deferred") pendingClose.complete(promise) else promise.setFailure(failure)
+                        if (outcome == "listener-deferred" || outcome.startsWith("caller-")) {
+                            pendingClose.complete(ctx to promise)
+                        } else {
+                            promise.setFailure(failure)
+                        }
                     }
                 })
                 target.eventLoop().submit { }.get(10, TimeUnit.SECONDS)
                 val shutdown = server.close()
-                if (outcome == "listener-deferred") pendingClose.get(10, TimeUnit.SECONDS).setFailure(failure)
-                val error = assertThrows(ExecutionException::class.java) { shutdown.get(10, TimeUnit.SECONDS) }
-                assertSame(failure, error.cause, "Transport close must retain the original channel-close failure")
+                if (outcome.startsWith("caller-")) {
+                    if (outcome == "caller-cancel") shutdown.cancel(false) else shutdown.complete(Unit)
+                    val (context, promise) = pendingClose.get(10, TimeUnit.SECONDS)
+                    context.close(promise)
+                    group.terminationFuture().await(10, TimeUnit.SECONDS)
+                } else {
+                    if (outcome == "listener-deferred") pendingClose.get(10, TimeUnit.SECONDS).second.setFailure(failure)
+                    val error = assertThrows(ExecutionException::class.java) { shutdown.get(10, TimeUnit.SECONDS) }
+                    assertSame(failure, error.cause, "Transport close must retain the original channel-close failure")
+                }
             } else {
                 server.close().get(10, TimeUnit.SECONDS)
             }

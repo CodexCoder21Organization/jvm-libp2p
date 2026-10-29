@@ -11,7 +11,7 @@ public final class SingleAttempt {
             throw new IllegalArgumentException("Usage: SingleAttempt --local <workspace> <xml> --prebuild | [--repeat=N] <test>...");
         }
         File root = new File(args[1]).getCanonicalFile();
-        File cache = new File(System.getProperty("user.home"), ".aibuildcaches/F992b-single-attempt-20261029");
+        File cache = new File(System.getProperty("user.home"), ".aibuildcaches/FLIBP5-single-attempt-20261029");
         boolean prebuild = args[3].equals("--prebuild");
         int repetitions = 1;
         int parallelism = 1;
@@ -28,9 +28,9 @@ public final class SingleAttempt {
         boolean success = true;
         long launcherStartedNanos = System.nanoTime();
         long launcherStartedWall = System.currentTimeMillis();
-        System.out.println("F992b stage=beforeWorkspace wallMillis=" + launcherStartedWall);
+        System.out.println("FLIBP5 stage=beforeWorkspace wallMillis=" + launcherStartedWall);
         try (LocalBuildWorkspace workspace = new LocalBuildWorkspace(roots, cache)) {
-            System.out.println("F992b stage=workspaceReady nativeElapsedMs=" + (System.nanoTime() - launcherStartedNanos) / 1_000_000L + " wallElapsedMs=" + (System.currentTimeMillis() - launcherStartedWall));
+            System.out.println("FLIBP5 stage=workspaceReady nativeElapsedMs=" + (System.nanoTime() - launcherStartedNanos) / 1_000_000L + " wallElapsedMs=" + (System.currentTimeMillis() - launcherStartedWall));
             for (int run = 1; run <= repetitions; run++) {
             long memoryDeadline = System.nanoTime() + java.util.concurrent.TimeUnit.MINUTES.toNanos(10);
             while (true) {
@@ -48,14 +48,14 @@ public final class SingleAttempt {
             java.nio.file.Files.writeString(new File(args[2]).toPath().getParent().resolve("current-run.txt"), Integer.toString(run));
             long executionStartedNanos = System.nanoTime();
             long executionStartedWall = System.currentTimeMillis();
-            System.out.println("F992b stage=beforeExecute run=" + run + " wallMillis=" + executionStartedWall);
+            System.out.println("FLIBP5 stage=beforeExecute run=" + run + " wallMillis=" + executionStartedWall);
             ExecutionResults results = workspace.execute(prebuild ? "foundation.url.protocol.buildMaven()" : null, null,
                 prebuild ? java.util.Collections.emptyList() : Arrays.asList(Arrays.copyOfRange(args, firstTest, args.length)), parallelism,
                 report, new SystemClock(), 1);
-            System.out.println("F992b stage=afterExecute run=" + run + " nativeElapsedMs=" + (System.nanoTime() - executionStartedNanos) / 1_000_000L + " wallElapsedMs=" + (System.currentTimeMillis() - executionStartedWall));
+            System.out.println("FLIBP5 stage=afterExecute run=" + run + " nativeElapsedMs=" + (System.nanoTime() - executionStartedNanos) / 1_000_000L + " wallElapsedMs=" + (System.currentTimeMillis() - executionStartedWall));
             long passed = results.getResults(ExecutionStatus.SUCCESS).size();
             long failed = results.getResults(ExecutionStatus.FAILURE).size();
-            System.out.println("F992b run=" + run + " maxTestAttempts=1 passed=" + passed + " failed=" + failed);
+            System.out.println("FLIBP5 run=" + run + " maxTestAttempts=1 passed=" + passed + " failed=" + failed);
             success &= (prebuild || passed > 0) && results.getResults().stream().allMatch(r -> r.getStatus() == ExecutionStatus.SUCCESS);
             }
         }

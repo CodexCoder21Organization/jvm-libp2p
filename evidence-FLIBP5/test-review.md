@@ -1,0 +1,9 @@
+# Independent test review before implementation
+
+OBSERVED: The TCP regression uses real loopback TCP hosts with Noise and Yamux and obtains the listener only from a public accepted ConnectionOverNetty. The QUIC regression starts two real QUIC transports with ephemeral UDP endpoints and obtains its group from the accepted connection's public parent channel. No internals are made public and no reflection/mocking is used.
+OBSERVED: Both tests force failed listener promises, exceptions thrown by a close handler, asynchronous promise failure, success, and caller cancellation/completion while the close handler holds its promise. TCP additionally fails an accepted connection close. Every group executor is started and returns its actual Thread through submit; the test checks group terminationFuture success, isTerminated, and joins every recorded thread.
+INFER: This covers the success-only resource-release gap and the neighboring caller-mutation gap without scheduler calibration. The 10-second waits only bound real async operations and unchanged baseline still fails a direct assertion for group cleanup.
+OBSERVED: Existing test files on main are unchanged. First baseline fixture cleanup reclosed an already closed channel; cleanup now checks channel.isOpen before issuing that direct cleanup close. The expected product behavior and the failing termination assertions were retained.
+INFER: Cleanup must run even if an assertion fails; try/finally removes the injected handler, closes fixture channels, shuts down its owned group, and closes the client transport. Pending close promises are released through the actual Netty context for caller-mutation cases, rather than synthesized success on the aggregate operation.
+
+Next checkpoint: inspect the second baseline XML before implementation; then rerun these exact tests after the product fix. Any additional behavior finding is fixed test-first.

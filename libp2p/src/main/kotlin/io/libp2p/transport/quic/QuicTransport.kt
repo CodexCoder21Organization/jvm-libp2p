@@ -142,7 +142,8 @@ class QuicTransport(
         val everythingThatNeedsToClose = unbindsCompleted.union(channelsClosed)
         val allClosed = CompletableFuture.allOf(*everythingThatNeedsToClose.toTypedArray())
 
-        return allClosed.thenCompose {
+        // Cleanup observes every channel outcome independently of the caller's future.
+        val groupClosed = allClosed.handle { _, _ ->
             // See PlainNettyTransport.close() for the full rationale: the no-arg
             // shutdownGracefully() falls through to Netty's default 2-second
             // quietPeriod, which adds 2 s of pure latency to every close() once
@@ -150,6 +151,13 @@ class QuicTransport(
             // as soon as it notices the shutdown flag; the 5-second timeout caps
             // how long shutdownGracefully will wait for that exit.
             workerGroup.shutdownGracefully(0, 5, TimeUnit.SECONDS).toVoidCompletableFuture()
+        }.thenCompose { it }
+        return groupClosed.handle { _, shutdownFailure ->
+            // Cleanup starts after allClosed settles, so join cannot block here.
+            // Read that outcome first to preserve the original channel-close failure.
+            allClosed.join()
+            if (shutdownFailure != null) throw shutdownFailure
+            Unit
         }
     }
 

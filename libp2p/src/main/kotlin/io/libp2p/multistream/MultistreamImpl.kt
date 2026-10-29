@@ -18,6 +18,19 @@ class MultistreamImpl<TController>(
     val negotiationTimeLimit: Duration = DEFAULT_NEGOTIATION_TIME_LIMIT
 ) : Multistream<TController> {
 
+    internal companion object Factory {
+        private val negotiator = Negotiator
+
+        fun <T> create(
+            bindings: List<ProtocolBinding<T>>,
+            preHandler: P2PChannelHandler<*>?,
+            postHandler: P2PChannelHandler<*>?,
+            negotiationTimeLimit: Duration
+        ): MultistreamImpl<T> {
+            return MultistreamImpl(bindings, preHandler, postHandler, negotiationTimeLimit)
+        }
+    }
+
     override fun initChannel(ch: P2PChannel): CompletableFuture<TController> {
         return with(ch) {
             val protocolSelect = ProtocolSelect(bindings)
@@ -32,12 +45,12 @@ class MultistreamImpl<TController>(
             if (settleClosedNegotiation(ch, protocolSelect.selectedFuture)) return protocolSelect.selectedFuture
             pushHandler(
                 if (ch.isInitiator) {
-                    Negotiator.createRequesterInitializer(
+                    negotiator.createRequesterInitializer(
                         negotiationTimeLimit,
                         *bindings.flatMap { it.protocolDescriptor.announceProtocols }.toTypedArray()
                     )
                 } else {
-                    Negotiator.createResponderInitializer(
+                    negotiator.createResponderInitializer(
                         negotiationTimeLimit,
                         bindings.map { it.protocolDescriptor.protocolMatcher }
                     )

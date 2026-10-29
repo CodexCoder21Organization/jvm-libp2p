@@ -15,10 +15,12 @@ class MultistreamProtocolDebugV1(
     private val postHandler: P2PChannelHandler<*>? = null
 ) : MultistreamProtocolDebug {
 
+    private val implementations = MultistreamImpl
+
     override val version = "1.0.0"
 
     override fun <TController> createMultistream(bindings: List<ProtocolBinding<TController>>) =
-        MultistreamImpl(bindings, preHandler, postHandler, negotiationTimeLimit)
+        implementations.create(bindings, preHandler, postHandler, negotiationTimeLimit)
 
     override fun copyWithHandlers(
         preHandler: P2PChannelHandler<*>?,

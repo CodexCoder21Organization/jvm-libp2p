@@ -7,7 +7,10 @@ import io.netty.handler.codec.MessageToMessageCodec
 /**
  * Adds/removes trailing character from messages
  */
-class StringSuffixCodec(val trailingChar: Char) : MessageToMessageCodec<String, String>() {
+class StringSuffixCodec(val trailingChar: Char) : MessageToMessageCodec<String, String>(String::class.java, String::class.java) {
+    internal companion object Factory {
+        fun create(trailingChar: Char) = StringSuffixCodec(trailingChar)
+    }
 
     override fun encode(ctx: ChannelHandlerContext?, msg: String, out: MutableList<Any>) {
         out += (msg + trailingChar)

@@ -1,0 +1,13 @@
+https://github.com/CodexCoder21Organization/UrlProtocol/pull/992 makes UrlProtocol host shutdown complete even when a full native event-loop queue rejects close work. Its review, R992, raised finding 5, and lane F992b confirmed it: in jvm-libp2p snapshot-41, `PlainNettyTransport.close()` reaches its private acceptor event-loop group shutdown only through `allClosed.thenCompose`. When any listener close fails, that stage is skipped and the acceptor loop is never shut down.
+
+This change makes owned event-loop shutdown run after every channel-close outcome and wait for termination before returning the original channel-close failure. The cleanup stage is private, so cancelling or completing the caller's returned future cannot prevent cleanup. The same gap was found and repaired in QUIC's per-transport worker shutdown. TCP/WebSocket's process-wide worker group remains available to other transports.
+
+The branch starts from the exact published snapshot-41 source, https://github.com/CodexCoder21Organization/jvm-libp2p/commit/25efb1996bd79e59e6eef28d2d44d9a0405fdd78 . The downloaded snapshot-41 jar and POM match both hashes in [its original publication record](https://github.com/CodexCoder21Organization/jvm-libp2p/blob/4af178f6e6bcabf6fa511dd7c79e29c74a400f2d/investigation/PUB71/findings.md). Its POM has no SCM field and the repository has no publication tag; the independent publication record establishes the source. Current develop was checked and still contains the cleanup gap; unrelated later source changes are not included in the release backport.
+
+Validation and publication details will be filled from final native XML and downloaded artifact hashes before this PR is opened.
+
+The new tests use real TCP/Noise/Yamux and QUIC connections, ephemeral ports, public Netty connection/channel handles, group termination futures and every executor's actual thread. They force failed listener and connection close promises, thrown handler exceptions, delayed failure and caller cancellation/completion while a physical close is held. No reflection or mocks are used.
+
+Existing-main test edits: none. Only the two newly added regression files are written. Their fixture cleanup was corrected to avoid reclosing a closed channel or removing a handler from a terminated channel; all behavior assertions, wait bounds and case counts were retained and the final test bytes are run against the old product before the final green run.
+
+[Evidence and complete red/green XML](https://github.com/CodexCoder21Organization/jvm-libp2p/tree/wip/FLIBP5-evidence-20261029/evidence-FLIBP5). No merge, enqueue, close, deployment or check rerun is authorized.

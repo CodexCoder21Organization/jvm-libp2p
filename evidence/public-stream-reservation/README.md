@@ -50,12 +50,12 @@ An intervening combined invocation exited 1 before executing any tests. It found
 /tmp/claude-1000/-code/165f6eb4-61b9-47f8-944e-feccecc5cdde/scratchpad/out/rL1-gradle/gradle-8.14.3/bin/gradle --no-daemon --max-workers=2 '-Dorg.gradle.jvmargs=-Xmx2g -XX:MaxMetaspaceSize=368m' -Pkotlin.compiler.execution.strategy=in-process -Pkotlin.daemon.jvmargs=-Xmx2g :libp2p:test --tests 'io.libp2p.network.*' :libp2p:spotlessCheck :libp2p:detekt --stacktrace
 ```
 
-Final static-check command (result recorded after completion):
+Final static checks: exit 0, 1m24s; `:libp2p:spotlessCheck` and `:libp2p:detekt` passed:
 
 ```bash
 /tmp/claude-1000/-code/165f6eb4-61b9-47f8-944e-feccecc5cdde/scratchpad/out/rL1-gradle/gradle-8.14.3/bin/gradle --no-daemon --max-workers=2 '-Dorg.gradle.jvmargs=-Xmx2g -XX:MaxMetaspaceSize=368m' -Pkotlin.compiler.execution.strategy=in-process -Pkotlin.daemon.jvmargs=-Xmx2g :libp2p:spotlessCheck :libp2p:detekt --stacktrace
 ```
 
-Every JVM invocation was admitted only after raw `/proc/*/cmdline` showed no competing test script/runner/driver and cgroup `memory.max - memory.current` was at least 6 GiB. Admission polled every 60 seconds with a 45-minute deadline; each command had a 45-minute deadline too. Headroom at admission: red `6583054336` bytes; intervening combined command `9022488576` bytes; tests-only green `8517484544` bytes. No host-memory estimate from `free` was used. JVM heaps stayed at or below 2 GiB.
+Every JVM invocation was admitted only after raw `/proc/*/cmdline` showed no competing test script/runner/driver and cgroup `memory.max - memory.current` was at least 6 GiB. Admission polled every 60 seconds with a 45-minute deadline; each command had a 45-minute deadline too. Headroom at admission: red `6583054336` bytes; intervening combined command `9022488576` bytes; tests-only green `8517484544` bytes; final static checks `9957859328` bytes. No host-memory estimate from `free` was used. JVM heaps stayed at or below 2 GiB.
 
 Independent test and code review passes found no remaining issues. No full suite or CI completion is claimed; the task's bar is targeted native connection-selection verification and a PR. No merge, enqueue, publish or deploy was performed.

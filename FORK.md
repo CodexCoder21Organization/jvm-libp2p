@@ -12,6 +12,8 @@ CodexCoder21 production depends on a set of jvm-libp2p fixes that are **not yet 
 
 ## What this fork carries
 
+- **Owned transport shutdown after failed channel close** (snapshot-42) — TCP and WebSocket always terminate their private acceptor group after channel close settles, including failed listener or connection closes. QUIC does the same for its private worker group. The original channel failure remains the returned failure after cleanup, and caller cancellation/completion cannot stop cleanup. Public connection and Netty group/thread tests cover refused, thrown and delayed close results as well as caller mutation.
+
 On top of the upstream `develop` snapshot (which already provides the #412 thread-shutdown fix), this fork adds the following fixes. Each is meant to go upstream; nothing here is a long-term divergence.
 
 - **Per-stream Yamux read pausing** (snapshot-37) — pausing a Yamux child holds only its own delivery and receive credit. Parent reads continue for sibling streams and window updates needed by large replies on the paused stream. Mplex retains its connection-wide pause because it has no per-stream flow control. This ports the earlier [snapshot-29 change](https://github.com/CodexCoder21Organization/jvm-libp2p/pull/42) onto current develop; TCP/Noise tests cover sibling transfers, full-window retention, ordered resume and the paused-request/large-reply case. A paused Yamux stream retains at most its receive-window bytes in at most 64 payload copies; once it holds 64, later payloads are appended to the newest copy instead of resetting the stream. Parent reads stay enabled for control traffic and sibling streams. The protected `AbstractMuxHandler.preparePendingChildRead` hook now takes `(data, retainedBytes)` instead of `(data)`, and new protected hooks `coalescePendingChildRead` and `sealPendingChildRead` were added; a subclass outside this repository that overrode the old signature must be updated.
@@ -42,7 +44,7 @@ Fork releases are published to [kotlin.directory](https://kotlin.directory) unde
 The version assigned to the current source is below; publication is a separate release step.
 
 ```
-community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-41
+community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-42
 ```
 
 ## When this fork goes away

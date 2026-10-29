@@ -1,7 +1,7 @@
 # FLIBP5 plan
 - [completed] Read required documentation and evidence; identify snapshot-41 source and current consumer overlap.
-- [in progress] Write public-API upstream failing tests; record assertion failure and push evidence.
-- [pending] Fix all confirmed resource cleanup gaps test-first; run module tests and independent reviews.
+- [completed] Write public-API upstream failing tests; record assertion failure and push evidence.
+- [in progress] Fix all confirmed resource cleanup gaps test-first; run module tests and independent reviews.
 - [pending] Open upstream PR; prove next version unused; publish exact head and verify jar hashes.
 - [pending] Bump consumer; verify classpath; run 18 scenarios 30x single-attempt; push and inspect Actions XML and prior suite retries.
 - [pending] Verify all remote SHAs, scan evidence, and confirm process cleanup.

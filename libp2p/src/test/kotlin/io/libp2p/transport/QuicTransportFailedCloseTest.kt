@@ -1,11 +1,11 @@
 package io.libp2p.transport
 
 import io.libp2p.core.Connection
+import io.libp2p.core.PeerId
 import io.libp2p.core.multiformats.Multiaddr
+import io.libp2p.crypto.keys.generateEd25519KeyPair
 import io.libp2p.transport.implementation.ConnectionOverNetty
 import io.libp2p.transport.quic.QuicTransport
-import io.libp2p.core.PeerId
-import io.libp2p.crypto.keys.generateEd25519KeyPair
 import io.netty.channel.Channel
 import io.netty.channel.ChannelHandlerContext
 import io.netty.channel.ChannelOutboundHandlerAdapter
@@ -31,6 +31,7 @@ class QuicTransportFailedCloseTest {
         val accepted = CompletableFuture<Connection>()
         var listener: Channel? = null
         var failingChannel: Channel? = null
+        var closeAttempted = false
         val pendingClose = CompletableFuture<Pair<ChannelHandlerContext, ChannelPromise>>()
         val failure = IOException("The test channel refused its close operation")
         try {
@@ -45,44 +46,67 @@ class QuicTransportFailedCloseTest {
             if (outcome != "success") {
                 val target = acceptor
                 failingChannel = target
-                target.pipeline().addFirst("refuse-close", object : ChannelOutboundHandlerAdapter() {
-                    override fun close(ctx: ChannelHandlerContext, promise: ChannelPromise) {
-                        if (outcome == "listener-throw") throw failure
-                        if (outcome == "listener-deferred" || outcome.startsWith("caller-")) {
-                            pendingClose.complete(ctx to promise)
-                        } else {
-                            promise.setFailure(failure)
+                target.pipeline().addFirst(
+                    "refuse-close",
+                    object : ChannelOutboundHandlerAdapter() {
+                        override fun close(ctx: ChannelHandlerContext, promise: ChannelPromise) {
+                            if (outcome == "listener-throw") {
+                                ctx.close(ctx.newPromise())
+                                throw failure
+                            }
+                            if (outcome == "listener-deferred" || outcome.startsWith("caller-")) {
+                                pendingClose.complete(ctx to promise)
+                            } else {
+                                // Release the fixture socket before reporting the failed close request.
+                                // The transport must still terminate its group after that failure.
+                                ctx.close(ctx.newPromise()).addListener { promise.setFailure(failure) }
+                            }
                         }
                     }
-                })
+                )
                 target.eventLoop().submit { }.get(10, TimeUnit.SECONDS)
-                val shutdown = server.close()
+                val shutdown = server.close().also { closeAttempted = true }
                 if (outcome.startsWith("caller-")) {
-                    if (outcome == "caller-cancel") shutdown.cancel(false) else shutdown.complete(Unit)
+                    assertTrue(
+                        if (outcome == "caller-cancel") shutdown.cancel(false) else shutdown.complete(Unit),
+                        "The caller mutation must change its pending close future"
+                    )
                     val (context, promise) = pendingClose.get(10, TimeUnit.SECONDS)
                     context.close(promise)
                     group.terminationFuture().await(10, TimeUnit.SECONDS)
                 } else {
-                    if (outcome == "listener-deferred") pendingClose.get(10, TimeUnit.SECONDS).second.setFailure(failure)
+                    if (outcome == "listener-deferred") {
+                        val (context, promise) = pendingClose.get(10, TimeUnit.SECONDS)
+                        context.close(context.newPromise()).get(10, TimeUnit.SECONDS)
+                        promise.setFailure(failure)
+                    }
                     val error = assertThrows(ExecutionException::class.java) { shutdown.get(10, TimeUnit.SECONDS) }
                     assertSame(failure, error.cause, "Transport close must retain the original channel-close failure")
                 }
             } else {
-                server.close().get(10, TimeUnit.SECONDS)
+                server.close().also { closeAttempted = true }.get(10, TimeUnit.SECONDS)
             }
             assertTrue(group.isTerminated, "Transport close must terminate the owned QUIC worker group after $outcome")
+            assertFalse(acceptor.isOpen, "The fixture listener must close before its event loop terminates")
             assertTrue(group.terminationFuture().isSuccess, "The QUIC worker termination future must succeed")
             threads.forEach { thread ->
                 thread.join(10000)
                 assertFalse(thread.isAlive, "QUIC worker thread ${thread.name} must terminate after $outcome")
             }
         } finally {
-            failingChannel?.let { channel ->
-                channel.pipeline().context("refuse-close")?.let { channel.pipeline().remove(it.handler()) }
+            try {
+                failingChannel?.takeIf { it.isOpen }?.let { channel ->
+                    channel.pipeline().context("refuse-close")?.let { channel.pipeline().remove(it.handler()) }
+                }
+                listener?.takeIf { it.isOpen }?.close()?.syncUninterruptibly()
+                listener?.eventLoop()?.parent()?.shutdownGracefully(0, 5, TimeUnit.SECONDS)?.syncUninterruptibly()
+            } finally {
+                try {
+                    if (!closeAttempted) server.close().get(10, TimeUnit.SECONDS)
+                } finally {
+                    client.close().get(10, TimeUnit.SECONDS)
+                }
             }
-            listener?.takeIf { it.isOpen }?.close()?.syncUninterruptibly()
-            listener?.eventLoop()?.parent()?.shutdownGracefully(0, 5, TimeUnit.SECONDS)?.syncUninterruptibly()
-            client.close().get(10, TimeUnit.SECONDS)
         }
     }
 }

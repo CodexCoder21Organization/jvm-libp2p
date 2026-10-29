@@ -84,7 +84,9 @@ configure(
     // snapshot-36: drain accepted child writes before half-close with Yamux and Mplex.
     // snapshot-37: pause Yamux delivery and credit per stream while parent reads continue.
     // snapshot-41 preserves completed future results when listener dispatch is unavailable.
-    version = "1.3.0-codexcoder21-snapshot-41"
+    // snapshot-42: terminate owned TCP/WS acceptor and QUIC worker groups after failed
+    // channel close, preserving the original failure and isolating cleanup from caller mutation.
+    version = "1.3.0-codexcoder21-snapshot-42"
 
     apply(plugin = "kotlin")
     apply(plugin = "idea")

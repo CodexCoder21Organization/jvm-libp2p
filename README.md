@@ -305,6 +305,12 @@ fun retryConnectionClose(connection: Connection): CompletableFuture<Unit> =
 Other `Connection` implementations inherit a default that delegates to their `close()` operation.
 An implementation that retains failed close results must override `retryClose()` to support a new attempt.
 
+TCP, WebSocket and QUIC transport shutdown always waits for the event-loop groups owned by
+that transport to terminate, including when a listener or connection close fails. The returned
+future retains the original channel-close failure after cleanup. Cancelling or completing that
+future does not stop the owned cleanup. TCP and WebSocket leave their shared worker group running
+for other transports.
+
 ## Gossip simulator
 
 Deterministic Gossip simulator which may simulate networks as large as 10000 of peers

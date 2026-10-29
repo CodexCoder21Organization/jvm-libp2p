@@ -1,0 +1,238 @@
+diff --git a/README.md b/README.md
+index 9b587422e..0af7ab07c 100644
+--- a/README.md
++++ b/README.md
+@@ -30,10 +30,12 @@ unregistered until Java Flight Recorder is initialized. The fixes are tracked in
+ keeps the fixed transport and buffer modules selected when libp2p brings upstream Netty
+ transitively. Keep the production and test Netty pins aligned.
+ 
+-UrlProtocol uses `community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-41` from
+-[kotlin.directory](https://kotlin.directory). This release preserves completed Netty future
+-results when the listener task queue is full, including connection close results. See
+-[the upstream change](https://github.com/CodexCoder21Organization/jvm-libp2p/pull/71).
++UrlProtocol uses `community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-42` from
++[kotlin.directory](https://kotlin.directory). It retains completed Netty future results when
++the listener task queue is full, including connection close results, and always terminates
++owned transport event-loop groups after failed channel closes. See the
++[completed-result change](https://github.com/CodexCoder21Organization/jvm-libp2p/pull/71) and
++[shutdown cleanup change](https://github.com/CodexCoder21Organization/jvm-libp2p/pull/93).
+ 
+ `PeerRegistry.isInPeerWorkCallback()` reports whether the current thread is in this
+ registry's lifetime action or removal callback, or in a peer persistence callback.
+diff --git a/build.kts b/build.kts
+index 95242d606..46bbf6746 100644
+--- a/build.kts
++++ b/build.kts
+@@ -54,7 +54,7 @@ val dependencies = resolveDependencies2(
+     // pipeline before arming parent-close propagation, so an early close always completes the
+     // stream negotiation controller; upstream:
+     // https://github.com/CodexCoder21Organization/jvm-libp2p/pull/36.
+-    MavenPrebuilt2("community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-41"),
++    MavenPrebuilt2("community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-42"),
+ 
+     // Netty for network I/O (directly used by Libp2pHostFactory)
+     MavenPrebuilt2("io.netty:netty-buffer:4.2.10.2-codexcoder21"),
+diff --git a/tests/testFactoryHostRepeatedStartKeepsOwnedListener.kts b/tests/testFactoryHostRepeatedStartKeepsOwnedListener.kts
+index 087d3a4ed..49a0d26ec 100644
+--- a/tests/testFactoryHostRepeatedStartKeepsOwnedListener.kts
++++ b/tests/testFactoryHostRepeatedStartKeepsOwnedListener.kts
+@@ -1,6 +1,6 @@
+ @file:WithArtifact("foundation.url.protocol.buildMaven()")
+ @file:WithArtifact("org.jetbrains.kotlin:kotlin-test:1.8.22")
+-@file:WithArtifact("community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-41")
++@file:WithArtifact("community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-42")
+ package foundation.url.protocol
+ 
+ import build.kotlin.withartifact.WithArtifact
+diff --git a/tests/testHostStopClosesAdmissionOnItsExposedNativeTransport.kts b/tests/testHostStopClosesAdmissionOnItsExposedNativeTransport.kts
+index 1a6723c91..7d2065b07 100644
+--- a/tests/testHostStopClosesAdmissionOnItsExposedNativeTransport.kts
++++ b/tests/testHostStopClosesAdmissionOnItsExposedNativeTransport.kts
+@@ -1,6 +1,6 @@
+ @file:WithArtifact("foundation.url.protocol.buildMaven()")
+ @file:WithArtifact("org.jetbrains.kotlin:kotlin-test:1.8.22")
+-@file:WithArtifact("community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-41")
++@file:WithArtifact("community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-42")
+ package foundation.url.protocol
+ 
+ import build.kotlin.withartifact.WithArtifact
+diff --git a/tests/testHostStopDoesNotMutatePublishedListenerFailures.kts b/tests/testHostStopDoesNotMutatePublishedListenerFailures.kts
+index ee72a020f..389c2d8c5 100644
+--- a/tests/testHostStopDoesNotMutatePublishedListenerFailures.kts
++++ b/tests/testHostStopDoesNotMutatePublishedListenerFailures.kts
+@@ -1,6 +1,6 @@
+ @file:WithArtifact("foundation.url.protocol.buildMaven()")
+ @file:WithArtifact("org.jetbrains.kotlin:kotlin-test:1.8.22")
+-@file:WithArtifact("community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-41")
++@file:WithArtifact("community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-42")
+ package foundation.url.protocol
+ 
+ import build.kotlin.withartifact.WithArtifact
+diff --git a/tests/testHostStopDrainsQueuedRootWorkBeforeNativeClose.kts b/tests/testHostStopDrainsQueuedRootWorkBeforeNativeClose.kts
+index 006a1da91..486dd872b 100644
+--- a/tests/testHostStopDrainsQueuedRootWorkBeforeNativeClose.kts
++++ b/tests/testHostStopDrainsQueuedRootWorkBeforeNativeClose.kts
+@@ -1,6 +1,6 @@
+ @file:WithArtifact("foundation.url.protocol.buildMaven()")
+ @file:WithArtifact("org.jetbrains.kotlin:kotlin-test:1.8.22")
+-@file:WithArtifact("community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-41")
++@file:WithArtifact("community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-42")
+ package foundation.url.protocol
+ 
+ import build.kotlin.withartifact.WithArtifact
+diff --git a/tests/testHostStopKeepsFatalRootFailurePrimary.kts b/tests/testHostStopKeepsFatalRootFailurePrimary.kts
+index b79c9fe25..6717fc65b 100644
+--- a/tests/testHostStopKeepsFatalRootFailurePrimary.kts
++++ b/tests/testHostStopKeepsFatalRootFailurePrimary.kts
+@@ -1,6 +1,6 @@
+ @file:WithArtifact("foundation.url.protocol.buildMaven()")
+ @file:WithArtifact("org.jetbrains.kotlin:kotlin-test:1.8.22")
+-@file:WithArtifact("community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-41")
++@file:WithArtifact("community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-42")
+ package foundation.url.protocol
+ 
+ import build.kotlin.withartifact.WithArtifact
+diff --git a/tests/testHostStopPreservesDistinctRootCloseFailures.kts b/tests/testHostStopPreservesDistinctRootCloseFailures.kts
+index e8e6d7be1..106a792a6 100644
+--- a/tests/testHostStopPreservesDistinctRootCloseFailures.kts
++++ b/tests/testHostStopPreservesDistinctRootCloseFailures.kts
+@@ -1,6 +1,6 @@
+ @file:WithArtifact("foundation.url.protocol.buildMaven()")
+ @file:WithArtifact("org.jetbrains.kotlin:kotlin-test:1.8.22")
+-@file:WithArtifact("community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-41")
++@file:WithArtifact("community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-42")
+ package foundation.url.protocol
+ 
+ import build.kotlin.withartifact.WithArtifact
+diff --git a/tests/testHostStopRefusesNewConnectionsWhileRootWorkDrains.kts b/tests/testHostStopRefusesNewConnectionsWhileRootWorkDrains.kts
+index 8895f0585..1e49623a1 100644
+--- a/tests/testHostStopRefusesNewConnectionsWhileRootWorkDrains.kts
++++ b/tests/testHostStopRefusesNewConnectionsWhileRootWorkDrains.kts
+@@ -1,6 +1,6 @@
+ @file:WithArtifact("foundation.url.protocol.buildMaven()")
+ @file:WithArtifact("org.jetbrains.kotlin:kotlin-test:1.8.22")
+-@file:WithArtifact("community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-41")
++@file:WithArtifact("community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-42")
+ package foundation.url.protocol
+ 
+ import build.kotlin.withartifact.WithArtifact
+diff --git a/tests/testHostStopRejectsHandshakePublicationAfterListenerDrain.kts b/tests/testHostStopRejectsHandshakePublicationAfterListenerDrain.kts
+index 963a52ec9..4398f7e92 100644
+--- a/tests/testHostStopRejectsHandshakePublicationAfterListenerDrain.kts
++++ b/tests/testHostStopRejectsHandshakePublicationAfterListenerDrain.kts
+@@ -1,6 +1,6 @@
+ @file:WithArtifact("foundation.url.protocol.buildMaven()")
+ @file:WithArtifact("org.jetbrains.kotlin:kotlin-test:1.8.22")
+-@file:WithArtifact("community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-41")
++@file:WithArtifact("community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-42")
+ package foundation.url.protocol
+ 
+ import build.kotlin.withartifact.WithArtifact
+diff --git a/tests/testHostStopRetainsRejectedHandshakeCloseFailure.kts b/tests/testHostStopRetainsRejectedHandshakeCloseFailure.kts
+index 25707aaa4..59722a8cd 100644
+--- a/tests/testHostStopRetainsRejectedHandshakeCloseFailure.kts
++++ b/tests/testHostStopRetainsRejectedHandshakeCloseFailure.kts
+@@ -1,6 +1,6 @@
+ @file:WithArtifact("foundation.url.protocol.buildMaven()")
+ @file:WithArtifact("org.jetbrains.kotlin:kotlin-test:1.8.22")
+-@file:WithArtifact("community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-41")
++@file:WithArtifact("community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-42")
+ package foundation.url.protocol
+ 
+ import build.kotlin.withartifact.WithArtifact
+diff --git a/tests/testListenerCloseCallerMutationDoesNotSettleHostStop.kts b/tests/testListenerCloseCallerMutationDoesNotSettleHostStop.kts
+index 401b698fa..4f1b060a7 100644
+--- a/tests/testListenerCloseCallerMutationDoesNotSettleHostStop.kts
++++ b/tests/testListenerCloseCallerMutationDoesNotSettleHostStop.kts
+@@ -1,6 +1,6 @@
+ @file:WithArtifact("foundation.url.protocol.buildMaven()")
+ @file:WithArtifact("org.jetbrains.kotlin:kotlin-test:1.8.22")
+-@file:WithArtifact("community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-41")
++@file:WithArtifact("community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-42")
+ package foundation.url.protocol
+ 
+ import build.kotlin.withartifact.WithArtifact
+diff --git a/tests/testListenerStartCallerCancellationDoesNotCancelHostStop.kts b/tests/testListenerStartCallerCancellationDoesNotCancelHostStop.kts
+index c2356abf4..2fa9d00e8 100644
+--- a/tests/testListenerStartCallerCancellationDoesNotCancelHostStop.kts
++++ b/tests/testListenerStartCallerCancellationDoesNotCancelHostStop.kts
+@@ -1,6 +1,6 @@
+ @file:WithArtifact("foundation.url.protocol.buildMaven()")
+ @file:WithArtifact("org.jetbrains.kotlin:kotlin-test:1.8.22")
+-@file:WithArtifact("community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-41")
++@file:WithArtifact("community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-42")
+ package foundation.url.protocol
+ 
+ import build.kotlin.withartifact.WithArtifact
+diff --git a/tests/testListenerStartCallerCompletionDoesNotSettleHostStop.kts b/tests/testListenerStartCallerCompletionDoesNotSettleHostStop.kts
+index 0eb0c6174..1297f6de2 100644
+--- a/tests/testListenerStartCallerCompletionDoesNotSettleHostStop.kts
++++ b/tests/testListenerStartCallerCompletionDoesNotSettleHostStop.kts
+@@ -1,6 +1,6 @@
+ @file:WithArtifact("foundation.url.protocol.buildMaven()")
+ @file:WithArtifact("org.jetbrains.kotlin:kotlin-test:1.8.22")
+-@file:WithArtifact("community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-41")
++@file:WithArtifact("community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-42")
+ package foundation.url.protocol
+ 
+ import build.kotlin.withartifact.WithArtifact
+diff --git a/tests/testListenerStartRefusesBindingWhileUnlistenIsPending.kts b/tests/testListenerStartRefusesBindingWhileUnlistenIsPending.kts
+index 60716022b..217acacb7 100644
+--- a/tests/testListenerStartRefusesBindingWhileUnlistenIsPending.kts
++++ b/tests/testListenerStartRefusesBindingWhileUnlistenIsPending.kts
+@@ -1,6 +1,6 @@
+ @file:WithArtifact("foundation.url.protocol.buildMaven()")
+ @file:WithArtifact("org.jetbrains.kotlin:kotlin-test:1.8.22")
+-@file:WithArtifact("community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-41")
++@file:WithArtifact("community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-42")
+ package foundation.url.protocol
+ 
+ import build.kotlin.withartifact.WithArtifact
+diff --git a/tests/testMutableBindBytesRetainSuccessfulStopOutcome.kts b/tests/testMutableBindBytesRetainSuccessfulStopOutcome.kts
+index a6214f0b7..8b42b0ea2 100644
+--- a/tests/testMutableBindBytesRetainSuccessfulStopOutcome.kts
++++ b/tests/testMutableBindBytesRetainSuccessfulStopOutcome.kts
+@@ -1,6 +1,6 @@
+ @file:WithArtifact("foundation.url.protocol.buildMaven()")
+ @file:WithArtifact("org.jetbrains.kotlin:kotlin-test:1.8.22")
+-@file:WithArtifact("community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-41")
++@file:WithArtifact("community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-42")
+ package foundation.url.protocol
+ 
+ import build.kotlin.withartifact.WithArtifact
+diff --git a/tests/testR992AdmittedDialCannotCreateChannelAfterStop.kts b/tests/testR992AdmittedDialCannotCreateChannelAfterStop.kts
+index 9f09edf0a..d946130fc 100644
+--- a/tests/testR992AdmittedDialCannotCreateChannelAfterStop.kts
++++ b/tests/testR992AdmittedDialCannotCreateChannelAfterStop.kts
+@@ -1,6 +1,6 @@
+ @file:WithArtifact("foundation.url.protocol.buildMaven()")
+ @file:WithArtifact("org.jetbrains.kotlin:kotlin-test:1.8.22")
+-@file:WithArtifact("community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-41")
++@file:WithArtifact("community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-42")
+ package foundation.url.protocol
+ 
+ import build.kotlin.withartifact.WithArtifact
+diff --git a/tests/testR992LateDialAfterNativeFailureDoesNotCloseTwice.kts b/tests/testR992LateDialAfterNativeFailureDoesNotCloseTwice.kts
+index 44d3d8a68..b3b9e93ce 100644
+--- a/tests/testR992LateDialAfterNativeFailureDoesNotCloseTwice.kts
++++ b/tests/testR992LateDialAfterNativeFailureDoesNotCloseTwice.kts
+@@ -1,6 +1,6 @@
+ @file:WithArtifact("foundation.url.protocol.buildMaven()")
+ @file:WithArtifact("org.jetbrains.kotlin:kotlin-test:1.8.22")
+-@file:WithArtifact("community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-41")
++@file:WithArtifact("community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-42")
+ package foundation.url.protocol
+ 
+ import build.kotlin.withartifact.WithArtifact
+diff --git a/tests/testR992MutableBindRetainsSuccessfulStopOutcome.kts b/tests/testR992MutableBindRetainsSuccessfulStopOutcome.kts
+index 5b5fdc915..bdf32ec63 100644
+--- a/tests/testR992MutableBindRetainsSuccessfulStopOutcome.kts
++++ b/tests/testR992MutableBindRetainsSuccessfulStopOutcome.kts
+@@ -1,6 +1,6 @@
+ @file:WithArtifact("foundation.url.protocol.buildMaven()")
+ @file:WithArtifact("org.jetbrains.kotlin:kotlin-test:1.8.22")
+-@file:WithArtifact("community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-41")
++@file:WithArtifact("community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-42")
+ package foundation.url.protocol
+ 
+ import build.kotlin.withartifact.WithArtifact

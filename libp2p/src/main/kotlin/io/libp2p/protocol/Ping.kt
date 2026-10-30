@@ -35,7 +35,7 @@ open class PingBinding(ping: PingProtocol) :
 class PingTimeoutException : Libp2pException()
 
 open class PingProtocol(var pingSize: Int) : ProtocolHandler<PingController>(Long.MAX_VALUE, Long.MAX_VALUE) {
-    var timeoutScheduler: ScheduledExecutorService by lazyVar { ScheduledThreadPoolExecutor(1) }
+    var timeoutScheduler: ScheduledExecutorService by lazyVar { newPingTimeoutScheduler() }
     private val schedulerMonitor = Any()
     private val schedulerUsers = IdentityHashMap<ScheduledExecutorService, Int>()
     var curTime: () -> Long = { System.currentTimeMillis() }
@@ -121,7 +121,7 @@ open class PingProtocol(var pingSize: Int) : ProtocolHandler<PingController>(Lon
                     } else {
                         schedulerUsers.remove(scheduler)
                         if (timeoutScheduler === scheduler) {
-                            timeoutScheduler = ScheduledThreadPoolExecutor(1)
+                            timeoutScheduler = newPingTimeoutScheduler()
                         }
                         scheduler
                     }
@@ -170,3 +170,6 @@ open class PingProtocol(var pingSize: Int) : ProtocolHandler<PingController>(Lon
         }
     }
 }
+
+private fun newPingTimeoutScheduler(): ScheduledExecutorService =
+    ScheduledThreadPoolExecutor(1).apply { removeOnCancelPolicy = true }

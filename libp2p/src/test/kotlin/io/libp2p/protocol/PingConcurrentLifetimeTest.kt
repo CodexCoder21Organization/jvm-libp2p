@@ -1,6 +1,7 @@
 package io.libp2p.protocol
 
 import io.libp2p.core.Connection
+import io.libp2p.core.ConnectionClosedException
 import io.libp2p.core.Host
 import io.libp2p.core.P2PChannel
 import io.libp2p.core.Stream
@@ -196,7 +197,6 @@ class PingConcurrentLifetimeTest {
                         val failedStream = openFailedConcurrentPing(
                             client,
                             server,
-                            registrationFailure,
                             "round $round reports the original Ping registration failure"
                         )
                         failedRoots.add(failedStream.connection)
@@ -214,6 +214,7 @@ class PingConcurrentLifetimeTest {
                 )
             }
 
+            assertThat(binding.initializationFailures).hasSize(32).containsOnly(registrationFailure)
             assertThat(scheduler.isShutdown)
                 .`as`("failed registrations do not shut down the scheduler retained by the sibling")
                 .isFalse()
@@ -256,10 +257,10 @@ class PingConcurrentLifetimeTest {
             val failedStream = openFailedConcurrentPing(
                 client,
                 server,
-                registrationFailure,
                 "the sole Ping registration reports its original pushHandler failure"
             )
             closeConcurrentPingStream(failedStream)
+            assertThat(binding.initializationFailures).containsExactly(registrationFailure)
             assertConcurrentPingSchedulerTerminated(
                 failedScheduler,
                 "the scheduler captured by the only failed registration"
@@ -468,12 +469,21 @@ private class PingRegistrationFailureBinding(
     private val failure: Throwable,
     private val failRegistrations: AtomicBoolean
 ) : PingBinding(protocol) {
-    override fun initChannel(ch: P2PChannel, selectedProtocol: String): CompletableFuture<out PingController> =
-        if (failRegistrations.get()) {
-            super.initChannel(PingPushHandlerFailureStream(ch as Stream, failure), selectedProtocol)
-        } else {
-            super.initChannel(ch, selectedProtocol)
+    val initializationFailures = ConcurrentLinkedQueue<Throwable>()
+
+    override fun initChannel(ch: P2PChannel, selectedProtocol: String): CompletableFuture<out PingController> {
+        return try {
+            if (failRegistrations.get()) {
+                super.initChannel(PingPushHandlerFailureStream(ch as Stream, failure), selectedProtocol)
+            } else {
+                super.initChannel(ch, selectedProtocol)
+            }
+        } catch (caught: Throwable) {
+            initializationFailures.add(caught)
+            throw caught
         }
+    }
+
 }
 
 private fun concurrentPingHost(binding: PingBinding, listen: Boolean = false): Host = host {
@@ -509,7 +519,6 @@ private fun openConcurrentPing(client: Host, server: Host): ConcurrentPingStream
 private fun openFailedConcurrentPing(
     client: Host,
     server: Host,
-    expectedFailure: Throwable,
     description: String
 ): FailedConcurrentPingStream {
     val connection = dialConcurrentPingRoot(client, server)
@@ -523,9 +532,11 @@ private fun openFailedConcurrentPing(
         { opening.controller.get(10, TimeUnit.SECONDS) },
         "$description completes exceptionally"
     )
+    // Netty's ChannelInitializer logs a synchronous setup failure and closes its child.
+    // The public binding separately records the exact original failure before rethrowing it.
     assertThat(controllerFailure.cause)
-        .`as`("$description preserves the original registration failure")
-        .isSameAs(expectedFailure)
+        .`as`("$description closes the failed host stream")
+        .isExactlyInstanceOf(ConnectionClosedException::class.java)
     return FailedConcurrentPingStream(connection, requireNotNull(stream))
 }
 

@@ -17,22 +17,28 @@ import io.libp2p.transport.implementation.P2PChannelOverNetty
 import io.libp2p.transport.tcp.TcpTransport
 import io.netty.channel.ChannelHandlerContext
 import io.netty.channel.ChannelInboundHandlerAdapter
+import org.apache.logging.log4j.LogManager
+import org.apache.logging.log4j.core.LogEvent
+import org.apache.logging.log4j.core.Logger
+import org.apache.logging.log4j.core.appender.AbstractAppender
+import org.apache.logging.log4j.core.config.Property
+import org.apache.logging.log4j.core.layout.PatternLayout
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CompletableFuture
-import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.CountDownLatch
-import java.util.concurrent.atomic.AtomicReference
-import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.Executors
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.ScheduledThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
 
 class CircuitConcurrentCloseTest {
     @Test
@@ -111,6 +117,46 @@ class CircuitConcurrentCloseTest {
             }
         }
     }
+
+    @Test
+    fun delayedPairedCloseFailureReachesTheSourcePipelineTailAfterTeardown() {
+        ConcurrentCircuitFixture().use { fixture ->
+            fixture.start()
+            val survivor = fixture.open()
+            val pair = fixture.open()
+            val failure = IllegalStateException("The delayed paired relay close failed")
+            val closeResult = CompletableFuture<Unit>()
+            val reported = CompletableFuture<Throwable>()
+            val logger = LogManager.getLogger("io.netty.channel.DefaultChannelPipeline") as Logger
+            val appender = object : AbstractAppender(
+                "circuit-paired-close-observer", null, PatternLayout.createDefaultLayout(), false, Property.EMPTY_ARRAY
+            ) {
+                override fun append(event: LogEvent) {
+                    if (event.thrown === failure) reported.complete(event.thrown)
+                }
+            }
+            appender.start()
+            logger.addAppender(appender)
+            try {
+                fixture.overridePairedClose(pair.relayStop, closeResult)
+                pair.local.close().get(10, TimeUnit.SECONDS)
+                awaitCircuit(fixture.pairedCloseAttempt, "The proxy must request the held paired close")
+                awaitCircuit(pair.relayHop.closeFuture(), "The source relay stream must close before the delayed failure")
+                val source = (pair.relayHop as P2PChannelOverNetty).nettyChannel
+                source.eventLoop().submit {}.get(10, TimeUnit.SECONDS)
+                // Application handlers have been removed; Netty's persistent tail reports late failures.
+                closeResult.completeExceptionally(failure)
+                assertSame(failure, awaitCircuit(reported, "The source pipeline tail must report its delayed paired-close failure"))
+                fixture.assertPairedCloseCount(pair.relayStop)
+                fixture.assertUsable(survivor)
+            } finally {
+                logger.removeAppender(appender)
+                appender.stop()
+                (pair.relayStop as P2PChannelOverNetty).nettyChannel.close()
+            }
+        }
+    }
+
 }
 
 private class ConcurrentCircuitPair(
@@ -123,8 +169,12 @@ private class ConcurrentCircuitPair(
 ) {
     fun awaitClosed() {
         listOf(
-            local.closeFuture(), remote.closeFuture(), child.closeFuture(), remoteChild.closeFuture(),
-            relayHop.closeFuture(), relayStop.closeFuture()
+            local.closeFuture(),
+            remote.closeFuture(),
+            child.closeFuture(),
+            remoteChild.closeFuture(),
+            relayHop.closeFuture(),
+            relayStop.closeFuture()
         ).forEach { awaitCircuit(it, "Both circuit roots, relay streams and their children must close") }
         listOf(relayHop, relayStop).forEach { stream ->
             (stream as P2PChannelOverNetty).nettyChannel.eventLoop().submit {}.get(10, TimeUnit.SECONDS)
@@ -138,7 +188,7 @@ private class ConcurrentCircuitFixture : AutoCloseable {
     private val accepted = LinkedBlockingQueue<Stream>()
     private val relayStreams = ConcurrentLinkedQueue<Stream>()
     private val protocol = "/test/concurrent-circuit-close/1.0.0"
-    private val pairedFailure = AtomicReference<Pair<Stream, Throwable>?>()
+    private val pairedCloseResult = AtomicReference<Pair<Stream, CompletableFuture<Unit>>?>()
     private val pairedCloseCounts = ConcurrentHashMap<Stream, AtomicInteger>()
 
     fun assertPairedCloseCount(stream: Stream) {
@@ -147,7 +197,11 @@ private class ConcurrentCircuitFixture : AutoCloseable {
     val pairedCloseAttempt = CompletableFuture<Unit>()
 
     fun failPairedClose(stream: Stream, failure: Throwable) {
-        pairedFailure.set(stream to failure)
+        overridePairedClose(stream, CompletableFuture.failedFuture(failure))
+    }
+
+    fun overridePairedClose(stream: Stream, result: CompletableFuture<Unit>) {
+        pairedCloseResult.set(stream to result)
     }
     private lateinit var relay: Host
     private lateinit var server: Host
@@ -208,10 +262,10 @@ private class ConcurrentCircuitFixture : AutoCloseable {
                             return object : Stream by stream {
                                 override fun close(): CompletableFuture<Unit> {
                                     pairedCloseCounts.computeIfAbsent(stream) { AtomicInteger() }.incrementAndGet()
-                                    val injected = pairedFailure.get()
+                                    val injected = pairedCloseResult.get()
                                     if (injected != null && injected.first === stream) {
                                         pairedCloseAttempt.complete(Unit)
-                                        return CompletableFuture.failedFuture(injected.second)
+                                        return injected.second
                                     }
                                     return stream.close()
                                 }
@@ -221,7 +275,8 @@ private class ConcurrentCircuitFixture : AutoCloseable {
                 }
         }
         val hop = CircuitHopProtocol.Binding(
-            CircuitHopProtocol.RelayManager.limitTo(key, PeerId.fromPubKey(key.publicKey()), 5), stop
+            CircuitHopProtocol.RelayManager.limitTo(key, PeerId.fromPubKey(key.publicKey()), 5),
+            stop
         )
         val runner = ScheduledThreadPoolExecutor(1).also { runners.add(it) }
         lateinit var relayTransport: RelayTransport
@@ -240,13 +295,16 @@ private class ConcurrentCircuitFixture : AutoCloseable {
             protocols {
                 +hop
                 +stop
-                +object : StrictProtocolBinding<Unit>(protocol, object : P2PChannelHandler<Unit> {
-                    override fun initChannel(ch: P2PChannel): CompletableFuture<Unit> {
-                        val stream = ch as Stream
-                        if (!stream.isInitiator) accepted.add(stream)
-                        return CompletableFuture.completedFuture(Unit)
+                +object : StrictProtocolBinding<Unit>(
+                    protocol,
+                    object : P2PChannelHandler<Unit> {
+                        override fun initChannel(ch: P2PChannel): CompletableFuture<Unit> {
+                            val stream = ch as Stream
+                            if (!stream.isInitiator) accepted.add(stream)
+                            return CompletableFuture.completedFuture(Unit)
+                        }
                     }
-                }) {}
+                ) {}
             }
         }
         relayTransport.setHost(result)

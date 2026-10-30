@@ -1,21 +1,21 @@
 package io.libp2p.protocol
 
+import io.libp2p.core.ConnectionClosedException
 import io.libp2p.core.Host
 import io.libp2p.core.Stream
-import io.libp2p.core.ConnectionClosedException
-import io.netty.buffer.ByteBuf
 import io.libp2p.core.dsl.host
 import io.libp2p.core.mux.StreamMuxerProtocol
 import io.libp2p.security.noise.NoiseXXSecureChannel
 import io.libp2p.transport.tcp.TcpTransport
+import io.netty.buffer.ByteBuf
 import org.assertj.core.api.Assertions.assertThat
-import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Test
 import java.time.Duration
-import java.util.concurrent.ScheduledThreadPoolExecutor
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.ScheduledThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 
 class PingDefaultTimeoutQueueTest {
@@ -29,7 +29,9 @@ class PingDefaultTimeoutQueueTest {
             client.start().get(10, TimeUnit.SECONDS)
             repeat(2) {
                 val opening = client.newStream<PingController>(
-                    listOf("/ipfs/ping/1.0.0"), server.peerId, *server.listenAddresses().toTypedArray()
+                    listOf("/ipfs/ping/1.0.0"),
+                    server.peerId,
+                    *server.listenAddresses().toTypedArray()
                 )
                 val stream = opening.stream.get(10, TimeUnit.SECONDS)
                 val controller = opening.controller.get(10, TimeUnit.SECONDS)
@@ -74,7 +76,9 @@ class PingDefaultTimeoutQueueTest {
             server.start().get(10, TimeUnit.SECONDS)
             client.start().get(10, TimeUnit.SECONDS)
             fun open() = client.newStream<PingController>(
-                listOf("/ipfs/ping/1.0.0"), server.peerId, *server.listenAddresses().toTypedArray()
+                listOf("/ipfs/ping/1.0.0"),
+                server.peerId,
+                *server.listenAddresses().toTypedArray()
             )
             val first = open()
             val sibling = open()
@@ -106,7 +110,6 @@ class PingDefaultTimeoutQueueTest {
             }
         }
     }
-
 }
 
 private fun defaultQueueHost(binding: PingBinding, listen: Boolean): Host = host {

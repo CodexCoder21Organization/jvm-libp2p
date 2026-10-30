@@ -25,6 +25,13 @@ class NetworkImpl(
      */
     override val connections = CopyOnWriteArrayList<Connection>()
 
+    override fun reserveConnection(connection: Connection): CompletableFuture<Boolean> =
+        if (connectionEligible(connection)) {
+            io.libp2p.network.reserveConnection(connection)
+        } else {
+            CompletableFuture.completedFuture(false)
+        }
+
     private val pendingDials = ConcurrentHashMap<PendingDialKey, CompletableFuture<Connection>>()
 
     /**
@@ -138,7 +145,7 @@ class NetworkImpl(
         if (settled == null) return CompletableFuture.completedFuture(if (duplicateRetired(connection)) null else connection)
         // Do not start wire operations or invoke callbacks inside the peer-map computation.
         if (newlySettled) settled.closeFuture().thenAccept { settledConnections.remove(id, settled) }
-        return reserveConnection(settled).handle { accepted, failure ->
+        return io.libp2p.network.reserveConnection(settled).handle { accepted, failure ->
             if (failure != null || !accepted) settledConnections.remove(id, settled)
             if (failure != null) throw java.util.concurrent.CompletionException(failure)
             if (accepted || (settled === connection && !duplicateRetired(connection))) settled else null

@@ -91,13 +91,13 @@ class PingSchedulerReplacementTest {
     }
 }
 
-private data class OpenedPing(
+private data class ReplacementOpenedPing(
     val connection: Connection,
     val stream: Stream,
     val controller: PingController
 )
 
-private fun openPing(client: Host, server: Host, description: String): OpenedPing {
+private fun openPing(client: Host, server: Host, description: String): ReplacementOpenedPing {
     val opening = client.newStream<PingController>(
         listOf(PING_PROTOCOL),
         server.peerId,
@@ -108,7 +108,7 @@ private fun openPing(client: Host, server: Host, description: String): OpenedPin
     assertThatCode {
         assertThat(controller.ping().get(10, TimeUnit.SECONDS)).isGreaterThanOrEqualTo(0)
     }.`as`(description).doesNotThrowAnyException()
-    return OpenedPing(stream.connection, stream, controller)
+    return ReplacementOpenedPing(stream.connection, stream, controller)
 }
 
 private fun pingHost(binding: PingBinding, listen: Boolean = false): Host = host {

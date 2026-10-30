@@ -387,6 +387,22 @@ public class CircuitHopProtocol extends ProtobufProtocolHandler<CircuitHopProtoc
         target.writeAndFlush(msg);
       }
     }
+
+    @Override
+    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+      try {
+        target
+            .close()
+            .whenComplete(
+                (ignored, failure) -> {
+                  if (failure != null) {
+                    ctx.fireExceptionCaught(failure);
+                  }
+                });
+      } finally {
+        ctx.fireChannelInactive();
+      }
+    }
   }
 
   private static final int TRAFFIC_LIMIT = 2 * 1024;

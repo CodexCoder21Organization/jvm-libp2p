@@ -17,8 +17,6 @@ import io.libp2p.transport.implementation.P2PChannelOverNetty
 import io.libp2p.transport.tcp.TcpTransport
 import io.netty.channel.ChannelHandlerContext
 import io.netty.channel.ChannelInboundHandlerAdapter
-import io.netty.channel.ChannelOutboundHandlerAdapter
-import io.netty.channel.ChannelPromise
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertSame
@@ -26,6 +24,8 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.Executors
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.ScheduledThreadPoolExecutor
@@ -42,15 +42,19 @@ class CircuitConcurrentCloseTest {
             try {
                 repeat(8) {
                     val pair = fixture.open()
+                    val ready = CountDownLatch(16)
                     val start = CompletableFuture<Unit>()
                     val closes = (0 until 16).map { caller ->
                         CompletableFuture.runAsync({
+                            ready.countDown()
                             start.get(10, TimeUnit.SECONDS)
                             val root = if (caller % 2 == 0) pair.local else pair.remote
                             root.close().get(10, TimeUnit.SECONDS)
                         }, workers)
                     }
+                    val allReady = ready.await(10, TimeUnit.SECONDS)
                     start.complete(Unit)
+                    assertTrue(allReady, "All 16 close callers reach the shared start barrier")
                     CompletableFuture.allOf(*closes.toTypedArray()).get(10, TimeUnit.SECONDS)
                     pair.awaitClosed()
                     // Both endpoints are already closed; repeated close must still settle.
@@ -72,18 +76,11 @@ class CircuitConcurrentCloseTest {
             val survivor = fixture.open()
             val pair = fixture.open()
             val failure = IllegalStateException("The paired relay stream rejected its close")
-            val closeAttempt = CompletableFuture<ChannelPromise>()
             val observed = CompletableFuture<Throwable>()
             val inactive = CompletableFuture<Unit>()
             val targetChannel = (pair.relayStop as P2PChannelOverNetty).nettyChannel
             val sourceChannel = (pair.relayHop as P2PChannelOverNetty).nettyChannel
-            targetChannel.eventLoop().submit {
-                pair.relayStop.pushHandler("held-paired-close", object : ChannelOutboundHandlerAdapter() {
-                    override fun close(ctx: ChannelHandlerContext, promise: ChannelPromise) {
-                        closeAttempt.complete(promise)
-                    }
-                })
-            }.get(10, TimeUnit.SECONDS)
+            fixture.failPairedClose(pair.relayStop, failure)
             sourceChannel.eventLoop().submit {
                 pair.relayHop.pushHandler(object : ChannelInboundHandlerAdapter() {
                     @Deprecated("Deprecated in Java")
@@ -98,16 +95,13 @@ class CircuitConcurrentCloseTest {
             }.get(10, TimeUnit.SECONDS)
             try {
                 pair.local.close().get(10, TimeUnit.SECONDS)
-                val pending = closeAttempt.get(10, TimeUnit.SECONDS)
-                inactive.get(10, TimeUnit.SECONDS)
-                // Complete from another thread after the source's inactive event has propagated.
-                pending.setFailure(failure)
+                awaitCircuit(fixture.pairedCloseAttempt, "The proxy must attempt its paired stream close")
+                awaitCircuit(inactive, "The source inactive event must continue after a paired close failure")
                 assertSame(failure, awaitCircuit(observed, "A failed paired close must reach the source exception handler"))
                 assertFalse(pair.relayStop.closeFuture().isDone)
                 fixture.assertUsable(survivor)
             } finally {
                 targetChannel.eventLoop().submit {
-                    targetChannel.pipeline().remove("held-paired-close")
                     targetChannel.close()
                 }.get(10, TimeUnit.SECONDS)
             }
@@ -135,6 +129,12 @@ private class ConcurrentCircuitFixture : AutoCloseable {
     private val accepted = LinkedBlockingQueue<Stream>()
     private val relayStreams = ConcurrentLinkedQueue<Stream>()
     private val protocol = "/test/concurrent-circuit-close/1.0.0"
+    private val pairedFailure = AtomicReference<Pair<Stream, Throwable>?>()
+    val pairedCloseAttempt = CompletableFuture<Unit>()
+
+    fun failPairedClose(stream: Stream, failure: Throwable) {
+        pairedFailure.set(stream to failure)
+    }
     private lateinit var relay: Host
     private lateinit var server: Host
     private lateinit var client: Host
@@ -182,7 +182,29 @@ private class ConcurrentCircuitFixture : AutoCloseable {
 
     private fun build(candidates: List<RelayTransport.CandidateRelay>, circuit: String? = null): Host {
         val key = generateKeyPair(KeyType.ED25519).first
-        val stop = CircuitStopProtocol.Binding(CircuitStopProtocol())
+        val stop = object : CircuitStopProtocol.Binding(CircuitStopProtocol()) {
+            override fun initChannel(
+                ch: P2PChannel,
+                selectedProtocol: String
+            ): CompletableFuture<out CircuitStopProtocol.StopController> =
+                super.initChannel(ch, selectedProtocol).thenApply { controller ->
+                    object : CircuitStopProtocol.StopController by controller {
+                        override fun getStream(): Stream {
+                            val stream = controller.stream
+                            return object : Stream by stream {
+                                override fun close(): CompletableFuture<Unit> {
+                                    val injected = pairedFailure.get()
+                                    if (injected != null && injected.first === stream) {
+                                        pairedCloseAttempt.complete(Unit)
+                                        return CompletableFuture.failedFuture(injected.second)
+                                    }
+                                    return stream.close()
+                                }
+                            }
+                        }
+                    }
+                }
+        }
         val hop = CircuitHopProtocol.Binding(
             CircuitHopProtocol.RelayManager.limitTo(key, PeerId.fromPubKey(key.publicKey()), 5), stop
         )

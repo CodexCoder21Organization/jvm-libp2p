@@ -214,7 +214,8 @@ class PingConcurrentLifetimeTest {
                 )
             }
 
-            assertThat(binding.initializationFailures).hasSize(32).containsOnly(registrationFailure)
+            assertThat(binding.initializationFailures).hasSize(32)
+            binding.initializationFailures.forEach { assertThat(it).isSameAs(registrationFailure) }
             assertThat(scheduler.isShutdown)
                 .`as`("failed registrations do not shut down the scheduler retained by the sibling")
                 .isFalse()
@@ -483,7 +484,6 @@ private class PingRegistrationFailureBinding(
             throw caught
         }
     }
-
 }
 
 private fun concurrentPingHost(binding: PingBinding, listen: Boolean = false): Host = host {

@@ -129,7 +129,11 @@ class CircuitConcurrentCloseTest {
             val reported = CompletableFuture<Throwable>()
             val logger = LogManager.getLogger("io.netty.channel.DefaultChannelPipeline") as Logger
             val appender = object : AbstractAppender(
-                "circuit-paired-close-observer", null, PatternLayout.createDefaultLayout(), false, Property.EMPTY_ARRAY
+                "circuit-paired-close-observer",
+                null,
+                PatternLayout.createDefaultLayout(),
+                false,
+                Property.EMPTY_ARRAY
             ) {
                 override fun append(event: LogEvent) {
                     if (event.thrown === failure) reported.complete(event.thrown)
@@ -156,7 +160,6 @@ class CircuitConcurrentCloseTest {
             }
         }
     }
-
 }
 
 private class ConcurrentCircuitPair(

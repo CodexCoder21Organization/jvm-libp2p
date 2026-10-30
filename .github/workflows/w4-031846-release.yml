@@ -1,0 +1,56 @@
+name: W4 merged-source release build
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  release-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 8782258b0c882ea25e982d43ec20ce90d0220f9b
+          fetch-depth: 0
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '11'
+      - name: Build exact authorized default-branch source
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected=8782258b0c882ea25e982d43ec20ce90d0220f9b
+          test "$(git rev-parse HEAD)" = "$expected"
+          git fetch origin develop
+          git merge-base --is-ancestor "$expected" origin/develop
+          test -z "$(git status --porcelain)"
+          cat > "$RUNNER_TEMP/release-version.gradle" <<'GRADLE'
+          allprojects {
+              afterEvaluate { p ->
+                  p.version = '1.3.0-codexcoder21-snapshot-43'
+                  p.plugins.withId('maven-publish') {
+                      p.publishing.publications.withType(MavenPublication).configureEach {
+                          version = '1.3.0-codexcoder21-snapshot-43'
+                      }
+                  }
+                  p.tasks.withType(AbstractArchiveTask).configureEach {
+                      archiveVersion.set('1.3.0-codexcoder21-snapshot-43')
+                  }
+              }
+          }
+          GRADLE
+          unset ANDROID_HOME ANDROID_SDK_ROOT
+          ./gradlew --no-daemon --stacktrace --max-workers=2 -I "$RUNNER_TEMP/release-version.gradle" :libp2p:publishToMavenLocal -PmavenArtifactId=jvm-libp2p
+          test -z "$(git status --porcelain)"
+          mkdir release-artifact
+          version=1.3.0-codexcoder21-snapshot-43
+          cp "$HOME/.m2/repository/community/kotlin/libp2p/jvm-libp2p/$version/jvm-libp2p-$version.jar" release-artifact/
+          cp "$HOME/.m2/repository/community/kotlin/libp2p/jvm-libp2p/$version/jvm-libp2p-$version.pom" release-artifact/
+          git rev-parse HEAD > release-artifact/source-commit.txt
+          sha256sum release-artifact/*.jar release-artifact/*.pom > release-artifact/sha256.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: merged-source-release-43
+          path: release-artifact
+          if-no-files-found: error

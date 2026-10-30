@@ -24,8 +24,10 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.Executors
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.ScheduledThreadPoolExecutor
@@ -60,6 +62,7 @@ class CircuitConcurrentCloseTest {
                     // Both endpoints are already closed; repeated close must still settle.
                     pair.local.close().get(10, TimeUnit.SECONDS)
                     pair.remote.close().get(10, TimeUnit.SECONDS)
+                    fixture.assertPairedCloseCount(pair.relayStop)
                     fixture.assertUsable(survivor)
                 }
             } finally {
@@ -99,6 +102,7 @@ class CircuitConcurrentCloseTest {
                 awaitCircuit(inactive, "The source inactive event must continue after a paired close failure")
                 assertSame(failure, awaitCircuit(observed, "A failed paired close must reach the source exception handler"))
                 assertFalse(pair.relayStop.closeFuture().isDone)
+                fixture.assertPairedCloseCount(pair.relayStop)
                 fixture.assertUsable(survivor)
             } finally {
                 targetChannel.eventLoop().submit {
@@ -118,8 +122,13 @@ private class ConcurrentCircuitPair(
     val relayStop: Stream
 ) {
     fun awaitClosed() {
-        listOf(local.closeFuture(), remote.closeFuture(), child.closeFuture(), remoteChild.closeFuture())
-            .forEach { awaitCircuit(it, "Both circuit roots and their children must close") }
+        listOf(
+            local.closeFuture(), remote.closeFuture(), child.closeFuture(), remoteChild.closeFuture(),
+            relayHop.closeFuture(), relayStop.closeFuture()
+        ).forEach { awaitCircuit(it, "Both circuit roots, relay streams and their children must close") }
+        listOf(relayHop, relayStop).forEach { stream ->
+            (stream as P2PChannelOverNetty).nettyChannel.eventLoop().submit {}.get(10, TimeUnit.SECONDS)
+        }
     }
 }
 
@@ -130,6 +139,11 @@ private class ConcurrentCircuitFixture : AutoCloseable {
     private val relayStreams = ConcurrentLinkedQueue<Stream>()
     private val protocol = "/test/concurrent-circuit-close/1.0.0"
     private val pairedFailure = AtomicReference<Pair<Stream, Throwable>?>()
+    private val pairedCloseCounts = ConcurrentHashMap<Stream, AtomicInteger>()
+
+    fun assertPairedCloseCount(stream: Stream) {
+        assertEquals(1, pairedCloseCounts[stream]?.get() ?: 0, "The proxy closes each paired STOP stream exactly once")
+    }
     val pairedCloseAttempt = CompletableFuture<Unit>()
 
     fun failPairedClose(stream: Stream, failure: Throwable) {
@@ -193,6 +207,7 @@ private class ConcurrentCircuitFixture : AutoCloseable {
                             val stream = controller.stream
                             return object : Stream by stream {
                                 override fun close(): CompletableFuture<Unit> {
+                                    pairedCloseCounts.computeIfAbsent(stream) { AtomicInteger() }.incrementAndGet()
                                     val injected = pairedFailure.get()
                                     if (injected != null && injected.first === stream) {
                                         pairedCloseAttempt.complete(Unit)

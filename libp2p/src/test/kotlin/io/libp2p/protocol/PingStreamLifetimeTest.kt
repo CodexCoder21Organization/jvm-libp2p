@@ -43,7 +43,7 @@ class PingStreamLifetimeTest {
             assertThat(closedCall.cause).isExactlyInstanceOf(ConnectionClosedException::class.java)
             assertThat(sibling.connection.closeFuture().isDone).isFalse()
             assertThatCode { sibling.controller.ping().get(10, TimeUnit.SECONDS) }
-                .as("the shared Ping binding remains usable on the sibling root")
+                .`as`("the shared Ping binding remains usable on the sibling root")
                 .doesNotThrowAnyException()
 
             sibling.stream.close().get(10, TimeUnit.SECONDS)
@@ -56,7 +56,7 @@ class PingStreamLifetimeTest {
 
             var reopened: OpenedPing? = null
             assertThatCode { reopened = openPing(client, firstServer) }
-                .as("the shared Ping binding remains usable after all earlier roots close")
+                .`as`("the shared Ping binding remains usable after all earlier roots close")
                 .doesNotThrowAnyException()
             val reopenedPing = requireNotNull(reopened)
             assertThat(reopenedPing.connection).isNotSameAs(first.connection)

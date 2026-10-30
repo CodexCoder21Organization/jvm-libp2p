@@ -118,7 +118,6 @@ class CircuitRootCloseTest {
             }
         } catch (failure: Throwable) {
             primaryFailure = failure
-            throw failure
         } finally {
             var cleanupFailure: Throwable? = null
             fun cleanup(action: () -> Unit) {
@@ -141,7 +140,8 @@ class CircuitRootCloseTest {
                     assertTrue(runner.awaitTermination(5, TimeUnit.SECONDS), "Relay maintenance must stop")
                 }
             }
-            if (primaryFailure == null) cleanupFailure?.let { throw it }
+            if (primaryFailure == null) primaryFailure = cleanupFailure
         }
+        primaryFailure?.let { throw it }
     }
 }

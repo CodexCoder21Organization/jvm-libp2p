@@ -28,6 +28,7 @@ import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.ScheduledThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 
 class PingConcurrentLifetimeTest {
     @Test
@@ -191,6 +192,7 @@ class PingConcurrentLifetimeTest {
             failRegistrations.set(true)
 
             repeat(4) { round ->
+                binding.installBeforeFailure.set(round % 2 == 1)
                 val failedRoots = ConcurrentLinkedQueue<Connection>()
                 val failedRegistrations: List<() -> Unit> = List(8) {
                     {
@@ -215,6 +217,7 @@ class PingConcurrentLifetimeTest {
             }
 
             assertThat(binding.initializationFailures).hasSize(32)
+            assertThat(binding.installedFailures.get()).isEqualTo(16)
             binding.initializationFailures.forEach { assertThat(it).isSameAs(registrationFailure) }
             assertThat(scheduler.isShutdown)
                 .`as`("failed registrations do not shut down the scheduler retained by the sibling")
@@ -454,13 +457,23 @@ private data class FailedConcurrentPingStream(
 
 private class PingPushHandlerFailureStream(
     private val delegate: Stream,
-    private val failure: Throwable
+    private val failure: Throwable,
+    private val installBeforeFailure: Boolean,
+    private val onInstalled: () -> Unit
 ) : Stream by delegate {
     override fun <TMessage> pushHandler(protocolHandler: ProtocolMessageHandler<TMessage>) {
+        if (installBeforeFailure) {
+            delegate.pushHandler(protocolHandler)
+            onInstalled()
+        }
         throw failure
     }
 
     override fun pushHandler(handler: ChannelHandler) {
+        if (installBeforeFailure) {
+            delegate.pushHandler(handler)
+            onInstalled()
+        }
         throw failure
     }
 }
@@ -471,11 +484,18 @@ private class PingRegistrationFailureBinding(
     private val failRegistrations: AtomicBoolean
 ) : PingBinding(protocol) {
     val initializationFailures = ConcurrentLinkedQueue<Throwable>()
+    val installBeforeFailure = AtomicBoolean(false)
+    val installedFailures = AtomicInteger()
 
     override fun initChannel(ch: P2PChannel, selectedProtocol: String): CompletableFuture<out PingController> {
         return try {
             if (failRegistrations.get()) {
-                super.initChannel(PingPushHandlerFailureStream(ch as Stream, failure), selectedProtocol)
+                super.initChannel(
+                    PingPushHandlerFailureStream(ch as Stream, failure, installBeforeFailure.get()) {
+                        installedFailures.incrementAndGet()
+                    },
+                    selectedProtocol
+                )
             } else {
                 super.initChannel(ch, selectedProtocol)
             }

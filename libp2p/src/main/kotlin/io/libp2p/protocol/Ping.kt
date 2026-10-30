@@ -158,8 +158,11 @@ open class PingProtocol(var pingSize: Int) : ProtocolHandler<PingController>(Lon
                     requests.remove(dataS)
                     throw failure
                 }
-                if (requests.containsKey(dataS)) timeoutTasks[dataS] = timeout
-                else timeout.cancel(false)
+                if (requests.containsKey(dataS)) {
+                    timeoutTasks[dataS] = timeout
+                } else {
+                    timeout.cancel(false)
+                }
             }
 
             stream.writeAndFlush(data.toByteBuf())

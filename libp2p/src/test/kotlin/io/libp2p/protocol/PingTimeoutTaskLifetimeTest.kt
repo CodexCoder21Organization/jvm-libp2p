@@ -5,11 +5,11 @@ import io.libp2p.core.dsl.host
 import io.libp2p.core.mux.StreamMuxerProtocol
 import io.libp2p.security.noise.NoiseXXSecureChannel
 import io.libp2p.transport.tcp.TcpTransport
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.Test
 import java.time.Duration
 import java.util.concurrent.ScheduledThreadPoolExecutor
 import java.util.concurrent.TimeUnit
-import org.assertj.core.api.Assertions.assertThat
-import org.junit.jupiter.api.Test
 
 class PingTimeoutTaskLifetimeTest {
     @Test
@@ -33,7 +33,9 @@ class PingTimeoutTaskLifetimeTest {
             server.start().get(10, TimeUnit.SECONDS)
             client.start().get(10, TimeUnit.SECONDS)
             val opened = client.newStream<PingController>(
-                listOf("/ipfs/ping/1.0.0"), server.peerId, *server.listenAddresses().toTypedArray()
+                listOf("/ipfs/ping/1.0.0"),
+                server.peerId,
+                *server.listenAddresses().toTypedArray()
             )
             val stream = opened.stream.get(10, TimeUnit.SECONDS)
             opened.controller.get(10, TimeUnit.SECONDS).ping().get(10, TimeUnit.SECONDS)

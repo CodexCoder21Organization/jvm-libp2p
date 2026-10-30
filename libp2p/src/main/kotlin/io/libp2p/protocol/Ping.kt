@@ -16,9 +16,9 @@ import java.util.Collections
 import java.util.IdentityHashMap
 import java.util.Random
 import java.util.concurrent.CompletableFuture
-import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.ScheduledFuture
+import java.util.concurrent.ScheduledThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 
 interface PingController {
@@ -35,7 +35,7 @@ open class PingBinding(ping: PingProtocol) :
 class PingTimeoutException : Libp2pException()
 
 open class PingProtocol(var pingSize: Int) : ProtocolHandler<PingController>(Long.MAX_VALUE, Long.MAX_VALUE) {
-    var timeoutScheduler by lazyVar { Executors.newSingleThreadScheduledExecutor() }
+    var timeoutScheduler: ScheduledExecutorService by lazyVar { ScheduledThreadPoolExecutor(1) }
     private val schedulerMonitor = Any()
     private val schedulerUsers = IdentityHashMap<ScheduledExecutorService, Int>()
     var curTime: () -> Long = { System.currentTimeMillis() }
@@ -121,7 +121,7 @@ open class PingProtocol(var pingSize: Int) : ProtocolHandler<PingController>(Lon
                     } else {
                         schedulerUsers.remove(scheduler)
                         if (timeoutScheduler === scheduler) {
-                            timeoutScheduler = Executors.newSingleThreadScheduledExecutor()
+                            timeoutScheduler = ScheduledThreadPoolExecutor(1)
                         }
                         scheduler
                     }

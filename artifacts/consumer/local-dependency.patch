@@ -1,0 +1,193 @@
+diff --git a/build.kts b/build.kts
+index b88b5c1..28173f1 100644
+--- a/build.kts
++++ b/build.kts
+@@ -94,7 +94,14 @@ val dependencyDeclarations = listOf(
+     // which provides sandboxed execution and type materialization on top of UrlProtocol
+ )
+ 
+-val dependencies = resolveDependencies2(dependencyDeclarations)
++val dependencies = resolveDependencies2(dependencyDeclarations).map { artifact ->
++    if (artifact.groupId == "community.kotlin.libp2p" && artifact.artifactId == "jvm-libp2p") {
++        buildLocalLibp2pForProof()
++    } else artifact
++}
++
++@MavenArtifactCoordinates("community.kotlin.libp2p:jvm-libp2p:1.3.0-w4-local-b69a64c052a8")
++fun buildLocalLibp2pForProof(): File = File(".github/local-libp2p")
+ 
+ @MavenArtifactCoordinates("foundation.url:protocol:")
+ fun buildMaven(): File {
+@@ -2240,7 +2247,15 @@ fun buildMaven(): File {
+         coordinates = "foundation.url:protocol:0.0.1462-peerwork-20261028",
+         src = File("src"),
+         compileDependencies = dependencies
+-    )
++    ).also { produced ->
++        // The proof declares this workspace-local module directly on every test below.
++        // Keep it out of protocol's POM because the resolver stages each local root separately.
++        val pom = produced.pom
++        pom.writeText(pom.readText().replace(
++            Regex("""(?s)<dependency>\s*<groupId>community.kotlin.libp2p</groupId>\s*<artifactId>jvm-libp2p</artifactId>.*?</dependency>"""),
++            "",
++        ))
++    }
+ }
+ 
+ /** Builds the current protocol API for consumers retaining the snapshot-32 transport contract. */
+diff --git a/tests/testR104PeerConcurrentOpensStayWithinPeerLimit.kts b/tests/testR104PeerConcurrentOpensStayWithinPeerLimit.kts
+index 2676c69..814f38f 100644
+--- a/tests/testR104PeerConcurrentOpensStayWithinPeerLimit.kts
++++ b/tests/testR104PeerConcurrentOpensStayWithinPeerLimit.kts
+@@ -1,6 +1,6 @@
+ @file:WithArtifact("foundation.url.protocol.buildMaven()")
+ @file:WithArtifact("org.jetbrains.kotlin:kotlin-test:1.9.22")
+-@file:WithArtifact("community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-41")
++@file:WithArtifact("foundation.url.protocol.buildLocalLibp2pForProof()")
+ package foundation.url.protocol
+ 
+ import build.kotlin.withartifact.WithArtifact
+diff --git a/tests/testR104PeerConcurrentSeparateBudgetsSpanRoots.kts b/tests/testR104PeerConcurrentSeparateBudgetsSpanRoots.kts
+index 1c0793a..3080e72 100644
+--- a/tests/testR104PeerConcurrentSeparateBudgetsSpanRoots.kts
++++ b/tests/testR104PeerConcurrentSeparateBudgetsSpanRoots.kts
+@@ -1,6 +1,6 @@
+ @file:WithArtifact("foundation.url.protocol.buildMaven()")
+ @file:WithArtifact("org.jetbrains.kotlin:kotlin-test:1.9.22")
+-@file:WithArtifact("community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-41")
++@file:WithArtifact("foundation.url.protocol.buildLocalLibp2pForProof()")
+ package foundation.url.protocol
+ 
+ import build.kotlin.withartifact.WithArtifact
+diff --git a/tests/testR104PeerOppositeDirectionRootsShareCapacity.kts b/tests/testR104PeerOppositeDirectionRootsShareCapacity.kts
+index cc06edd..f162254 100644
+--- a/tests/testR104PeerOppositeDirectionRootsShareCapacity.kts
++++ b/tests/testR104PeerOppositeDirectionRootsShareCapacity.kts
+@@ -1,6 +1,6 @@
+ @file:WithArtifact("foundation.url.protocol.buildMaven()")
+ @file:WithArtifact("org.jetbrains.kotlin:kotlin-test:1.9.22")
+-@file:WithArtifact("community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-41")
++@file:WithArtifact("foundation.url.protocol.buildLocalLibp2pForProof()")
+ package foundation.url.protocol
+ 
+ import build.kotlin.withartifact.WithArtifact
+diff --git a/tests/testR104PeerPendingRootCloseReleasesPeerCapacity.kts b/tests/testR104PeerPendingRootCloseReleasesPeerCapacity.kts
+index 2f0d4d7..64f276e 100644
+--- a/tests/testR104PeerPendingRootCloseReleasesPeerCapacity.kts
++++ b/tests/testR104PeerPendingRootCloseReleasesPeerCapacity.kts
+@@ -1,6 +1,6 @@
+ @file:WithArtifact("foundation.url.protocol.buildMaven()")
+ @file:WithArtifact("org.jetbrains.kotlin:kotlin-test:1.9.22")
+-@file:WithArtifact("community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-41")
++@file:WithArtifact("foundation.url.protocol.buildLocalLibp2pForProof()")
+ package foundation.url.protocol
+ 
+ import build.kotlin.withartifact.WithArtifact
+diff --git a/tests/testR104PeerRecordsDrainAfterChurn.kts b/tests/testR104PeerRecordsDrainAfterChurn.kts
+index 0fc395e..08df4de 100644
+--- a/tests/testR104PeerRecordsDrainAfterChurn.kts
++++ b/tests/testR104PeerRecordsDrainAfterChurn.kts
+@@ -1,6 +1,6 @@
+ @file:WithArtifact("foundation.url.protocol.buildMaven()")
+ @file:WithArtifact("org.jetbrains.kotlin:kotlin-test:1.9.22")
+-@file:WithArtifact("community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-41")
++@file:WithArtifact("foundation.url.protocol.buildLocalLibp2pForProof()")
+ package foundation.url.protocol
+ 
+ import build.kotlin.withartifact.WithArtifact
+diff --git a/tests/testR104PeerRefusalCallbackCanReenterAdmission.kts b/tests/testR104PeerRefusalCallbackCanReenterAdmission.kts
+index 8ad27a2..4c7825e 100644
+--- a/tests/testR104PeerRefusalCallbackCanReenterAdmission.kts
++++ b/tests/testR104PeerRefusalCallbackCanReenterAdmission.kts
+@@ -1,6 +1,6 @@
+ @file:WithArtifact("foundation.url.protocol.buildMaven()")
+ @file:WithArtifact("org.jetbrains.kotlin:kotlin-test:1.9.22")
+-@file:WithArtifact("community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-41")
++@file:WithArtifact("foundation.url.protocol.buildLocalLibp2pForProof()")
+ package foundation.url.protocol
+ 
+ import build.kotlin.withartifact.WithArtifact
+diff --git a/tests/testR104PeerRefusalsDoNotRetainNewPeers.kts b/tests/testR104PeerRefusalsDoNotRetainNewPeers.kts
+index 932c36d..a92acaf 100644
+--- a/tests/testR104PeerRefusalsDoNotRetainNewPeers.kts
++++ b/tests/testR104PeerRefusalsDoNotRetainNewPeers.kts
+@@ -1,6 +1,6 @@
+ @file:WithArtifact("foundation.url.protocol.buildMaven()")
+ @file:WithArtifact("org.jetbrains.kotlin:kotlin-test:1.9.22")
+-@file:WithArtifact("community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-41")
++@file:WithArtifact("foundation.url.protocol.buildLocalLibp2pForProof()")
+ package foundation.url.protocol
+ 
+ import build.kotlin.withartifact.WithArtifact
+diff --git a/tests/testR104PeerRelayAndDirectRootsShareCapacity.kts b/tests/testR104PeerRelayAndDirectRootsShareCapacity.kts
+index 9adcde6..e28a0eb 100644
+--- a/tests/testR104PeerRelayAndDirectRootsShareCapacity.kts
++++ b/tests/testR104PeerRelayAndDirectRootsShareCapacity.kts
+@@ -1,6 +1,6 @@
+ @file:WithArtifact("foundation.url.protocol.buildMaven()")
+ @file:WithArtifact("org.jetbrains.kotlin:kotlin-test:1.9.22")
+-@file:WithArtifact("community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-41")
++@file:WithArtifact("foundation.url.protocol.buildLocalLibp2pForProof()")
+ package foundation.url.protocol
+ 
+ import build.kotlin.withartifact.WithArtifact
+diff --git a/tests/testR104PeerRootCloseReleasesPeerCapacity.kts b/tests/testR104PeerRootCloseReleasesPeerCapacity.kts
+index d20be97..5689dd3 100644
+--- a/tests/testR104PeerRootCloseReleasesPeerCapacity.kts
++++ b/tests/testR104PeerRootCloseReleasesPeerCapacity.kts
+@@ -1,6 +1,6 @@
+ @file:WithArtifact("foundation.url.protocol.buildMaven()")
+ @file:WithArtifact("org.jetbrains.kotlin:kotlin-test:1.9.22")
+-@file:WithArtifact("community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-41")
++@file:WithArtifact("foundation.url.protocol.buildLocalLibp2pForProof()")
+ package foundation.url.protocol
+ 
+ import build.kotlin.withartifact.WithArtifact
+diff --git a/tests/testR104PeerSeparateBudgetsSpanRoots.kts b/tests/testR104PeerSeparateBudgetsSpanRoots.kts
+index f46ab48..479f7f9 100644
+--- a/tests/testR104PeerSeparateBudgetsSpanRoots.kts
++++ b/tests/testR104PeerSeparateBudgetsSpanRoots.kts
+@@ -1,6 +1,6 @@
+ @file:WithArtifact("foundation.url.protocol.buildMaven()")
+ @file:WithArtifact("org.jetbrains.kotlin:kotlin-test:1.9.22")
+-@file:WithArtifact("community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-41")
++@file:WithArtifact("foundation.url.protocol.buildLocalLibp2pForProof()")
+ package foundation.url.protocol
+ 
+ import build.kotlin.withartifact.WithArtifact
+diff --git a/tests/testR104PeerSimultaneousDialRootsShareCapacity.kts b/tests/testR104PeerSimultaneousDialRootsShareCapacity.kts
+index 819e282..310c5b9 100644
+--- a/tests/testR104PeerSimultaneousDialRootsShareCapacity.kts
++++ b/tests/testR104PeerSimultaneousDialRootsShareCapacity.kts
+@@ -1,6 +1,6 @@
+ @file:WithArtifact("foundation.url.protocol.buildMaven()")
+ @file:WithArtifact("org.jetbrains.kotlin:kotlin-test:1.9.22")
+-@file:WithArtifact("community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-41")
++@file:WithArtifact("foundation.url.protocol.buildLocalLibp2pForProof()")
+ package foundation.url.protocol
+ 
+ import build.kotlin.withartifact.WithArtifact
+diff --git a/tests/testR104PeerStreamLimitSpansConnections.kts b/tests/testR104PeerStreamLimitSpansConnections.kts
+index bed07c8..8874c2c 100644
+--- a/tests/testR104PeerStreamLimitSpansConnections.kts
++++ b/tests/testR104PeerStreamLimitSpansConnections.kts
+@@ -1,6 +1,6 @@
+ @file:WithArtifact("foundation.url.protocol.buildMaven()")
+ @file:WithArtifact("org.jetbrains.kotlin:kotlin-test:1.9.22")
+-@file:WithArtifact("community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-41")
++@file:WithArtifact("foundation.url.protocol.buildLocalLibp2pForProof()")
+ package foundation.url.protocol
+ 
+ import build.kotlin.withartifact.WithArtifact
+diff --git a/tests/testR104PeerStreamLimitSpansProtocols.kts b/tests/testR104PeerStreamLimitSpansProtocols.kts
+index 67dcca1..7a639ea 100644
+--- a/tests/testR104PeerStreamLimitSpansProtocols.kts
++++ b/tests/testR104PeerStreamLimitSpansProtocols.kts
+@@ -1,6 +1,6 @@
+ @file:WithArtifact("foundation.url.protocol.buildMaven()")
+ @file:WithArtifact("org.jetbrains.kotlin:kotlin-test:1.9.22")
+-@file:WithArtifact("community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-41")
++@file:WithArtifact("foundation.url.protocol.buildLocalLibp2pForProof()")
+ package foundation.url.protocol
+ 
+ import build.kotlin.withartifact.WithArtifact

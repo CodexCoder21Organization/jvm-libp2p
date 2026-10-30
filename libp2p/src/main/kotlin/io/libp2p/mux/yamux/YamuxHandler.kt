@@ -47,6 +47,26 @@ open class YamuxHandler(
     private val initialWindowSize: Int = INITIAL_WINDOW_SIZE
 ) : MuxHandler(ready, inboundStreamHandler) {
 
+    internal companion object Factory {
+        fun create(
+            multistreamProtocol: MultistreamProtocol,
+            maxFrameDataLength: Int,
+            ready: CompletableFuture<StreamMuxer.Session>,
+            inboundStreamHandler: StreamHandler<*>,
+            connectionInitiator: Boolean,
+            maxBufferedConnectionWrites: Int,
+            ackBacklogLimit: Int
+        ) = YamuxHandler(
+            multistreamProtocol,
+            maxFrameDataLength,
+            ready,
+            inboundStreamHandler,
+            connectionInitiator,
+            maxBufferedConnectionWrites,
+            ackBacklogLimit
+        )
+    }
+
     protected open val capacityResetSupported: Boolean = false
 
     private inner class YamuxStreamHandler(

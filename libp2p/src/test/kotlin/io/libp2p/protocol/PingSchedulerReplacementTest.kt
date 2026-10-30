@@ -8,12 +8,12 @@ import io.libp2p.core.mux.StreamMuxerProtocol
 import io.libp2p.security.noise.NoiseXXSecureChannel
 import io.libp2p.transport.implementation.P2PChannelOverNetty
 import io.libp2p.transport.tcp.TcpTransport
-import java.util.concurrent.CompletableFuture
-import java.util.concurrent.ScheduledThreadPoolExecutor
-import java.util.concurrent.TimeUnit
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatCode
 import org.junit.jupiter.api.Test
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.ScheduledThreadPoolExecutor
+import java.util.concurrent.TimeUnit
 
 class PingSchedulerReplacementTest {
     @Test

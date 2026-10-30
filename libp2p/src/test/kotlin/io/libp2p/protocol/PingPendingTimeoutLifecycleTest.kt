@@ -9,6 +9,9 @@ import io.libp2p.security.noise.NoiseXXSecureChannel
 import io.libp2p.transport.implementation.P2PChannelOverNetty
 import io.libp2p.transport.tcp.TcpTransport
 import io.netty.buffer.ByteBuf
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Test
 import java.time.Duration
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ExecutionException
@@ -16,9 +19,6 @@ import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.ScheduledThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
-import org.assertj.core.api.Assertions.assertThat
-import org.junit.jupiter.api.Assertions.assertThrows
-import org.junit.jupiter.api.Test
 
 class PingPendingTimeoutLifecycleTest {
     @Test
@@ -55,7 +55,9 @@ class PingPendingTimeoutLifecycleTest {
             client.start().get(10, TimeUnit.SECONDS)
             fun open(): Pair<Stream, PingController> {
                 val promise = client.newStream<PingController>(
-                    listOf("/ipfs/ping/1.0.0"), server.peerId, *server.listenAddresses().toTypedArray()
+                    listOf("/ipfs/ping/1.0.0"),
+                    server.peerId,
+                    *server.listenAddresses().toTypedArray()
                 )
                 return promise.stream.get(10, TimeUnit.SECONDS) to promise.controller.get(10, TimeUnit.SECONDS)
             }

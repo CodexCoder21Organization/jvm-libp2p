@@ -1,0 +1,42 @@
+name: W4 native lifecycle proof
+on:
+  push:
+    branches: [verification/W4-234447-coverage-red-v3]
+permissions:
+  contents: read
+jobs:
+  proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '11'
+      - name: Run targeted native tests and build local jar
+        shell: bash
+        run: |
+          mkdir -p proof-records
+          git rev-parse HEAD > proof-records/proof-head.txt
+          git rev-parse HEAD^ > proof-records/source-head.txt
+          git fetch origin develop --depth=1
+          git show 90f45d6acc840d55c32adb9c5693c4a7b3dd9a3c:libp2p/src/main/kotlin/io/libp2p/protocol/Ping.kt > libp2p/src/main/kotlin/io/libp2p/protocol/Ping.kt
+          git diff -- libp2p/src/main > proof-records/revert.patch
+          set +e
+          env -u ANDROID_HOME timeout -k 20s 1200s ./gradlew --no-daemon --stacktrace -Pkotlin.compiler.execution.strategy=in-process :libp2p:test --tests io.libp2p.protocol.PingStreamLifetimeTest --tests io.libp2p.protocol.PingTimeoutTaskLifetimeTest --tests io.libp2p.protocol.PingSchedulerReplacementTest --tests io.libp2p.protocol.PingPendingTimeoutLifecycleTest --tests io.libp2p.protocol.circuit.CircuitRootCloseTest :libp2p:jar > proof-records/native.log 2>&1
+          result=$?
+          echo "$result" > proof-records/native.exit
+          cp -r libp2p/build/test-results proof-records/ 2>/dev/null || true
+          mkdir -p proof-records/local-build
+          cp libp2p/build/libs/*.jar proof-records/local-build/ 2>/dev/null || true
+          tail -120 proof-records/native.log
+          exit "$result"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: W4-234447-coverage-red-v3
+          path: proof-records
+          if-no-files-found: error

@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.libp2p.protocol.circuit.CircuitConcurrentCloseTest" tests="3" skipped="0" failures="2" errors="0" timestamp="2026-10-30T02:03:34.505Z" hostname="8bf81de718a4" time="21.187">
+  <properties/>
+  <testcase name="simultaneousAndRepeatedClosesLeaveAnIndependentCircuitUsable()" classname="io.libp2p.protocol.circuit.CircuitConcurrentCloseTest" time="0.893"/>
+  <testcase name="delayedPairedCloseFailureReachesTheSourcePipelineTailAfterTeardown()" classname="io.libp2p.protocol.circuit.CircuitConcurrentCloseTest" time="10.172">
+    <failure message="java.lang.AssertionError: The source pipeline tail must report its delayed paired-close failure" type="java.lang.AssertionError">java.lang.AssertionError: The source pipeline tail must report its delayed paired-close failure
+	at io.libp2p.protocol.circuit.CircuitConcurrentCloseTestKt.awaitCircuit(CircuitConcurrentCloseTest.kt:341)
+	at io.libp2p.protocol.circuit.CircuitConcurrentCloseTestKt.access$awaitCircuit(CircuitConcurrentCloseTest.kt:1)
+	at io.libp2p.protocol.circuit.CircuitConcurrentCloseTest.delayedPairedCloseFailureReachesTheSourcePipelineTailAfterTeardown(CircuitConcurrentCloseTest.kt:153)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+Caused by: java.util.concurrent.TimeoutException
+	at java.base/java.util.concurrent.CompletableFuture.timedGet(CompletableFuture.java:1960)
+	at java.base/java.util.concurrent.CompletableFuture.get(CompletableFuture.java:2095)
+	at io.libp2p.protocol.circuit.CircuitConcurrentCloseTestKt.awaitCircuit(CircuitConcurrentCloseTest.kt:339)
+	... 5 more
+</failure>
+  </testcase>
+  <testcase name="pairedCloseFailureIsForwardedWithoutClosingAnIndependentRoot()" classname="io.libp2p.protocol.circuit.CircuitConcurrentCloseTest" time="10.119">
+    <failure message="java.lang.AssertionError: A failed paired close must reach the source exception handler" type="java.lang.AssertionError">java.lang.AssertionError: A failed paired close must reach the source exception handler
+	at io.libp2p.protocol.circuit.CircuitConcurrentCloseTestKt.awaitCircuit(CircuitConcurrentCloseTest.kt:341)
+	at io.libp2p.protocol.circuit.CircuitConcurrentCloseTestKt.access$awaitCircuit(CircuitConcurrentCloseTest.kt:1)
+	at io.libp2p.protocol.circuit.CircuitConcurrentCloseTest.pairedCloseFailureIsForwardedWithoutClosingAnIndependentRoot(CircuitConcurrentCloseTest.kt:109)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+Caused by: java.util.concurrent.TimeoutException
+	at java.base/java.util.concurrent.CompletableFuture.timedGet(CompletableFuture.java:1960)
+	at java.base/java.util.concurrent.CompletableFuture.get(CompletableFuture.java:2095)
+	at io.libp2p.protocol.circuit.CircuitConcurrentCloseTestKt.awaitCircuit(CircuitConcurrentCloseTest.kt:339)
+	... 5 more
+</failure>
+  </testcase>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

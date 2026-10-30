@@ -1,0 +1,13 @@
+diff --git a/libp2p/src/main/kotlin/io/libp2p/protocol/Ping.kt b/libp2p/src/main/kotlin/io/libp2p/protocol/Ping.kt
+index 753fc7e2..6d758171 100644
+--- a/libp2p/src/main/kotlin/io/libp2p/protocol/Ping.kt
++++ b/libp2p/src/main/kotlin/io/libp2p/protocol/Ping.kt
+@@ -50,7 +50,7 @@ open class PingProtocol(var pingSize: Int) : ProtocolHandler<PingController>(Lon
+             stream.pushHandler(handler)
+         } catch (failure: Throwable) {
+             try {
+-                handler.onClosed(stream)
++                // Negative control: omit failed-registration ownership release.
+             } catch (cleanupFailure: Throwable) {
+                 if (cleanupFailure !== failure) failure.addSuppressed(cleanupFailure)
+             }

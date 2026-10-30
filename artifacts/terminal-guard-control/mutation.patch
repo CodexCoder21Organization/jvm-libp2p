@@ -1,0 +1,13 @@
+diff --git a/libp2p/src/main/kotlin/io/libp2p/protocol/Ping.kt b/libp2p/src/main/kotlin/io/libp2p/protocol/Ping.kt
+index 753fc7e2..a2fcc551 100644
+--- a/libp2p/src/main/kotlin/io/libp2p/protocol/Ping.kt
++++ b/libp2p/src/main/kotlin/io/libp2p/protocol/Ping.kt
+@@ -106,7 +106,7 @@ open class PingProtocol(var pingSize: Int) : ProtocolHandler<PingController>(Lon
+             val pending: List<CompletableFuture<Long>>
+             val schedulerToClose: ScheduledExecutorService?
+             synchronized(requests) {
+-                if (schedulerReleased) return
++                // Negative control: allow a second ownership release.
+                 schedulerReleased = true
+                 closed = true
+                 pending = requests.values.map { it.second }

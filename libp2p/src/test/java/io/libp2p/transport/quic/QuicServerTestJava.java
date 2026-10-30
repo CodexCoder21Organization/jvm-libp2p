@@ -23,7 +23,6 @@ import io.libp2p.security.noise.NoiseXXSecureChannel;
 import io.libp2p.security.tls.TlsSecureChannel;
 import io.libp2p.transport.tcp.TcpTransport;
 import io.netty.handler.logging.LogLevel;
-import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -38,7 +37,7 @@ import org.junit.jupiter.api.Test;
 
 public class QuicServerTestJava {
   public static int getPort() {
-    return new Random().nextInt(20_000) + 10_000;
+    return 0;
   }
 
   @Test
@@ -72,6 +71,8 @@ public class QuicServerTestJava {
     serverStarted.get(5, TimeUnit.SECONDS);
     System.out.println("Server started " + serverHost.getPeerId());
 
+    localListenAddress = serverHost.listenAddresses().get(0).toString().split("/p2p/")[0];
+    Assertions.assertNotEquals("/ip4/127.0.0.1/udp/0/quic-v1", localListenAddress);
     Assertions.assertEquals(0, clientHost.listenAddresses().size());
     Assertions.assertEquals(1, serverHost.listenAddresses().size());
     Assertions.assertEquals(
@@ -147,6 +148,7 @@ public class QuicServerTestJava {
     clientHost.start().get(5, TimeUnit.SECONDS);
     serverHost.start().get(5, TimeUnit.SECONDS);
 
+    localListenAddress = serverHost.listenAddresses().get(0).toString().split("/p2p/")[0];
     clientHost.getNetwork().connect(serverHost.getPeerId(), new Multiaddr(localListenAddress));
 
     Assertions.assertEquals(
@@ -229,6 +231,8 @@ public class QuicServerTestJava {
     serverStarted.get(5, TimeUnit.SECONDS);
     System.out.println("Server started " + serverHost.getPeerId());
 
+    localListenAddress = serverHost.listenAddresses().get(0).toString().split("/p2p/")[0];
+    Assertions.assertNotEquals("/ip4/127.0.0.1/udp/0/quic-v1", localListenAddress);
     Assertions.assertEquals(0, clientHost.listenAddresses().size());
     Assertions.assertEquals(1, serverHost.listenAddresses().size());
     Assertions.assertEquals(
@@ -302,6 +306,22 @@ public class QuicServerTestJava {
     serverStarted.get(5, TimeUnit.SECONDS);
     System.out.println("Server started " + serverHost.getPeerId());
 
+    localTcpListenAddress =
+        serverHost.listenAddresses().stream()
+            .map(Multiaddr::toString)
+            .filter(address -> address.contains("/tcp/"))
+            .findFirst()
+            .orElseThrow()
+            .split("/p2p/")[0];
+    localQuicListenAddress =
+        serverHost.listenAddresses().stream()
+            .map(Multiaddr::toString)
+            .filter(address -> address.contains("/udp/"))
+            .findFirst()
+            .orElseThrow()
+            .split("/p2p/")[0];
+    Assertions.assertNotEquals("/ip4/127.0.0.1/tcp/0", localTcpListenAddress);
+    Assertions.assertNotEquals("/ip4/127.0.0.1/udp/0/quic-v1", localQuicListenAddress);
     Assertions.assertEquals(0, clientHost.listenAddresses().size());
     Assertions.assertEquals(2, serverHost.listenAddresses().size());
     Assertions.assertEquals(
@@ -394,6 +414,8 @@ public class QuicServerTestJava {
     serverStarted.get(5, TimeUnit.SECONDS);
     System.out.println("Server started");
 
+    localListenAddress = serverHost.listenAddresses().get(0).toString().split("/p2p/")[0];
+    Assertions.assertNotEquals("/ip4/127.0.0.1/udp/0/quic-v1", localListenAddress);
     Assertions.assertEquals(0, clientHost.listenAddresses().size());
     Assertions.assertEquals(1, serverHost.listenAddresses().size());
     Assertions.assertEquals(
@@ -449,6 +471,8 @@ public class QuicServerTestJava {
     serverStarted.get(5, TimeUnit.SECONDS);
     System.out.println("Server started");
 
+    localListenAddress = serverHost.listenAddresses().get(0).toString().split("/p2p/")[0];
+    Assertions.assertNotEquals("/ip4/127.0.0.1/udp/0/quic-v1", localListenAddress);
     Assertions.assertEquals(0, clientHost.listenAddresses().size());
     Assertions.assertEquals(1, serverHost.listenAddresses().size());
     Assertions.assertEquals(

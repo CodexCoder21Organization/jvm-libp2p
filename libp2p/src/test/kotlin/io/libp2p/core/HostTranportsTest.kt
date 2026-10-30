@@ -56,7 +56,7 @@ abstract class WsTransportHostTest(
 ) : HostTransportsTest(
     secureChannelCtor,
     ::WsTransport,
-    "/ip4/127.0.0.1/tcp/4002/ws"
+    "/ip4/127.0.0.1/tcp/0/ws"
 )
 
 @Tag("tcp-transport")
@@ -65,7 +65,7 @@ abstract class TcpTransportHostTest(
 ) : HostTransportsTest(
     secureChannelCtor,
     ::TcpTransport,
-    "/ip4/127.0.0.1/tcp/4002"
+    "/ip4/127.0.0.1/tcp/0"
 ) {
 
     @Test
@@ -86,7 +86,7 @@ abstract class TcpTransportHostTest(
 abstract class HostTransportsTest(
     val secureChannelCtor: SecureChannelCtor,
     val transportCtor: TransportCtor,
-    val listenAddress: String
+    private val requestedListenAddress: String
 ) {
     val clientHost = host {
         identity {
@@ -127,7 +127,7 @@ abstract class HostTransportsTest(
             +StreamMuxerProtocol.Mplex
         }
         network {
-            listen(listenAddress)
+            listen(requestedListenAddress)
         }
         protocols {
             +PingBinding(countedPingResponder)
@@ -138,6 +138,9 @@ abstract class HostTransportsTest(
             muxFramesHandler.addNettyHandler(LoggingHandlerShort("server-host", LogLevel.INFO))
         }
     }
+
+    val listenAddress: String
+        get() = serverHost.listenAddresses().single().toString().substringBefore("/p2p/")
 
     @BeforeEach
     fun startHosts() {

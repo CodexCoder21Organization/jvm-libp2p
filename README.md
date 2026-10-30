@@ -94,6 +94,18 @@ from that callback. Closing the parent fails pending stream opens and subsequent
 With Yamux and Mplex, cancelling or completing the returned stream future does not prevent a pending
 controller from reporting parent closure.
 
+## Ping binding and circuit lifetimes
+
+One `Ping` or `PingBinding` can serve streams on multiple roots of the same host. Closing
+one initiator leaves its siblings usable, and new streams can use the same binding after
+the earlier streams close. A call on a closed controller still fails with
+`ConnectionClosedException`. With the default scheduler, completed requests and closed
+streams leave no queued ping timeout work.
+
+Closing either endpoint's full circuit root closes the paired root through the relay and
+closes its inner children. Other roots remain usable. Stream write-side closure retains
+its existing half-close behavior.
+
 ## Negotiated stream capacity results
 
 Applications can offer `YamuxCapacityStreamMuxer` before the existing Yamux binding. Its protocol ID is

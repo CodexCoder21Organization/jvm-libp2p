@@ -13,9 +13,12 @@ import io.libp2p.etc.types.toHex
 import io.netty.buffer.ByteBuf
 import java.time.Duration
 import java.util.Collections
+import java.util.IdentityHashMap
 import java.util.Random
 import java.util.concurrent.CompletableFuture
-import java.util.concurrent.Executors
+import java.util.concurrent.ScheduledExecutorService
+import java.util.concurrent.ScheduledFuture
+import java.util.concurrent.ScheduledThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 
 interface PingController {
@@ -32,7 +35,9 @@ open class PingBinding(ping: PingProtocol) :
 class PingTimeoutException : Libp2pException()
 
 open class PingProtocol(var pingSize: Int) : ProtocolHandler<PingController>(Long.MAX_VALUE, Long.MAX_VALUE) {
-    var timeoutScheduler by lazyVar { Executors.newSingleThreadScheduledExecutor() }
+    var timeoutScheduler: ScheduledExecutorService by lazyVar { newPingTimeoutScheduler() }
+    private val schedulerMonitor = Any()
+    private val schedulerUsers = IdentityHashMap<ScheduledExecutorService, Int>()
     var curTime: () -> Long = { System.currentTimeMillis() }
     var random = Random()
     var pingTimeout = Duration.ofSeconds(10)
@@ -41,7 +46,16 @@ open class PingProtocol(var pingSize: Int) : ProtocolHandler<PingController>(Lon
 
     override fun onStartInitiator(stream: Stream): CompletableFuture<PingController> {
         val handler = PingInitiator()
-        stream.pushHandler(handler)
+        try {
+            stream.pushHandler(handler)
+        } catch (failure: Throwable) {
+            try {
+                handler.onClosed(stream)
+            } catch (cleanupFailure: Throwable) {
+                if (cleanupFailure !== failure) failure.addSuppressed(cleanupFailure)
+            }
+            throw failure
+        }
         return handler.activeFuture
     }
 
@@ -64,6 +78,11 @@ open class PingProtocol(var pingSize: Int) : ProtocolHandler<PingController>(Lon
     open inner class PingInitiator : ProtocolMessageHandler<ByteBuf>, PingController {
         val activeFuture = CompletableFuture<PingController>()
         val requests = Collections.synchronizedMap(mutableMapOf<String, Pair<Long, CompletableFuture<Long>>>())
+        private val timeoutTasks = mutableMapOf<String, ScheduledFuture<*>>()
+        private var schedulerReleased = false
+        private val scheduler = synchronized(schedulerMonitor) {
+            timeoutScheduler.also { schedulerUsers[it] = (schedulerUsers[it] ?: 0) + 1 }
+        }
         lateinit var stream: Stream
         var closed = false
 
@@ -74,18 +93,42 @@ open class PingProtocol(var pingSize: Int) : ProtocolHandler<PingController>(Lon
 
         override fun onMessage(stream: Stream, msg: ByteBuf) {
             val dataS = msg.toByteArray().toHex()
-            val (sentT, future) = requests.remove(dataS)
-                ?: throw BadPeerException("Unknown or expired ping data in response: $dataS")
+            val request = synchronized(requests) {
+                requests.remove(dataS).also {
+                    if (it != null) timeoutTasks.remove(dataS)?.cancel(false)
+                }
+            } ?: throw BadPeerException("Unknown or expired ping data in response: $dataS")
+            val (sentT, future) = request
             future.complete(curTime() - sentT)
         }
 
         override fun onClosed(stream: Stream) {
+            val pending: List<CompletableFuture<Long>>
+            val schedulerToClose: ScheduledExecutorService?
             synchronized(requests) {
+                if (schedulerReleased) return
+                schedulerReleased = true
                 closed = true
-                requests.values.forEach { it.second.completeExceptionally(ConnectionClosedException()) }
+                pending = requests.values.map { it.second }
                 requests.clear()
-                timeoutScheduler.shutdownNow()
+                timeoutTasks.values.forEach { it.cancel(false) }
+                timeoutTasks.clear()
+                schedulerToClose = synchronized(schedulerMonitor) {
+                    val remaining = checkNotNull(schedulerUsers[scheduler]) - 1
+                    if (remaining > 0) {
+                        schedulerUsers[scheduler] = remaining
+                        null
+                    } else {
+                        schedulerUsers.remove(scheduler)
+                        if (timeoutScheduler === scheduler) {
+                            timeoutScheduler = newPingTimeoutScheduler()
+                        }
+                        scheduler
+                    }
+                }
             }
+            pending.forEach { it.completeExceptionally(ConnectionClosedException()) }
+            schedulerToClose?.shutdownNow()
             activeFuture.completeExceptionally(ConnectionClosedException())
         }
 
@@ -96,16 +139,30 @@ open class PingProtocol(var pingSize: Int) : ProtocolHandler<PingController>(Lon
             val dataS = data.toHex()
 
             synchronized(requests) {
-                if (closed) return completedExceptionally(ConnectionClosedException())
+                if (closed || schedulerReleased) return completedExceptionally(ConnectionClosedException())
                 requests[dataS] = curTime() to ret
 
-                timeoutScheduler.schedule(
-                    {
-                        requests.remove(dataS)?.second?.completeExceptionally(PingTimeoutException())
-                    },
-                    pingTimeout.toMillis(),
-                    TimeUnit.MILLISECONDS
-                )
+                val timeout = try {
+                    scheduler.schedule(
+                        {
+                            val request = synchronized(requests) {
+                                timeoutTasks.remove(dataS)
+                                requests.remove(dataS)
+                            }
+                            request?.second?.completeExceptionally(PingTimeoutException())
+                        },
+                        pingTimeout.toMillis(),
+                        TimeUnit.MILLISECONDS
+                    )
+                } catch (failure: Throwable) {
+                    requests.remove(dataS)
+                    throw failure
+                }
+                if (requests.containsKey(dataS)) {
+                    timeoutTasks[dataS] = timeout
+                } else {
+                    timeout.cancel(false)
+                }
             }
 
             stream.writeAndFlush(data.toByteBuf())
@@ -113,3 +170,6 @@ open class PingProtocol(var pingSize: Int) : ProtocolHandler<PingController>(Lon
         }
     }
 }
+
+private fun newPingTimeoutScheduler(): ScheduledExecutorService =
+    ScheduledThreadPoolExecutor(1).apply { removeOnCancelPolicy = true }

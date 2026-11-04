@@ -1,0 +1,207 @@
+
+Thanks for using JUnit! Support its development at https://junit.org/sponsoring
+
+18:29:08.990 [libp2p-quic-worker-17-1] [[32mINFO[m] io.libp2p.transport.quic.QuicTransport - Quic server listening on /ip4/127.0.0.1/udp/0/quic-v1
+18:29:09.079 [libp2p-quic-worker-17-1] [[32mINFO[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooWQrmNcCiwxk93RW5BfRu8nhNYvR7ukeVtgy7HuXmNtxuK
+18:29:09.119 [libp2p-quic-worker-19-1] [[32mINFO[m] io.libp2p.transport.quic.QuicTransport - Quic server listening on /ip4/127.0.0.1/udp/0/quic-v1
+18:29:09.144 [libp2p-quic-worker-19-1] [[32mINFO[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooWBAmzLTYvGK5h8LrohQrwE2XNwxmpCSGCwFRvo8RjfdcK
+18:29:09.175 [libp2p-quic-worker-21-1] [[32mINFO[m] io.libp2p.transport.quic.QuicTransport - Quic server listening on /ip4/127.0.0.1/udp/0/quic-v1
+18:29:09.206 [libp2p-quic-worker-21-1] [[32mINFO[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooWSoppX7nYsCKMoKe45ZrcxhCtP4vD6f1B5FNm4fdP4T1a
+18:29:09.238 [libp2p-quic-worker-23-1] [[32mINFO[m] io.libp2p.transport.quic.QuicTransport - Quic server listening on /ip4/127.0.0.1/udp/0/quic-v1
+18:29:09.264 [libp2p-quic-worker-23-1] [[32mINFO[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooWPbucwHeTdaqSjqLjaMiN3EJVqzZa7oeV2jwu4AfP55HY
+18:29:19.317 [libp2p-quic-worker-25-1] [[32mINFO[m] io.libp2p.transport.quic.QuicTransport - Quic server listening on /ip4/127.0.0.1/udp/0/quic-v1
+18:29:19.343 [libp2p-quic-worker-25-1] [[32mINFO[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooWPxsqfeFrApPQmMyV3akaqNResn5ycrDhzKd3cuVyh4E6
+18:29:29.448 [libp2p-quic-worker-27-1] [[32mINFO[m] io.libp2p.transport.quic.QuicTransport - Quic server listening on /ip4/127.0.0.1/udp/0/quic-v1
+18:29:29.495 [libp2p-quic-worker-27-1] [[32mINFO[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooWBnrSUGMJFGbSwQ6mwdo4CaLj4tquMtAppmbMBSH2Tn8N
+╷
+├─ JUnit Platform Suite ✔
+├─ JUnit Jupiter ✔
+│  ├─ PlainNettyTransportFailedCloseTest ✔
+│  │  └─ closeTerminatesEveryAcceptorThread(String) ✔
+│  │     ├─ [1] listener ✘ Transport close must terminate the owned acceptor group after listener ==> expected: <true> but was: <false>
+│  │     ├─ [2] connection ✘ Transport close must terminate the owned acceptor group after connection ==> expected: <true> but was: <false>
+│  │     ├─ [3] listener-throw ✘ Transport close must terminate the owned acceptor group after listener-throw ==> expected: <true> but was: <false>
+│  │     ├─ [4] listener-deferred ✘ Transport close must terminate the owned acceptor group after listener-deferred ==> expected: <true> but was: <false>
+│  │     ├─ [5] caller-cancel 10026 ms ✘ Transport close must terminate the owned acceptor group after caller-cancel ==> expected: <true> but was: <false>
+│  │     ├─ [6] caller-complete 10018 ms ✘ Transport close must terminate the owned acceptor group after caller-complete ==> expected: <true> but was: <false>
+│  │     └─ [7] success ✔
+│  └─ QuicTransportFailedCloseTest ✔
+│     └─ closeTerminatesEveryWorkerThread(String) ✔
+│        ├─ [1] listener ✘ Transport close must terminate the owned QUIC worker group after listener ==> expected: <true> but was: <false>
+│        ├─ [2] listener-throw ✘ Transport close must terminate the owned QUIC worker group after listener-throw ==> expected: <true> but was: <false>
+│        ├─ [3] listener-deferred ✘ Transport close must terminate the owned QUIC worker group after listener-deferred ==> expected: <true> but was: <false>
+│        ├─ [4] caller-cancel 10077 ms ✘ Transport close must terminate the owned QUIC worker group after caller-cancel ==> expected: <true> but was: <false>
+│        ├─ [5] caller-complete 10130 ms ✘ Transport close must terminate the owned QUIC worker group after caller-complete ==> expected: <true> but was: <false>
+│        └─ [6] success ✔
+└─ JUnit Vintage ✔
+
+Failures (11):
+  JUnit Jupiter:PlainNettyTransportFailedCloseTest:closeTerminatesEveryAcceptorThread(String):[1] listener
+    MethodSource [className = 'io.libp2p.transport.PlainNettyTransportFailedCloseTest', methodName = 'closeTerminatesEveryAcceptorThread', methodParameterTypes = 'java.lang.String']
+    => org.opentest4j.AssertionFailedError: Transport close must terminate the owned acceptor group after listener ==> expected: <true> but was: <false>
+       org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+       org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+       org.junit.jupiter.api.AssertTrue.failNotTrue(AssertTrue.java:63)
+       org.junit.jupiter.api.AssertTrue.assertTrue(AssertTrue.java:36)
+       org.junit.jupiter.api.Assertions.assertTrue(Assertions.java:214)
+       io.libp2p.transport.PlainNettyTransportFailedCloseTest.closeTerminatesEveryAcceptorThread(PlainNettyTransportFailedCloseTest.kt:102)
+       java.base/java.lang.reflect.Method.invoke(Method.java:580)
+       java.base/java.util.Optional.ifPresent(Optional.java:178)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:184)
+       java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:197)
+       [...]
+  JUnit Jupiter:PlainNettyTransportFailedCloseTest:closeTerminatesEveryAcceptorThread(String):[2] connection
+    MethodSource [className = 'io.libp2p.transport.PlainNettyTransportFailedCloseTest', methodName = 'closeTerminatesEveryAcceptorThread', methodParameterTypes = 'java.lang.String']
+    => org.opentest4j.AssertionFailedError: Transport close must terminate the owned acceptor group after connection ==> expected: <true> but was: <false>
+       org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+       org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+       org.junit.jupiter.api.AssertTrue.failNotTrue(AssertTrue.java:63)
+       org.junit.jupiter.api.AssertTrue.assertTrue(AssertTrue.java:36)
+       org.junit.jupiter.api.Assertions.assertTrue(Assertions.java:214)
+       io.libp2p.transport.PlainNettyTransportFailedCloseTest.closeTerminatesEveryAcceptorThread(PlainNettyTransportFailedCloseTest.kt:102)
+       java.base/java.lang.reflect.Method.invoke(Method.java:580)
+       java.base/java.util.Optional.ifPresent(Optional.java:178)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:184)
+       java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:197)
+       [...]
+  JUnit Jupiter:PlainNettyTransportFailedCloseTest:closeTerminatesEveryAcceptorThread(String):[3] listener-throw
+    MethodSource [className = 'io.libp2p.transport.PlainNettyTransportFailedCloseTest', methodName = 'closeTerminatesEveryAcceptorThread', methodParameterTypes = 'java.lang.String']
+    => org.opentest4j.AssertionFailedError: Transport close must terminate the owned acceptor group after listener-throw ==> expected: <true> but was: <false>
+       org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+       org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+       org.junit.jupiter.api.AssertTrue.failNotTrue(AssertTrue.java:63)
+       org.junit.jupiter.api.AssertTrue.assertTrue(AssertTrue.java:36)
+       org.junit.jupiter.api.Assertions.assertTrue(Assertions.java:214)
+       io.libp2p.transport.PlainNettyTransportFailedCloseTest.closeTerminatesEveryAcceptorThread(PlainNettyTransportFailedCloseTest.kt:102)
+       java.base/java.lang.reflect.Method.invoke(Method.java:580)
+       java.base/java.util.Optional.ifPresent(Optional.java:178)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:184)
+       java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:197)
+       [...]
+  JUnit Jupiter:PlainNettyTransportFailedCloseTest:closeTerminatesEveryAcceptorThread(String):[4] listener-deferred
+    MethodSource [className = 'io.libp2p.transport.PlainNettyTransportFailedCloseTest', methodName = 'closeTerminatesEveryAcceptorThread', methodParameterTypes = 'java.lang.String']
+    => org.opentest4j.AssertionFailedError: Transport close must terminate the owned acceptor group after listener-deferred ==> expected: <true> but was: <false>
+       org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+       org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+       org.junit.jupiter.api.AssertTrue.failNotTrue(AssertTrue.java:63)
+       org.junit.jupiter.api.AssertTrue.assertTrue(AssertTrue.java:36)
+       org.junit.jupiter.api.Assertions.assertTrue(Assertions.java:214)
+       io.libp2p.transport.PlainNettyTransportFailedCloseTest.closeTerminatesEveryAcceptorThread(PlainNettyTransportFailedCloseTest.kt:102)
+       java.base/java.lang.reflect.Method.invoke(Method.java:580)
+       java.base/java.util.Optional.ifPresent(Optional.java:178)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:184)
+       java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:197)
+       [...]
+  JUnit Jupiter:PlainNettyTransportFailedCloseTest:closeTerminatesEveryAcceptorThread(String):[5] caller-cancel
+    MethodSource [className = 'io.libp2p.transport.PlainNettyTransportFailedCloseTest', methodName = 'closeTerminatesEveryAcceptorThread', methodParameterTypes = 'java.lang.String']
+    => org.opentest4j.AssertionFailedError: Transport close must terminate the owned acceptor group after caller-cancel ==> expected: <true> but was: <false>
+       org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+       org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+       org.junit.jupiter.api.AssertTrue.failNotTrue(AssertTrue.java:63)
+       org.junit.jupiter.api.AssertTrue.assertTrue(AssertTrue.java:36)
+       org.junit.jupiter.api.Assertions.assertTrue(Assertions.java:214)
+       io.libp2p.transport.PlainNettyTransportFailedCloseTest.closeTerminatesEveryAcceptorThread(PlainNettyTransportFailedCloseTest.kt:102)
+       java.base/java.lang.reflect.Method.invoke(Method.java:580)
+       java.base/java.util.Optional.ifPresent(Optional.java:178)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:184)
+       java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:197)
+       [...]
+  JUnit Jupiter:PlainNettyTransportFailedCloseTest:closeTerminatesEveryAcceptorThread(String):[6] caller-complete
+    MethodSource [className = 'io.libp2p.transport.PlainNettyTransportFailedCloseTest', methodName = 'closeTerminatesEveryAcceptorThread', methodParameterTypes = 'java.lang.String']
+    => org.opentest4j.AssertionFailedError: Transport close must terminate the owned acceptor group after caller-complete ==> expected: <true> but was: <false>
+       org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+       org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+       org.junit.jupiter.api.AssertTrue.failNotTrue(AssertTrue.java:63)
+       org.junit.jupiter.api.AssertTrue.assertTrue(AssertTrue.java:36)
+       org.junit.jupiter.api.Assertions.assertTrue(Assertions.java:214)
+       io.libp2p.transport.PlainNettyTransportFailedCloseTest.closeTerminatesEveryAcceptorThread(PlainNettyTransportFailedCloseTest.kt:102)
+       java.base/java.lang.reflect.Method.invoke(Method.java:580)
+       java.base/java.util.Optional.ifPresent(Optional.java:178)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:184)
+       java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:197)
+       [...]
+  JUnit Jupiter:QuicTransportFailedCloseTest:closeTerminatesEveryWorkerThread(String):[1] listener
+    MethodSource [className = 'io.libp2p.transport.QuicTransportFailedCloseTest', methodName = 'closeTerminatesEveryWorkerThread', methodParameterTypes = 'java.lang.String']
+    => org.opentest4j.AssertionFailedError: Transport close must terminate the owned QUIC worker group after listener ==> expected: <true> but was: <false>
+       org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+       org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+       org.junit.jupiter.api.AssertTrue.failNotTrue(AssertTrue.java:63)
+       org.junit.jupiter.api.AssertTrue.assertTrue(AssertTrue.java:36)
+       org.junit.jupiter.api.Assertions.assertTrue(Assertions.java:214)
+       io.libp2p.transport.QuicTransportFailedCloseTest.closeTerminatesEveryWorkerThread(QuicTransportFailedCloseTest.kt:89)
+       java.base/java.lang.reflect.Method.invoke(Method.java:580)
+       java.base/java.util.Optional.ifPresent(Optional.java:178)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:184)
+       java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:197)
+       [...]
+  JUnit Jupiter:QuicTransportFailedCloseTest:closeTerminatesEveryWorkerThread(String):[2] listener-throw
+    MethodSource [className = 'io.libp2p.transport.QuicTransportFailedCloseTest', methodName = 'closeTerminatesEveryWorkerThread', methodParameterTypes = 'java.lang.String']
+    => org.opentest4j.AssertionFailedError: Transport close must terminate the owned QUIC worker group after listener-throw ==> expected: <true> but was: <false>
+       org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+       org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+       org.junit.jupiter.api.AssertTrue.failNotTrue(AssertTrue.java:63)
+       org.junit.jupiter.api.AssertTrue.assertTrue(AssertTrue.java:36)
+       org.junit.jupiter.api.Assertions.assertTrue(Assertions.java:214)
+       io.libp2p.transport.QuicTransportFailedCloseTest.closeTerminatesEveryWorkerThread(QuicTransportFailedCloseTest.kt:89)
+       java.base/java.lang.reflect.Method.invoke(Method.java:580)
+       java.base/java.util.Optional.ifPresent(Optional.java:178)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:184)
+       java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:197)
+       [...]
+  JUnit Jupiter:QuicTransportFailedCloseTest:closeTerminatesEveryWorkerThread(String):[3] listener-deferred
+    MethodSource [className = 'io.libp2p.transport.QuicTransportFailedCloseTest', methodName = 'closeTerminatesEveryWorkerThread', methodParameterTypes = 'java.lang.String']
+    => org.opentest4j.AssertionFailedError: Transport close must terminate the owned QUIC worker group after listener-deferred ==> expected: <true> but was: <false>
+       org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+       org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+       org.junit.jupiter.api.AssertTrue.failNotTrue(AssertTrue.java:63)
+       org.junit.jupiter.api.AssertTrue.assertTrue(AssertTrue.java:36)
+       org.junit.jupiter.api.Assertions.assertTrue(Assertions.java:214)
+       io.libp2p.transport.QuicTransportFailedCloseTest.closeTerminatesEveryWorkerThread(QuicTransportFailedCloseTest.kt:89)
+       java.base/java.lang.reflect.Method.invoke(Method.java:580)
+       java.base/java.util.Optional.ifPresent(Optional.java:178)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:184)
+       java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:197)
+       [...]
+  JUnit Jupiter:QuicTransportFailedCloseTest:closeTerminatesEveryWorkerThread(String):[4] caller-cancel
+    MethodSource [className = 'io.libp2p.transport.QuicTransportFailedCloseTest', methodName = 'closeTerminatesEveryWorkerThread', methodParameterTypes = 'java.lang.String']
+    => org.opentest4j.AssertionFailedError: Transport close must terminate the owned QUIC worker group after caller-cancel ==> expected: <true> but was: <false>
+       org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+       org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+       org.junit.jupiter.api.AssertTrue.failNotTrue(AssertTrue.java:63)
+       org.junit.jupiter.api.AssertTrue.assertTrue(AssertTrue.java:36)
+       org.junit.jupiter.api.Assertions.assertTrue(Assertions.java:214)
+       io.libp2p.transport.QuicTransportFailedCloseTest.closeTerminatesEveryWorkerThread(QuicTransportFailedCloseTest.kt:89)
+       java.base/java.lang.reflect.Method.invoke(Method.java:580)
+       java.base/java.util.Optional.ifPresent(Optional.java:178)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:184)
+       java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:197)
+       [...]
+  JUnit Jupiter:QuicTransportFailedCloseTest:closeTerminatesEveryWorkerThread(String):[5] caller-complete
+    MethodSource [className = 'io.libp2p.transport.QuicTransportFailedCloseTest', methodName = 'closeTerminatesEveryWorkerThread', methodParameterTypes = 'java.lang.String']
+    => org.opentest4j.AssertionFailedError: Transport close must terminate the owned QUIC worker group after caller-complete ==> expected: <true> but was: <false>
+       org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+       org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+       org.junit.jupiter.api.AssertTrue.failNotTrue(AssertTrue.java:63)
+       org.junit.jupiter.api.AssertTrue.assertTrue(AssertTrue.java:36)
+       org.junit.jupiter.api.Assertions.assertTrue(Assertions.java:214)
+       io.libp2p.transport.QuicTransportFailedCloseTest.closeTerminatesEveryWorkerThread(QuicTransportFailedCloseTest.kt:89)
+       java.base/java.lang.reflect.Method.invoke(Method.java:580)
+       java.base/java.util.Optional.ifPresent(Optional.java:178)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:184)
+       java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:197)
+       [...]
+
+Test run finished after 42231 ms
+[         7 containers found      ]
+[         0 containers skipped    ]
+[         7 containers started    ]
+[         0 containers aborted    ]
+[         7 containers successful ]
+[         0 containers failed     ]
+[        13 tests found           ]
+[         0 tests skipped         ]
+[        13 tests started         ]
+[         0 tests aborted         ]
+[         2 tests successful      ]
+[        11 tests failed          ]
+

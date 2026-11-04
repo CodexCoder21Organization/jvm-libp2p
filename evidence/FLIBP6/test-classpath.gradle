@@ -1,0 +1,9 @@
+gradle.projectsEvaluated {
+    def target = gradle.rootProject.project(':libp2p')
+    target.tasks.register('flibp6TestClasspath') {
+        dependsOn target.tasks.named('testClasses')
+        doLast {
+            new File('/tmp/flibp6-upstream-test-classpath').text = target.sourceSets.test.runtimeClasspath.asPath
+        }
+    }
+}

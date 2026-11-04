@@ -1,0 +1,69 @@
+diff --git a/libp2p/src/main/kotlin/io/libp2p/transport/implementation/PlainNettyTransport.kt b/libp2p/src/main/kotlin/io/libp2p/transport/implementation/PlainNettyTransport.kt
+index 75d16781..0a82518b 100644
+--- a/libp2p/src/main/kotlin/io/libp2p/transport/implementation/PlainNettyTransport.kt
++++ b/libp2p/src/main/kotlin/io/libp2p/transport/implementation/PlainNettyTransport.kt
+@@ -182,14 +182,15 @@ abstract class PlainNettyTransport(
+         val everythingThatNeedsToClose = unbindsCompleted.union(channelsClosed)
+         val allClosed = CompletableFuture.allOf(*everythingThatNeedsToClose.toTypedArray())
+ 
+-        return allClosed.thenCompose {
++        // Cleanup observes every channel outcome independently of the caller's future.
++        val groupClosed = allClosed.handle { _, _ ->
+             // Use an explicit quietPeriod = 0 instead of relying on Netty's default
+             // (DefaultEventExecutor.DEFAULT_SHUTDOWN_QUIET_PERIOD = 2 SECONDS).
+             //
+             // The quiet period is the time `shutdownGracefully` keeps the event loop
+             // alive AFTER its last task finished, in case more work is submitted. Once
+-            // we have called close() on this transport every existing channel has been
+-            // closed, the transport is marked closed (so listen()/dial() throw), and
++            // we have called close() on this transport every channel close attempt has
++            // settled, the transport is marked closed (so listen()/dial() throw), and
+             // there is by construction no path that submits new work to either group.
+             // Waiting 2 seconds for "more work that isn't coming" is pure latency.
+             //
+@@ -215,9 +216,14 @@ abstract class PlainNettyTransport(
+             // single transport — a daemon group cannot hold the JVM open, so leaving it
+             // running is safe, and shutting it down here would tear the worker loop out
+             // from under every other live host in the JVM.
+-            CompletableFuture.allOf(
+-                bossGroup.shutdownGracefully(0, 5, TimeUnit.SECONDS).toVoidCompletableFuture()
+-            ).thenApply { }
++            bossGroup.shutdownGracefully(0, 5, TimeUnit.SECONDS).toVoidCompletableFuture()
++        }.thenCompose { it }
++        return groupClosed.handle { _, shutdownFailure ->
++            // Cleanup starts after allClosed settles, so join cannot block here.
++            // Read that outcome first to preserve the original channel-close failure.
++            allClosed.join()
++            if (shutdownFailure != null) throw shutdownFailure
++            Unit
+         }
+     } // close
+ 
+diff --git a/libp2p/src/main/kotlin/io/libp2p/transport/quic/QuicTransport.kt b/libp2p/src/main/kotlin/io/libp2p/transport/quic/QuicTransport.kt
+index 8fffa1d9..90d96016 100644
+--- a/libp2p/src/main/kotlin/io/libp2p/transport/quic/QuicTransport.kt
++++ b/libp2p/src/main/kotlin/io/libp2p/transport/quic/QuicTransport.kt
+@@ -142,7 +142,8 @@ class QuicTransport(
+         val everythingThatNeedsToClose = unbindsCompleted.union(channelsClosed)
+         val allClosed = CompletableFuture.allOf(*everythingThatNeedsToClose.toTypedArray())
+ 
+-        return allClosed.thenCompose {
++        // Cleanup observes every channel outcome independently of the caller's future.
++        val groupClosed = allClosed.handle { _, _ ->
+             // See PlainNettyTransport.close() for the full rationale: the no-arg
+             // shutdownGracefully() falls through to Netty's default 2-second
+             // quietPeriod, which adds 2 s of pure latency to every close() once
+@@ -150,6 +151,13 @@ class QuicTransport(
+             // as soon as it notices the shutdown flag; the 5-second timeout caps
+             // how long shutdownGracefully will wait for that exit.
+             workerGroup.shutdownGracefully(0, 5, TimeUnit.SECONDS).toVoidCompletableFuture()
++        }.thenCompose { it }
++        return groupClosed.handle { _, shutdownFailure ->
++            // Cleanup starts after allClosed settles, so join cannot block here.
++            // Read that outcome first to preserve the original channel-close failure.
++            allClosed.join()
++            if (shutdownFailure != null) throw shutdownFailure
++            Unit
+         }
+     }
+ 

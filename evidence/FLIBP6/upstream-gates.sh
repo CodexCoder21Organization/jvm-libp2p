@@ -39,7 +39,7 @@ trap - EXIT
 if [[ $red == 0 ]]; then echo 'PROBLEM: old product did not fail'; exit 1; fi
 compile_tests > "$evidence/upstream-green-compile.log" 2>&1
 args=()
-for cls in PlainNettyTransportFailedCloseTest QuicTransportFailedCloseTest ConnectionCloseRetryTest ParentCloseOwnershipTest PlainNettyTransportConcurrentListenCloseTest PlainNettyTransportDaemonThreadTest PlainNettyTransportShutdownTimingTest; do args+=(--select-class "io.libp2p.transport.$cls"); done
+for cls in PlainNettyTransportFailedCloseTest QuicTransportFailedCloseTest PlainNettyTransportFailedCloseSetTest QuicTransportFailedConnectionSetTest ConnectionCloseRetryTest ParentCloseOwnershipTest PlainNettyTransportConcurrentListenCloseTest PlainNettyTransportDaemonThreadTest PlainNettyTransportShutdownTimingTest; do args+=(--select-class "io.libp2p.transport.$cls"); done
 for cls in CompletedNettyFutureConversionTest NettyFutureConversionStateTest PendingNettyFutureConversionTest; do args+=(--select-class "io.libp2p.etc.types.$cls"); done
 "$slots" 1 timeout 600 java -jar /tmp/flibp6-junit-console.jar execute --class-path "$(cat /tmp/flibp6-upstream-test-classpath)" "${args[@]}" --reports-dir "$evidence/upstream-green" --fail-if-no-tests > "$evidence/upstream-green.log" 2>&1
 git fetch -q origin develop

@@ -40,6 +40,16 @@ args=()
 for cls in PlainNettyTransportFailedCloseTest QuicTransportFailedCloseTest PlainNettyTransportFailedCloseSetTest QuicTransportFailedConnectionSetTest ConnectionCloseRetryTest ParentCloseOwnershipTest PlainNettyTransportConcurrentListenCloseTest PlainNettyTransportDaemonThreadTest PlainNettyTransportShutdownTimingTest; do args+=(--select-class "io.libp2p.transport.$cls"); done
 for cls in CompletedNettyFutureConversionTest NettyFutureConversionStateTest PendingNettyFutureConversionTest; do args+=(--select-class "io.libp2p.etc.types.$cls"); done
 timeout 600 java -jar /tmp/flibp6-junit-console.jar execute --class-path "$(cat /tmp/flibp6-upstream-test-classpath)" "${args[@]}" --reports-dir "$evidence/upstream-green" --fail-if-no-tests > "$evidence/upstream-green.log" 2>&1
+python3 - "$evidence/upstream-green" <<'PYGREEN'
+from pathlib import Path
+import xml.etree.ElementTree as E,sys,json
+cases=[c for p in Path(sys.argv[1]).glob('*.xml') for c in E.parse(p).findall('.//testcase')]
+x={'tests':len(cases),'failures':sum(c.find('failure') is not None for c in cases),'errors':sum(c.find('error') is not None for c in cases),'skipped':sum(c.find('skipped') is not None for c in cases)}
+Path(sys.argv[1]).parent.joinpath('upstream-green-counts.json').write_text(json.dumps(x,indent=2)+'\n')
+assert x=={'tests':56,'failures':0,'errors':0,'skipped':0},x
+PYGREEN
+git add libp2p/src/test/kotlin/io/libp2p/transport/PlainNettyTransportFailedCloseSetTest.kt libp2p/src/test/kotlin/io/libp2p/transport/QuicTransportFailedConnectionSetTest.kt
+git commit -m 'Cover failed shutdown across larger owned channel sets'
 git rebase origin/develop
 timeout 1200 ./gradlew --no-daemon --max-workers=1 -Pkotlin.compiler.execution.strategy=in-process :libp2p:spotlessCheck :libp2p:jar :libp2p:generatePomFileForMavenJavaPublication -PmavenArtifactId=jvm-libp2p > "$evidence/upstream-package.log" 2>&1
 git rev-parse HEAD > "$evidence/upstream-tested-head.txt"

@@ -1,0 +1,353 @@
+<?xml version='1.0' encoding='utf-8'?>
+<testsuite name="io.libp2p.security.tls.TlsSecureChannelTest" tests="7" skipped="0" failures="0" errors="0" timestamp="2026-11-04T19:10:37.363Z" hostname="runnervmnwato" time="0.271">
+  <testcase name="[1] 0" classname="io.libp2p.security.tls.TlsSecureChannelTest" time="0.065" />
+  <testcase name="[2] 16" classname="io.libp2p.security.tls.TlsSecureChannelTest" time="0.039" />
+  <testcase name="[3] 65519" classname="io.libp2p.security.tls.TlsSecureChannelTest" time="0.05" />
+  <testcase name="[4] 65520" classname="io.libp2p.security.tls.TlsSecureChannelTest" time="0.032" />
+  <testcase name="[5] 65535" classname="io.libp2p.security.tls.TlsSecureChannelTest" time="0.025" />
+  <testcase name="[6] 65536" classname="io.libp2p.security.tls.TlsSecureChannelTest" time="0.037" />
+  <testcase name="incorrect initiator remote PeerId should throw()" classname="io.libp2p.security.tls.TlsSecureChannelTest" time="0.02" />
+  <system-out>19:10:37.366 [Test worker] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - Connecting channels...
+19:10:37.366 [Test worker] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - Waiting for negotiation to complete...
+19:10:37.428 [Test worker] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - Secured!
+19:10:37.429 [TestChannel-interconnect-executor-51] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - SecureChannelTestHandler 1: channelActive
+19:10:37.429 [TestChannel-interconnect-executor-50] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - SecureChannelTestHandler 2: channelActive
+19:10:37.430 [Test worker] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - Connecting channels...
+19:10:37.434 [Test worker] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - Waiting for negotiation to complete...
+19:10:37.463 [Test worker] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - Secured!
+19:10:37.463 [TestChannel-interconnect-executor-53] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - SecureChannelTestHandler 1: channelActive
+19:10:37.463 [TestChannel-interconnect-executor-52] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - SecureChannelTestHandler 2: channelActive
+19:10:37.465 [TestChannel-interconnect-executor-52] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - SecureChannelTestHandler 2: channelRead AdvancedLeakAwareByteBuf(AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 16, cap: 38))
+19:10:37.467 [TestChannel-interconnect-executor-53] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - SecureChannelTestHandler 1: channelRead AdvancedLeakAwareByteBuf(AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 16, cap: 18))
+19:10:37.467 [Test worker] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - handler1 received chunk of size 16
+19:10:37.468 [Test worker] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - handler2 received chunk of size 16
+19:10:37.470 [Test worker] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - Connecting channels...
+19:10:37.471 [Test worker] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - Waiting for negotiation to complete...
+19:10:37.479 [TestChannel-interconnect-executor-54] [?[1;31mERROR?[m] io.netty.util.ResourceLeakDetector - LEAK: ByteBuf.release() was not called before it's garbage-collected. See https://netty.io/wiki/reference-counted-objects.html for more information.
+Recent access records: 
+#1:
+	io.netty.buffer.AdvancedLeakAwareByteBuf.readBytes(AdvancedLeakAwareByteBuf.java:497)
+	io.libp2p.etc.types.BufferExtKt.toByteArray(BufferExt.kt:12)
+	io.libp2p.security.SecureChannelTestBase$SecureChannelTestHandler.channelRead(SecureChannelTestBase.kt:208)
+	io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:357)
+	io.netty.handler.ssl.SslHandler.unwrap(SslHandler.java:1535)
+	io.netty.handler.ssl.SslHandler.decodeNonJdkCompatible(SslHandler.java:1406)
+	io.netty.handler.ssl.SslHandler.decode(SslHandler.java:1446)
+	io.netty.handler.codec.ByteToMessageDecoder.decodeRemovalReentryProtection(ByteToMessageDecoder.java:545)
+	io.netty.handler.codec.ByteToMessageDecoder.callDecode(ByteToMessageDecoder.java:484)
+	io.netty.handler.codec.ByteToMessageDecoder.channelRead(ByteToMessageDecoder.java:296)
+	io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:357)
+	io.netty.channel.DefaultChannelPipeline$HeadContext.channelRead(DefaultChannelPipeline.java:1442)
+	io.netty.channel.DefaultChannelPipeline.fireChannelRead(DefaultChannelPipeline.java:931)
+	io.netty.channel.embedded.EmbeddedChannel.writeInbound(EmbeddedChannel.java:369)
+	io.libp2p.tools.TestChannel.send$lambda$1(TestChannel.kt:83)
+	java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)
+	java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	java.base/java.lang.Thread.run(Thread.java:829)
+#2:
+	Hint: 'SecureChannelTestBase$SecureChannelTestHandler#0' will handle the message from this point.
+	io.netty.channel.DefaultChannelPipeline.touch(DefaultChannelPipeline.java:115)
+	io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:344)
+	io.netty.handler.ssl.SslHandler.unwrap(SslHandler.java:1535)
+	io.netty.handler.ssl.SslHandler.decodeNonJdkCompatible(SslHandler.java:1406)
+	io.netty.handler.ssl.SslHandler.decode(SslHandler.java:1446)
+	io.netty.handler.codec.ByteToMessageDecoder.decodeRemovalReentryProtection(ByteToMessageDecoder.java:545)
+	io.netty.handler.codec.ByteToMessageDecoder.callDecode(ByteToMessageDecoder.java:484)
+	io.netty.handler.codec.ByteToMessageDecoder.channelRead(ByteToMessageDecoder.java:296)
+	io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:357)
+	io.netty.channel.DefaultChannelPipeline$HeadContext.channelRead(DefaultChannelPipeline.java:1442)
+	io.netty.channel.DefaultChannelPipeline.fireChannelRead(DefaultChannelPipeline.java:931)
+	io.netty.channel.embedded.EmbeddedChannel.writeInbound(EmbeddedChannel.java:369)
+	io.libp2p.tools.TestChannel.send$lambda$1(TestChannel.kt:83)
+	java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)
+	java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	java.base/java.lang.Thread.run(Thread.java:829)
+#3:
+	io.netty.buffer.AdvancedLeakAwareByteBuf.internalNioBuffer(AdvancedLeakAwareByteBuf.java:743)
+	io.netty.handler.ssl.SslHandler.toByteBuffer(SslHandler.java:1666)
+	io.netty.handler.ssl.SslHandler.access$300(SslHandler.java:168)
+	io.netty.handler.ssl.SslHandler$SslEngineType$1.unwrap(SslHandler.java:220)
+	io.netty.handler.ssl.SslHandler.unwrap(SslHandler.java:1502)
+	io.netty.handler.ssl.SslHandler.decodeNonJdkCompatible(SslHandler.java:1406)
+	io.netty.handler.ssl.SslHandler.decode(SslHandler.java:1446)
+	io.netty.handler.codec.ByteToMessageDecoder.decodeRemovalReentryProtection(ByteToMessageDecoder.java:545)
+	io.netty.handler.codec.ByteToMessageDecoder.callDecode(ByteToMessageDecoder.java:484)
+	io.netty.handler.codec.ByteToMessageDecoder.channelRead(ByteToMessageDecoder.java:296)
+	io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:357)
+	io.netty.channel.DefaultChannelPipeline$HeadContext.channelRead(DefaultChannelPipeline.java:1442)
+	io.netty.channel.DefaultChannelPipeline.fireChannelRead(DefaultChannelPipeline.java:931)
+	io.netty.channel.embedded.EmbeddedChannel.writeInbound(EmbeddedChannel.java:369)
+	io.libp2p.tools.TestChannel.send$lambda$1(TestChannel.kt:83)
+	java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)
+	java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	java.base/java.lang.Thread.run(Thread.java:829)
+#4:
+	io.netty.buffer.AdvancedLeakAwareByteBuf.nioBufferCount(AdvancedLeakAwareByteBuf.java:713)
+	io.netty.handler.ssl.SslHandler.toByteBuffer(SslHandler.java:1666)
+	io.netty.handler.ssl.SslHandler.access$300(SslHandler.java:168)
+	io.netty.handler.ssl.SslHandler$SslEngineType$1.unwrap(SslHandler.java:220)
+	io.netty.handler.ssl.SslHandler.unwrap(SslHandler.java:1502)
+	io.netty.handler.ssl.SslHandler.decodeNonJdkCompatible(SslHandler.java:1406)
+	io.netty.handler.ssl.SslHandler.decode(SslHandler.java:1446)
+	io.netty.handler.codec.ByteToMessageDecoder.decodeRemovalReentryProtection(ByteToMessageDecoder.java:545)
+	io.netty.handler.codec.ByteToMessageDecoder.callDecode(ByteToMessageDecoder.java:484)
+	io.netty.handler.codec.ByteToMessageDecoder.channelRead(ByteToMessageDecoder.java:296)
+	io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:357)
+	io.netty.channel.DefaultChannelPipeline$HeadContext.channelRead(DefaultChannelPipeline.java:1442)
+	io.netty.channel.DefaultChannelPipeline.fireChannelRead(DefaultChannelPipeline.java:931)
+	io.netty.channel.embedded.EmbeddedChannel.writeInbound(EmbeddedChannel.java:369)
+	io.libp2p.tools.TestChannel.send$lambda$1(TestChannel.kt:83)
+	java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)
+	java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	java.base/java.lang.Thread.run(Thread.java:829)
+Created at:
+	io.netty.buffer.AdaptiveByteBufAllocator.newDirectBuffer(AdaptiveByteBufAllocator.java:67)
+	io.netty.buffer.AbstractByteBufAllocator.directBuffer(AbstractByteBufAllocator.java:168)
+	io.netty.buffer.AbstractByteBufAllocator.directBuffer(AbstractByteBufAllocator.java:159)
+	io.netty.handler.ssl.SslHandler.allocate(SslHandler.java:2425)
+	io.netty.handler.ssl.SslHandler.unwrap(SslHandler.java:1497)
+	io.netty.handler.ssl.SslHandler.decodeNonJdkCompatible(SslHandler.java:1406)
+	io.netty.handler.ssl.SslHandler.decode(SslHandler.java:1446)
+	io.netty.handler.codec.ByteToMessageDecoder.decodeRemovalReentryProtection(ByteToMessageDecoder.java:545)
+	io.netty.handler.codec.ByteToMessageDecoder.callDecode(ByteToMessageDecoder.java:484)
+	io.netty.handler.codec.ByteToMessageDecoder.channelRead(ByteToMessageDecoder.java:296)
+	io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:357)
+	io.netty.channel.DefaultChannelPipeline$HeadContext.channelRead(DefaultChannelPipeline.java:1442)
+	io.netty.channel.DefaultChannelPipeline.fireChannelRead(DefaultChannelPipeline.java:931)
+	io.netty.channel.embedded.EmbeddedChannel.writeInbound(EmbeddedChannel.java:369)
+	io.libp2p.tools.TestChannel.send$lambda$1(TestChannel.kt:83)
+	java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)
+	java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	java.base/java.lang.Thread.run(Thread.java:829)
+: 1 leak records were discarded because the leak record count is targeted to 4. Use system property io.netty.leakDetection.targetRecords to increase the limit.
+19:10:37.486 [TestChannel-interconnect-executor-54] [?[1;31mERROR?[m] io.netty.util.ResourceLeakDetector - LEAK: ByteBuf.release() was not called before it's garbage-collected. See https://netty.io/wiki/reference-counted-objects.html for more information.
+Recent access records: 
+#1:
+	io.netty.buffer.AdvancedLeakAwareByteBuf.readBytes(AdvancedLeakAwareByteBuf.java:497)
+	io.libp2p.etc.types.BufferExtKt.toByteArray(BufferExt.kt:12)
+	io.libp2p.security.SecureChannelTestBase$SecureChannelTestHandler.channelRead(SecureChannelTestBase.kt:208)
+	io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:357)
+	io.netty.handler.codec.ByteToMessageDecoder.fireChannelRead(ByteToMessageDecoder.java:361)
+	io.netty.handler.codec.ByteToMessageDecoder.channelRead(ByteToMessageDecoder.java:325)
+	io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:357)
+	io.netty.channel.DefaultChannelPipeline$HeadContext.channelRead(DefaultChannelPipeline.java:1442)
+	io.netty.channel.DefaultChannelPipeline.fireChannelRead(DefaultChannelPipeline.java:931)
+	io.netty.channel.embedded.EmbeddedChannel.writeInbound(EmbeddedChannel.java:369)
+	io.libp2p.tools.TestChannel.send$lambda$1(TestChannel.kt:83)
+	java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)
+	java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	java.base/java.lang.Thread.run(Thread.java:829)
+#2:
+	io.netty.buffer.AdvancedLeakAwareByteBuf.order(AdvancedLeakAwareByteBuf.java:71)
+	io.netty.handler.codec.LengthFieldBasedFrameDecoder.getUnadjustedFrameLength(LengthFieldBasedFrameDecoder.java:455)
+	io.netty.handler.codec.LengthFieldBasedFrameDecoder.decode(LengthFieldBasedFrameDecoder.java:410)
+	io.netty.handler.codec.LengthFieldBasedFrameDecoder.decode(LengthFieldBasedFrameDecoder.java:333)
+	io.netty.handler.codec.ByteToMessageDecoder.decodeRemovalReentryProtection(ByteToMessageDecoder.java:545)
+	io.netty.handler.codec.ByteToMessageDecoder.callDecode(ByteToMessageDecoder.java:484)
+	io.netty.handler.codec.ByteToMessageDecoder.channelRead(ByteToMessageDecoder.java:296)
+	io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:357)
+	io.netty.channel.DefaultChannelPipeline$HeadContext.channelRead(DefaultChannelPipeline.java:1442)
+	io.netty.channel.DefaultChannelPipeline.fireChannelRead(DefaultChannelPipeline.java:931)
+	io.netty.channel.embedded.EmbeddedChannel.writeInbound(EmbeddedChannel.java:369)
+	io.libp2p.tools.TestChannel.send$lambda$1(TestChannel.kt:83)
+	java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)
+	java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	java.base/java.lang.Thread.run(Thread.java:829)
+#3:
+	io.netty.channel.ChannelOutboundBuffer.addMessage(ChannelOutboundBuffer.java:134)
+	io.netty.channel.AbstractChannel$AbstractUnsafe.write(AbstractChannel.java:745)
+	io.netty.channel.embedded.EmbeddedChannel$EmbeddedUnsafe$1.write(EmbeddedChannel.java:1301)
+	io.netty.channel.DefaultChannelPipeline$HeadContext.write(DefaultChannelPipeline.java:1399)
+	io.netty.channel.AbstractChannelHandlerContext.write(AbstractChannelHandlerContext.java:796)
+	io.netty.channel.AbstractChannelHandlerContext.write(AbstractChannelHandlerContext.java:731)
+	io.netty.handler.codec.MessageToMessageEncoder.writePromiseCombiner(MessageToMessageEncoder.java:140)
+	io.netty.handler.codec.MessageToMessageEncoder.write(MessageToMessageEncoder.java:120)
+	io.netty.channel.AbstractChannelHandlerContext.write(AbstractChannelHandlerContext.java:800)
+	io.netty.channel.AbstractChannelHandlerContext.writeAndFlush(AbstractChannelHandlerContext.java:776)
+	io.netty.channel.AbstractChannelHandlerContext.writeAndFlush(AbstractChannelHandlerContext.java:859)
+	io.libp2p.security.SecureChannelTestBase$SecureChannelTestHandler.channelActive(SecureChannelTestBase.kt:202)
+	io.netty.channel.AbstractChannelHandlerContext.fireChannelActive(AbstractChannelHandlerContext.java:221)
+	io.netty.channel.DefaultChannelPipeline$HeadContext.channelActive(DefaultChannelPipeline.java:1430)
+	io.netty.channel.DefaultChannelPipeline.fireChannelActive(DefaultChannelPipeline.java:875)
+	io.libp2p.security.SecureChannelTestBase$secureInterconnect$3.invoke(SecureChannelTestBase.kt:96)
+	io.libp2p.security.SecureChannelTestBase$secureInterconnect$3.invoke(SecureChannelTestBase.kt:96)
+	io.libp2p.tools.TestChannel.onChannelThread$lambda$0(TestChannel.kt:63)
+	java.base/java.util.concurrent.CompletableFuture$AsyncSupply.run(CompletableFuture.java:1700)
+	java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)
+	java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	java.base/java.lang.Thread.run(Thread.java:829)
+#4:
+	Hint: 'DefaultChannelPipeline$HeadContext#0' will handle the message from this point.
+	io.netty.channel.DefaultChannelPipeline.touch(DefaultChannelPipeline.java:115)
+	io.netty.channel.AbstractChannelHandlerContext.write(AbstractChannelHandlerContext.java:784)
+	io.netty.channel.AbstractChannelHandlerContext.write(AbstractChannelHandlerContext.java:731)
+	io.netty.handler.codec.MessageToMessageEncoder.writePromiseCombiner(MessageToMessageEncoder.java:140)
+	io.netty.handler.codec.MessageToMessageEncoder.write(MessageToMessageEncoder.java:120)
+	io.netty.channel.AbstractChannelHandlerContext.write(AbstractChannelHandlerContext.java:800)
+	io.netty.channel.AbstractChannelHandlerContext.writeAndFlush(AbstractChannelHandlerContext.java:776)
+	io.netty.channel.AbstractChannelHandlerContext.writeAndFlush(AbstractChannelHandlerContext.java:859)
+	io.libp2p.security.SecureChannelTestBase$SecureChannelTestHandler.channelActive(SecureChannelTestBase.kt:202)
+	io.netty.channel.AbstractChannelHandlerContext.fireChannelActive(AbstractChannelHandlerContext.java:221)
+	io.netty.channel.DefaultChannelPipeline$HeadContext.channelActive(DefaultChannelPipeline.java:1430)
+	io.netty.channel.DefaultChannelPipeline.fireChannelActive(DefaultChannelPipeline.java:875)
+	io.libp2p.security.SecureChannelTestBase$secureInterconnect$3.invoke(SecureChannelTestBase.kt:96)
+	io.libp2p.security.SecureChannelTestBase$secureInterconnect$3.invoke(SecureChannelTestBase.kt:96)
+	io.libp2p.tools.TestChannel.onChannelThread$lambda$0(TestChannel.kt:63)
+	java.base/java.util.concurrent.CompletableFuture$AsyncSupply.run(CompletableFuture.java:1700)
+	java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)
+	java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	java.base/java.lang.Thread.run(Thread.java:829)
+#5:
+	io.netty.buffer.AdvancedLeakAwareByteBuf.writeInt(AdvancedLeakAwareByteBuf.java:569)
+	io.netty.handler.codec.LengthFieldPrepender.encode(LengthFieldPrepender.java:192)
+	io.netty.handler.codec.LengthFieldPrepender.encode(LengthFieldPrepender.java:55)
+	io.netty.handler.codec.MessageToMessageEncoder.write(MessageToMessageEncoder.java:90)
+	io.netty.channel.AbstractChannelHandlerContext.write(AbstractChannelHandlerContext.java:800)
+	io.netty.channel.AbstractChannelHandlerContext.writeAndFlush(AbstractChannelHandlerContext.java:776)
+	io.netty.channel.AbstractChannelHandlerContext.writeAndFlush(AbstractChannelHandlerContext.java:859)
+	io.libp2p.security.SecureChannelTestBase$SecureChannelTestHandler.channelActive(SecureChannelTestBase.kt:202)
+	io.netty.channel.AbstractChannelHandlerContext.fireChannelActive(AbstractChannelHandlerContext.java:221)
+	io.netty.channel.DefaultChannelPipeline$HeadContext.channelActive(DefaultChannelPipeline.java:1430)
+	io.netty.channel.DefaultChannelPipeline.fireChannelActive(DefaultChannelPipeline.java:875)
+	io.libp2p.security.SecureChannelTestBase$secureInterconnect$3.invoke(SecureChannelTestBase.kt:96)
+	io.libp2p.security.SecureChannelTestBase$secureInterconnect$3.invoke(SecureChannelTestBase.kt:96)
+	io.libp2p.tools.TestChannel.onChannelThread$lambda$0(TestChannel.kt:63)
+	java.base/java.util.concurrent.CompletableFuture$AsyncSupply.run(CompletableFuture.java:1700)
+	java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)
+	java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	java.base/java.lang.Thread.run(Thread.java:829)
+#6:
+	io.netty.buffer.AdvancedLeakAwareByteBuf.order(AdvancedLeakAwareByteBuf.java:71)
+	io.netty.handler.codec.LengthFieldPrepender.encode(LengthFieldPrepender.java:192)
+	io.netty.handler.codec.LengthFieldPrepender.encode(LengthFieldPrepender.java:55)
+	io.netty.handler.codec.MessageToMessageEncoder.write(MessageToMessageEncoder.java:90)
+	io.netty.channel.AbstractChannelHandlerContext.write(AbstractChannelHandlerContext.java:800)
+	io.netty.channel.AbstractChannelHandlerContext.writeAndFlush(AbstractChannelHandlerContext.java:776)
+	io.netty.channel.AbstractChannelHandlerContext.writeAndFlush(AbstractChannelHandlerContext.java:859)
+	io.libp2p.security.SecureChannelTestBase$SecureChannelTestHandler.channelActive(SecureChannelTestBase.kt:202)
+	io.netty.channel.AbstractChannelHandlerContext.fireChannelActive(AbstractChannelHandlerContext.java:221)
+	io.netty.channel.DefaultChannelPipeline$HeadContext.channelActive(DefaultChannelPipeline.java:1430)
+	io.netty.channel.DefaultChannelPipeline.fireChannelActive(DefaultChannelPipeline.java:875)
+	io.libp2p.security.SecureChannelTestBase$secureInterconnect$3.invoke(SecureChannelTestBase.kt:96)
+	io.libp2p.security.SecureChannelTestBase$secureInterconnect$3.invoke(SecureChannelTestBase.kt:96)
+	io.libp2p.tools.TestChannel.onChannelThread$lambda$0(TestChannel.kt:63)
+	java.base/java.util.concurrent.CompletableFuture$AsyncSupply.run(CompletableFuture.java:1700)
+	java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)
+	java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	java.base/java.lang.Thread.run(Thread.java:829)
+Created at:
+	io.netty.buffer.AdaptiveByteBufAllocator.newDirectBuffer(AdaptiveByteBufAllocator.java:67)
+	io.netty.buffer.AbstractByteBufAllocator.directBuffer(AbstractByteBufAllocator.java:168)
+	io.netty.buffer.AbstractByteBufAllocator.directBuffer(AbstractByteBufAllocator.java:159)
+	io.netty.buffer.AbstractByteBufAllocator.buffer(AbstractByteBufAllocator.java:96)
+	io.netty.handler.codec.LengthFieldPrepender.encode(LengthFieldPrepender.java:192)
+	io.netty.handler.codec.LengthFieldPrepender.encode(LengthFieldPrepender.java:55)
+	io.netty.handler.codec.MessageToMessageEncoder.write(MessageToMessageEncoder.java:90)
+	io.netty.channel.AbstractChannelHandlerContext.write(AbstractChannelHandlerContext.java:800)
+	io.netty.channel.AbstractChannelHandlerContext.writeAndFlush(AbstractChannelHandlerContext.java:776)
+	io.netty.channel.AbstractChannelHandlerContext.writeAndFlush(AbstractChannelHandlerContext.java:859)
+	io.libp2p.security.SecureChannelTestBase$SecureChannelTestHandler.channelActive(SecureChannelTestBase.kt:202)
+	io.netty.channel.AbstractChannelHandlerContext.fireChannelActive(AbstractChannelHandlerContext.java:221)
+	io.netty.channel.DefaultChannelPipeline$HeadContext.channelActive(DefaultChannelPipeline.java:1430)
+	io.netty.channel.DefaultChannelPipeline.fireChannelActive(DefaultChannelPipeline.java:875)
+	io.libp2p.security.SecureChannelTestBase$secureInterconnect$3.invoke(SecureChannelTestBase.kt:96)
+	io.libp2p.security.SecureChannelTestBase$secureInterconnect$3.invoke(SecureChannelTestBase.kt:96)
+	io.libp2p.tools.TestChannel.onChannelThread$lambda$0(TestChannel.kt:63)
+	java.base/java.util.concurrent.CompletableFuture$AsyncSupply.run(CompletableFuture.java:1700)
+	java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)
+	java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	java.base/java.lang.Thread.run(Thread.java:829)
+: 10 leak records were discarded because the leak record count is targeted to 4. Use system property io.netty.leakDetection.targetRecords to increase the limit.
+19:10:37.514 [Test worker] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - Secured!
+19:10:37.517 [TestChannel-interconnect-executor-54] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - SecureChannelTestHandler 2: channelActive
+19:10:37.517 [TestChannel-interconnect-executor-55] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - SecureChannelTestHandler 1: channelActive
+19:10:37.517 [TestChannel-interconnect-executor-54] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - SecureChannelTestHandler 2: channelRead AdvancedLeakAwareByteBuf(AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 16384, cap: 16406))
+19:10:37.517 [TestChannel-interconnect-executor-54] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - SecureChannelTestHandler 2: channelRead AdvancedLeakAwareByteBuf(AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 16384, cap: 16406))
+19:10:37.517 [TestChannel-interconnect-executor-55] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - SecureChannelTestHandler 1: channelRead AdvancedLeakAwareByteBuf(AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 1538, cap: 1538))
+19:10:37.517 [TestChannel-interconnect-executor-54] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - SecureChannelTestHandler 2: channelRead AdvancedLeakAwareByteBuf(AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 16384, cap: 16406))
+19:10:37.517 [TestChannel-interconnect-executor-54] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - SecureChannelTestHandler 2: channelRead AdvancedLeakAwareByteBuf(AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 16367, cap: 16389))
+19:10:37.517 [TestChannel-interconnect-executor-55] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - SecureChannelTestHandler 1: channelRead AdvancedLeakAwareByteBuf(AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 14846, cap: 14846))
+19:10:37.517 [Test worker] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - handler1 received chunk of size 1538
+19:10:37.517 [Test worker] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - handler1 received chunk of size 14846
+19:10:37.517 [TestChannel-interconnect-executor-55] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - SecureChannelTestHandler 1: channelRead AdvancedLeakAwareByteBuf(AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 16384, cap: 16406))
+19:10:37.518 [TestChannel-interconnect-executor-55] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - SecureChannelTestHandler 1: channelRead AdvancedLeakAwareByteBuf(AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 16384, cap: 16406))
+19:10:37.518 [Test worker] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - handler1 received chunk of size 16384
+19:10:37.518 [Test worker] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - handler1 received chunk of size 16384
+19:10:37.518 [TestChannel-interconnect-executor-55] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - SecureChannelTestHandler 1: channelRead AdvancedLeakAwareByteBuf(AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 16367, cap: 16389))
+19:10:37.518 [Test worker] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - handler1 received chunk of size 16367
+19:10:37.518 [Test worker] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - handler2 received chunk of size 16384
+19:10:37.518 [Test worker] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - handler2 received chunk of size 16384
+19:10:37.518 [Test worker] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - handler2 received chunk of size 16384
+19:10:37.518 [Test worker] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - handler2 received chunk of size 16367
+19:10:37.520 [Test worker] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - Connecting channels...
+19:10:37.521 [Test worker] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - Waiting for negotiation to complete...
+19:10:37.546 [Test worker] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - Secured!
+19:10:37.548 [TestChannel-interconnect-executor-57] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - SecureChannelTestHandler 1: channelActive
+19:10:37.548 [TestChannel-interconnect-executor-56] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - SecureChannelTestHandler 2: channelActive
+19:10:37.549 [TestChannel-interconnect-executor-57] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - SecureChannelTestHandler 1: channelRead AdvancedLeakAwareByteBuf(AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 1538, cap: 1538))
+19:10:37.549 [TestChannel-interconnect-executor-57] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - SecureChannelTestHandler 1: channelRead AdvancedLeakAwareByteBuf(AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 14846, cap: 14846))
+19:10:37.549 [Test worker] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - handler1 received chunk of size 1538
+19:10:37.549 [Test worker] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - handler1 received chunk of size 14846
+19:10:37.549 [TestChannel-interconnect-executor-57] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - SecureChannelTestHandler 1: channelRead AdvancedLeakAwareByteBuf(AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 16384, cap: 16406))
+19:10:37.549 [Test worker] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - handler1 received chunk of size 16384
+19:10:37.549 [TestChannel-interconnect-executor-57] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - SecureChannelTestHandler 1: channelRead AdvancedLeakAwareByteBuf(AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 16384, cap: 16406))
+19:10:37.549 [Test worker] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - handler1 received chunk of size 16384
+19:10:37.549 [TestChannel-interconnect-executor-57] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - SecureChannelTestHandler 1: channelRead AdvancedLeakAwareByteBuf(AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 16368, cap: 16390))
+19:10:37.549 [TestChannel-interconnect-executor-56] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - SecureChannelTestHandler 2: channelRead AdvancedLeakAwareByteBuf(AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 16384, cap: 16406))
+19:10:37.549 [TestChannel-interconnect-executor-56] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - SecureChannelTestHandler 2: channelRead AdvancedLeakAwareByteBuf(AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 16384, cap: 16406))
+19:10:37.549 [TestChannel-interconnect-executor-56] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - SecureChannelTestHandler 2: channelRead AdvancedLeakAwareByteBuf(AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 16384, cap: 16406))
+19:10:37.549 [TestChannel-interconnect-executor-56] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - SecureChannelTestHandler 2: channelRead AdvancedLeakAwareByteBuf(AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 16368, cap: 16390))
+19:10:37.549 [Test worker] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - handler1 received chunk of size 16368
+19:10:37.549 [Test worker] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - handler2 received chunk of size 16384
+19:10:37.549 [Test worker] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - handler2 received chunk of size 16384
+19:10:37.549 [Test worker] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - handler2 received chunk of size 16384
+19:10:37.549 [Test worker] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - handler2 received chunk of size 16368
+19:10:37.553 [Test worker] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - Connecting channels...
+19:10:37.554 [Test worker] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - Waiting for negotiation to complete...
+19:10:37.572 [Test worker] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - Secured!
+19:10:37.575 [TestChannel-interconnect-executor-59] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - SecureChannelTestHandler 1: channelActive
+19:10:37.575 [TestChannel-interconnect-executor-58] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - SecureChannelTestHandler 2: channelActive
+19:10:37.576 [TestChannel-interconnect-executor-58] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - SecureChannelTestHandler 2: channelRead AdvancedLeakAwareByteBuf(AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 16384, cap: 16406))
+19:10:37.576 [TestChannel-interconnect-executor-58] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - SecureChannelTestHandler 2: channelRead AdvancedLeakAwareByteBuf(AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 16384, cap: 16406))
+19:10:37.576 [TestChannel-interconnect-executor-58] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - SecureChannelTestHandler 2: channelRead AdvancedLeakAwareByteBuf(AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 16384, cap: 16406))
+19:10:37.576 [TestChannel-interconnect-executor-58] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - SecureChannelTestHandler 2: channelRead AdvancedLeakAwareByteBuf(AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 16383, cap: 16405))
+19:10:37.576 [TestChannel-interconnect-executor-59] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - SecureChannelTestHandler 1: channelRead AdvancedLeakAwareByteBuf(AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 1538, cap: 1538))
+19:10:37.576 [TestChannel-interconnect-executor-59] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - SecureChannelTestHandler 1: channelRead AdvancedLeakAwareByteBuf(AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 14846, cap: 14846))
+19:10:37.576 [Test worker] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - handler1 received chunk of size 1538
+19:10:37.576 [Test worker] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - handler1 received chunk of size 14846
+19:10:37.577 [TestChannel-interconnect-executor-59] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - SecureChannelTestHandler 1: channelRead AdvancedLeakAwareByteBuf(AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 16384, cap: 16406))
+19:10:37.577 [TestChannel-interconnect-executor-59] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - SecureChannelTestHandler 1: channelRead AdvancedLeakAwareByteBuf(AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 16384, cap: 16406))
+19:10:37.577 [Test worker] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - handler1 received chunk of size 16384
+19:10:37.577 [Test worker] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - handler1 received chunk of size 16384
+19:10:37.577 [TestChannel-interconnect-executor-59] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - SecureChannelTestHandler 1: channelRead AdvancedLeakAwareByteBuf(AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 16383, cap: 16405))
+19:10:37.577 [Test worker] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - handler1 received chunk of size 16383
+19:10:37.577 [Test worker] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - handler2 received chunk of size 16384
+19:10:37.577 [Test worker] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - handler2 received chunk of size 16384
+19:10:37.577 [Test worker] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - handler2 received chunk of size 16384
+19:10:37.577 [Test worker] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - handler2 received chunk of size 16383
+19:10:37.579 [Test worker] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - Connecting channels...
+19:10:37.581 [Test worker] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - Waiting for negotiation to complete...
+19:10:37.612 [Test worker] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - Secured!
+19:10:37.613 [TestChannel-interconnect-executor-61] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - SecureChannelTestHandler 1: channelActive
+19:10:37.614 [TestChannel-interconnect-executor-60] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - SecureChannelTestHandler 2: channelRead AdvancedLeakAwareByteBuf(AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 16384, cap: 16406))
+19:10:37.614 [TestChannel-interconnect-executor-60] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - SecureChannelTestHandler 2: channelRead AdvancedLeakAwareByteBuf(AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 16384, cap: 16406))
+19:10:37.614 [TestChannel-interconnect-executor-60] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - SecureChannelTestHandler 2: channelRead AdvancedLeakAwareByteBuf(AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 16384, cap: 16406))
+19:10:37.614 [TestChannel-interconnect-executor-60] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - SecureChannelTestHandler 2: channelRead AdvancedLeakAwareByteBuf(AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 16384, cap: 16406))
+19:10:37.614 [TestChannel-interconnect-executor-60] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - SecureChannelTestHandler 2: channelActive
+19:10:37.614 [TestChannel-interconnect-executor-61] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - SecureChannelTestHandler 1: channelRead AdvancedLeakAwareByteBuf(AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 1538, cap: 1538))
+19:10:37.614 [TestChannel-interconnect-executor-61] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - SecureChannelTestHandler 1: channelRead AdvancedLeakAwareByteBuf(AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 14846, cap: 14846))
+19:10:37.614 [Test worker] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - handler1 received chunk of size 1538
+19:10:37.614 [Test worker] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - handler1 received chunk of size 14846
+19:10:37.615 [TestChannel-interconnect-executor-61] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - SecureChannelTestHandler 1: channelRead AdvancedLeakAwareByteBuf(AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 16384, cap: 16406))
+19:10:37.615 [Test worker] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - handler1 received chunk of size 16384
+19:10:37.615 [TestChannel-interconnect-executor-61] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - SecureChannelTestHandler 1: channelRead AdvancedLeakAwareByteBuf(AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 16384, cap: 16406))
+19:10:37.615 [Test worker] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - handler1 received chunk of size 16384
+19:10:37.615 [TestChannel-interconnect-executor-61] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - SecureChannelTestHandler 1: channelRead AdvancedLeakAwareByteBuf(AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 16384, cap: 16406))
+19:10:37.615 [Test worker] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - handler1 received chunk of size 16384
+19:10:37.615 [Test worker] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - handler2 received chunk of size 16384
+19:10:37.615 [Test worker] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - handler2 received chunk of size 16384
+19:10:37.615 [Test worker] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - handler2 received chunk of size 16384
+19:10:37.615 [Test worker] [?[32mINFO?[m] io.libp2p.security.SecureChannelTestBase - handler2 received chunk of size 16384
+</system-out>
+  <system-err />
+</testsuite>

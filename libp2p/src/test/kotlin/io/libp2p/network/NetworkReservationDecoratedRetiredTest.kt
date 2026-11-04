@@ -15,16 +15,16 @@ import io.libp2p.protocol.ProtocolMessageHandler
 import io.libp2p.security.noise.NoiseXXSecureChannel
 import io.libp2p.tools.Echo
 import io.libp2p.tools.EchoController
-import org.junit.jupiter.api.assertThrows
-import java.util.concurrent.ExecutionException
 import io.libp2p.transport.ConnectionUpgrader
 import io.libp2p.transport.tcp.TcpTransport
 import io.netty.buffer.ByteBuf
 import io.netty.buffer.Unpooled
-import java.util.concurrent.CompletableFuture
-import java.util.concurrent.TimeUnit.SECONDS
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.ExecutionException
+import java.util.concurrent.TimeUnit.SECONDS
 
 class NetworkReservationDecoratedRetiredTest {
     @Test

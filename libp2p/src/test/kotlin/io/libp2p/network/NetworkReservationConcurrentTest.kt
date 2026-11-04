@@ -17,14 +17,14 @@ import io.netty.buffer.ByteBuf
 import io.netty.buffer.Unpooled
 import io.netty.channel.ChannelHandlerContext
 import io.netty.channel.ChannelInboundHandlerAdapter
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.Test
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit.SECONDS
-import org.assertj.core.api.Assertions.assertThat
-import org.junit.jupiter.api.Test
 
 class NetworkReservationConcurrentTest {
     @Test
@@ -133,7 +133,11 @@ class NetworkReservationConcurrentTest {
             releases.forEach { it.complete(Unit) }
             callers.shutdownNow()
             assertThat(callers.awaitTermination(10, SECONDS)).isTrue()
-            try { a.stop().get(10, SECONDS) } finally { b.stop().get(10, SECONDS) }
+            try {
+                a.stop().get(10, SECONDS)
+            } finally {
+                b.stop().get(10, SECONDS)
+            }
             (a.network.transports + b.network.transports).forEach {
                 assertThat(it.activeConnections).isZero()
                 assertThat(it.activeListeners).isZero()

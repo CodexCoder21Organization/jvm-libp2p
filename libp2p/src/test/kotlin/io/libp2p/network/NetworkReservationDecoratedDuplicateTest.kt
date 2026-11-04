@@ -55,7 +55,11 @@ class NetworkReservationDecoratedDuplicateTest {
             assertThat(echo.echo("decorated selection").get(10, SECONDS)).isEqualTo("decorated selection")
         } finally {
             transport.start.complete(Unit)
-            try { a.stop().get(10, SECONDS) } finally { b.stop().get(10, SECONDS) }
+            try {
+                a.stop().get(10, SECONDS)
+            } finally {
+                b.stop().get(10, SECONDS)
+            }
             (a.network.transports + b.network.transports).forEach {
                 assertThat(it.activeConnections).isZero()
                 assertThat(it.activeListeners).isZero()

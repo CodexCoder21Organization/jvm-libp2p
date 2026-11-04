@@ -9,10 +9,10 @@ import io.libp2p.security.noise.NoiseXXSecureChannel
 import io.netty.channel.ChannelHandlerContext
 import io.netty.channel.ChannelOutboundHandlerAdapter
 import io.netty.channel.ChannelPromise
-import java.util.concurrent.CompletableFuture
-import java.util.concurrent.TimeUnit.SECONDS
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.TimeUnit.SECONDS
 
 class NetworkReservationDecoratedClosingTest {
     @Test

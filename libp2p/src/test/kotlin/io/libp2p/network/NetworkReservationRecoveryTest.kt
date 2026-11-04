@@ -25,13 +25,13 @@ import io.netty.buffer.Unpooled
 import io.netty.channel.ChannelHandlerContext
 import io.netty.channel.ChannelOutboundHandlerAdapter
 import io.netty.channel.ChannelPromise
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit.SECONDS
 import java.util.concurrent.atomic.AtomicInteger
-import org.assertj.core.api.Assertions.assertThat
-import org.junit.jupiter.params.ParameterizedTest
-import org.junit.jupiter.params.provider.ValueSource
 
 class NetworkReservationRecoveryTest {
     @ParameterizedTest
@@ -114,7 +114,7 @@ class NetworkReservationRecoveryTest {
                 val request = parent.muxerSession().createStream(listOf(retirement))
                 val release = approvals.poll(10, SECONDS)
                 activeRelease = release
-                assertThat(release).describedAs("An unretained parent must approve retirement again after recovery").isNotNull()
+                assertThat(release != null).describedAs("An unretained parent must approve retirement again after recovery").isTrue()
                 recoveryWireBarrier(parent)
                 recoveryWireBarrier(remote)
                 val before = listOf(opens.get(), frames.get())
@@ -148,7 +148,11 @@ class NetworkReservationRecoveryTest {
         } finally {
             activeRelease?.invoke()?.get(10, SECONDS)
             while (approvals.isNotEmpty()) approvals.poll()?.invoke()?.get(10, SECONDS)
-            try { a.stop().get(10, SECONDS) } finally { b.stop().get(10, SECONDS) }
+            try {
+                a.stop().get(10, SECONDS)
+            } finally {
+                b.stop().get(10, SECONDS)
+            }
             (a.network.transports + b.network.transports).forEach {
                 assertThat(it.activeConnections).isZero()
                 assertThat(it.activeListeners).isZero()

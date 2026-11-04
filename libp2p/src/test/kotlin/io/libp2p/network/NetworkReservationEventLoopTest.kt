@@ -15,12 +15,12 @@ import io.libp2p.tools.EchoController
 import io.libp2p.transport.implementation.P2PChannelOverNetty
 import io.netty.buffer.ByteBuf
 import io.netty.buffer.Unpooled
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.Test
 import java.lang.management.ManagementFactory
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit.SECONDS
-import org.assertj.core.api.Assertions.assertThat
-import org.junit.jupiter.api.Test
 
 class NetworkReservationEventLoopTest {
     @Test

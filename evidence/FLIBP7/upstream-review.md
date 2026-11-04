@@ -4,8 +4,8 @@
 
 - [x] Read required policy documents end to end and repository context.
 - [x] Read every committed touched file whole and both preserved close-set tests whole.
-- [in progress] Review test comprehensiveness and public ownership coverage on the final UDP-parent patch.
-- [pending] Perform separate adversarial source pass on the final patch and record disposition of every finding.
+- [x] Review test comprehensiveness and public ownership coverage on the final UDP-parent patch.
+- [x] Perform separate adversarial source pass on the final patch and record disposition of every finding.
 
 ## Documents read in full
 
@@ -78,3 +78,25 @@ OBSERVED: Read baseline-product.json: it identifies unmodified source head 23d66
 2026-11-04T21:03:36.161760+00:00 OBSERVED: Final source/test passes found one added-stage coverage gap, now drafted as two public parameter cases at root's request. OBSERVED: No JVM/test/build/git mutation or product edit was performed by this reviewer. INFER: Next checkpoint is root's parent-stage red/green and final fixed/old-production control counts, then the review can be closed with those observed dispositions.
 
 2026-11-04T21:09:53.777161+00:00 OBSERVED: Independently read green-register.json: 56/56 first-attempt passes, zero errors/skips. OBSERVED: Independently read revert-red.json: four assertion failures and zero passes/errors/skips; parent-only failed its expected-error assertion and child-plus-parent failed parent close count 0 versus 1, exactly as predicted. OBSERVED: revert-control.json records original baseline jar first, its expected SHA-256, identical remaining runtime entries and test class hashes with no test recompilation between runs. OBSERVED: The parent-failure draft and product test are byte-identical; README/FORK/build version updates consistently describe UDP parent cleanup before group termination. OBSERVED: Addendum scan remains empty. INFER: Old-product control is valid; fixed neighbor-case green results remain the only pending test coverage disposition in this review.
+
+## Final disposition at tested product head
+
+Reviewed final product [e3e5caf4a0d5cfc1acd40be2ec7468078ce9f8fe](https://github.com/CodexCoder21Organization/jvm-libp2p/commit/e3e5caf4a0d5cfc1acd40be2ec7468078ce9f8fe), based on the existing acceptor-cleanup head [23d66d4110465edb1ae8d83e099266a42ae77f41](https://github.com/CodexCoder21Organization/jvm-libp2p/commit/23d66d4110465edb1ae8d83e099266a42ae77f41). Root confirmed production code is unchanged since the final whole-file source pass; the later edits only update README/FORK and the build version comment to describe the same behavior. Those documentation changes were read and match the implemented public shutdown contract. No existing default-branch test is changed.
+
+| Review item | State and proof |
+| --- | --- |
+| UDP ownership after child removal | Done: QuicTransportClosedChildParentTest fails its physical-parent assertion on old product and passes fixed; activeConnections remains zero after child close |
+| Deterministic callback-initiated shutdown | Done: held final child close and sibling loop barriers produce an assertion red on old source; the identical test passes fixed |
+| Newly added parent-stage failure branch | Done: QuicTransportFailedDatagramCloseTest covers parent-only and combined child/parent failures; old product fails the expected-error or exact close-count assertion and fixed product passes both |
+| Larger simultaneous close sets | Done: two TCP listeners/eight roots and four QUIC children/four UDP parents are included in the 56-case register |
+| Original failure identity and stage priority | Done: public tests retain exact child failure when present, otherwise exact parent failure; all physical resources/group/threads end before fixture cleanup |
+| Caller future mutation and independent transport lifetime | Done: the original parameter cases cover mutation; the larger QUIC/neighbor tests leave an independent server group/listener alive |
+| Source review of new locking and cleanup stages | Done: snapshots and registration recheck use the transport monitor; physical close and group shutdown execute after releasing it; final joins observe completed predecessors |
+| In-flight bind-registration static question | Not a confirmed product finding: the raw bind precedes registration in the existing asynchronous shape, while the new path adds the closed recheck and explicit parent close. No new observed public failure or resource leak was established; it does not invalidate the measured captured-parent fix |
+| Fix-removed control validity | Done: baseline-product.json and revert-control.json identify exact original production bytes first on the classpath, identical final tests/dependency remainder, and no test recompilation between fixed/control runs |
+
+OBSERVED: Independently read the final gate records. `green-register.json` is 56/56 first-attempt passes, zero failures/skips. `green-extra.json` is 4/4 first-attempt passes, zero failures/skips. `revert-red.json` is 0/4 first-attempt passes with four intended assertion failures and zero errors/skips. Its two original cases fail on pending physical UDP close futures; parent-only fails because no expected parent failure is reported; combined child/parent fails because the parent close handler is called zero times instead of once. The test bytes and dependency remainder are unchanged across the fixed and old-product runs.
+
+The dedicated test-comprehensiveness pass and separate adversarial source pass are complete. The added-stage coverage finding is closed by its public red/green cases. No confirmed implementation bug remains from this review; this review approves the tested source and test coverage, while required Actions and publication verification remain root-owned execution gates.
+
+2026-11-04T21:15:13.918670+00:00 OBSERVED: Final review disposition is complete at e3e5caf4a0d5cfc1acd40be2ec7468078ce9f8fe, with independently read 56/56 register, 4/4 neighbor green and 0/4 old-product assertion controls. OBSERVED: This reviewer started no JVM/build/test/background process, changed no product source and made no git mutation. INFER: Root can use this completed review for its required Actions and exact-head publication gates; nothing further is expected from this reviewer.

@@ -72,37 +72,39 @@ class NetworkReservationRecoveryTest {
         val accepted = CompletableFuture<Connection>()
         b.addConnectionHandler(ConnectionHandler.create { accepted.complete(it) })
         val approvals = LinkedBlockingQueue<() -> CompletableFuture<Unit>>()
-        b.addStreamVisitor(ChannelVisitor { stream ->
-            stream.getProtocol().thenAccept { protocol ->
-                if (protocol == "/libp2p/connection-selection/1.0.0") {
-                    stream.pushHandler(object : ChannelOutboundHandlerAdapter() {
-                        override fun write(ctx: ChannelHandlerContext, msg: Any, promise: ChannelPromise) {
-                            if (msg is ByteBuf && msg.readableBytes() == 1 && msg.getUnsignedByte(msg.readerIndex()).toInt() == 1) {
-                                approvals.add {
-                                    val failed = CompletableFuture<Unit>()
-                                    stream.reset().whenComplete { _, failure ->
-                                        if (failure != null) failed.completeExceptionally(failure)
-                                        ctx.executor().execute {
-                                            ctx.writeAndFlush(msg, promise)
-                                            promise.addListener { result ->
-                                                if (result.isSuccess) {
-                                                    failed.completeExceptionally(AssertionError("Approval write on reset child must fail"))
-                                                } else {
-                                                    ctx.executor().execute { failed.complete(Unit) }
+        b.addStreamVisitor(
+            ChannelVisitor { stream ->
+                stream.getProtocol().thenAccept { protocol ->
+                    if (protocol == "/libp2p/connection-selection/1.0.0") {
+                        stream.pushHandler(object : ChannelOutboundHandlerAdapter() {
+                            override fun write(ctx: ChannelHandlerContext, msg: Any, promise: ChannelPromise) {
+                                if (msg is ByteBuf && msg.readableBytes() == 1 && msg.getUnsignedByte(msg.readerIndex()).toInt() == 1) {
+                                    approvals.add {
+                                        val failed = CompletableFuture<Unit>()
+                                        stream.reset().whenComplete { _, failure ->
+                                            if (failure != null) failed.completeExceptionally(failure)
+                                            ctx.executor().execute {
+                                                ctx.writeAndFlush(msg, promise)
+                                                promise.addListener { result ->
+                                                    if (result.isSuccess) {
+                                                        failed.completeExceptionally(AssertionError("Approval write on reset child must fail"))
+                                                    } else {
+                                                        ctx.executor().execute { failed.complete(Unit) }
+                                                    }
                                                 }
                                             }
                                         }
+                                        failed
                                     }
-                                    failed
+                                } else {
+                                    ctx.write(msg, promise)
                                 }
-                            } else {
-                                ctx.write(msg, promise)
                             }
-                        }
-                    })
+                        })
+                    }
                 }
             }
-        })
+        )
         var activeRelease: (() -> CompletableFuture<Unit>)? = null
         try {
             a.start().get(10, SECONDS)
@@ -146,12 +148,15 @@ class NetworkReservationRecoveryTest {
             assertThat(parent.muxerSession().createStream(listOf(retirement)).controller.get(10, SECONDS)).isFalse()
             assertThat(echo.echo("retained own stream").get(10, SECONDS)).isEqualTo("retained own stream")
         } finally {
-            activeRelease?.invoke()?.get(10, SECONDS)
-            while (approvals.isNotEmpty()) approvals.poll()?.invoke()?.get(10, SECONDS)
             try {
-                a.stop().get(10, SECONDS)
+                activeRelease?.invoke()?.get(10, SECONDS)
+                while (approvals.isNotEmpty()) approvals.poll()?.invoke()?.get(10, SECONDS)
             } finally {
-                b.stop().get(10, SECONDS)
+                try {
+                    a.stop().get(10, SECONDS)
+                } finally {
+                    b.stop().get(10, SECONDS)
+                }
             }
             (a.network.transports + b.network.transports).forEach {
                 assertThat(it.activeConnections).isZero()

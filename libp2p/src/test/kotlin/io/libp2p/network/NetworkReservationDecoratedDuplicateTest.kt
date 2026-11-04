@@ -80,11 +80,15 @@ private class DecoratedDuplicateTransport(upgrader: ConnectionUpgrader) : TcpTra
     ): CompletableFuture<Connection> {
         val published = CompletableFuture<Connection>()
         val result = start.thenCompose {
-            super.dial(addr, ConnectionHandler.create { parent ->
-                val decorated = object : Connection by parent {}
-                published.complete(decorated)
-                connHandler.handleConnection(decorated)
-            }, preHandler).thenCompose { published }
+            super.dial(
+                addr,
+                ConnectionHandler.create { parent ->
+                    val decorated = object : Connection by parent {}
+                    published.complete(decorated)
+                    connHandler.handleConnection(decorated)
+                },
+                preHandler
+            ).thenCompose { published }
         }
         dials.add(result)
         if (count.incrementAndGet() == 3) start.complete(Unit)

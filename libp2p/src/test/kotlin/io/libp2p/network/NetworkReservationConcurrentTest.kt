@@ -72,25 +72,27 @@ class NetworkReservationConcurrentTest {
         b.addConnectionHandler(ConnectionHandler.create { accepted.add(it) })
         val releases = CopyOnWriteArrayList<CompletableFuture<Unit>>()
         val readyRetirements = LinkedBlockingQueue<CompletableFuture<Unit>>()
-        b.addStreamVisitor(ChannelVisitor { stream ->
-            stream.getProtocol().thenAccept { protocol ->
-                if (protocol == "/libp2p/connection-selection/1.0.0") {
-                    stream.pushHandler(object : ChannelInboundHandlerAdapter() {
-                        override fun channelRead(ctx: ChannelHandlerContext, msg: Any) {
-                            if (msg is ByteBuf && msg.readableBytes() == 1 && msg.getUnsignedByte(msg.readerIndex()).toInt() == 2) {
-                                val start = CompletableFuture<Unit>()
-                                releases.add(start)
-                                readyRetirements.add(start)
-                                // Defer the genuine request without blocking its event loop.
-                                start.thenRun { ctx.executor().execute { ctx.fireChannelRead(msg) } }
-                            } else {
-                                ctx.fireChannelRead(msg)
+        b.addStreamVisitor(
+            ChannelVisitor { stream ->
+                stream.getProtocol().thenAccept { protocol ->
+                    if (protocol == "/libp2p/connection-selection/1.0.0") {
+                        stream.pushHandler(object : ChannelInboundHandlerAdapter() {
+                            override fun channelRead(ctx: ChannelHandlerContext, msg: Any) {
+                                if (msg is ByteBuf && msg.readableBytes() == 1 && msg.getUnsignedByte(msg.readerIndex()).toInt() == 2) {
+                                    val start = CompletableFuture<Unit>()
+                                    releases.add(start)
+                                    readyRetirements.add(start)
+                                    // Defer the genuine request without blocking its event loop.
+                                    start.thenRun { ctx.executor().execute { ctx.fireChannelRead(msg) } }
+                                } else {
+                                    ctx.fireChannelRead(msg)
+                                }
                             }
-                        }
-                    })
+                        })
+                    }
                 }
             }
-        })
+        )
         val callers = Executors.newFixedThreadPool(32)
         try {
             a.start().get(10, SECONDS)
@@ -131,12 +133,15 @@ class NetworkReservationConcurrentTest {
             }
         } finally {
             releases.forEach { it.complete(Unit) }
-            callers.shutdownNow()
-            assertThat(callers.awaitTermination(10, SECONDS)).isTrue()
             try {
-                a.stop().get(10, SECONDS)
+                callers.shutdownNow()
+                assertThat(callers.awaitTermination(10, SECONDS)).isTrue()
             } finally {
-                b.stop().get(10, SECONDS)
+                try {
+                    a.stop().get(10, SECONDS)
+                } finally {
+                    b.stop().get(10, SECONDS)
+                }
             }
             (a.network.transports + b.network.transports).forEach {
                 assertThat(it.activeConnections).isZero()

@@ -68,22 +68,24 @@ class NetworkReservationEventLoopTest {
         val entered = CountDownLatch(1)
         val returned = CountDownLatch(1)
         val callbackThread = CompletableFuture<Thread>()
-        b.addConnectionHandler(ConnectionHandler.create { connection ->
-            callbackThread.complete(Thread.currentThread())
-            entered.countDown()
-            try {
-                val loop = (connection as P2PChannelOverNetty).nettyChannel.eventLoop()
-                assertThat(loop.inEventLoop()).isTrue()
-                val result = b.network.reserveConnection(connection)
-                assertThat(result.isDone).describedAs("Reservation must finish in its connection callback").isTrue()
-                assertThat(result.getNow(false)).isTrue()
-                loop.execute { accepted.complete(connection) }
-            } catch (failure: Throwable) {
-                accepted.completeExceptionally(failure)
-            } finally {
-                returned.countDown()
+        b.addConnectionHandler(
+            ConnectionHandler.create { connection ->
+                callbackThread.complete(Thread.currentThread())
+                entered.countDown()
+                try {
+                    val loop = (connection as P2PChannelOverNetty).nettyChannel.eventLoop()
+                    assertThat(loop.inEventLoop()).isTrue()
+                    val result = b.network.reserveConnection(connection)
+                    assertThat(result.isDone).describedAs("Reservation must finish in its connection callback").isTrue()
+                    assertThat(result.getNow(false)).isTrue()
+                    loop.execute { accepted.complete(connection) }
+                } catch (failure: Throwable) {
+                    accepted.completeExceptionally(failure)
+                } finally {
+                    returned.countDown()
+                }
             }
-        })
+        )
         try {
             a.start().get(10, SECONDS)
             b.start().get(10, SECONDS)

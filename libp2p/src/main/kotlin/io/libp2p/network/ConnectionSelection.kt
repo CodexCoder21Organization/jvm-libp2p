@@ -130,23 +130,34 @@ internal class ConnectionSelection(
 /** Identity of one retirement request; compared by reference only. */
 internal class RetirementRequest
 
+private fun connectionSelection(connection: Connection): ConnectionSelection? =
+    if (connection is ConnectionOverNetty) {
+        // Before mux setup, the Netty parent already records explicit close requests.
+        connection.selection
+    } else {
+        // Connection decorators forward the session which also admits their streams.
+        connection.muxerSession() as? ConnectionSelection
+    }
+
 internal fun connectionEligible(connection: Connection): Boolean {
     if (connection.closeFuture().isDone) return false
-    val netty = connection as? ConnectionOverNetty ?: return true
-    // An application close requested before the selection state existed still excludes reuse.
-    return !netty.closeWasRequested() && netty.selection?.eligible() != false
+    if (connection is ConnectionOverNetty && connection.closeWasRequested()) return false
+    return connectionSelection(connection)?.eligible() != false
 }
 
 internal fun duplicateRetired(connection: Connection): Boolean =
-    (connection as? ConnectionOverNetty)?.selection?.wasRetired() == true
+    connectionSelection(connection)?.wasRetired() == true
 
 internal fun reserveConnection(connection: Connection): CompletableFuture<Boolean> =
-    (connection as? ConnectionOverNetty)?.selection?.reserve()
-        ?: CompletableFuture.completedFuture(!connection.closeFuture().isDone)
+    if (!connectionEligible(connection)) {
+        CompletableFuture.completedFuture(false)
+    } else {
+        connectionSelection(connection)?.reserve() ?: CompletableFuture.completedFuture(true)
+    }
 
 internal fun rejectDuplicate(connection: Connection) {
     // A custom transport without coordination cannot establish that its remote parent is unused.
-    (connection as? ConnectionOverNetty)?.selection?.rejectDuplicate()
+    connectionSelection(connection)?.rejectDuplicate()
 }
 
 internal class SelectionBinding :

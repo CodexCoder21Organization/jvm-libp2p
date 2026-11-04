@@ -19,6 +19,7 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -27,6 +28,7 @@ class PingBufferOwnershipTest {
     fun largeTlsPingPreservesRetainedPayloadWhileEchoWriteCompletes() {
         val retained = CopyOnWriteArrayList<Pair<ByteBuf, ByteArray>>()
         val responderStream = CompletableFuture<Stream>()
+        val echoWrites = LinkedBlockingQueue<CompletableFuture<Unit>>()
         val serverProtocol = object : PingProtocol(200 * 1024) {
             override fun onStartResponder(stream: Stream): CompletableFuture<PingController> {
                 stream.pushHandler(object : ChannelInboundHandlerAdapter() {
@@ -37,7 +39,20 @@ class PingBufferOwnershipTest {
                         ctx.fireChannelRead(msg)
                     }
                 })
-                return super.onStartResponder(stream).also { responderStream.complete(stream) }
+                return super.onStartResponder(stream).also {
+                    stream.pushHandler(object : ChannelOutboundHandlerAdapter() {
+                        override fun write(ctx: ChannelHandlerContext, msg: Any, promise: ChannelPromise) {
+                            val finished = CompletableFuture<Unit>()
+                            echoWrites.add(finished)
+                            promise.addListener { result ->
+                                if (result.isSuccess) finished.complete(Unit)
+                                else finished.completeExceptionally(result.cause())
+                            }
+                            ctx.write(msg, promise)
+                        }
+                    })
+                    responderStream.complete(stream)
+                }
             }
         }
         fun endpoint(binding: PingBinding, listen: Boolean): Host = host {
@@ -76,6 +91,9 @@ class PingBufferOwnershipTest {
                 })
             }.get(10, TimeUnit.SECONDS)
             controller.ping().get(10, TimeUnit.SECONDS)
+            val echoWrite = echoWrites.poll(10, TimeUnit.SECONDS)
+                ?: throw AssertionError("The Ping responder must have started its echo write")
+            assertFalse(echoWrite.isDone, "The payload's own write must remain pending")
             parent.eventLoop().submit {
                 assertFalse(completions.isEmpty(), "The echo must have a pending real transport completion")
                 hold.set(false)
@@ -83,6 +101,7 @@ class PingBufferOwnershipTest {
                 completions.clear()
                 pending.forEach { it.trySuccess() }
             }.get(10, TimeUnit.SECONDS)
+            echoWrite.get(10, TimeUnit.SECONDS)
             assertEquals(1, retained.size, "One complete Yamux payload must reach the Ping responder")
             retained.forEach { (buffer, bytes) ->
                 assertEquals(1, buffer.refCnt(), "The observer's retained payload must survive echo completion")

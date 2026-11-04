@@ -1,0 +1,87 @@
+@file:WithArtifact("foundation.url.protocol.buildMaven()")
+@file:WithArtifact("org.jetbrains.kotlin:kotlin-test:1.8.22")
+@file:WithArtifact("community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-42")
+package foundation.url.protocol
+
+import build.kotlin.withartifact.WithArtifact
+import io.libp2p.core.multiformats.Multiaddr
+import io.libp2p.transport.implementation.P2PChannelOverNetty
+import io.netty.channel.Channel
+import io.netty.channel.ChannelHandlerContext
+import io.netty.channel.ChannelOutboundHandlerAdapter
+import io.netty.channel.ChannelPromise
+import io.netty.util.concurrent.Future
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.ExecutionException
+import java.util.concurrent.TimeUnit
+import kotlin.test.assertFailsWith
+import kotlin.test.assertTrue
+
+fun testR992FailedListenerCloseStillEndsAcceptorLoop() {
+    val server = Libp2pHostFactory.createServerHost(
+        listenAddresses = listOf("/ip4/127.0.0.1/tcp/0"),
+        requestHandler = object : RpcRequestHandler {
+            override suspend fun handleRequest(request: Libp2pRpcProtocol.RpcRequest, effectHandler: EffectPropagator) =
+                Libp2pRpcProtocol.RpcResponse.success(request.id, "reply")
+        },
+    )
+    val client = Libp2pHostFactory.createHost(listenAddresses = listOf("/ip4/127.0.0.1/tcp/0"))
+    val entered = CountDownLatch(1)
+    val release = CountDownLatch(1)
+    var listener: Channel? = null
+    var cleanupTask: Future<*>? = null
+    var stopped = false
+    try {
+        server.start().get(10, TimeUnit.SECONDS)
+        client.start().get(10, TimeUnit.SECONDS)
+        client.newStream<Libp2pRpcController>(listOf(Libp2pRpcProtocol.PROTOCOL_ID), server.peerId, server.listenAddresses().first())
+            .controller.get(10, TimeUnit.SECONDS)
+        val connection = server.network.connections.single()
+        val acceptor = (connection as P2PChannelOverNetty).nettyChannel.parent()
+        listener = acceptor
+        val failure = IllegalStateException("The listener close failed before acceptor-loop cleanup")
+        acceptor.pipeline().addFirst("r992-refuse-listener-close", object : ChannelOutboundHandlerAdapter() {
+            override fun close(ctx: ChannelHandlerContext, promise: ChannelPromise) { promise.tryFailure(failure) }
+        })
+        // Settle the retained failed request while the loop is free to deliver its notification.
+        assertFailsWith<ExecutionException> {
+            connection.transport().unlisten(Multiaddr("/ip4/127.0.0.1/tcp/0")).get(10, TimeUnit.SECONDS)
+        }
+        val cleanupContext = checkNotNull(acceptor.pipeline().context("r992-refuse-listener-close")) {
+            "The fixture close handler must be installed before holding its acceptor loop"
+        }
+        cleanupTask = acceptor.eventLoop().submit {
+            entered.countDown()
+            try {
+                assertTrue(release.await(10, TimeUnit.SECONDS), "The fixture must release the held acceptor loop")
+            } finally {
+                // This runs on the still-owned loop before it exits, bypassing only this fixture's handler.
+                cleanupContext.close(cleanupContext.newPromise())
+            }
+        }
+        assertTrue(entered.await(10, TimeUnit.SECONDS), "The fixture must hold the acceptor loop before host stop")
+        val stopping = server.stop()
+        stopped = true
+        val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10)
+        while (!acceptor.eventLoop().isShuttingDown && !stopping.isDone && System.nanoTime() < deadline) Thread.sleep(1)
+        val shutdownStartedBeforeFixtureClose = acceptor.eventLoop().isShuttingDown
+        release.countDown()
+        assertFailsWith<ExecutionException> { stopping.get(10, TimeUnit.SECONDS) }
+        assertTrue(shutdownStartedBeforeFixtureClose, "The owned acceptor loop must start shutdown while the failed listener is still present")
+        assertTrue(acceptor.eventLoop().isShuttingDown, "A reported stop failure must still start cleanup of the owned acceptor event loop")
+    } finally {
+        release.countDown()
+        cleanupTask?.get(10, TimeUnit.SECONDS)
+        listener?.let { acceptor ->
+            if (cleanupTask == null && acceptor.isOpen) {
+                acceptor.pipeline().context("r992-refuse-listener-close")?.let { acceptor.pipeline().remove(it.handler()) }
+                acceptor.close().syncUninterruptibly()
+            }
+            acceptor.closeFuture().get(10, TimeUnit.SECONDS)
+            acceptor.eventLoop().shutdownGracefully(0, 5, TimeUnit.SECONDS).syncUninterruptibly()
+        }
+        try { client.stop().get(10, TimeUnit.SECONDS) } finally {
+            if (!stopped) server.stop().get(10, TimeUnit.SECONDS)
+        }
+    }
+}

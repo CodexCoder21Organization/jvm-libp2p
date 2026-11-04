@@ -1,0 +1,3 @@
+# FLIBP7 jvm-libp2p findings
+
+2026-11-04T20:40:19.333266+00:00 OBSERVED: Read both FLIBP6 findings files, the upstream coverage plan/additions/invariants and the consumer 18-case register and old Actions review. OBSERVED: Fresh clone; candidate rebased onto origin/develop 436997d5e5f5b80f1503504b19e5b813654a3a49, resulting head 23d66d4110465edb1ae8d83e099266a42ae77f41. OBSERVED: The default branch has not moved from the FLIBP6 checkpoint; no equivalent of the unconditional transport cleanup exists there. OBSERVED: No existing default-branch test has been edited. OBSERVED: The full brief has no Addendum headings. INFER: Next checkpoint is public UDP parent state measurement on the preserved QUIC regression.

@@ -378,7 +378,8 @@ TCP, WebSocket and QUIC transport shutdown always waits for the event-loop group
 that transport to terminate, including when a listener or connection close fails. The returned
 future retains the original channel-close failure after cleanup. Cancelling or completing that
 future does not stop the owned cleanup. TCP and WebSocket leave their shared worker group running
-for other transports.
+for other transports. QUIC also closes every UDP parent it allocated for an outbound dial,
+including parents whose QUIC child has already closed, before terminating its worker group.
 
 ## Gossip simulator
 

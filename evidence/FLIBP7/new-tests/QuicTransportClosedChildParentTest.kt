@@ -52,7 +52,10 @@ class QuicTransportClosedChildParentTest {
             assertFalse(child.isOpen, "The outbound child must be closed before transport shutdown starts")
             assertEquals(0, client.activeConnections, "The closed child must no longer be an active transport connection")
 
-            client.close().also { clientCloseAttempted = true }.get(10, TimeUnit.SECONDS)
+            // Call from the parent loop so cleanup cannot depend on an off-loop shutdown path.
+            val close = parent.eventLoop().submit<CompletableFuture<Unit>> { client.close() }
+                .get(10, TimeUnit.SECONDS).also { clientCloseAttempted = true }
+            close.get(10, TimeUnit.SECONDS)
 
             assertTrue(parentCloseFuture.isDone, "Transport close must settle the UDP parent even after its child left the live connection set")
             assertTrue(parentCloseFuture.isSuccess, "The separately owned UDP parent must close successfully")

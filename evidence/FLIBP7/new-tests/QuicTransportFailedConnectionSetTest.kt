@@ -20,6 +20,7 @@ import org.junit.jupiter.api.Test
 import java.io.IOException
 import java.util.Collections
 import java.util.IdentityHashMap
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
@@ -37,6 +38,7 @@ class QuicTransportFailedConnectionSetTest {
         var serverGroup: EventLoopGroup? = null
         var clientCloseAttempted = false
         var serverCloseAttempted = false
+        val pendingClose = CompletableFuture<Pair<ChannelHandlerContext, ChannelPromise>>()
         val failure = IOException("The test QUIC connection close failed after releasing its socket")
         try {
             server.listen(Multiaddr("/ip4/127.0.0.1/udp/0/quic-v1"), { accepted.offer(it) }, null)
@@ -74,13 +76,22 @@ class QuicTransportFailedConnectionSetTest {
                 "release-then-fail-close",
                 object : ChannelOutboundHandlerAdapter() {
                     override fun close(ctx: ChannelHandlerContext, promise: ChannelPromise) {
-                        ctx.close(ctx.newPromise()).addListener { promise.setFailure(failure) }
+                        pendingClose.complete(ctx to promise)
                     }
                 }
             )
             firstClientChannel.eventLoop().submit { }.get(10, TimeUnit.SECONDS)
 
             val close = client.close().also { clientCloseAttempted = true }
+            val (context, promise) = pendingClose.get(10, TimeUnit.SECONDS)
+            clientCloseFutures.drop(1).forEach { future ->
+                assertTrue(future.await(10, TimeUnit.SECONDS), "Sibling QUIC children must close before releasing the failed child")
+            }
+            // Finish the last close on its owning loop only after transport cleanup is installed.
+            // This forces group shutdown from the callback, rather than racing caller-side setup.
+            context.executor().execute {
+                context.close(context.newPromise()).addListener { promise.setFailure(failure) }
+            }
             val error = assertThrows(ExecutionException::class.java) {
                 close.get(10, TimeUnit.SECONDS)
             }

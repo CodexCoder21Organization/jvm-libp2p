@@ -16,15 +16,17 @@ import io.libp2p.transport.implementation.P2PChannelOverNetty
 import io.netty.buffer.ByteBuf
 import io.netty.buffer.Unpooled
 import org.assertj.core.api.Assertions.assertThat
-import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import java.lang.management.ManagementFactory
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit.SECONDS
 
 class NetworkReservationEventLoopTest {
-    @Test
-    fun `reservation from the connection callback returns without blocking its loop`() {
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun `reservation from the connection callback returns without blocking its loop`(deferredCompletion: Boolean) {
         val retirement = object : StrictProtocolBinding<Boolean>(
             "/libp2p/connection-selection/1.0.0",
             object : ProtocolHandler<Boolean>(1, 1) {
@@ -65,6 +67,7 @@ class NetworkReservationEventLoopTest {
             protocols { add(Echo()) }
         }
         val accepted = CompletableFuture<Connection>()
+        val reserved = CompletableFuture<Boolean>()
         val entered = CountDownLatch(1)
         val returned = CountDownLatch(1)
         val callbackThread = CompletableFuture<Thread>()
@@ -76,8 +79,11 @@ class NetworkReservationEventLoopTest {
                     val loop = (connection as P2PChannelOverNetty).nettyChannel.eventLoop()
                     assertThat(loop.inEventLoop()).isTrue()
                     val result = b.network.reserveConnection(connection)
-                    assertThat(result.isDone).describedAs("Reservation must finish in its connection callback").isTrue()
-                    assertThat(result.getNow(false)).isTrue()
+                    // Exercise both an immediate result and observation on the next loop turn.
+                    val observed = if (deferredCompletion) result.thenApplyAsync({ it }, loop) else result
+                    observed.whenComplete { retained, failure ->
+                        if (failure == null) reserved.complete(retained) else reserved.completeExceptionally(failure)
+                    }
                     loop.execute { accepted.complete(connection) }
                 } catch (failure: Throwable) {
                     accepted.completeExceptionally(failure)
@@ -100,6 +106,7 @@ class NetworkReservationEventLoopTest {
             assertThat(callbackReturned).describedAs("Reservation must not wait for its own event loop").isTrue()
             val parent = pendingParent.get(10, SECONDS)
             val remote = accepted.get(10, SECONDS)
+            assertThat(reserved.get(10, SECONDS)).isTrue()
             assertThat(b.network.connections).contains(remote)
             assertThat(b.network.reserveConnection(remote).get(10, SECONDS)).isTrue()
             assertThat(b.network.reserveConnection(remote).get(10, SECONDS)).isTrue()

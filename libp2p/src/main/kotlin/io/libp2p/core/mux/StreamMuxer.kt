@@ -31,6 +31,13 @@ interface StreamMuxer : ProtocolBinding<StreamMuxer.Session> {
      */
     interface Session {
         /**
+         * Returns the session that owns admission of new streams.
+         * Transparent decorators must forward this call along with [createStream].
+         * Sessions that enforce admission return themselves. This call opens no stream.
+         */
+        fun streamAdmissionSession(): Session = this
+
+        /**
          * Initiates a new Stream creation.
          * The passed [streamHandler] is basically a [io.libp2p.core.multistream.Multistream] _initiator_
          * for a client protocol which yields a controller of type [T] on its initialization

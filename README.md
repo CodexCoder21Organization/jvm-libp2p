@@ -298,6 +298,12 @@ lifetime, with no release call. Reservation opens no stream and cannot prevent a
 close, transport failure or host shutdown. Custom transports without retirement coordination retain
 their existing open-connection check.
 
+Transparent `StreamMuxer.Session` decorators must forward `streamAdmissionSession()` along with
+`createStream`, so connection reservation uses the same admission owner as stream creation.
+Kotlin interface delegation forwards both calls automatically. Sessions that enforce their own
+admission policy return themselves from `streamAdmissionSession()`; ordinary direct sessions
+inherit that default. Looking up this identity opens no stream.
+
 Connection close and transport shutdown share one physical close operation for each Netty
 parent channel. Repeated calls wait for that operation and report its original failure if it
 fails; they do not issue another close. Completing or cancelling one caller's returned future

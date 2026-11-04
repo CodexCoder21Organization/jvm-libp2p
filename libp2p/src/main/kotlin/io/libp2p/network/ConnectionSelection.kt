@@ -135,8 +135,8 @@ private fun connectionSelection(connection: Connection): ConnectionSelection? =
         // Before mux setup, the Netty parent already records explicit close requests.
         connection.selection
     } else {
-        // Connection decorators forward the session which also admits their streams.
-        connection.muxerSession() as? ConnectionSelection
+        // Transparent decorators forward the identity of the session that admits their streams.
+        connection.muxerSession().streamAdmissionSession() as? ConnectionSelection
     }
 
 internal fun connectionEligible(connection: Connection): Boolean {

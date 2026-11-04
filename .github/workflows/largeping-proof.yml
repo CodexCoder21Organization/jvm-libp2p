@@ -1,0 +1,37 @@
+name: Large ping diagnosis
+
+on:
+  push:
+    branches: ['wip/hqI54b-largeping']
+
+permissions:
+  contents: read
+
+jobs:
+  tls-yamux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '11'
+      - name: Install the candidate transport locally
+        run: bash .github/scripts/install-netty-transport.bash
+      - name: Run the unchanged scenario and the owned-port amplifier
+        run: >-
+          ./gradlew --no-daemon --stacktrace :libp2p:test
+          --tests io.libp2p.core.HostTestJava.largePing
+          --tests io.libp2p.core.LargePingBufferTest
+      - name: Save native results and dependency selection
+        if: always()
+        run: ./gradlew --no-daemon :libp2p:dependencies --configuration testRuntimeClasspath > largeping-dependencies.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: largeping-diagnosis
+          path: |
+            libp2p/build/test-results/**
+            libp2p/build/reports/tests/**
+            largeping-dependencies.txt

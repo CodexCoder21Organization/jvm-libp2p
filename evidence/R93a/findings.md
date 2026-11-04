@@ -1,0 +1,3 @@
+# R93a findings
+
+2026-11-04T23:59:41.950031+00:00 OBSERVED: Fresh clone; cold PR description and FLIBP7/FLIBP8 findings and resume read. OBSERVED: Default is develop, not main; no origin/main exists. OBSERVED: Rebase onto origin/develop 436997d5e5f5b80f1503504b19e5b813654a3a49 is a no-op, exact reviewed head e3e5caf4a0d5cfc1acd40be2ec7468078ce9f8fe. OBSERVED: Default lacks both ownership changes and has not moved since prior evidence. OBSERVED: No root AGENTS.md is present; README read (remaining untruncated verification ongoing). OBSERVED: PR description still claims snapshot45 unpublished and omits its SHA256. INFER: E currently fails; next checkpoint is whole-file review and fresh Actions XML. OBSERVED: No Addendum headings found in full brief.

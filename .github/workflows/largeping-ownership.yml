@@ -1,0 +1,26 @@
+name: Large Ping ownership proof
+on:
+  push:
+    branches: [wip/hqI54-largeping]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  ownership:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '11'
+      - name: Build the candidate Netty transport
+        run: bash .github/scripts/install-netty-transport.bash
+      - name: Run the real TLS and Yamux ownership proof
+        run: ./gradlew --no-daemon --stacktrace :libp2p:test --tests io.libp2p.protocol.PingBufferOwnershipTest --tests io.libp2p.core.HostTestJava.largePing
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: largeping-ownership-results
+          path: '**/build/test-results/**'

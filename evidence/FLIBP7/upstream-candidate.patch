@@ -1,0 +1,684 @@
+From e3e5caf4a0d5cfc1acd40be2ec7468078ce9f8fe Mon Sep 17 00:00:00 2001
+From: codexcoder21 <codexcoder21@users.noreply.github.com>
+Date: Wed, 4 Nov 2026 21:11:08 +0000
+Subject: [PATCH] Close owned QUIC UDP parents before terminating transport
+ workers
+
+---
+ FORK.md                                       |   2 +-
+ README.md                                     |   3 +-
+ build.gradle                                  |   2 +-
+ .../io/libp2p/transport/quic/QuicTransport.kt |  44 ++++-
+ .../PlainNettyTransportFailedCloseSetTest.kt  | 136 +++++++++++++++
+ .../QuicTransportClosedChildParentTest.kt     |  89 ++++++++++
+ .../QuicTransportFailedConnectionSetTest.kt   | 158 ++++++++++++++++++
+ .../QuicTransportFailedDatagramCloseTest.kt   | 131 +++++++++++++++
+ 8 files changed, 553 insertions(+), 12 deletions(-)
+ create mode 100644 libp2p/src/test/kotlin/io/libp2p/transport/PlainNettyTransportFailedCloseSetTest.kt
+ create mode 100644 libp2p/src/test/kotlin/io/libp2p/transport/QuicTransportClosedChildParentTest.kt
+ create mode 100644 libp2p/src/test/kotlin/io/libp2p/transport/QuicTransportFailedConnectionSetTest.kt
+ create mode 100644 libp2p/src/test/kotlin/io/libp2p/transport/QuicTransportFailedDatagramCloseTest.kt
+
+diff --git a/FORK.md b/FORK.md
+index cfe36e96..44e7bc59 100644
+--- a/FORK.md
++++ b/FORK.md
+@@ -12,7 +12,7 @@ CodexCoder21 production depends on a set of jvm-libp2p fixes that are **not yet
+ 
+ ## What this fork carries
+ 
+-- **Owned transport shutdown after failed channel close** (snapshot-45) — TCP and WebSocket always terminate their private acceptor group after channel close settles, including failed listener or connection closes. QUIC does the same for its private worker group. The original channel failure remains the returned failure after cleanup, and caller cancellation/completion cannot stop cleanup. Public connection and Netty group/thread tests cover refused, thrown and delayed close results as well as caller mutation.
++- **Owned transport shutdown after failed channel close** (snapshot-45) — TCP and WebSocket always terminate their private acceptor group after channel close settles, including failed listener or connection closes. QUIC closes its separately owned outbound UDP parents before terminating its private worker group, including when a QUIC child close fails or the child already closed. The original channel failure remains the returned failure after cleanup, and caller cancellation/completion cannot stop cleanup. Public connection and Netty group/thread tests cover refused, thrown and delayed close results as well as caller mutation.
+ 
+ On top of the upstream `develop` snapshot (which already provides the #412 thread-shutdown fix), this fork adds the following fixes. Each is meant to go upstream; nothing here is a long-term divergence.
+ 
+diff --git a/README.md b/README.md
+index ee9ce1d9..f7b119f1 100644
+--- a/README.md
++++ b/README.md
+@@ -337,7 +337,8 @@ TCP, WebSocket and QUIC transport shutdown always waits for the event-loop group
+ that transport to terminate, including when a listener or connection close fails. The returned
+ future retains the original channel-close failure after cleanup. Cancelling or completing that
+ future does not stop the owned cleanup. TCP and WebSocket leave their shared worker group running
+-for other transports.
++for other transports. QUIC also closes every UDP parent it allocated for an outbound dial,
++including parents whose QUIC child has already closed, before terminating its worker group.
+ 
+ ## Gossip simulator
+ 
+diff --git a/build.gradle b/build.gradle
+index 7389bf70..6857b6da 100644
+--- a/build.gradle
++++ b/build.gradle
+@@ -130,7 +130,7 @@ configure(configuredProjects) {
+     // snapshot-36: drain accepted child writes before half-close with Yamux and Mplex.
+     // snapshot-37: pause Yamux delivery and credit per stream while parent reads continue.
+     // snapshot-41 preserves completed future results when listener dispatch is unavailable.
+-    // snapshot-45: terminate owned transport groups after failed channel close.
++    // snapshot-45: close owned UDP parents and transport groups after every channel outcome.
+     version = '1.3.0-codexcoder21-snapshot-45'
+ 
+     apply plugin: 'kotlin'
+diff --git a/libp2p/src/main/kotlin/io/libp2p/transport/quic/QuicTransport.kt b/libp2p/src/main/kotlin/io/libp2p/transport/quic/QuicTransport.kt
+index 90d96016..4b4ddc64 100644
+--- a/libp2p/src/main/kotlin/io/libp2p/transport/quic/QuicTransport.kt
++++ b/libp2p/src/main/kotlin/io/libp2p/transport/quic/QuicTransport.kt
+@@ -60,6 +60,7 @@ class QuicTransport(
+ 
+     private val listeners = mutableMapOf<Multiaddr, Channel>()
+     private val channels = mutableListOf<Channel>()
++    private val clientDatagramChannels = mutableSetOf<Channel>()
+ 
+     // DAEMON event-loop threads (via an explicit DefaultThreadFactory) so a worker
+     // that is slow to exit its run loop under CI starvation cannot hold the forked
+@@ -129,21 +130,25 @@ class QuicTransport(
+     }
+ 
+     override fun close(): CompletableFuture<Unit> {
+-        closed = true
+-
+-        val unbindsCompleted = listeners
+-            .map { (_, ch) -> ch }
+-            .map { closeNettyChannelOnce(it) }
++        val (listenerSnapshot, channelSnapshot, datagramSnapshot) = synchronized(this@QuicTransport) {
++            closed = true
++            Triple(listeners.values.toList(), channels.toList(), clientDatagramChannels.toList())
++        }
+ 
+-        val channelsClosed = channels
+-            .toMutableList() // need a copy to avoid potential co-modification problems
+-            .map { closeNettyChannelOnce(it) }
++        val unbindsCompleted = listenerSnapshot.map { closeNettyChannelOnce(it) }
++        val channelsClosed = channelSnapshot.map { closeNettyChannelOnce(it) }
+ 
+         val everythingThatNeedsToClose = unbindsCompleted.union(channelsClosed)
+         val allClosed = CompletableFuture.allOf(*everythingThatNeedsToClose.toTypedArray())
+ 
++        // A dial owns its UDP parent separately from the QUIC child. Close those parents
++        // after every child outcome, including failure or a child closed before this call.
++        val datagramsClosed = allClosed.handle { _, _ ->
++            CompletableFuture.allOf(*datagramSnapshot.map { closeNettyChannelOnce(it) }.toTypedArray())
++        }.thenCompose { it }
++
+         // Cleanup observes every channel outcome independently of the caller's future.
+-        val groupClosed = allClosed.handle { _, _ ->
++        val groupClosed = datagramsClosed.handle { _, _ ->
+             // See PlainNettyTransport.close() for the full rationale: the no-arg
+             // shutdownGracefully() falls through to Netty's default 2-second
+             // quietPeriod, which adds 2 s of pure latency to every close() once
+@@ -156,6 +161,7 @@ class QuicTransport(
+             // Cleanup starts after allClosed settles, so join cannot block here.
+             // Read that outcome first to preserve the original channel-close failure.
+             allClosed.join()
++            datagramsClosed.join()
+             if (shutdownFailure != null) throw shutdownFailure
+             Unit
+         }
+@@ -222,6 +228,26 @@ class QuicTransport(
+         return client.clone()
+             .handler(requestsHandler)
+             .bind(0)
++            .also { bind ->
++                val parent = bind.channel()
++                val closeImmediately = synchronized(this@QuicTransport) {
++                    if (closed) {
++                        true
++                    } else {
++                        clientDatagramChannels += parent
++                        false
++                    }
++                }
++                if (closeImmediately) {
++                    closeNettyChannelOnce(parent)
++                } else {
++                    parent.closeFuture().addListener {
++                        synchronized(this@QuicTransport) {
++                            clientDatagramChannels -= parent
++                        }
++                    }
++                }
++            }
+             .toCompletableFuture()
+             .thenCompose {
+                 QuicChannel.newBootstrap(it)
+diff --git a/libp2p/src/test/kotlin/io/libp2p/transport/PlainNettyTransportFailedCloseSetTest.kt b/libp2p/src/test/kotlin/io/libp2p/transport/PlainNettyTransportFailedCloseSetTest.kt
+new file mode 100644
+index 00000000..37564cb3
+--- /dev/null
++++ b/libp2p/src/test/kotlin/io/libp2p/transport/PlainNettyTransportFailedCloseSetTest.kt
+@@ -0,0 +1,136 @@
++package io.libp2p.transport
++
++import io.libp2p.core.Connection
++import io.libp2p.core.Host
++import io.libp2p.core.dsl.host
++import io.libp2p.core.mux.StreamMuxerProtocol
++import io.libp2p.security.noise.NoiseXXSecureChannel
++import io.libp2p.transport.implementation.ConnectionOverNetty
++import io.libp2p.transport.tcp.TcpTransport
++import io.netty.channel.Channel
++import io.netty.channel.ChannelHandlerContext
++import io.netty.channel.ChannelOutboundHandlerAdapter
++import io.netty.channel.ChannelPromise
++import org.junit.jupiter.api.Assertions.assertEquals
++import org.junit.jupiter.api.Assertions.assertFalse
++import org.junit.jupiter.api.Assertions.assertSame
++import org.junit.jupiter.api.Assertions.assertThrows
++import org.junit.jupiter.api.Assertions.assertTrue
++import org.junit.jupiter.api.Test
++import java.io.IOException
++import java.util.concurrent.CompletableFuture
++import java.util.concurrent.ExecutionException
++import java.util.concurrent.LinkedBlockingQueue
++import java.util.concurrent.TimeUnit
++
++class PlainNettyTransportFailedCloseSetTest {
++    @Test
++    fun oneListenerCloseFailureStillClosesEveryListenerAndAcceptedRoot() {
++        val serverHost = host {
++            transports { add(::TcpTransport) }
++            secureChannels { add(::NoiseXXSecureChannel) }
++            muxers { add(StreamMuxerProtocol.getYamux()) }
++            network {
++                listen("/ip4/127.0.0.1/tcp/0")
++                listen("/ip4/127.0.0.2/tcp/0")
++            }
++        }
++        val server = serverHost.network.transports.single()
++        val clients = mutableListOf<Host>()
++        val accepted = LinkedBlockingQueue<Connection>()
++        val listenerChannels = mutableListOf<Channel>()
++        val acceptedChannels = mutableListOf<Channel>()
++        var bossGroup: io.netty.channel.EventLoopGroup? = null
++        var closeAttempted = false
++        val failure = IOException("The test listener close failed after releasing its socket")
++        try {
++            serverHost.addConnectionHandler { accepted.offer(it) }
++            serverHost.start().get(10, TimeUnit.SECONDS)
++            val listenAddresses = serverHost.listenAddresses()
++            assertEquals(2, listenAddresses.size, "The server must expose both ephemeral listener addresses")
++
++            repeat(8) { index ->
++                val clientHost = host {
++                    transports { add(::TcpTransport) }
++                    secureChannels { add(::NoiseXXSecureChannel) }
++                    muxers { add(StreamMuxerProtocol.getYamux()) }
++                }
++                clients += clientHost
++                clientHost.start().get(10, TimeUnit.SECONDS)
++                clientHost.network.connect(serverHost.peerId, listenAddresses[index % listenAddresses.size])
++                    .get(10, TimeUnit.SECONDS)
++                val connection = accepted.poll(10, TimeUnit.SECONDS)
++                assertTrue(connection != null, "Client $index must produce a live accepted root")
++                acceptedChannels += (connection as ConnectionOverNetty).nettyChannel
++            }
++
++            assertEquals(8, acceptedChannels.size, "All eight distinct client hosts must remain connected")
++            assertTrue(acceptedChannels.all { it.isOpen }, "Every accepted root must be open before close")
++            acceptedChannels.mapNotNull { it.parent() }.distinct().also { listenerChannels += it }
++            assertEquals(2, listenerChannels.size, "Accepted roots must cover both listener addresses")
++
++            val firstListener = listenerChannels.first()
++            val ownedGroup = firstListener.eventLoop().parent()
++            bossGroup = ownedGroup
++            assertTrue(listenerChannels.all { it.eventLoop().parent() === ownedGroup }, "Both listeners must use the owned boss group")
++            val workerGroup = acceptedChannels.first().eventLoop().parent()
++            val bossThreads = ownedGroup.map { executor ->
++                executor.submit<Thread> { Thread.currentThread() }.get(10, TimeUnit.SECONDS)
++            }
++            val listenerCloseFutures = listenerChannels.map { it.closeFuture() }
++            val rootCloseFutures = acceptedChannels.map { it.closeFuture() }
++
++            firstListener.pipeline().addFirst(
++                "release-then-fail-close",
++                object : ChannelOutboundHandlerAdapter() {
++                    override fun close(ctx: ChannelHandlerContext, promise: ChannelPromise) {
++                        ctx.close(ctx.newPromise()).addListener { promise.setFailure(failure) }
++                    }
++                }
++            )
++            firstListener.eventLoop().submit { }.get(10, TimeUnit.SECONDS)
++
++            val close = server.close().also { closeAttempted = true }
++            val error = assertThrows(ExecutionException::class.java) {
++                close.get(10, TimeUnit.SECONDS)
++            }
++            assertSame(failure, error.cause, "The transport must report the injected listener failure object")
++            assertTrue(ownedGroup.isTerminated, "Failed close must still terminate the owned TCP acceptor group")
++
++            listenerCloseFutures.forEach { future ->
++                assertTrue(future.await(10, TimeUnit.SECONDS), "Every listener close future must settle")
++                assertTrue(future.isSuccess, "Each listener socket must be physically closed")
++            }
++            rootCloseFutures.forEach { future ->
++                assertTrue(future.await(10, TimeUnit.SECONDS), "Every accepted root close future must settle")
++                assertTrue(future.isSuccess, "Each accepted root must be physically closed")
++            }
++            assertTrue(listenerChannels.all { !it.isOpen }, "Both listener channels must be closed")
++            assertTrue(acceptedChannels.all { !it.isOpen }, "All eight accepted roots must be closed")
++
++            assertTrue(ownedGroup.terminationFuture().await(10, TimeUnit.SECONDS), "The owned boss group must terminate")
++            assertTrue(ownedGroup.isTerminated, "The owned boss group must be terminated")
++            assertTrue(ownedGroup.terminationFuture().isSuccess, "The boss termination future must succeed")
++            bossThreads.forEach { thread ->
++                thread.join(10000)
++                assertFalse(thread.isAlive, "Owned boss thread ${thread.name} must terminate")
++            }
++            assertTrue(workerGroup.isShuttingDown.not(), "Closing one transport must preserve shared workers")
++            assertFalse(workerGroup.isTerminated, "The shared worker group must remain alive")
++        } finally {
++            try {
++                if (!closeAttempted) server.close().get(10, TimeUnit.SECONDS)
++            } finally {
++                try {
++                    if (bossGroup?.isTerminated == false) {
++                        acceptedChannels.filter { it.isOpen }.forEach { it.close().syncUninterruptibly() }
++                        listenerChannels.filter { it.isOpen }.forEach { it.close().syncUninterruptibly() }
++                        bossGroup.shutdownGracefully(0, 5, TimeUnit.SECONDS).syncUninterruptibly()
++                    }
++                } finally {
++                    CompletableFuture.allOf(*clients.map { it.stop() }.toTypedArray()).get(10, TimeUnit.SECONDS)
++                }
++            }
++        }
++    }
++}
+diff --git a/libp2p/src/test/kotlin/io/libp2p/transport/QuicTransportClosedChildParentTest.kt b/libp2p/src/test/kotlin/io/libp2p/transport/QuicTransportClosedChildParentTest.kt
+new file mode 100644
+index 00000000..fdfc6dd2
+--- /dev/null
++++ b/libp2p/src/test/kotlin/io/libp2p/transport/QuicTransportClosedChildParentTest.kt
+@@ -0,0 +1,89 @@
++package io.libp2p.transport
++
++import io.libp2p.core.Connection
++import io.libp2p.core.PeerId
++import io.libp2p.core.multiformats.Multiaddr
++import io.libp2p.crypto.keys.generateEd25519KeyPair
++import io.libp2p.transport.implementation.ConnectionOverNetty
++import io.libp2p.transport.quic.QuicTransport
++import io.netty.channel.Channel
++import io.netty.channel.EventLoopGroup
++import org.junit.jupiter.api.Assertions.assertEquals
++import org.junit.jupiter.api.Assertions.assertFalse
++import org.junit.jupiter.api.Assertions.assertTrue
++import org.junit.jupiter.api.Test
++import java.util.concurrent.CompletableFuture
++import java.util.concurrent.TimeUnit
++
++class QuicTransportClosedChildParentTest {
++    @Test
++    fun closingAnOutboundChildDoesNotDiscardItsUdpParentsShutdownOwner() {
++        val serverKey = generateEd25519KeyPair().first
++        val server = QuicTransport.ECDSA(serverKey, emptyList())
++        val client = QuicTransport.ECDSA(generateEd25519KeyPair().first, emptyList())
++        val accepted = CompletableFuture<Connection>()
++        var clientParent: Channel? = null
++        var clientGroup: EventLoopGroup? = null
++        var clientCloseAttempted = false
++        try {
++            server.listen(Multiaddr("/ip4/127.0.0.1/udp/0/quic-v1"), { accepted.complete(it) }, null)
++                .get(10, TimeUnit.SECONDS)
++            val remoteAddress = server.listenAddresses().single()
++                .withP2P(PeerId.fromPubKey(serverKey.publicKey()))
++            val connection = client.dial(remoteAddress, { }, null).get(10, TimeUnit.SECONDS)
++            val child = (connection as ConnectionOverNetty).nettyChannel
++            val parent = child.parent()
++            clientParent = parent
++            val parentCloseFuture = parent.closeFuture()
++            val ownedGroup = parent.eventLoop().parent()
++            clientGroup = ownedGroup
++            val ownedThreads = ownedGroup.map { executor ->
++                executor.submit<Thread> { Thread.currentThread() }.get(10, TimeUnit.SECONDS)
++            }
++            val serverChild = (accepted.get(10, TimeUnit.SECONDS) as ConnectionOverNetty).nettyChannel
++            val serverListener = serverChild.parent()
++            val independentServerGroup = serverListener.eventLoop().parent()
++            assertTrue(child.isOpen, "The outbound QUIC child must be open before its ordinary close")
++            assertTrue(parent.isOpen, "The dial must have an open UDP parent before its child closes")
++
++            connection.close().get(10, TimeUnit.SECONDS)
++            assertTrue(child.closeFuture().isDone, "The ordinary connection close must settle its physical child future")
++            assertTrue(child.closeFuture().isSuccess, "The ordinary connection close must physically close its child")
++            assertFalse(child.isOpen, "The outbound child must be closed before transport shutdown starts")
++            assertEquals(0, client.activeConnections, "The closed child must no longer be an active transport connection")
++
++            // Call from the parent loop so cleanup cannot depend on an off-loop shutdown path.
++            val close = parent.eventLoop().submit<CompletableFuture<Unit>> { client.close() }
++                .get(10, TimeUnit.SECONDS).also { clientCloseAttempted = true }
++            close.get(10, TimeUnit.SECONDS)
++
++            assertTrue(parentCloseFuture.isDone, "Transport close must settle the UDP parent even after its child left the live connection set")
++            assertTrue(parentCloseFuture.isSuccess, "The separately owned UDP parent must close successfully")
++            assertFalse(parent.isOpen, "The UDP parent must be physically closed before transport close returns")
++            assertFalse(parent.isRegistered, "The UDP parent must be unregistered before transport close returns")
++            assertTrue(parent.eventLoop().isTerminated, "The UDP parent's event loop must terminate")
++            assertTrue(ownedGroup.isTerminated, "The client's owned QUIC group must terminate")
++            assertTrue(ownedGroup.terminationFuture().isSuccess, "The client's owned group must report successful termination")
++            ownedThreads.forEach { thread ->
++                thread.join(10000)
++                assertFalse(thread.isAlive, "Owned QUIC thread ${thread.name} must terminate after the child was already closed")
++            }
++            assertFalse(independentServerGroup.isShuttingDown, "Closing the client must preserve the independent server group")
++            assertFalse(independentServerGroup.isTerminated, "The independent server group must remain alive")
++            assertTrue(serverListener.isOpen, "The independent server listening UDP parent must remain open")
++        } finally {
++            try {
++                if (!clientCloseAttempted) client.close().get(10, TimeUnit.SECONDS)
++            } finally {
++                try {
++                    if (clientGroup?.isTerminated == false) {
++                        clientParent?.takeIf { it.isOpen }?.close()?.syncUninterruptibly()
++                        clientGroup.shutdownGracefully(0, 5, TimeUnit.SECONDS).syncUninterruptibly()
++                    }
++                } finally {
++                    server.close().get(10, TimeUnit.SECONDS)
++                }
++            }
++        }
++    }
++}
+diff --git a/libp2p/src/test/kotlin/io/libp2p/transport/QuicTransportFailedConnectionSetTest.kt b/libp2p/src/test/kotlin/io/libp2p/transport/QuicTransportFailedConnectionSetTest.kt
+new file mode 100644
+index 00000000..93d390bf
+--- /dev/null
++++ b/libp2p/src/test/kotlin/io/libp2p/transport/QuicTransportFailedConnectionSetTest.kt
+@@ -0,0 +1,158 @@
++package io.libp2p.transport
++
++import io.libp2p.core.Connection
++import io.libp2p.core.PeerId
++import io.libp2p.core.multiformats.Multiaddr
++import io.libp2p.crypto.keys.generateEd25519KeyPair
++import io.libp2p.transport.implementation.ConnectionOverNetty
++import io.libp2p.transport.quic.QuicTransport
++import io.netty.channel.Channel
++import io.netty.channel.ChannelHandlerContext
++import io.netty.channel.ChannelOutboundHandlerAdapter
++import io.netty.channel.ChannelPromise
++import io.netty.channel.EventLoopGroup
++import org.junit.jupiter.api.Assertions.assertEquals
++import org.junit.jupiter.api.Assertions.assertFalse
++import org.junit.jupiter.api.Assertions.assertSame
++import org.junit.jupiter.api.Assertions.assertThrows
++import org.junit.jupiter.api.Assertions.assertTrue
++import org.junit.jupiter.api.Test
++import java.io.IOException
++import java.util.Collections
++import java.util.IdentityHashMap
++import java.util.concurrent.CompletableFuture
++import java.util.concurrent.ExecutionException
++import java.util.concurrent.LinkedBlockingQueue
++import java.util.concurrent.TimeUnit
++
++class QuicTransportFailedConnectionSetTest {
++    @Test
++    fun oneOutboundCloseFailureStillClosesEveryConnectionAndUdpParent() {
++        val serverKey = generateEd25519KeyPair().first
++        val server = QuicTransport.ECDSA(serverKey, emptyList())
++        val client = QuicTransport.ECDSA(generateEd25519KeyPair().first, emptyList())
++        val accepted = LinkedBlockingQueue<Connection>()
++        val clientChannels = mutableListOf<Channel>()
++        val serverChannels = mutableListOf<Channel>()
++        var clientGroup: EventLoopGroup? = null
++        var serverGroup: EventLoopGroup? = null
++        var clientCloseAttempted = false
++        var serverCloseAttempted = false
++        val pendingClose = CompletableFuture<Pair<ChannelHandlerContext, ChannelPromise>>()
++        val failure = IOException("The test QUIC connection close failed after releasing its socket")
++        try {
++            server.listen(Multiaddr("/ip4/127.0.0.1/udp/0/quic-v1"), { accepted.offer(it) }, null)
++                .get(10, TimeUnit.SECONDS)
++            val remoteAddress = server.listenAddresses().single()
++                .withP2P(PeerId.fromPubKey(serverKey.publicKey()))
++            repeat(4) { index ->
++                val connection = client.dial(remoteAddress, { }, null).get(10, TimeUnit.SECONDS)
++                clientChannels += (connection as ConnectionOverNetty).nettyChannel
++                val inbound = accepted.poll(10, TimeUnit.SECONDS)
++                assertTrue(inbound != null, "Direct client dial $index must produce an accepted QUIC connection")
++                serverChannels += (inbound as ConnectionOverNetty).nettyChannel
++            }
++
++            assertEquals(4, clientChannels.size, "All four direct dials must be retained by the client transport")
++            assertTrue(clientChannels.all { it.isOpen }, "Every outbound QUIC connection must be open before close")
++            val clientParents = clientChannels.map { it.parent() }
++            val identityParents = Collections.newSetFromMap(IdentityHashMap<Channel, Boolean>())
++            identityParents.addAll(clientParents)
++            assertEquals(4, identityParents.size, "Each outbound QUIC connection must own a distinct UDP parent")
++            val serverParents = serverChannels.map { it.parent() }.distinct()
++            assertEquals(1, serverParents.size, "All accepted server connections must use the one listening UDP parent")
++
++            val ownedGroup = clientChannels.first().eventLoop().parent()
++            clientGroup = ownedGroup
++            val listeningGroup = serverChannels.first().eventLoop().parent()
++            serverGroup = listeningGroup
++            val clientThreads = ownedGroup.map { executor ->
++                executor.submit<Thread> { Thread.currentThread() }.get(10, TimeUnit.SECONDS)
++            }
++            val clientCloseFutures = clientChannels.map { it.closeFuture() }
++            val parentCloseFutures = identityParents.map { it.closeFuture() }
++            val firstClientChannel = clientChannels.first()
++            firstClientChannel.pipeline().addFirst(
++                "release-then-fail-close",
++                object : ChannelOutboundHandlerAdapter() {
++                    override fun close(ctx: ChannelHandlerContext, promise: ChannelPromise) {
++                        pendingClose.complete(ctx to promise)
++                    }
++                }
++            )
++            firstClientChannel.eventLoop().submit { }.get(10, TimeUnit.SECONDS)
++
++            val close = client.close().also { clientCloseAttempted = true }
++            val (context, promise) = pendingClose.get(10, TimeUnit.SECONDS)
++            clientCloseFutures.drop(1).forEach { future ->
++                assertTrue(future.await(10, TimeUnit.SECONDS), "Sibling QUIC children must close before releasing the failed child")
++            }
++            clientChannels.drop(1).forEach { channel ->
++                channel.eventLoop().submit { }.get(10, TimeUnit.SECONDS)
++            }
++            // Finish the last close on its owning loop only after transport cleanup is installed.
++            // This forces group shutdown from the callback, rather than racing caller-side setup.
++            context.executor().execute {
++                context.close(context.newPromise()).addListener { promise.setFailure(failure) }
++            }
++            val error = assertThrows(ExecutionException::class.java) {
++                close.get(10, TimeUnit.SECONDS)
++            }
++            assertSame(failure, error.cause, "The client transport must report the injected failure object")
++            assertTrue(ownedGroup.isTerminated, "Failed close must still terminate the owned QUIC worker group")
++
++            clientCloseFutures.forEach { future ->
++                assertTrue(future.await(10, TimeUnit.SECONDS), "Every outbound QUIC close future must settle")
++                assertTrue(future.isSuccess, "Every outbound QUIC channel must be physically closed")
++            }
++            clientParents.forEachIndexed { index, parent ->
++                println(
++                    "UDP_STATE index=$index open=${parent.isOpen} registered=${parent.isRegistered} " +
++                        "closeDone=${parent.closeFuture().isDone} loop=${parent.eventLoop().javaClass.name} " +
++                        "loopTerminated=${parent.eventLoop().isTerminated} " +
++                        "sameLoop=${parent.eventLoop() === clientChannels[index].eventLoop()} " +
++                        "sameGroup=${parent.eventLoop().parent() === ownedGroup}"
++                )
++            }
++            parentCloseFutures.forEach { future ->
++                assertTrue(future.isDone, "Every client UDP parent close future must settle before its owned group terminates")
++                assertTrue(future.isSuccess, "Every client UDP parent must be physically closed")
++            }
++            assertTrue(clientChannels.all { !it.isOpen }, "All four outbound QUIC channels must be closed")
++            assertTrue(clientParents.all { !it.isOpen }, "All distinct client UDP parents must be closed")
++
++            assertTrue(ownedGroup.terminationFuture().await(10, TimeUnit.SECONDS), "The client group must terminate")
++            assertTrue(ownedGroup.isTerminated, "The client group must be terminated")
++            assertTrue(ownedGroup.terminationFuture().isSuccess, "The client termination future must succeed")
++            clientThreads.forEach { thread ->
++                thread.join(10000)
++                assertFalse(thread.isAlive, "Client QUIC worker ${thread.name} must terminate")
++            }
++            assertFalse(listeningGroup.isShuttingDown, "Closing the client must preserve the independent server group")
++            assertFalse(listeningGroup.isTerminated, "The server group must remain alive")
++            assertTrue(serverParents.single().isOpen, "The server listening UDP parent must remain open")
++        } finally {
++            try {
++                if (!clientCloseAttempted) client.close().get(10, TimeUnit.SECONDS)
++            } finally {
++                try {
++                    if (clientGroup?.isTerminated == false) {
++                        clientChannels.filter { it.isOpen }.forEach { it.close().syncUninterruptibly() }
++                        clientGroup.shutdownGracefully(0, 5, TimeUnit.SECONDS).syncUninterruptibly()
++                    }
++                } finally {
++                    try {
++                        if (!serverCloseAttempted) server.close().also { serverCloseAttempted = true }.get(10, TimeUnit.SECONDS)
++                    } finally {
++                        if (serverGroup?.isTerminated == false) {
++                            serverChannels.filter { it.isOpen }.forEach { it.close().syncUninterruptibly() }
++                            serverChannels.mapNotNull { it.parent() }.distinct().filter { it.isOpen }
++                                .forEach { it.close().syncUninterruptibly() }
++                            serverGroup.shutdownGracefully(0, 5, TimeUnit.SECONDS).syncUninterruptibly()
++                        }
++                    }
++                }
++            }
++        }
++    }
++}
+diff --git a/libp2p/src/test/kotlin/io/libp2p/transport/QuicTransportFailedDatagramCloseTest.kt b/libp2p/src/test/kotlin/io/libp2p/transport/QuicTransportFailedDatagramCloseTest.kt
+new file mode 100644
+index 00000000..c89d23e5
+--- /dev/null
++++ b/libp2p/src/test/kotlin/io/libp2p/transport/QuicTransportFailedDatagramCloseTest.kt
+@@ -0,0 +1,131 @@
++package io.libp2p.transport
++
++import io.libp2p.core.Connection
++import io.libp2p.core.PeerId
++import io.libp2p.core.multiformats.Multiaddr
++import io.libp2p.crypto.keys.generateEd25519KeyPair
++import io.libp2p.transport.implementation.ConnectionOverNetty
++import io.libp2p.transport.quic.QuicTransport
++import io.netty.channel.Channel
++import io.netty.channel.ChannelHandlerContext
++import io.netty.channel.ChannelOutboundHandlerAdapter
++import io.netty.channel.ChannelPromise
++import io.netty.channel.EventLoopGroup
++import org.junit.jupiter.api.Assertions.assertEquals
++import org.junit.jupiter.api.Assertions.assertFalse
++import org.junit.jupiter.api.Assertions.assertSame
++import org.junit.jupiter.api.Assertions.assertThrows
++import org.junit.jupiter.api.Assertions.assertTrue
++import org.junit.jupiter.params.ParameterizedTest
++import org.junit.jupiter.params.provider.ValueSource
++import java.io.IOException
++import java.util.concurrent.CompletableFuture
++import java.util.concurrent.ExecutionException
++import java.util.concurrent.TimeUnit
++import java.util.concurrent.atomic.AtomicInteger
++
++class QuicTransportFailedDatagramCloseTest {
++    @ParameterizedTest
++    @ValueSource(booleans = [false, true])
++    fun failedUdpParentCloseStillTerminatesTheOwnedGroup(childAlsoFails: Boolean) {
++        val serverKey = generateEd25519KeyPair().first
++        val server = QuicTransport.ECDSA(serverKey, emptyList())
++        val client = QuicTransport.ECDSA(generateEd25519KeyPair().first, emptyList())
++        val accepted = CompletableFuture<Connection>()
++        val parentFailure = IOException("The test UDP parent close failed after releasing its socket")
++        val childFailure = IOException("The test QUIC child close failed before the UDP parent close")
++        val parentCloseCount = AtomicInteger()
++        var clientParent: Channel? = null
++        var clientChild: Channel? = null
++        var clientGroup: EventLoopGroup? = null
++        var clientCloseAttempted = false
++        try {
++            server.listen(Multiaddr("/ip4/127.0.0.1/udp/0/quic-v1"), { accepted.complete(it) }, null)
++                .get(10, TimeUnit.SECONDS)
++            val remoteAddress = server.listenAddresses().single()
++                .withP2P(PeerId.fromPubKey(serverKey.publicKey()))
++            val connection = client.dial(remoteAddress, { }, null).get(10, TimeUnit.SECONDS)
++            val child = (connection as ConnectionOverNetty).nettyChannel
++            clientChild = child
++            val parent = child.parent()
++            clientParent = parent
++            val ownedGroup = parent.eventLoop().parent()
++            clientGroup = ownedGroup
++            val ownedThreads = ownedGroup.map { executor ->
++                executor.submit<Thread> { Thread.currentThread() }.get(10, TimeUnit.SECONDS)
++            }
++            val childCloseFuture = child.closeFuture()
++            val parentCloseFuture = parent.closeFuture()
++            val serverChild = (accepted.get(10, TimeUnit.SECONDS) as ConnectionOverNetty).nettyChannel
++            val serverListener = serverChild.parent()
++            val independentServerGroup = serverListener.eventLoop().parent()
++            assertTrue(child.isOpen, "The outbound QUIC child must be open before transport shutdown")
++            assertTrue(parent.isOpen, "The client UDP parent must be open before transport shutdown")
++
++            parent.pipeline().addFirst(
++                "release-then-fail-udp-close",
++                object : ChannelOutboundHandlerAdapter() {
++                    override fun close(ctx: ChannelHandlerContext, promise: ChannelPromise) {
++                        parentCloseCount.incrementAndGet()
++                        ctx.close(ctx.newPromise()).addListener { promise.setFailure(parentFailure) }
++                    }
++                }
++            )
++            if (childAlsoFails) {
++                child.pipeline().addFirst(
++                    "release-then-fail-child-close",
++                    object : ChannelOutboundHandlerAdapter() {
++                        override fun close(ctx: ChannelHandlerContext, promise: ChannelPromise) {
++                            ctx.close(ctx.newPromise()).addListener { promise.setFailure(childFailure) }
++                        }
++                    }
++                )
++            }
++            parent.eventLoop().submit { }.get(10, TimeUnit.SECONDS)
++            child.eventLoop().submit { }.get(10, TimeUnit.SECONDS)
++
++            val shutdown = client.close().also { clientCloseAttempted = true }
++            val error = assertThrows(ExecutionException::class.java) {
++                shutdown.get(10, TimeUnit.SECONDS)
++            }
++            assertSame(
++                if (childAlsoFails) childFailure else parentFailure,
++                error.cause,
++                "Transport close must retain the child failure first, otherwise the UDP parent failure"
++            )
++            assertEquals(1, parentCloseCount.get(), "Transport shutdown must request the owned UDP parent's close exactly once")
++            assertTrue(childCloseFuture.isDone, "The QUIC child physical close future must settle before shutdown returns")
++            assertTrue(childCloseFuture.isSuccess, "The QUIC child must physically close despite a reported operation failure")
++            assertFalse(child.isOpen, "The QUIC child must be physically closed")
++            assertFalse(child.isRegistered, "The QUIC child must be unregistered")
++            assertTrue(parentCloseFuture.isDone, "The UDP parent physical close future must settle before shutdown returns")
++            assertTrue(parentCloseFuture.isSuccess, "The UDP parent must physically close before its failure is reported")
++            assertFalse(parent.isOpen, "The UDP parent must be physically closed")
++            assertFalse(parent.isRegistered, "The UDP parent must be unregistered")
++            assertTrue(parent.eventLoop().isTerminated, "The UDP parent's event loop must terminate after the failed close")
++            assertTrue(ownedGroup.isTerminated, "A failed UDP parent close must not skip owned group termination")
++            assertTrue(ownedGroup.terminationFuture().isSuccess, "The owned group termination future must succeed")
++            ownedThreads.forEach { thread ->
++                thread.join(10000)
++                assertFalse(thread.isAlive, "Owned QUIC thread ${thread.name} must terminate after a UDP parent close failure")
++            }
++            assertFalse(independentServerGroup.isShuttingDown, "Closing the client must preserve the independent server group")
++            assertFalse(independentServerGroup.isTerminated, "The independent server group must remain alive")
++            assertTrue(serverListener.isOpen, "The independent server listening UDP parent must remain open")
++        } finally {
++            try {
++                if (!clientCloseAttempted) client.close().get(10, TimeUnit.SECONDS)
++            } finally {
++                try {
++                    if (clientGroup?.isTerminated == false) {
++                        clientChild?.takeIf { it.isOpen }?.close()?.syncUninterruptibly()
++                        clientParent?.takeIf { it.isOpen }?.close()?.syncUninterruptibly()
++                        clientGroup.shutdownGracefully(0, 5, TimeUnit.SECONDS).syncUninterruptibly()
++                    }
++                } finally {
++                    server.close().get(10, TimeUnit.SECONDS)
++                }
++            }
++        }
++    }
++}
+-- 
+2.39.5
+

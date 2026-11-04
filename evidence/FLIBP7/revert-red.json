@@ -1,0 +1,28 @@
+{
+  "tests": 4,
+  "first_attempt_passes": 0,
+  "failures": [
+    {
+      "class": "io.libp2p.transport.QuicTransportClosedChildParentTest",
+      "name": "closingAnOutboundChildDoesNotDiscardItsUdpParentsShutdownOwner()",
+      "message": "Transport close must settle the UDP parent even after its child left the live connection set ==> expected: <true> but was: <false>"
+    },
+    {
+      "class": "io.libp2p.transport.QuicTransportFailedDatagramCloseTest",
+      "name": "failedUdpParentCloseStillTerminatesTheOwnedGroup(boolean)[1]",
+      "message": "Expected java.util.concurrent.ExecutionException to be thrown, but nothing was thrown."
+    },
+    {
+      "class": "io.libp2p.transport.QuicTransportFailedConnectionSetTest",
+      "name": "oneOutboundCloseFailureStillClosesEveryConnectionAndUdpParent()",
+      "message": "Every client UDP parent close future must settle before its owned group terminates ==> expected: <true> but was: <false>"
+    },
+    {
+      "class": "io.libp2p.transport.QuicTransportFailedDatagramCloseTest",
+      "name": "failedUdpParentCloseStillTerminatesTheOwnedGroup(boolean)[2]",
+      "message": "Transport shutdown must request the owned UDP parent's close exactly once ==> expected: <1> but was: <0>"
+    }
+  ],
+  "skipped": 0,
+  "native_attempts_per_case": 1
+}

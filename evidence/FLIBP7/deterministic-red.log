@@ -1,0 +1,63 @@
+
+Thanks for using JUnit! Support its development at https://junit.org/sponsoring
+
+20:56:19.841 [libp2p-quic-worker-1-1] [[32mINFO[m] io.libp2p.transport.quic.QuicTransport - Quic server listening on /ip4/127.0.0.1/udp/0/quic-v1
+20:56:20.027 [libp2p-quic-worker-1-1] [[32mINFO[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooWSowCj2WUxRjrrYePNBkYSNNW1YcFYNk43KnZyXfnK1xJ
+20:56:20.069 [libp2p-quic-worker-1-1] [[32mINFO[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooWSowCj2WUxRjrrYePNBkYSNNW1YcFYNk43KnZyXfnK1xJ
+20:56:20.105 [libp2p-quic-worker-1-1] [[32mINFO[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooWSowCj2WUxRjrrYePNBkYSNNW1YcFYNk43KnZyXfnK1xJ
+20:56:20.140 [libp2p-quic-worker-1-1] [[32mINFO[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooWSowCj2WUxRjrrYePNBkYSNNW1YcFYNk43KnZyXfnK1xJ
+UDP_STATE index=0 open=true registered=true closeDone=false loop=io.netty.channel.SingleThreadIoEventLoop loopTerminated=true sameLoop=true sameGroup=true
+UDP_STATE index=1 open=false registered=false closeDone=true loop=io.netty.channel.SingleThreadIoEventLoop loopTerminated=true sameLoop=true sameGroup=true
+UDP_STATE index=2 open=false registered=false closeDone=true loop=io.netty.channel.SingleThreadIoEventLoop loopTerminated=true sameLoop=true sameGroup=true
+UDP_STATE index=3 open=false registered=false closeDone=true loop=io.netty.channel.SingleThreadIoEventLoop loopTerminated=true sameLoop=true sameGroup=true
+20:56:20.227 [libp2p-quic-worker-4-1] [[32mINFO[m] io.libp2p.transport.quic.QuicTransport - Quic server listening on /ip4/127.0.0.1/udp/0/quic-v1
+20:56:20.258 [libp2p-quic-worker-4-1] [[32mINFO[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooWAD9Cm2hAHF8Rj4PLaQeNtoWYiczzf3mY2qMHsxpzyYBM
+╷
+├─ JUnit Platform Suite ✔
+├─ JUnit Jupiter ✔
+│  ├─ QuicTransportFailedConnectionSetTest ✔
+│  │  └─ oneOutboundCloseFailureStillClosesEveryConnectionAndUdpParent() ✘ Every client UDP parent close future must settle before its owned group terminates ==> expected: <true> but was: <false>
+│  └─ QuicTransportClosedChildParentTest ✔
+│     └─ closingAnOutboundChildDoesNotDiscardItsUdpParentsShutdownOwner() ✘ Transport close must settle the UDP parent even after its child left the live connection set ==> expected: <true> but was: <false>
+└─ JUnit Vintage ✔
+
+Failures (2):
+  JUnit Jupiter:QuicTransportFailedConnectionSetTest:oneOutboundCloseFailureStillClosesEveryConnectionAndUdpParent()
+    MethodSource [className = 'io.libp2p.transport.QuicTransportFailedConnectionSetTest', methodName = 'oneOutboundCloseFailureStillClosesEveryConnectionAndUdpParent', methodParameterTypes = '']
+    => org.opentest4j.AssertionFailedError: Every client UDP parent close future must settle before its owned group terminates ==> expected: <true> but was: <false>
+       org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+       org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+       org.junit.jupiter.api.AssertTrue.failNotTrue(AssertTrue.java:63)
+       org.junit.jupiter.api.AssertTrue.assertTrue(AssertTrue.java:36)
+       org.junit.jupiter.api.Assertions.assertTrue(Assertions.java:214)
+       io.libp2p.transport.QuicTransportFailedConnectionSetTest.oneOutboundCloseFailureStillClosesEveryConnectionAndUdpParent(QuicTransportFailedConnectionSetTest.kt:116)
+       java.base/java.lang.reflect.Method.invoke(Method.java:580)
+       java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+       java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+  JUnit Jupiter:QuicTransportClosedChildParentTest:closingAnOutboundChildDoesNotDiscardItsUdpParentsShutdownOwner()
+    MethodSource [className = 'io.libp2p.transport.QuicTransportClosedChildParentTest', methodName = 'closingAnOutboundChildDoesNotDiscardItsUdpParentsShutdownOwner', methodParameterTypes = '']
+    => org.opentest4j.AssertionFailedError: Transport close must settle the UDP parent even after its child left the live connection set ==> expected: <true> but was: <false>
+       org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+       org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+       org.junit.jupiter.api.AssertTrue.failNotTrue(AssertTrue.java:63)
+       org.junit.jupiter.api.AssertTrue.assertTrue(AssertTrue.java:36)
+       org.junit.jupiter.api.Assertions.assertTrue(Assertions.java:214)
+       io.libp2p.transport.QuicTransportClosedChildParentTest.closingAnOutboundChildDoesNotDiscardItsUdpParentsShutdownOwner(QuicTransportClosedChildParentTest.kt:60)
+       java.base/java.lang.reflect.Method.invoke(Method.java:580)
+       java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+       java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+
+Test run finished after 1848 ms
+[         5 containers found      ]
+[         0 containers skipped    ]
+[         5 containers started    ]
+[         0 containers aborted    ]
+[         5 containers successful ]
+[         0 containers failed     ]
+[         2 tests found           ]
+[         0 tests skipped         ]
+[         2 tests started         ]
+[         0 tests aborted         ]
+[         0 tests successful      ]
+[         2 tests failed          ]
+

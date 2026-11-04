@@ -1,0 +1,82 @@
+diff --git a/libp2p/src/main/kotlin/io/libp2p/transport/quic/QuicTransport.kt b/libp2p/src/main/kotlin/io/libp2p/transport/quic/QuicTransport.kt
+index 90d96016..4b4ddc64 100644
+--- a/libp2p/src/main/kotlin/io/libp2p/transport/quic/QuicTransport.kt
++++ b/libp2p/src/main/kotlin/io/libp2p/transport/quic/QuicTransport.kt
+@@ -60,6 +60,7 @@ class QuicTransport(
+ 
+     private val listeners = mutableMapOf<Multiaddr, Channel>()
+     private val channels = mutableListOf<Channel>()
++    private val clientDatagramChannels = mutableSetOf<Channel>()
+ 
+     // DAEMON event-loop threads (via an explicit DefaultThreadFactory) so a worker
+     // that is slow to exit its run loop under CI starvation cannot hold the forked
+@@ -129,21 +130,25 @@ class QuicTransport(
+     }
+ 
+     override fun close(): CompletableFuture<Unit> {
+-        closed = true
+-
+-        val unbindsCompleted = listeners
+-            .map { (_, ch) -> ch }
+-            .map { closeNettyChannelOnce(it) }
++        val (listenerSnapshot, channelSnapshot, datagramSnapshot) = synchronized(this@QuicTransport) {
++            closed = true
++            Triple(listeners.values.toList(), channels.toList(), clientDatagramChannels.toList())
++        }
+ 
+-        val channelsClosed = channels
+-            .toMutableList() // need a copy to avoid potential co-modification problems
+-            .map { closeNettyChannelOnce(it) }
++        val unbindsCompleted = listenerSnapshot.map { closeNettyChannelOnce(it) }
++        val channelsClosed = channelSnapshot.map { closeNettyChannelOnce(it) }
+ 
+         val everythingThatNeedsToClose = unbindsCompleted.union(channelsClosed)
+         val allClosed = CompletableFuture.allOf(*everythingThatNeedsToClose.toTypedArray())
+ 
++        // A dial owns its UDP parent separately from the QUIC child. Close those parents
++        // after every child outcome, including failure or a child closed before this call.
++        val datagramsClosed = allClosed.handle { _, _ ->
++            CompletableFuture.allOf(*datagramSnapshot.map { closeNettyChannelOnce(it) }.toTypedArray())
++        }.thenCompose { it }
++
+         // Cleanup observes every channel outcome independently of the caller's future.
+-        val groupClosed = allClosed.handle { _, _ ->
++        val groupClosed = datagramsClosed.handle { _, _ ->
+             // See PlainNettyTransport.close() for the full rationale: the no-arg
+             // shutdownGracefully() falls through to Netty's default 2-second
+             // quietPeriod, which adds 2 s of pure latency to every close() once
+@@ -156,6 +161,7 @@ class QuicTransport(
+             // Cleanup starts after allClosed settles, so join cannot block here.
+             // Read that outcome first to preserve the original channel-close failure.
+             allClosed.join()
++            datagramsClosed.join()
+             if (shutdownFailure != null) throw shutdownFailure
+             Unit
+         }
+@@ -222,6 +228,26 @@ class QuicTransport(
+         return client.clone()
+             .handler(requestsHandler)
+             .bind(0)
++            .also { bind ->
++                val parent = bind.channel()
++                val closeImmediately = synchronized(this@QuicTransport) {
++                    if (closed) {
++                        true
++                    } else {
++                        clientDatagramChannels += parent
++                        false
++                    }
++                }
++                if (closeImmediately) {
++                    closeNettyChannelOnce(parent)
++                } else {
++                    parent.closeFuture().addListener {
++                        synchronized(this@QuicTransport) {
++                            clientDatagramChannels -= parent
++                        }
++                    }
++                }
++            }
+             .toCompletableFuture()
+             .thenCompose {
+                 QuicChannel.newBootstrap(it)

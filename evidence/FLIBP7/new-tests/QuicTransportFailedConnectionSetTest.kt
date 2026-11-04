@@ -87,6 +87,9 @@ class QuicTransportFailedConnectionSetTest {
             clientCloseFutures.drop(1).forEach { future ->
                 assertTrue(future.await(10, TimeUnit.SECONDS), "Sibling QUIC children must close before releasing the failed child")
             }
+            clientChannels.drop(1).forEach { channel ->
+                channel.eventLoop().submit { }.get(10, TimeUnit.SECONDS)
+            }
             // Finish the last close on its owning loop only after transport cleanup is installed.
             // This forces group shutdown from the callback, rather than racing caller-side setup.
             context.executor().execute {
@@ -103,11 +106,13 @@ class QuicTransportFailedConnectionSetTest {
                 assertTrue(future.isSuccess, "Every outbound QUIC channel must be physically closed")
             }
             clientParents.forEachIndexed { index, parent ->
-                println("UDP_STATE index=$index open=${parent.isOpen} registered=${parent.isRegistered} " +
-                    "closeDone=${parent.closeFuture().isDone} loop=${parent.eventLoop().javaClass.name} " +
-                    "loopTerminated=${parent.eventLoop().isTerminated} " +
-                    "sameLoop=${parent.eventLoop() === clientChannels[index].eventLoop()} " +
-                    "sameGroup=${parent.eventLoop().parent() === ownedGroup}")
+                println(
+                    "UDP_STATE index=$index open=${parent.isOpen} registered=${parent.isRegistered} " +
+                        "closeDone=${parent.closeFuture().isDone} loop=${parent.eventLoop().javaClass.name} " +
+                        "loopTerminated=${parent.eventLoop().isTerminated} " +
+                        "sameLoop=${parent.eventLoop() === clientChannels[index].eventLoop()} " +
+                        "sameGroup=${parent.eventLoop().parent() === ownedGroup}"
+                )
             }
             parentCloseFutures.forEach { future ->
                 assertTrue(future.isDone, "Every client UDP parent close future must settle before its owned group terminates")

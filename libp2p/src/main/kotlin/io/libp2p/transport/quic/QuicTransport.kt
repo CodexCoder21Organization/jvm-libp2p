@@ -199,17 +199,16 @@ class QuicTransport(
                 }
             )
 
-        val bindComplete = listener.bind(fromMultiaddr(addr))
-
-        bindComplete.also {
-            synchronized(this@QuicTransport) {
-                listeners += addr to it.channel()
-                it.channel().closeFuture().addListener {
-                    synchronized(this@QuicTransport) {
-                        listeners -= addr
-                    }
+        val bindComplete = synchronized(this@QuicTransport) {
+            if (closed) throw Libp2pException("Transport is closed")
+            val bind = listener.bind(fromMultiaddr(addr))
+            listeners += addr to bind.channel()
+            bind.channel().closeFuture().addListener {
+                synchronized(this@QuicTransport) {
+                    listeners -= addr
                 }
             }
+            bind
         }
 
         return bindComplete.toVoidCompletableFuture().thenApply {
@@ -247,15 +246,17 @@ class QuicTransport(
                 // Retain a close owner on the loop before bind can publish the UDP socket.
                 // Once the loop has terminated no close dispatch can release that socket.
                 val closeAtTermination = Runnable {
-                    val close = closeNettyChannelOnce(parent)
-                    if (!parent.closeFuture().isDone && close.isCompletedExceptionally) {
-                        // Dispatch was rejected. This hook still owns the loop, so physical
-                        // closure can run directly while the original failure stays reported.
-                        val physical = DefaultChannelPromise(parent, ImmediateEventExecutor.INSTANCE)
-                        synchronized(this@QuicTransport) {
-                            terminationCloses += physical.toVoidCompletableFuture()
-                        }
-                        parent.unsafe().close(physical)
+                    val children = synchronized(this@QuicTransport) {
+                        channels.filter { it.parent() === parent }
+                    }
+                    val childCloses = children.map { closeRejectedChannelOnLoop(it) }
+                    val childrenClosed = CompletableFuture.allOf(*childCloses.toTypedArray())
+                    val parentClosed = childrenClosed.handle { _, _ ->
+                        closeRejectedChannelOnLoop(parent)
+                    }.thenCompose { it }
+                    synchronized(this@QuicTransport) {
+                        terminationCloses += childCloses
+                        terminationCloses += parentClosed
                     }
                 }
                 loop.addShutdownHook(closeAtTermination)
@@ -284,7 +285,15 @@ class QuicTransport(
                 }
             }
             .toCompletableFuture()
+            .handle { channel, failure ->
+                if (closed) throw Libp2pException("Transport is closed").apply {
+                    if (failure != null) initCause(failure)
+                }
+                if (failure != null) throw java.util.concurrent.CompletionException(failure)
+                channel
+            }
             .thenCompose {
+                if (closed) throw Libp2pException("Transport is closed")
                 QuicChannel.newBootstrap(it)
                     .streamOption(ChannelOption.ALLOCATOR, allocator)
                     .option(ChannelOption.AUTO_READ, true)
@@ -526,4 +535,24 @@ class QuicTransport(
     fun toMultiaddr(addr: SocketAddress): Multiaddr =
         MultiaddrUtils.inetSocketAddressToUdpMultiaddr(addr as InetSocketAddress)
             .withComponent(QUICV1)
+}
+
+/** The registered channel's loop still owns this shutdown-hook call after dispatch rejection. */
+private fun closeRejectedChannelOnLoop(channel: Channel): CompletableFuture<Unit> {
+    val close = closeNettyChannelOnce(channel)
+    if (channel.closeFuture().isDone || !close.isCompletedExceptionally) return close
+    val physical = DefaultChannelPromise(channel, ImmediateEventExecutor.INSTANCE)
+    val outcomes = mutableListOf(close, physical.toVoidCompletableFuture())
+    try {
+        channel.unsafe().close(physical)
+    } catch (failure: Throwable) {
+        physical.tryFailure(failure)
+        val thrown = CompletableFuture<Unit>()
+        thrown.completeExceptionally(failure)
+        outcomes += thrown
+    }
+    return CompletableFuture.allOf(*outcomes.toTypedArray()).handle { _, _ ->
+        transportCloseResult(outcomes)
+        Unit
+    }
 }

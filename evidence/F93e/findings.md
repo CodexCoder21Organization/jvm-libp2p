@@ -17,3 +17,17 @@ wip/F93e-evidence-20261105
 
 OBSERVED git log -1 --oneline:
 0b1be1c5 Record F93e resume plan and reconstructed single-attempt launcher
+
+2026-11-05T04:18 UTC OBSERVED: Candidate41/41 green and baseline revert-red0/2 on the same two handshake assertions, no retries. OBSERVED: All six JVM slots now belong to other lanes; formatter is queued and holds none, with bounded25-minute acquisition. OBSERVED: Reconstructed formatter initially used the application classpath and failed before formatting because ktlint needs logback while log4j won binding; corrected formatter classpath excludes log4j and is queued. OBSERVED: No test result was produced by that tool-preparation failure. OBSERVED: Rebase wrapper refused uncommitted product changes, so candidate source is being committed before a new compile/rebase; this is local workflow preparation, not a bug result. OBSERVED: No Addendum headings at04:16. INFER: Next checkpoint is formatted product compile and product push, with late-child gap still explicitly open.
+
+OBSERVED git remote -v:
+origin	https://github.com/CodexCoder21Organization/jvm-libp2p.git (fetch) [blob:none]
+origin	https://github.com/CodexCoder21Organization/jvm-libp2p.git (push)
+upstream	https://github.com/libp2p/jvm-libp2p.git (fetch)
+upstream	https://github.com/libp2p/jvm-libp2p.git (push)
+
+OBSERVED git rev-parse --abbrev-ref HEAD:
+wip/F93e-evidence-20261105
+
+OBSERVED git log -1 --oneline:
+e6cd6750 Prove candidate defects on product head with single attempts

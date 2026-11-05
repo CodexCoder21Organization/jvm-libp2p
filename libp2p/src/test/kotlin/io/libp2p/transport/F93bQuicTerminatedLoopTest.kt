@@ -9,8 +9,8 @@ import io.libp2p.transport.quic.QuicTransport
 import io.netty.channel.Channel
 import io.netty.channel.EventLoopGroup
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CompletableFuture
@@ -29,8 +29,9 @@ class F93bQuicTerminatedLoopTest {
         try {
             server.listen(Multiaddr("/ip4/127.0.0.1/udp/0/quic-v1"), { accepted.complete(it) }, null)
                 .get(10, TimeUnit.SECONDS)
-            val remoteAddress = server.listenAddresses().single()
-                .withP2P(PeerId.fromPubKey(serverKey.publicKey()))
+            val remoteAddress =
+                server.listenAddresses().single()
+                    .withP2P(PeerId.fromPubKey(serverKey.publicKey()))
             val connection = client.dial(remoteAddress, { }, null).get(10, TimeUnit.SECONDS)
             val child = (connection as ConnectionOverNetty).nettyChannel
             val parent = child.parent()
@@ -38,9 +39,10 @@ class F93bQuicTerminatedLoopTest {
             val parentCloseFuture = parent.closeFuture()
             val ownedGroup = parent.eventLoop().parent()
             clientGroup = ownedGroup
-            val ownedThreads = ownedGroup.map { executor ->
-                executor.submit<Thread> { Thread.currentThread() }.get(10, TimeUnit.SECONDS)
-            }
+            val ownedThreads =
+                ownedGroup.map { executor ->
+                    executor.submit<Thread> { Thread.currentThread() }.get(10, TimeUnit.SECONDS)
+                }
             val serverChild = (accepted.get(10, TimeUnit.SECONDS) as ConnectionOverNetty).nettyChannel
             val serverListener = serverChild.parent()
             val independentServerGroup = serverListener.eventLoop().parent()
@@ -56,12 +58,18 @@ class F93bQuicTerminatedLoopTest {
             // Terminate from the owning loop before the transport asks to close its retained parent.
             parent.eventLoop().submit { ownedGroup.shutdownGracefully(0, 5, TimeUnit.SECONDS) }
                 .get(10, TimeUnit.SECONDS)
-            assertTrue(ownedGroup.terminationFuture().await(10, TimeUnit.SECONDS), "The already-terminated-loop condition must be established")
+            assertTrue(
+                ownedGroup.terminationFuture().await(10, TimeUnit.SECONDS),
+                "The already-terminated-loop condition must be established"
+            )
             assertTrue(ownedGroup.isTerminated, "The QUIC worker group must be terminal before transport close")
             val close = client.close().also { clientCloseAttempted = true }
             val reportedFailure = close.handle { _, failure -> failure }.get(10, TimeUnit.SECONDS)
             assertNull(reportedFailure, "A UDP parent closed before graceful loop termination must retain its successful shutdown result")
-            assertTrue(parentCloseFuture.isDone, "Transport close must settle the UDP parent even after its child left the live connection set")
+            assertTrue(
+                parentCloseFuture.isDone,
+                "Transport close must settle the UDP parent even after its child left the live connection set"
+            )
             assertTrue(parentCloseFuture.isSuccess, "The separately owned UDP parent must close successfully")
             assertFalse(parent.isOpen, "The UDP parent must be physically closed before transport close returns")
             assertFalse(parent.isRegistered, "The UDP parent must be unregistered before transport close returns")

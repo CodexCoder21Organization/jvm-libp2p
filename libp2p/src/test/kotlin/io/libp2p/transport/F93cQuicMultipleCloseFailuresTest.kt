@@ -35,12 +35,14 @@ class F93cQuicMultipleCloseFailuresTest {
         val accepted = LinkedBlockingQueue<Connection>()
         val clientChannels = mutableListOf<Channel>()
         val serverChannels = mutableListOf<Channel>()
-        val childFailures = List(4) { index ->
-            IOException("The test QUIC child close $index failed after its socket closed")
-        }
-        val parentFailures = List(4) { index ->
-            IOException("The test UDP parent close $index failed after its socket closed")
-        }
+        val childFailures =
+            List(4) { index ->
+                IOException("The test QUIC child close $index failed after its socket closed")
+            }
+        val parentFailures =
+            List(4) { index ->
+                IOException("The test UDP parent close $index failed after its socket closed")
+            }
         val childCloseAttempts = List(4) { AtomicInteger() }
         val parentCloseAttempts = List(4) { AtomicInteger() }
         var clientGroup: EventLoopGroup? = null
@@ -50,8 +52,9 @@ class F93cQuicMultipleCloseFailuresTest {
         try {
             server.listen(Multiaddr("/ip4/127.0.0.1/udp/0/quic-v1"), { accepted.offer(it) }, null)
                 .get(10, TimeUnit.SECONDS)
-            val remoteAddress = server.listenAddresses().single()
-                .withP2P(PeerId.fromPubKey(serverKey.publicKey()))
+            val remoteAddress =
+                server.listenAddresses().single()
+                    .withP2P(PeerId.fromPubKey(serverKey.publicKey()))
 
             repeat(4) { index ->
                 val connection = client.dial(remoteAddress, { }, null).get(10, TimeUnit.SECONDS)
@@ -68,18 +71,20 @@ class F93cQuicMultipleCloseFailuresTest {
 
             assertEquals(4, clientChannels.size, "All four direct dials must be retained by the client transport")
             assertTrue(clientChannels.all { it.isOpen }, "Every outbound QUIC child must be open before close")
-            val clientParents = clientChannels.map { channel ->
-                requireNotNull(channel.parent()) { "Every outbound QUIC child must have its UDP parent" }
-            }
+            val clientParents =
+                clientChannels.map { channel ->
+                    requireNotNull(channel.parent()) { "Every outbound QUIC child must have its UDP parent" }
+                }
             val distinctClientParents = Collections.newSetFromMap(IdentityHashMap<Channel, Boolean>())
             distinctClientParents.addAll(clientParents)
             assertEquals(4, distinctClientParents.size, "Each outbound QUIC child must own a distinct UDP parent")
             assertTrue(clientParents.all { it.isOpen }, "Every client UDP parent must be open before close")
 
             assertEquals(4, serverChannels.size, "The server must accept all four direct client dials")
-            val serverParents = serverChannels.map { channel ->
-                requireNotNull(channel.parent()) { "Every accepted QUIC child must have the listening UDP parent" }
-            }
+            val serverParents =
+                serverChannels.map { channel ->
+                    requireNotNull(channel.parent()) { "Every accepted QUIC child must have the listening UDP parent" }
+                }
             val distinctServerParents = Collections.newSetFromMap(IdentityHashMap<Channel, Boolean>())
             distinctServerParents.addAll(serverParents)
             assertEquals(1, distinctServerParents.size, "All accepted server connections must use one listening UDP parent")
@@ -98,7 +103,10 @@ class F93cQuicMultipleCloseFailuresTest {
                 channel.pipeline().addFirst(
                     handlerName,
                     object : ChannelOutboundHandlerAdapter() {
-                        override fun close(ctx: ChannelHandlerContext, promise: ChannelPromise) {
+                        override fun close(
+                            ctx: ChannelHandlerContext,
+                            promise: ChannelPromise
+                        ) {
                             attempts.incrementAndGet()
                             ctx.close(ctx.newPromise()).addListener { promise.setFailure(failure) }
                         }
@@ -118,12 +126,14 @@ class F93cQuicMultipleCloseFailuresTest {
 
             val shutdown = client.close().also { clientCloseAttempted = true }
             val repeatedShutdown = client.close()
-            val shutdownError = assertThrows(ExecutionException::class.java) {
-                shutdown.get(10, TimeUnit.SECONDS)
-            }
-            val repeatedShutdownError = assertThrows(ExecutionException::class.java) {
-                repeatedShutdown.get(10, TimeUnit.SECONDS)
-            }
+            val shutdownError =
+                assertThrows(ExecutionException::class.java) {
+                    shutdown.get(10, TimeUnit.SECONDS)
+                }
+            val repeatedShutdownError =
+                assertThrows(ExecutionException::class.java) {
+                    repeatedShutdown.get(10, TimeUnit.SECONDS)
+                }
             val primaryFailure = requireNotNull(shutdownError.cause) { "Transport shutdown must report its close failure" }
             assertSame(
                 childFailures.first(),

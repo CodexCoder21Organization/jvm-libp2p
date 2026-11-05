@@ -28,8 +28,9 @@ class QuicTransportClosedChildParentTest {
         try {
             server.listen(Multiaddr("/ip4/127.0.0.1/udp/0/quic-v1"), { accepted.complete(it) }, null)
                 .get(10, TimeUnit.SECONDS)
-            val remoteAddress = server.listenAddresses().single()
-                .withP2P(PeerId.fromPubKey(serverKey.publicKey()))
+            val remoteAddress =
+                server.listenAddresses().single()
+                    .withP2P(PeerId.fromPubKey(serverKey.publicKey()))
             val connection = client.dial(remoteAddress, { }, null).get(10, TimeUnit.SECONDS)
             val child = (connection as ConnectionOverNetty).nettyChannel
             val parent = child.parent()
@@ -37,9 +38,10 @@ class QuicTransportClosedChildParentTest {
             val parentCloseFuture = parent.closeFuture()
             val ownedGroup = parent.eventLoop().parent()
             clientGroup = ownedGroup
-            val ownedThreads = ownedGroup.map { executor ->
-                executor.submit<Thread> { Thread.currentThread() }.get(10, TimeUnit.SECONDS)
-            }
+            val ownedThreads =
+                ownedGroup.map { executor ->
+                    executor.submit<Thread> { Thread.currentThread() }.get(10, TimeUnit.SECONDS)
+                }
             val serverChild = (accepted.get(10, TimeUnit.SECONDS) as ConnectionOverNetty).nettyChannel
             val serverListener = serverChild.parent()
             val independentServerGroup = serverListener.eventLoop().parent()
@@ -53,11 +55,15 @@ class QuicTransportClosedChildParentTest {
             assertEquals(0, client.activeConnections, "The closed child must no longer be an active transport connection")
 
             // Call from the parent loop so cleanup cannot depend on an off-loop shutdown path.
-            val close = parent.eventLoop().submit<CompletableFuture<Unit>> { client.close() }
-                .get(10, TimeUnit.SECONDS).also { clientCloseAttempted = true }
+            val close =
+                parent.eventLoop().submit<CompletableFuture<Unit>> { client.close() }
+                    .get(10, TimeUnit.SECONDS).also { clientCloseAttempted = true }
             close.get(10, TimeUnit.SECONDS)
 
-            assertTrue(parentCloseFuture.isDone, "Transport close must settle the UDP parent even after its child left the live connection set")
+            assertTrue(
+                parentCloseFuture.isDone,
+                "Transport close must settle the UDP parent even after its child left the live connection set"
+            )
             assertTrue(parentCloseFuture.isSuccess, "The separately owned UDP parent must close successfully")
             assertFalse(parent.isOpen, "The UDP parent must be physically closed before transport close returns")
             assertFalse(parent.isRegistered, "The UDP parent must be unregistered before transport close returns")

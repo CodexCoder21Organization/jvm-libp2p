@@ -12,8 +12,8 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import java.util.concurrent.CountDownLatch
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
 class F93cQuicRejectedLoopTest {
@@ -30,8 +30,9 @@ class F93cQuicRejectedLoopTest {
         try {
             server.listen(Multiaddr("/ip4/127.0.0.1/udp/0/quic-v1"), { accepted.complete(it) }, null)
                 .get(10, TimeUnit.SECONDS)
-            val remoteAddress = server.listenAddresses().single()
-                .withP2P(PeerId.fromPubKey(serverKey.publicKey()))
+            val remoteAddress =
+                server.listenAddresses().single()
+                    .withP2P(PeerId.fromPubKey(serverKey.publicKey()))
             val connection = client.dial(remoteAddress, { }, null).get(10, TimeUnit.SECONDS)
             val child = (connection as ConnectionOverNetty).nettyChannel
             val parent = child.parent()
@@ -39,9 +40,10 @@ class F93cQuicRejectedLoopTest {
             val parentCloseFuture = parent.closeFuture()
             val ownedGroup = parent.eventLoop().parent()
             clientGroup = ownedGroup
-            val ownedThreads = ownedGroup.map { executor ->
-                executor.submit<Thread> { Thread.currentThread() }.get(10, TimeUnit.SECONDS)
-            }
+            val ownedThreads =
+                ownedGroup.map { executor ->
+                    executor.submit<Thread> { Thread.currentThread() }.get(10, TimeUnit.SECONDS)
+                }
             val serverChild = (accepted.get(10, TimeUnit.SECONDS) as ConnectionOverNetty).nettyChannel
             val serverListener = serverChild.parent()
             val independentServerGroup = serverListener.eventLoop().parent()
@@ -67,11 +69,24 @@ class F93cQuicRejectedLoopTest {
             val close = client.close().also { clientCloseAttempted = true }
             releaseLoop.countDown()
             val reportedFailure = close.handle { _, failure -> failure }.get(10, TimeUnit.SECONDS)
-            assertTrue(generateSequence(reportedFailure) { it.cause }.any { it is java.util.concurrent.RejectedExecutionException }, "Shutdown must retain the native close rejection")
+            assertTrue(
+                generateSequence(reportedFailure) {
+                    it.cause
+                }.any { it is java.util.concurrent.RejectedExecutionException },
+                "Shutdown must retain the native close rejection"
+            )
             val repeatedFailure = client.close().handle { _, failure -> failure }.get(10, TimeUnit.SECONDS)
-            assertTrue(generateSequence(repeatedFailure) { it.cause }.last() === generateSequence(reportedFailure) { it.cause }.last(), "Repeated shutdown must preserve the original rejection")
+            assertTrue(
+                generateSequence(repeatedFailure) {
+                    it.cause
+                }.last() === generateSequence(reportedFailure) { it.cause }.last(),
+                "Repeated shutdown must preserve the original rejection"
+            )
 
-            assertTrue(parentCloseFuture.isDone, "Transport close must settle the UDP parent even after its child left the live connection set")
+            assertTrue(
+                parentCloseFuture.isDone,
+                "Transport close must settle the UDP parent even after its child left the live connection set"
+            )
             assertTrue(parentCloseFuture.isSuccess, "The separately owned UDP parent must close successfully")
             assertFalse(parent.isOpen, "The UDP parent must be physically closed before transport close returns")
             assertTrue(parent.eventLoop().isTerminated, "The UDP parent's event loop must terminate")

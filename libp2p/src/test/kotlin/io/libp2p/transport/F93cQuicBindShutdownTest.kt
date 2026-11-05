@@ -28,14 +28,15 @@ class F93cQuicBindShutdownTest {
             val first = client.dial(address, { }, null).get(10, TimeUnit.SECONDS) as ConnectionOverNetty
             val group = first.nettyChannel.parent().eventLoop().parent()
             first.close().get(10, TimeUnit.SECONDS)
-            val heldLoops = group.map { loop ->
-                val entered = CompletableFuture<Unit>()
-                loop.execute {
-                    entered.complete(Unit)
-                    assertTrue(release.await(10, TimeUnit.SECONDS), "The fixture must release every held QUIC loop")
+            val heldLoops =
+                group.map { loop ->
+                    val entered = CompletableFuture<Unit>()
+                    loop.execute {
+                        entered.complete(Unit)
+                        assertTrue(release.await(10, TimeUnit.SECONDS), "The fixture must release every held QUIC loop")
+                    }
+                    entered
                 }
-                entered
-            }
             heldLoops.forEach { it.get(10, TimeUnit.SECONDS) }
             val dial = client.dial(address, { published.incrementAndGet() }, null)
             assertFalse(dial.isDone, "Bind must still be queued when shutdown starts")

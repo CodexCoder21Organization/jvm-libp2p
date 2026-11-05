@@ -28,14 +28,15 @@ class F93bQuicDialPublicationTest {
         try {
             server.listen(Multiaddr("/ip4/127.0.0.1/udp/0/quic-v1"), { accepted.complete(it) }, null)
                 .get(10, TimeUnit.SECONDS)
-            val dial = client.dial(
-                server.listenAddresses().single().withP2P(PeerId.fromPubKey(key.publicKey())),
-                { published.incrementAndGet() },
-                { connection ->
-                    parent.complete((connection as ConnectionOverNetty).nettyChannel.parent())
-                    closing.complete(client.close())
-                }
-            )
+            val dial =
+                client.dial(
+                    server.listenAddresses().single().withP2P(PeerId.fromPubKey(key.publicKey())),
+                    { published.incrementAndGet() },
+                    { connection ->
+                        parent.complete((connection as ConnectionOverNetty).nettyChannel.parent())
+                        closing.complete(client.close())
+                    }
+                )
             val error = assertThrows(ExecutionException::class.java) { dial.get(10, TimeUnit.SECONDS) }
             assertTrue(error.cause is Libp2pException, "A stopped transport must reject its pending dial")
             assertEquals("Transport is closed", error.cause!!.message)

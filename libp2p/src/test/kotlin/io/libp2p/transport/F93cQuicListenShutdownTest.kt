@@ -18,19 +18,23 @@ class F93cQuicListenShutdownTest {
         val key = generateEd25519KeyPair().first
         val entered = CompletableFuture<Unit>()
         val release = CountDownLatch(1)
-        val heldKey = object : PrivKey(key.keyType) {
-            override fun raw() = key.raw()
-            override fun publicKey() = key.publicKey()
-            override fun sign(data: ByteArray): ByteArray {
-                entered.complete(Unit)
-                assertTrue(release.await(10, TimeUnit.SECONDS), "The fixture must release certificate signing")
-                return key.sign(data)
+        val heldKey =
+            object : PrivKey(key.keyType) {
+                override fun raw() = key.raw()
+
+                override fun publicKey() = key.publicKey()
+
+                override fun sign(data: ByteArray): ByteArray {
+                    entered.complete(Unit)
+                    assertTrue(release.await(10, TimeUnit.SECONDS), "The fixture must release certificate signing")
+                    return key.sign(data)
+                }
             }
-        }
         val transport = QuicTransport.ECDSA(heldKey, emptyList())
-        val pending = CompletableFuture.supplyAsync {
-            transport.listen(Multiaddr("/ip4/127.0.0.1/udp/0/quic-v1"), { }, null)
-        }.thenCompose { it }
+        val pending =
+            CompletableFuture.supplyAsync {
+                transport.listen(Multiaddr("/ip4/127.0.0.1/udp/0/quic-v1"), { }, null)
+            }.thenCompose { it }
         try {
             entered.get(10, TimeUnit.SECONDS)
             transport.close().get(10, TimeUnit.SECONDS)

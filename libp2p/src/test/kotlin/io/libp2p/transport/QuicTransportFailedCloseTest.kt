@@ -37,7 +37,11 @@ class QuicTransportFailedCloseTest {
         try {
             server.listen(Multiaddr("/ip4/127.0.0.1/udp/0/quic-v1"), { accepted.complete(it) }, null)
                 .get(10, TimeUnit.SECONDS)
-            client.dial(server.listenAddresses().single().withP2P(PeerId.fromPubKey(serverKey.publicKey())), { }, null).get(10, TimeUnit.SECONDS)
+            client.dial(
+                server.listenAddresses().single().withP2P(PeerId.fromPubKey(serverKey.publicKey())),
+                { },
+                null
+            ).get(10, TimeUnit.SECONDS)
             val child = (accepted.get(10, TimeUnit.SECONDS) as ConnectionOverNetty).nettyChannel
             val acceptor = child.parent()
             listener = acceptor
@@ -49,7 +53,10 @@ class QuicTransportFailedCloseTest {
                 target.pipeline().addFirst(
                     "refuse-close",
                     object : ChannelOutboundHandlerAdapter() {
-                        override fun close(ctx: ChannelHandlerContext, promise: ChannelPromise) {
+                        override fun close(
+                            ctx: ChannelHandlerContext,
+                            promise: ChannelPromise
+                        ) {
                             if (outcome == "listener-throw") {
                                 ctx.close(ctx.newPromise())
                                 throw failure

@@ -39,14 +39,15 @@ internal fun observeConnectionClose(
 }
 
 /** Ordinary owners always observe the original close, even after an explicit retry. */
-internal fun closeNettyChannelOnce(channel: Channel): CompletableFuture<Unit> =
-    closeOperation(channel, retry = false).thenApply { Unit }
+internal fun closeNettyChannelOnce(channel: Channel): CompletableFuture<Unit> = closeOperation(channel, retry = false).thenApply { Unit }
 
 /** Only a settled failure permits a new physical attempt; pending callers share its owner. */
-internal fun retryNettyChannelClose(channel: Channel): CompletableFuture<Unit> =
-    closeOperation(channel, retry = true).thenApply { Unit }
+internal fun retryNettyChannelClose(channel: Channel): CompletableFuture<Unit> = closeOperation(channel, retry = true).thenApply { Unit }
 
-private fun closeOperation(channel: Channel, retry: Boolean): CompletableFuture<Unit> {
+private fun closeOperation(
+    channel: Channel,
+    retry: Boolean
+): CompletableFuture<Unit> {
     val candidateState = ChannelCloseState()
     val state = channel.attr(closeOperationKey).setIfAbsent(candidateState) ?: candidateState
     // Publish ownership before handlers or future callbacks can re-enter.
@@ -66,7 +67,10 @@ private fun closeOperation(channel: Channel, retry: Boolean): CompletableFuture<
     }
 }
 
-private fun requestPhysicalClose(channel: Channel, operation: CompletableFuture<Unit>) {
+private fun requestPhysicalClose(
+    channel: Channel,
+    operation: CompletableFuture<Unit>
+) {
     try {
         if (channel.closeFuture().isDone) {
             if ((channel.attr(closeNotificationKey).get()?.get() ?: 0) > 0) {
@@ -100,9 +104,10 @@ internal fun transportCloseResult(operations: List<CompletableFuture<*>>) {
             } else if (first !== original && first.suppressed.none { it === original }) {
                 first.addSuppressed(original)
                 if (first.suppressed.none { it === original }) {
-                    primary = IllegalStateException("Transport shutdown reported multiple failures", first).apply {
-                        addSuppressed(original)
-                    }
+                    primary =
+                        IllegalStateException("Transport shutdown reported multiple failures", first).apply {
+                            addSuppressed(original)
+                        }
                 }
             }
         }

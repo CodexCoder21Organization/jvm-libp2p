@@ -56,7 +56,10 @@ class F93cQuicRejectedLoopTest {
             assertTrue(child.closeFuture().isSuccess, "The ordinary connection close must physically close its child")
             assertFalse(child.isOpen, "The outbound child must be closed before transport shutdown starts")
             assertEquals(0, client.activeConnections, "The closed child must no longer be an active transport connection")
-            assertTrue(parentCloseFuture.await(10, TimeUnit.SECONDS), "An ordinary child close must release its UDP parent before native shutdown")
+            assertTrue(
+                parentCloseFuture.await(10, TimeUnit.SECONDS),
+                "An ordinary child close must release its UDP parent before native shutdown"
+            )
             assertTrue(parentCloseFuture.isSuccess)
             assertFalse(parent.isOpen)
 

@@ -21,8 +21,9 @@ class F93cQuicDialChurnTest {
             val address = server.listenAddresses().single().withP2P(PeerId.fromPubKey(key.publicKey()))
             // Successive batches deliberately reuse one live transport: history must not retain parents.
             repeat(8) {
-                val connections = (0 until 16).map { client.dial(address, { }, null) }
-                    .map { it.get(10, TimeUnit.SECONDS) as ConnectionOverNetty }
+                val connections =
+                    (0 until 16).map { client.dial(address, { }, null) }
+                        .map { it.get(10, TimeUnit.SECONDS) as ConnectionOverNetty }
                 val parents = connections.map { it.nettyChannel.parent() }
                 val groups = parents.map { it.eventLoop().parent() }.distinct()
                 assertEquals(1, groups.size)
@@ -30,7 +31,10 @@ class F93cQuicDialChurnTest {
                 val threads = group.map { loop -> loop.submit<Thread> { Thread.currentThread() }.get(10, TimeUnit.SECONDS) }
                 connections.map { it.close() }.forEach { it.get(10, TimeUnit.SECONDS) }
                 parents.forEach { parent ->
-                    assertTrue(parent.closeFuture().await(10, TimeUnit.SECONDS), "Each completed dial must release its physical UDP parent while the transport remains usable")
+                    assertTrue(
+                        parent.closeFuture().await(10, TimeUnit.SECONDS),
+                        "Each completed dial must release its physical UDP parent while the transport remains usable"
+                    )
                     assertTrue(parent.closeFuture().isSuccess)
                     parent.eventLoop().submit { }.get(10, TimeUnit.SECONDS)
                     assertFalse(parent.isOpen)

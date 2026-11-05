@@ -30,21 +30,34 @@ class F93dQuicOrdinaryCloseOrderingTest {
         var shutdown: CompletableFuture<Unit>? = null
         try {
             server.listen(Multiaddr("/ip4/127.0.0.1/udp/0/quic-v1"), { }, null).get(10, TimeUnit.SECONDS)
-            val connection = client.dial(server.listenAddresses().single().withP2P(PeerId.fromPubKey(key.publicKey())), { }, null)
-                .get(10, TimeUnit.SECONDS) as ConnectionOverNetty
+            val connection =
+                client.dial(server.listenAddresses().single().withP2P(PeerId.fromPubKey(key.publicKey())), { }, null)
+                    .get(10, TimeUnit.SECONDS) as ConnectionOverNetty
             val child = connection.nettyChannel
             val parent = child.parent()
-            parent.pipeline().addFirst("count-parent-close", object : ChannelOutboundHandlerAdapter() {
-                override fun close(ctx: ChannelHandlerContext, promise: ChannelPromise) {
-                    parentRequests.incrementAndGet()
-                    pendingParent.complete(ctx to promise)
+            parent.pipeline().addFirst(
+                "count-parent-close",
+                object : ChannelOutboundHandlerAdapter() {
+                    override fun close(
+                        ctx: ChannelHandlerContext,
+                        promise: ChannelPromise
+                    ) {
+                        parentRequests.incrementAndGet()
+                        pendingParent.complete(ctx to promise)
+                    }
                 }
-            })
-            child.pipeline().addFirst("hold-ordinary-child-result", object : ChannelOutboundHandlerAdapter() {
-                override fun close(ctx: ChannelHandlerContext, promise: ChannelPromise) {
-                    ctx.close(ctx.newPromise()).addListener { pendingChild.complete(promise) }
+            )
+            child.pipeline().addFirst(
+                "hold-ordinary-child-result",
+                object : ChannelOutboundHandlerAdapter() {
+                    override fun close(
+                        ctx: ChannelHandlerContext,
+                        promise: ChannelPromise
+                    ) {
+                        ctx.close(ctx.newPromise()).addListener { pendingChild.complete(promise) }
+                    }
                 }
-            })
+            )
             child.eventLoop().submit { }.get(10, TimeUnit.SECONDS)
             val ordinary = connection.close().also { ordinaryStarted = true }
             val result = pendingChild.get(10, TimeUnit.SECONDS)

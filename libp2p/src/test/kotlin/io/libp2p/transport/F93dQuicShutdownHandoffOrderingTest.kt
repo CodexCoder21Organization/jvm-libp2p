@@ -30,22 +30,40 @@ class F93dQuicShutdownHandoffOrderingTest {
             val first = client.dial(address, { }, null).get(10, TimeUnit.SECONDS) as ConnectionOverNetty
             val second = client.dial(address, { }, null).get(10, TimeUnit.SECONDS) as ConnectionOverNetty
             val firstParent = first.nettyChannel.parent()
-            firstParent.pipeline().addFirst("count-first-parent-close", object : ChannelOutboundHandlerAdapter() {
-                override fun close(ctx: ChannelHandlerContext, promise: ChannelPromise) {
-                    firstParentRequests.incrementAndGet()
-                    ctx.close(promise)
+            firstParent.pipeline().addFirst(
+                "count-first-parent-close",
+                object : ChannelOutboundHandlerAdapter() {
+                    override fun close(
+                        ctx: ChannelHandlerContext,
+                        promise: ChannelPromise
+                    ) {
+                        firstParentRequests.incrementAndGet()
+                        ctx.close(promise)
+                    }
                 }
-            })
-            first.nettyChannel.pipeline().addFirst("hold-first-result", object : ChannelOutboundHandlerAdapter() {
-                override fun close(ctx: ChannelHandlerContext, promise: ChannelPromise) {
-                    ctx.close(ctx.newPromise()).addListener { firstResult.complete(promise) }
+            )
+            first.nettyChannel.pipeline().addFirst(
+                "hold-first-result",
+                object : ChannelOutboundHandlerAdapter() {
+                    override fun close(
+                        ctx: ChannelHandlerContext,
+                        promise: ChannelPromise
+                    ) {
+                        ctx.close(ctx.newPromise()).addListener { firstResult.complete(promise) }
+                    }
                 }
-            })
-            second.nettyChannel.pipeline().addFirst("hold-second-close", object : ChannelOutboundHandlerAdapter() {
-                override fun close(ctx: ChannelHandlerContext, promise: ChannelPromise) {
-                    secondClose.complete(ctx to promise)
+            )
+            second.nettyChannel.pipeline().addFirst(
+                "hold-second-close",
+                object : ChannelOutboundHandlerAdapter() {
+                    override fun close(
+                        ctx: ChannelHandlerContext,
+                        promise: ChannelPromise
+                    ) {
+                        secondClose.complete(ctx to promise)
+                    }
                 }
-            })
+            )
             first.nettyChannel.eventLoop().submit { }.get(10, TimeUnit.SECONDS)
             second.nettyChannel.eventLoop().submit { }.get(10, TimeUnit.SECONDS)
             val ordinary = first.close()
@@ -56,7 +74,11 @@ class F93dQuicShutdownHandoffOrderingTest {
             firstResult.get(10, TimeUnit.SECONDS).setSuccess()
             ordinary.get(10, TimeUnit.SECONDS)
             firstParent.eventLoop().submit { }.get(10, TimeUnit.SECONDS)
-            assertEquals(0, firstParentRequests.get(), "An ordinary close must not release its parent while a sibling shutdown close is pending")
+            assertEquals(
+                0,
+                firstParentRequests.get(),
+                "An ordinary close must not release its parent while a sibling shutdown close is pending"
+            )
             assertFalse(closing.isDone)
             secondClose.get(10, TimeUnit.SECONDS).let { (ctx, promise) -> ctx.close(promise) }
             closing.get(10, TimeUnit.SECONDS)

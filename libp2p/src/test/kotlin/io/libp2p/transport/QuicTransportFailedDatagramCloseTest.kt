@@ -42,8 +42,9 @@ class QuicTransportFailedDatagramCloseTest {
         try {
             server.listen(Multiaddr("/ip4/127.0.0.1/udp/0/quic-v1"), { accepted.complete(it) }, null)
                 .get(10, TimeUnit.SECONDS)
-            val remoteAddress = server.listenAddresses().single()
-                .withP2P(PeerId.fromPubKey(serverKey.publicKey()))
+            val remoteAddress =
+                server.listenAddresses().single()
+                    .withP2P(PeerId.fromPubKey(serverKey.publicKey()))
             val connection = client.dial(remoteAddress, { }, null).get(10, TimeUnit.SECONDS)
             val child = (connection as ConnectionOverNetty).nettyChannel
             clientChild = child
@@ -51,9 +52,10 @@ class QuicTransportFailedDatagramCloseTest {
             clientParent = parent
             val ownedGroup = parent.eventLoop().parent()
             clientGroup = ownedGroup
-            val ownedThreads = ownedGroup.map { executor ->
-                executor.submit<Thread> { Thread.currentThread() }.get(10, TimeUnit.SECONDS)
-            }
+            val ownedThreads =
+                ownedGroup.map { executor ->
+                    executor.submit<Thread> { Thread.currentThread() }.get(10, TimeUnit.SECONDS)
+                }
             val childCloseFuture = child.closeFuture()
             val parentCloseFuture = parent.closeFuture()
             val serverChild = (accepted.get(10, TimeUnit.SECONDS) as ConnectionOverNetty).nettyChannel
@@ -65,7 +67,10 @@ class QuicTransportFailedDatagramCloseTest {
             parent.pipeline().addFirst(
                 "release-then-fail-udp-close",
                 object : ChannelOutboundHandlerAdapter() {
-                    override fun close(ctx: ChannelHandlerContext, promise: ChannelPromise) {
+                    override fun close(
+                        ctx: ChannelHandlerContext,
+                        promise: ChannelPromise
+                    ) {
                         parentCloseCount.incrementAndGet()
                         ctx.close(ctx.newPromise()).addListener { promise.setFailure(parentFailure) }
                     }
@@ -75,7 +80,10 @@ class QuicTransportFailedDatagramCloseTest {
                 child.pipeline().addFirst(
                     "release-then-fail-child-close",
                     object : ChannelOutboundHandlerAdapter() {
-                        override fun close(ctx: ChannelHandlerContext, promise: ChannelPromise) {
+                        override fun close(
+                            ctx: ChannelHandlerContext,
+                            promise: ChannelPromise
+                        ) {
                             ctx.close(ctx.newPromise()).addListener { promise.setFailure(childFailure) }
                         }
                     }
@@ -85,9 +93,10 @@ class QuicTransportFailedDatagramCloseTest {
             child.eventLoop().submit { }.get(10, TimeUnit.SECONDS)
 
             val shutdown = client.close().also { clientCloseAttempted = true }
-            val error = assertThrows(ExecutionException::class.java) {
-                shutdown.get(10, TimeUnit.SECONDS)
-            }
+            val error =
+                assertThrows(ExecutionException::class.java) {
+                    shutdown.get(10, TimeUnit.SECONDS)
+                }
             assertSame(
                 if (childAlsoFails) childFailure else parentFailure,
                 error.cause,

@@ -12,8 +12,8 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import java.util.concurrent.CountDownLatch
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
 class F93cQuicTerminationFailureRetentionTest {
@@ -30,8 +30,9 @@ class F93cQuicTerminationFailureRetentionTest {
         try {
             server.listen(Multiaddr("/ip4/127.0.0.1/udp/0/quic-v1"), { accepted.complete(it) }, null)
                 .get(10, TimeUnit.SECONDS)
-            val remoteAddress = server.listenAddresses().single()
-                .withP2P(PeerId.fromPubKey(serverKey.publicKey()))
+            val remoteAddress =
+                server.listenAddresses().single()
+                    .withP2P(PeerId.fromPubKey(serverKey.publicKey()))
             val connection = client.dial(remoteAddress, { }, null).get(10, TimeUnit.SECONDS)
             val child = (connection as ConnectionOverNetty).nettyChannel
             val parent = child.parent()
@@ -39,9 +40,10 @@ class F93cQuicTerminationFailureRetentionTest {
             val parentCloseFuture = parent.closeFuture()
             val ownedGroup = parent.eventLoop().parent()
             clientGroup = ownedGroup
-            val ownedThreads = ownedGroup.map { executor ->
-                executor.submit<Thread> { Thread.currentThread() }.get(10, TimeUnit.SECONDS)
-            }
+            val ownedThreads =
+                ownedGroup.map { executor ->
+                    executor.submit<Thread> { Thread.currentThread() }.get(10, TimeUnit.SECONDS)
+                }
             val serverChild = (accepted.get(10, TimeUnit.SECONDS) as ConnectionOverNetty).nettyChannel
             val serverListener = serverChild.parent()
             val independentServerGroup = serverListener.eventLoop().parent()
@@ -63,18 +65,42 @@ class F93cQuicTerminationFailureRetentionTest {
             val connectionFailure = connection.close().handle { _, failure -> failure }.get(10, TimeUnit.SECONDS)
             assertTrue(connectionFailure != null, "The stopped loop must reject the owned connection close")
             releaseLoop.countDown()
-            assertTrue(ownedGroup.terminationFuture().await(10, TimeUnit.SECONDS), "The group must terminate before the first transport close")
+            assertTrue(
+                ownedGroup.terminationFuture().await(10, TimeUnit.SECONDS),
+                "The group must terminate before the first transport close"
+            )
             assertTrue(child.closeFuture().isDone, "The shutdown hook must close the child before checking error retention")
             val close = client.close().also { clientCloseAttempted = true }
             val reportedFailure = close.handle { _, failure -> failure }.get(10, TimeUnit.SECONDS)
-            assertTrue(generateSequence(reportedFailure) { it.cause }.any { it is java.util.concurrent.RejectedExecutionException }, "Shutdown must retain the native close rejection")
-            assertTrue(generateSequence(reportedFailure) { it.cause }.last() === generateSequence(connectionFailure) { it.cause }.last(), "Transport shutdown must retain the exact original connection rejection")
+            assertTrue(
+                generateSequence(reportedFailure) {
+                    it.cause
+                }.any { it is java.util.concurrent.RejectedExecutionException },
+                "Shutdown must retain the native close rejection"
+            )
+            assertTrue(
+                generateSequence(reportedFailure) {
+                    it.cause
+                }.last() ===
+                    generateSequence(connectionFailure) {
+                        it.cause
+                    }.last(),
+                "Transport shutdown must retain the exact original connection rejection"
+            )
             val repeatedFailure = client.close().handle { _, failure -> failure }.get(10, TimeUnit.SECONDS)
-            assertTrue(generateSequence(repeatedFailure) { it.cause }.last() === generateSequence(reportedFailure) { it.cause }.last(), "Repeated shutdown must preserve the original rejection")
+            assertTrue(
+                generateSequence(repeatedFailure) {
+                    it.cause
+                }.last() === generateSequence(reportedFailure) { it.cause }.last(),
+                "Repeated shutdown must preserve the original rejection"
+            )
 
             assertTrue(child.closeFuture().isDone, "Native rejection must settle the live child's physical close future")
             assertFalse(child.isOpen, "Native rejection must physically close the live child")
-            assertTrue(parentCloseFuture.isDone, "Transport close must settle the UDP parent even after its child left the live connection set")
+            assertTrue(
+                parentCloseFuture.isDone,
+                "Transport close must settle the UDP parent even after its child left the live connection set"
+            )
             assertTrue(parentCloseFuture.isSuccess, "The separately owned UDP parent must close successfully")
             assertFalse(parent.isOpen, "The UDP parent must be physically closed before transport close returns")
             assertTrue(parent.eventLoop().isTerminated, "The UDP parent's event loop must terminate")

@@ -31,22 +31,35 @@ class F93bQuicRepeatedCloseOrderingTest {
         var firstClose: CompletableFuture<Unit>? = null
         try {
             server.listen(Multiaddr("/ip4/127.0.0.1/udp/0/quic-v1"), { accepted.complete(it) }, null).get(10, TimeUnit.SECONDS)
-            val connection = client.dial(server.listenAddresses().single().withP2P(PeerId.fromPubKey(key.publicKey())), { }, null)
-                .get(10, TimeUnit.SECONDS) as ConnectionOverNetty
+            val connection =
+                client.dial(server.listenAddresses().single().withP2P(PeerId.fromPubKey(key.publicKey())), { }, null)
+                    .get(10, TimeUnit.SECONDS) as ConnectionOverNetty
             accepted.get(10, TimeUnit.SECONDS)
             val child = connection.nettyChannel
             val parent = child.parent()
-            parent.pipeline().addFirst("hold-udp-close", object : ChannelOutboundHandlerAdapter() {
-                override fun close(ctx: ChannelHandlerContext, promise: ChannelPromise) {
-                    parentCloseRequests.incrementAndGet()
-                    pendingParent.complete(ctx to promise)
+            parent.pipeline().addFirst(
+                "hold-udp-close",
+                object : ChannelOutboundHandlerAdapter() {
+                    override fun close(
+                        ctx: ChannelHandlerContext,
+                        promise: ChannelPromise
+                    ) {
+                        parentCloseRequests.incrementAndGet()
+                        pendingParent.complete(ctx to promise)
+                    }
                 }
-            })
-            child.pipeline().addFirst("hold-child-result-after-physical-close", object : ChannelOutboundHandlerAdapter() {
-                override fun close(ctx: ChannelHandlerContext, promise: ChannelPromise) {
-                    ctx.close(ctx.newPromise()).addListener { pendingChild.complete(promise) }
+            )
+            child.pipeline().addFirst(
+                "hold-child-result-after-physical-close",
+                object : ChannelOutboundHandlerAdapter() {
+                    override fun close(
+                        ctx: ChannelHandlerContext,
+                        promise: ChannelPromise
+                    ) {
+                        ctx.close(ctx.newPromise()).addListener { pendingChild.complete(promise) }
+                    }
                 }
-            })
+            )
             child.eventLoop().submit { }.get(10, TimeUnit.SECONDS)
             firstClose = client.close()
             val childPromise = pendingChild.get(10, TimeUnit.SECONDS)
@@ -57,7 +70,11 @@ class F93bQuicRepeatedCloseOrderingTest {
             assertFalse(firstClose.isDone, "The original shutdown must await that operation")
             client.close()
             parent.eventLoop().submit { }.get(10, TimeUnit.SECONDS)
-            assertEquals(0, parentCloseRequests.get(), "A repeated shutdown must not start UDP-parent close before the first child-close operation settles")
+            assertEquals(
+                0,
+                parentCloseRequests.get(),
+                "A repeated shutdown must not start UDP-parent close before the first child-close operation settles"
+            )
         } finally {
             try {
                 if (firstClose != null) {

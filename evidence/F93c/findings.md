@@ -266,3 +266,24 @@ wip/F93c-evidence-20261105
 OBSERVED git log -1 --oneline:
 48e212ac Record held-bind failing assertion and live-child rejection audit
 
+
+2026-11-05T02:05:36.956053+00:00 OBSERVED: Evidence local=remote 54d9f8910959e08ad04c0f599aa20bd4526eb062.
+
+2026-11-05T02:13:32.387248+00:00 OBSERVED: Mixed actual first attempts are0/2: live-child native rejection leaves the child physical closeFuture pending, and the first held-bind correction still returns the wrong public error because bind itself fails before thenCompose. OBSERVED: Multi-child/parent aggregation control at847b63f3 fails0/1 on missing exact child failure3, after primary-identity checks. OBSERVED: Candidate adds child-before-parent native hook cleanup and a bind handle stage that preserves the original cause; initial compiler saw the old Throwable-to-Exception constructor call,0 attempts, now corrected to initCause and compiling again. OBSERVED: Actions702 documentation artifact fails spotlessKotlinCheck; native Actions still in progress at last poll. OBSERVED: Pinned formatter was still queued with0 log bytes and was stopped before any JVM so candidate source could be changed without concurrent editing; no formatting pass claimed. OBSERVED: Larger32-case current-helper register and candidate compiler are queued/running under the two-slot limit. INFER: Native every-path and finding1 remain incomplete until live-child and error-retention neighbors pass. INFER: No snapshot may be published at this state; next checkpoint is actual candidate/green register results or final bounded-window cleanup.
+
+2026-11-05T02:13:32.429847+00:00 OBSERVED: Pre-push identity in evidence checkout follows.
+
+OBSERVED git remote -v:
+origin	https://github.com/CodexCoder21Organization/jvm-libp2p.git (fetch)
+origin	https://github.com/CodexCoder21Organization/jvm-libp2p.git (push)
+upstream	https://github.com/libp2p/jvm-libp2p.git (fetch)
+upstream	https://github.com/libp2p/jvm-libp2p.git (push)
+
+
+OBSERVED git rev-parse --abbrev-ref HEAD:
+wip/F93c-evidence-20261105
+
+
+OBSERVED git log -1 --oneline:
+54d9f891 Record live-child native failure and complete multi-error control
+

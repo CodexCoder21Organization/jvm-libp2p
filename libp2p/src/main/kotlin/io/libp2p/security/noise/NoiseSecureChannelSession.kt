@@ -11,4 +11,9 @@ class NoiseSecureChannelSession(
     remotePubKey: PubKey,
     val aliceCipher: CipherState,
     val bobCipher: CipherState
-) : SecureChannel.Session(localId, remoteId, remotePubKey, null)
+) : SecureChannel.Session(localId, remoteId, remotePubKey, null) {
+    internal companion object Factory {
+        fun create(localId: PeerId, remoteId: PeerId, remotePubKey: PubKey, aliceCipher: CipherState, bobCipher: CipherState) =
+            NoiseSecureChannelSession(localId, remoteId, remotePubKey, aliceCipher, bobCipher)
+    }
+}

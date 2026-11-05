@@ -19,10 +19,10 @@ else:
 start=time.time()
 with (evidence/(mode+'.log')).open('w') as log:
     proc=subprocess.Popen([str(slot),'timeout','600']+command,cwd=repo,stdout=log,stderr=subprocess.STDOUT)
-    (build/'active-pid').write_text(str(proc.pid))
+    (build/(mode+'.pid')).write_text(str(proc.pid))
     try:code=proc.wait(timeout=2110)
     except subprocess.TimeoutExpired:proc.terminate();proc.wait(timeout=30);raise
-    finally:(build/'active-pid').unlink(missing_ok=True)
+    finally:(build/(mode+'.pid')).unlink(missing_ok=True)
 (evidence/(mode+'.exit')).write_text(str(code)+'\n')
 summary={'exit':code,'seconds':round(time.time()-start,3),'cases':[],'attempts':0,'passed':0,'failed':0,'errors':0,'skipped':0}
 for xml in (evidence/mode).glob('*.xml'):

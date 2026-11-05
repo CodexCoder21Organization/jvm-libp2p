@@ -98,3 +98,43 @@ wip/F93c-evidence-20261105
 OBSERVED git log -1 --oneline:
 e9f787c4 Record F93c native rejection failing-first proof
 
+
+2026-11-05T01:13:10.063717+00:00 OBSERVED: Evidence local=remote c57dc9f3cd3741ee2091ae32d8f1624600c48e9c.
+
+2026-11-05T01:14:03.128803+00:00 OBSERVED: Product pre-push identity follows.
+
+OBSERVED git remote -v:
+origin	https://github.com/CodexCoder21Organization/jvm-libp2p.git (fetch)
+origin	https://github.com/CodexCoder21Organization/jvm-libp2p.git (push)
+upstream	https://github.com/libp2p/jvm-libp2p.git (fetch)
+upstream	https://github.com/libp2p/jvm-libp2p.git (push)
+
+
+OBSERVED git rev-parse --abbrev-ref HEAD:
+flibp5-acceptor-shutdown-snapshot41
+
+
+OBSERVED git log -1 --oneline:
+55fc5fe7 Close QUIC UDP parents on their loop after rejected dispatch
+
+
+2026-11-05T01:14:05.929989+00:00 OBSERVED: Product local=remote 55fc5fe765d7454d5cf556e58cfb922d73ac2ce3.
+
+2026-11-05T01:16:41.837274+00:00 OBSERVED: F1 new native rejection red/green/revert-red0/1,1/1,0/1, all intended assertions and one attempt. OBSERVED: Product55fc5fe765d7454d5cf556e58cfb922d73ac2ce3 pushed from product checkout and verified equal remote after unchanged develop rebase and repeated green. OBSERVED: Parent-native physical closure runs on the registered loop via its already-installed shutdown hook; AbstractChannel Unsafe.close asserts this ownership, so calling it off-loop would be incorrect with assertions enabled. INFER: Closing each owned parent before loop termination eliminates the need for an off-loop native change while satisfying physical-close/settlement/error reporting. OBSERVED: Existing source comments and new test explicitly allow pending deregistration only on native rejection. INFER: Next checkpoint is dial visitor green, held-bind red and multiple-error control.
+
+2026-11-05T01:17:41.450473+00:00 OBSERVED: Pre-push identity in evidence checkout follows.
+
+OBSERVED git remote -v:
+origin	https://github.com/CodexCoder21Organization/jvm-libp2p.git (fetch)
+origin	https://github.com/CodexCoder21Organization/jvm-libp2p.git (push)
+upstream	https://github.com/libp2p/jvm-libp2p.git (fetch)
+upstream	https://github.com/libp2p/jvm-libp2p.git (push)
+
+
+OBSERVED git rev-parse --abbrev-ref HEAD:
+wip/F93c-evidence-20261105
+
+
+OBSERVED git log -1 --oneline:
+c57dc9f3 Record F93c physical-close correction and churn counterexample
+

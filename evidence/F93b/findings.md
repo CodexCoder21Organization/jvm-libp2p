@@ -1,0 +1,3 @@
+# F93b findings
+
+2026-11-05T00:27:06.867873+00:00 OBSERVED: Fresh product clone at e3e5caf4a0d5cfc1acd40be2ec7468078ce9f8fe rebases unchanged onto origin/develop 436997d5e5f5b80f1503504b19e5b813654a3a49; no origin/main exists and default has no equivalent fix. OBSERVED: R93a review and findings read in full; FLIBP8 findings read (untruncated reread pending), README/FORK and policy reading ongoing; no root AGENTS.md exists. OBSERVED: Plan and invariant table recorded before implementation. OBSERVED: User prohibits handoff-cli, merge, enqueue, close, deploy, main-test edits and publication before final gates; these override generic skills. INFER: Next checkpoint is fresh terminated-loop reproducer; no fixes or tests counted.

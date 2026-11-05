@@ -1,0 +1,443 @@
+<testsuite name="io.libp2p.transport.F93cQuicDialChurnTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-11-05T05:57:19.958Z" hostname="runnervmnwato" time="1.219">
+  <testcase name="closingChildrenReleasesTheirUdpParentsThroughoutLongLivedDialChurn()" classname="io.libp2p.transport.F93cQuicDialChurnTest" time="1.219" />
+  <system-out>05:57:19.971 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Quic server listening on /ip4/127.0.0.1/udp/0/quic-v1
+05:57:20.005 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.010 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.019 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.036 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.043 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.056 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.065 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.077 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.099 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.102 [libp2p-quic-worker-745-1] [?[1;31mERROR?[m] io.netty.util.ResourceLeakDetector - LEAK: ByteBuf.release() was not called before it's garbage-collected. See https://netty.io/wiki/reference-counted-objects.html for more information.
+Recent access records: 
+#1:
+	io.netty.buffer.AdvancedLeakAwareByteBuf.readBytes(AdvancedLeakAwareByteBuf.java:497)
+	io.libp2p.etc.types.BufferExtKt.toByteArray(BufferExt.kt:12)
+	io.libp2p.security.SecureChannelTestBase$SecureChannelTestHandler.channelRead(SecureChannelTestBase.kt:208)
+	io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:357)
+	io.netty.handler.ssl.SslHandler.unwrap(SslHandler.java:1535)
+	io.netty.handler.ssl.SslHandler.decodeNonJdkCompatible(SslHandler.java:1406)
+	io.netty.handler.ssl.SslHandler.decode(SslHandler.java:1446)
+	io.netty.handler.codec.ByteToMessageDecoder.decodeRemovalReentryProtection(ByteToMessageDecoder.java:545)
+	io.netty.handler.codec.ByteToMessageDecoder.callDecode(ByteToMessageDecoder.java:484)
+	io.netty.handler.codec.ByteToMessageDecoder.channelRead(ByteToMessageDecoder.java:296)
+	io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:357)
+	io.netty.channel.DefaultChannelPipeline$HeadContext.channelRead(DefaultChannelPipeline.java:1442)
+	io.netty.channel.DefaultChannelPipeline.fireChannelRead(DefaultChannelPipeline.java:931)
+	io.netty.channel.embedded.EmbeddedChannel.writeInbound(EmbeddedChannel.java:369)
+	io.libp2p.tools.TestChannel.send$lambda$1(TestChannel.kt:83)
+	java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)
+	java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	java.base/java.lang.Thread.run(Thread.java:829)
+#2:
+	Hint: 'SecureChannelTestBase$SecureChannelTestHandler#0' will handle the message from this point.
+	io.netty.channel.DefaultChannelPipeline.touch(DefaultChannelPipeline.java:115)
+	io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:344)
+	io.netty.handler.ssl.SslHandler.unwrap(SslHandler.java:1535)
+	io.netty.handler.ssl.SslHandler.decodeNonJdkCompatible(SslHandler.java:1406)
+	io.netty.handler.ssl.SslHandler.decode(SslHandler.java:1446)
+	io.netty.handler.codec.ByteToMessageDecoder.decodeRemovalReentryProtection(ByteToMessageDecoder.java:545)
+	io.netty.handler.codec.ByteToMessageDecoder.callDecode(ByteToMessageDecoder.java:484)
+	io.netty.handler.codec.ByteToMessageDecoder.channelRead(ByteToMessageDecoder.java:296)
+	io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:357)
+	io.netty.channel.DefaultChannelPipeline$HeadContext.channelRead(DefaultChannelPipeline.java:1442)
+	io.netty.channel.DefaultChannelPipeline.fireChannelRead(DefaultChannelPipeline.java:931)
+	io.netty.channel.embedded.EmbeddedChannel.writeInbound(EmbeddedChannel.java:369)
+	io.libp2p.tools.TestChannel.send$lambda$1(TestChannel.kt:83)
+	java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)
+	java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	java.base/java.lang.Thread.run(Thread.java:829)
+#3:
+	io.netty.buffer.AdvancedLeakAwareByteBuf.internalNioBuffer(AdvancedLeakAwareByteBuf.java:743)
+	io.netty.handler.ssl.SslHandler.toByteBuffer(SslHandler.java:1666)
+	io.netty.handler.ssl.SslHandler.access$300(SslHandler.java:168)
+	io.netty.handler.ssl.SslHandler$SslEngineType$1.unwrap(SslHandler.java:220)
+	io.netty.handler.ssl.SslHandler.unwrap(SslHandler.java:1502)
+	io.netty.handler.ssl.SslHandler.decodeNonJdkCompatible(SslHandler.java:1406)
+	io.netty.handler.ssl.SslHandler.decode(SslHandler.java:1446)
+	io.netty.handler.codec.ByteToMessageDecoder.decodeRemovalReentryProtection(ByteToMessageDecoder.java:545)
+	io.netty.handler.codec.ByteToMessageDecoder.callDecode(ByteToMessageDecoder.java:484)
+	io.netty.handler.codec.ByteToMessageDecoder.channelRead(ByteToMessageDecoder.java:296)
+	io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:357)
+	io.netty.channel.DefaultChannelPipeline$HeadContext.channelRead(DefaultChannelPipeline.java:1442)
+	io.netty.channel.DefaultChannelPipeline.fireChannelRead(DefaultChannelPipeline.java:931)
+	io.netty.channel.embedded.EmbeddedChannel.writeInbound(EmbeddedChannel.java:369)
+	io.libp2p.tools.TestChannel.send$lambda$1(TestChannel.kt:83)
+	java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)
+	java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	java.base/java.lang.Thread.run(Thread.java:829)
+#4:
+	io.netty.buffer.AdvancedLeakAwareByteBuf.nioBufferCount(AdvancedLeakAwareByteBuf.java:713)
+	io.netty.handler.ssl.SslHandler.toByteBuffer(SslHandler.java:1666)
+	io.netty.handler.ssl.SslHandler.access$300(SslHandler.java:168)
+	io.netty.handler.ssl.SslHandler$SslEngineType$1.unwrap(SslHandler.java:220)
+	io.netty.handler.ssl.SslHandler.unwrap(SslHandler.java:1502)
+	io.netty.handler.ssl.SslHandler.decodeNonJdkCompatible(SslHandler.java:1406)
+	io.netty.handler.ssl.SslHandler.decode(SslHandler.java:1446)
+	io.netty.handler.codec.ByteToMessageDecoder.decodeRemovalReentryProtection(ByteToMessageDecoder.java:545)
+	io.netty.handler.codec.ByteToMessageDecoder.callDecode(ByteToMessageDecoder.java:484)
+	io.netty.handler.codec.ByteToMessageDecoder.channelRead(ByteToMessageDecoder.java:296)
+	io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:357)
+	io.netty.channel.DefaultChannelPipeline$HeadContext.channelRead(DefaultChannelPipeline.java:1442)
+	io.netty.channel.DefaultChannelPipeline.fireChannelRead(DefaultChannelPipeline.java:931)
+	io.netty.channel.embedded.EmbeddedChannel.writeInbound(EmbeddedChannel.java:369)
+	io.libp2p.tools.TestChannel.send$lambda$1(TestChannel.kt:83)
+	java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)
+	java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	java.base/java.lang.Thread.run(Thread.java:829)
+Created at:
+	io.netty.buffer.AdaptiveByteBufAllocator.newDirectBuffer(AdaptiveByteBufAllocator.java:67)
+	io.netty.buffer.AbstractByteBufAllocator.directBuffer(AbstractByteBufAllocator.java:168)
+	io.netty.buffer.AbstractByteBufAllocator.directBuffer(AbstractByteBufAllocator.java:159)
+	io.netty.handler.ssl.SslHandler.allocate(SslHandler.java:2425)
+	io.netty.handler.ssl.SslHandler.unwrap(SslHandler.java:1551)
+	io.netty.handler.ssl.SslHandler.decodeNonJdkCompatible(SslHandler.java:1406)
+	io.netty.handler.ssl.SslHandler.decode(SslHandler.java:1446)
+	io.netty.handler.codec.ByteToMessageDecoder.decodeRemovalReentryProtection(ByteToMessageDecoder.java:545)
+	io.netty.handler.codec.ByteToMessageDecoder.callDecode(ByteToMessageDecoder.java:484)
+	io.netty.handler.codec.ByteToMessageDecoder.channelRead(ByteToMessageDecoder.java:296)
+	io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:357)
+	io.netty.channel.DefaultChannelPipeline$HeadContext.channelRead(DefaultChannelPipeline.java:1442)
+	io.netty.channel.DefaultChannelPipeline.fireChannelRead(DefaultChannelPipeline.java:931)
+	io.netty.channel.embedded.EmbeddedChannel.writeInbound(EmbeddedChannel.java:369)
+	io.libp2p.tools.TestChannel.send$lambda$1(TestChannel.kt:83)
+	java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)
+	java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	java.base/java.lang.Thread.run(Thread.java:829)
+: 1 leak records were discarded because the leak record count is targeted to 4. Use system property io.netty.leakDetection.targetRecords to increase the limit.
+05:57:20.106 [libp2p-quic-worker-745-1] [?[1;31mERROR?[m] io.netty.util.ResourceLeakDetector - LEAK: ByteBuf.release() was not called before it's garbage-collected. See https://netty.io/wiki/reference-counted-objects.html for more information.
+Recent access records: 
+#1:
+	io.netty.buffer.AdvancedLeakAwareByteBuf.readBytes(AdvancedLeakAwareByteBuf.java:497)
+	io.libp2p.etc.types.BufferExtKt.toByteArray(BufferExt.kt:12)
+	io.libp2p.security.SecureChannelTestBase$SecureChannelTestHandler.channelRead(SecureChannelTestBase.kt:208)
+	io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:357)
+	io.netty.handler.ssl.SslHandler.unwrap(SslHandler.java:1535)
+	io.netty.handler.ssl.SslHandler.decodeNonJdkCompatible(SslHandler.java:1406)
+	io.netty.handler.ssl.SslHandler.decode(SslHandler.java:1446)
+	io.netty.handler.codec.ByteToMessageDecoder.decodeRemovalReentryProtection(ByteToMessageDecoder.java:545)
+	io.netty.handler.codec.ByteToMessageDecoder.callDecode(ByteToMessageDecoder.java:484)
+	io.netty.handler.codec.ByteToMessageDecoder.channelRead(ByteToMessageDecoder.java:296)
+	io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:357)
+	io.netty.channel.DefaultChannelPipeline$HeadContext.channelRead(DefaultChannelPipeline.java:1442)
+	io.netty.channel.DefaultChannelPipeline.fireChannelRead(DefaultChannelPipeline.java:931)
+	io.netty.channel.embedded.EmbeddedChannel.writeInbound(EmbeddedChannel.java:369)
+	io.libp2p.tools.TestChannel.send$lambda$1(TestChannel.kt:83)
+	java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)
+	java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	java.base/java.lang.Thread.run(Thread.java:829)
+#2:
+	Hint: 'SecureChannelTestBase$SecureChannelTestHandler#0' will handle the message from this point.
+	io.netty.channel.DefaultChannelPipeline.touch(DefaultChannelPipeline.java:115)
+	io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:344)
+	io.netty.handler.ssl.SslHandler.unwrap(SslHandler.java:1535)
+	io.netty.handler.ssl.SslHandler.decodeNonJdkCompatible(SslHandler.java:1406)
+	io.netty.handler.ssl.SslHandler.decode(SslHandler.java:1446)
+	io.netty.handler.codec.ByteToMessageDecoder.decodeRemovalReentryProtection(ByteToMessageDecoder.java:545)
+	io.netty.handler.codec.ByteToMessageDecoder.callDecode(ByteToMessageDecoder.java:484)
+	io.netty.handler.codec.ByteToMessageDecoder.channelRead(ByteToMessageDecoder.java:296)
+	io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:357)
+	io.netty.channel.DefaultChannelPipeline$HeadContext.channelRead(DefaultChannelPipeline.java:1442)
+	io.netty.channel.DefaultChannelPipeline.fireChannelRead(DefaultChannelPipeline.java:931)
+	io.netty.channel.embedded.EmbeddedChannel.writeInbound(EmbeddedChannel.java:369)
+	io.libp2p.tools.TestChannel.send$lambda$1(TestChannel.kt:83)
+	java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)
+	java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	java.base/java.lang.Thread.run(Thread.java:829)
+#3:
+	io.netty.buffer.AdvancedLeakAwareByteBuf.internalNioBuffer(AdvancedLeakAwareByteBuf.java:743)
+	io.netty.handler.ssl.SslHandler.toByteBuffer(SslHandler.java:1666)
+	io.netty.handler.ssl.SslHandler.access$300(SslHandler.java:168)
+	io.netty.handler.ssl.SslHandler$SslEngineType$1.unwrap(SslHandler.java:220)
+	io.netty.handler.ssl.SslHandler.unwrap(SslHandler.java:1502)
+	io.netty.handler.ssl.SslHandler.decodeNonJdkCompatible(SslHandler.java:1406)
+	io.netty.handler.ssl.SslHandler.decode(SslHandler.java:1446)
+	io.netty.handler.codec.ByteToMessageDecoder.decodeRemovalReentryProtection(ByteToMessageDecoder.java:545)
+	io.netty.handler.codec.ByteToMessageDecoder.callDecode(ByteToMessageDecoder.java:484)
+	io.netty.handler.codec.ByteToMessageDecoder.channelRead(ByteToMessageDecoder.java:296)
+	io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:357)
+	io.netty.channel.DefaultChannelPipeline$HeadContext.channelRead(DefaultChannelPipeline.java:1442)
+	io.netty.channel.DefaultChannelPipeline.fireChannelRead(DefaultChannelPipeline.java:931)
+	io.netty.channel.embedded.EmbeddedChannel.writeInbound(EmbeddedChannel.java:369)
+	io.libp2p.tools.TestChannel.send$lambda$1(TestChannel.kt:83)
+	java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)
+	java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	java.base/java.lang.Thread.run(Thread.java:829)
+#4:
+	io.netty.buffer.AdvancedLeakAwareByteBuf.nioBufferCount(AdvancedLeakAwareByteBuf.java:713)
+	io.netty.handler.ssl.SslHandler.toByteBuffer(SslHandler.java:1666)
+	io.netty.handler.ssl.SslHandler.access$300(SslHandler.java:168)
+	io.netty.handler.ssl.SslHandler$SslEngineType$1.unwrap(SslHandler.java:220)
+	io.netty.handler.ssl.SslHandler.unwrap(SslHandler.java:1502)
+	io.netty.handler.ssl.SslHandler.decodeNonJdkCompatible(SslHandler.java:1406)
+	io.netty.handler.ssl.SslHandler.decode(SslHandler.java:1446)
+	io.netty.handler.codec.ByteToMessageDecoder.decodeRemovalReentryProtection(ByteToMessageDecoder.java:545)
+	io.netty.handler.codec.ByteToMessageDecoder.callDecode(ByteToMessageDecoder.java:484)
+	io.netty.handler.codec.ByteToMessageDecoder.channelRead(ByteToMessageDecoder.java:296)
+	io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:357)
+	io.netty.channel.DefaultChannelPipeline$HeadContext.channelRead(DefaultChannelPipeline.java:1442)
+	io.netty.channel.DefaultChannelPipeline.fireChannelRead(DefaultChannelPipeline.java:931)
+	io.netty.channel.embedded.EmbeddedChannel.writeInbound(EmbeddedChannel.java:369)
+	io.libp2p.tools.TestChannel.send$lambda$1(TestChannel.kt:83)
+	java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)
+	java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	java.base/java.lang.Thread.run(Thread.java:829)
+Created at:
+	io.netty.buffer.AdaptiveByteBufAllocator.newDirectBuffer(AdaptiveByteBufAllocator.java:67)
+	io.netty.buffer.AbstractByteBufAllocator.directBuffer(AbstractByteBufAllocator.java:168)
+	io.netty.buffer.AbstractByteBufAllocator.directBuffer(AbstractByteBufAllocator.java:159)
+	io.netty.handler.ssl.SslHandler.allocate(SslHandler.java:2425)
+	io.netty.handler.ssl.SslHandler.unwrap(SslHandler.java:1497)
+	io.netty.handler.ssl.SslHandler.decodeNonJdkCompatible(SslHandler.java:1406)
+	io.netty.handler.ssl.SslHandler.decode(SslHandler.java:1446)
+	io.netty.handler.codec.ByteToMessageDecoder.decodeRemovalReentryProtection(ByteToMessageDecoder.java:545)
+	io.netty.handler.codec.ByteToMessageDecoder.callDecode(ByteToMessageDecoder.java:484)
+	io.netty.handler.codec.ByteToMessageDecoder.channelRead(ByteToMessageDecoder.java:296)
+	io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:357)
+	io.netty.channel.DefaultChannelPipeline$HeadContext.channelRead(DefaultChannelPipeline.java:1442)
+	io.netty.channel.DefaultChannelPipeline.fireChannelRead(DefaultChannelPipeline.java:931)
+	io.netty.channel.embedded.EmbeddedChannel.writeInbound(EmbeddedChannel.java:369)
+	io.libp2p.tools.TestChannel.send$lambda$1(TestChannel.kt:83)
+	java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)
+	java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	java.base/java.lang.Thread.run(Thread.java:829)
+: 1 leak records were discarded because the leak record count is targeted to 4. Use system property io.netty.leakDetection.targetRecords to increase the limit.
+05:57:20.110 [libp2p-quic-worker-745-1] [?[1;31mERROR?[m] io.netty.util.ResourceLeakDetector - LEAK: ByteBuf.release() was not called before it's garbage-collected. See https://netty.io/wiki/reference-counted-objects.html for more information.
+Recent access records: 
+#1:
+	io.netty.buffer.AdvancedLeakAwareByteBuf.readBytes(AdvancedLeakAwareByteBuf.java:497)
+	io.libp2p.etc.types.BufferExtKt.toByteArray(BufferExt.kt:12)
+	io.libp2p.security.SecureChannelTestBase$SecureChannelTestHandler.channelRead(SecureChannelTestBase.kt:208)
+	io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:357)
+	io.netty.handler.ssl.SslHandler.unwrap(SslHandler.java:1535)
+	io.netty.handler.ssl.SslHandler.decodeNonJdkCompatible(SslHandler.java:1406)
+	io.netty.handler.ssl.SslHandler.decode(SslHandler.java:1446)
+	io.netty.handler.codec.ByteToMessageDecoder.decodeRemovalReentryProtection(ByteToMessageDecoder.java:545)
+	io.netty.handler.codec.ByteToMessageDecoder.callDecode(ByteToMessageDecoder.java:484)
+	io.netty.handler.codec.ByteToMessageDecoder.channelRead(ByteToMessageDecoder.java:296)
+	io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:357)
+	io.netty.channel.DefaultChannelPipeline$HeadContext.channelRead(DefaultChannelPipeline.java:1442)
+	io.netty.channel.DefaultChannelPipeline.fireChannelRead(DefaultChannelPipeline.java:931)
+	io.netty.channel.embedded.EmbeddedChannel.writeInbound(EmbeddedChannel.java:369)
+	io.libp2p.tools.TestChannel.send$lambda$1(TestChannel.kt:83)
+	java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)
+	java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	java.base/java.lang.Thread.run(Thread.java:829)
+#2:
+	io.netty.buffer.AdvancedLeakAwareByteBuf.slice(AdvancedLeakAwareByteBuf.java:77)
+	io.libp2p.etc.types.BufferExtKt.toByteArray(BufferExt.kt:12)
+	io.libp2p.security.SecureChannelTestBase$SecureChannelTestHandler.channelRead(SecureChannelTestBase.kt:208)
+	io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:357)
+	io.netty.handler.ssl.SslHandler.unwrap(SslHandler.java:1535)
+	io.netty.handler.ssl.SslHandler.decodeNonJdkCompatible(SslHandler.java:1406)
+	io.netty.handler.ssl.SslHandler.decode(SslHandler.java:1446)
+	io.netty.handler.codec.ByteToMessageDecoder.decodeRemovalReentryProtection(ByteToMessageDecoder.java:545)
+	io.netty.handler.codec.ByteToMessageDecoder.callDecode(ByteToMessageDecoder.java:484)
+	io.netty.handler.codec.ByteToMessageDecoder.channelRead(ByteToMessageDecoder.java:296)
+	io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:357)
+	io.netty.channel.DefaultChannelPipeline$HeadContext.channelRead(DefaultChannelPipeline.java:1442)
+	io.netty.channel.DefaultChannelPipeline.fireChannelRead(DefaultChannelPipeline.java:931)
+	io.netty.channel.embedded.EmbeddedChannel.writeInbound(EmbeddedChannel.java:369)
+	io.libp2p.tools.TestChannel.send$lambda$1(TestChannel.kt:83)
+	java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)
+	java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	java.base/java.lang.Thread.run(Thread.java:829)
+#3:
+	Hint: 'SecureChannelTestBase$SecureChannelTestHandler#0' will handle the message from this point.
+	io.netty.channel.DefaultChannelPipeline.touch(DefaultChannelPipeline.java:115)
+	io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:344)
+	io.netty.handler.ssl.SslHandler.unwrap(SslHandler.java:1535)
+	io.netty.handler.ssl.SslHandler.decodeNonJdkCompatible(SslHandler.java:1406)
+	io.netty.handler.ssl.SslHandler.decode(SslHandler.java:1446)
+	io.netty.handler.codec.ByteToMessageDecoder.decodeRemovalReentryProtection(ByteToMessageDecoder.java:545)
+	io.netty.handler.codec.ByteToMessageDecoder.callDecode(ByteToMessageDecoder.java:484)
+	io.netty.handler.codec.ByteToMessageDecoder.channelRead(ByteToMessageDecoder.java:296)
+	io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:357)
+	io.netty.channel.DefaultChannelPipeline$HeadContext.channelRead(DefaultChannelPipeline.java:1442)
+	io.netty.channel.DefaultChannelPipeline.fireChannelRead(DefaultChannelPipeline.java:931)
+	io.netty.channel.embedded.EmbeddedChannel.writeInbound(EmbeddedChannel.java:369)
+	io.libp2p.tools.TestChannel.send$lambda$1(TestChannel.kt:83)
+	java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)
+	java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	java.base/java.lang.Thread.run(Thread.java:829)
+#4:
+	io.netty.buffer.AdvancedLeakAwareByteBuf.internalNioBuffer(AdvancedLeakAwareByteBuf.java:743)
+	io.netty.handler.ssl.SslHandler.toByteBuffer(SslHandler.java:1666)
+	io.netty.handler.ssl.SslHandler.access$300(SslHandler.java:168)
+	io.netty.handler.ssl.SslHandler$SslEngineType$1.unwrap(SslHandler.java:220)
+	io.netty.handler.ssl.SslHandler.unwrap(SslHandler.java:1502)
+	io.netty.handler.ssl.SslHandler.decodeNonJdkCompatible(SslHandler.java:1406)
+	io.netty.handler.ssl.SslHandler.decode(SslHandler.java:1446)
+	io.netty.handler.codec.ByteToMessageDecoder.decodeRemovalReentryProtection(ByteToMessageDecoder.java:545)
+	io.netty.handler.codec.ByteToMessageDecoder.callDecode(ByteToMessageDecoder.java:484)
+	io.netty.handler.codec.ByteToMessageDecoder.channelRead(ByteToMessageDecoder.java:296)
+	io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:357)
+	io.netty.channel.DefaultChannelPipeline$HeadContext.channelRead(DefaultChannelPipeline.java:1442)
+	io.netty.channel.DefaultChannelPipeline.fireChannelRead(DefaultChannelPipeline.java:931)
+	io.netty.channel.embedded.EmbeddedChannel.writeInbound(EmbeddedChannel.java:369)
+	io.libp2p.tools.TestChannel.send$lambda$1(TestChannel.kt:83)
+	java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)
+	java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	java.base/java.lang.Thread.run(Thread.java:829)
+#5:
+	io.netty.buffer.AdvancedLeakAwareByteBuf.nioBufferCount(AdvancedLeakAwareByteBuf.java:713)
+	io.netty.handler.ssl.SslHandler.toByteBuffer(SslHandler.java:1666)
+	io.netty.handler.ssl.SslHandler.access$300(SslHandler.java:168)
+	io.netty.handler.ssl.SslHandler$SslEngineType$1.unwrap(SslHandler.java:220)
+	io.netty.handler.ssl.SslHandler.unwrap(SslHandler.java:1502)
+	io.netty.handler.ssl.SslHandler.decodeNonJdkCompatible(SslHandler.java:1406)
+	io.netty.handler.ssl.SslHandler.decode(SslHandler.java:1446)
+	io.netty.handler.codec.ByteToMessageDecoder.decodeRemovalReentryProtection(ByteToMessageDecoder.java:545)
+	io.netty.handler.codec.ByteToMessageDecoder.callDecode(ByteToMessageDecoder.java:484)
+	io.netty.handler.codec.ByteToMessageDecoder.channelRead(ByteToMessageDecoder.java:296)
+	io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:357)
+	io.netty.channel.DefaultChannelPipeline$HeadContext.channelRead(DefaultChannelPipeline.java:1442)
+	io.netty.channel.DefaultChannelPipeline.fireChannelRead(DefaultChannelPipeline.java:931)
+	io.netty.channel.embedded.EmbeddedChannel.writeInbound(EmbeddedChannel.java:369)
+	io.libp2p.tools.TestChannel.send$lambda$1(TestChannel.kt:83)
+	java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)
+	java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	java.base/java.lang.Thread.run(Thread.java:829)
+Created at:
+	io.netty.buffer.AdaptiveByteBufAllocator.newDirectBuffer(AdaptiveByteBufAllocator.java:67)
+	io.netty.buffer.AbstractByteBufAllocator.directBuffer(AbstractByteBufAllocator.java:168)
+	io.netty.buffer.AbstractByteBufAllocator.directBuffer(AbstractByteBufAllocator.java:159)
+	io.netty.handler.ssl.SslHandler.allocate(SslHandler.java:2425)
+	io.netty.handler.ssl.SslHandler.unwrap(SslHandler.java:1551)
+	io.netty.handler.ssl.SslHandler.decodeNonJdkCompatible(SslHandler.java:1406)
+	io.netty.handler.ssl.SslHandler.decode(SslHandler.java:1446)
+	io.netty.handler.codec.ByteToMessageDecoder.decodeRemovalReentryProtection(ByteToMessageDecoder.java:545)
+	io.netty.handler.codec.ByteToMessageDecoder.callDecode(ByteToMessageDecoder.java:484)
+	io.netty.handler.codec.ByteToMessageDecoder.channelRead(ByteToMessageDecoder.java:296)
+	io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:357)
+	io.netty.channel.DefaultChannelPipeline$HeadContext.channelRead(DefaultChannelPipeline.java:1442)
+	io.netty.channel.DefaultChannelPipeline.fireChannelRead(DefaultChannelPipeline.java:931)
+	io.netty.channel.embedded.EmbeddedChannel.writeInbound(EmbeddedChannel.java:369)
+	io.libp2p.tools.TestChannel.send$lambda$1(TestChannel.kt:83)
+	java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)
+	java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	java.base/java.lang.Thread.run(Thread.java:829)
+05:57:20.118 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.123 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.133 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.146 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.153 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.162 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.172 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.195 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.208 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.218 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.226 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.234 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.244 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.253 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.267 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.277 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.285 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.294 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.306 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.315 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.324 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.332 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.340 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.363 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.373 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.380 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.387 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.397 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.409 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.417 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.434 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.444 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.452 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.463 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.475 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.483 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.490 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.501 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.507 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.518 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.526 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.535 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.541 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.549 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.558 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.569 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.574 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.580 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.586 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.593 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.600 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.607 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.615 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.623 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.630 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.648 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.650 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.657 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.664 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.671 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.678 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.686 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.694 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.701 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.708 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.715 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.723 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.730 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.738 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.745 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.754 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.768 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.777 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.785 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.794 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.800 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.809 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.814 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.831 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.837 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.846 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.855 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.865 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.875 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.881 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.892 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.896 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.911 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.920 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.929 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.938 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.943 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.951 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.958 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.966 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.974 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.981 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.990 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:20.997 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:21.004 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:21.011 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:21.020 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:21.027 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:21.050 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:21.055 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:21.063 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:21.073 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:21.078 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:21.086 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:21.095 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:21.104 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:21.110 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:21.119 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:21.127 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:21.137 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:21.148 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:21.158 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:21.166 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+05:57:21.171 [libp2p-quic-worker-745-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooW9twHfKzZzZrF7CFXkJFrTK6YxtCPzCs7XUEKAuEtvHpu
+</system-out>
+  <system-err />
+</testsuite>

@@ -38,6 +38,7 @@ import io.netty.channel.nio.NioIoHandler
 import io.netty.channel.socket.nio.NioDatagramChannel
 import io.netty.handler.codec.quic.*
 import io.netty.handler.ssl.ClientAuth
+import io.netty.util.concurrent.ImmediateEventExecutor
 import io.netty.util.concurrent.DefaultThreadFactory
 import io.netty.util.concurrent.SingleThreadEventExecutor
 import org.slf4j.LoggerFactory
@@ -66,6 +67,7 @@ class QuicTransport(
     private val listeners = mutableMapOf<Multiaddr, Channel>()
     private val channels = mutableListOf<Channel>()
     private val clientDatagramChannels = mutableSetOf<Channel>()
+    private val terminationCloses = mutableListOf<CompletableFuture<Unit>>()
 
     // DAEMON event-loop threads (via an explicit DefaultThreadFactory) so a worker
     // that is slow to exit its run loop under CI starvation cannot hold the forked
@@ -170,7 +172,8 @@ class QuicTransport(
             workerGroup.shutdownGracefully(0, 5, TimeUnit.SECONDS).toVoidCompletableFuture()
         }.thenCompose { it }
         groupClosed.handle { _, _ ->
-            transportCloseResult(everythingThatNeedsToClose.toList() + datagramOperations.join() + groupClosed)
+            val nativeCloses = synchronized(this@QuicTransport) { terminationCloses.toList() }
+            transportCloseResult(everythingThatNeedsToClose.toList() + datagramOperations.join() + nativeCloses + groupClosed)
             Unit
         }.whenComplete { _, failure ->
             if (failure == null) completion.complete(Unit) else completion.completeExceptionally(failure)
@@ -242,7 +245,18 @@ class QuicTransport(
                 val loop = parent.eventLoop() as SingleThreadEventExecutor
                 // Retain a close owner on the loop before bind can publish the UDP socket.
                 // Once the loop has terminated no close dispatch can release that socket.
-                val closeAtTermination = Runnable { closeNettyChannelOnce(parent) }
+                val closeAtTermination = Runnable {
+                    val close = closeNettyChannelOnce(parent)
+                    if (!parent.closeFuture().isDone && close.isCompletedExceptionally) {
+                        // Dispatch was rejected. This hook still owns the loop, so physical
+                        // closure can run directly while the original failure stays reported.
+                        val physical = DefaultChannelPromise(parent, ImmediateEventExecutor.INSTANCE)
+                        synchronized(this@QuicTransport) {
+                            terminationCloses += physical.toVoidCompletableFuture()
+                        }
+                        parent.unsafe().close(physical)
+                    }
+                }
                 loop.addShutdownHook(closeAtTermination)
                 parent.closeFuture().addListener { loop.removeShutdownHook(closeAtTermination) }
                 context.addLastLocal(requestsHandler)

@@ -37,6 +37,7 @@ import io.netty.channel.nio.NioIoHandler
 import io.netty.channel.socket.nio.NioDatagramChannel
 import io.netty.handler.codec.quic.*
 import io.netty.handler.ssl.ClientAuth
+import io.netty.util.concurrent.SingleThreadEventExecutor
 import io.netty.util.concurrent.DefaultThreadFactory
 import org.slf4j.LoggerFactory
 import java.net.InetSocketAddress
@@ -226,7 +227,16 @@ class QuicTransport(
             .build()
 
         return client.clone()
-            .handler(requestsHandler)
+            .handler(nettyInitializer { context ->
+                val parent = context.channel
+                val loop = parent.eventLoop() as SingleThreadEventExecutor
+                // Retain a close owner on the loop before bind can publish the UDP socket.
+                // Once the loop has terminated no close dispatch can release that socket.
+                val closeAtTermination = Runnable { closeNettyChannelOnce(parent) }
+                loop.addShutdownHook(closeAtTermination)
+                parent.closeFuture().addListener { loop.removeShutdownHook(closeAtTermination) }
+                context.addLastLocal(requestsHandler)
+            })
             .bind(0)
             .also { bind ->
                 val parent = bind.channel()

@@ -287,3 +287,47 @@ wip/F93c-evidence-20261105
 OBSERVED git log -1 --oneline:
 54d9f891 Record live-child native failure and complete multi-error control
 
+
+2026-11-05T02:13:35.888025+00:00 OBSERVED: Evidence local=remote 17230aa41c5359e87bf359d1e45c03f6ff8815cd.
+
+2026-11-05T02:24:27.563400+00:00 OBSERVED: Terminal four public cases pass4/4 after native child/parent closure, retained original errors and atomic listener registration; native source compiles successfully. OBSERVED: Final combined register35/36 actual first attempts; its one failure is evidence-only WS inventory close/unregister assertion, not adopted into product; all34 permanent cases pass within that run. OBSERVED: Pinned ktlint formatter succeeds0; a separate formatting commit lists22 source/test files, with no main-test edits and no weakened assertion. OBSERVED: Current product candidate f6326b65a300814f96d871c1009f14f1f9e87e46 rebases unchanged onto develop436997d5e5f5b80f1503504b19e5b813654a3a49. OBSERVED: Actions702 has1587 actual cases:1581 passes,4 failures,2 existing skips, no retry elements; native/fixture retries configuration absent. OBSERVED: Three failures occur in unchanged ParentCloseOwnershipTest/ConnectionCloseRetryTest final cleanup stop futures after a deliberately retained shutdown failure; one Noise readiness TimeoutException remains unclassified. INFER: The first three cleanup expectations conflict with preserving failed shutdown across repeats, but changing those main fixtures is prohibited by this brief; the green Actions bar is not met. OBSERVED: Snapshot45 unchanged; no new publication. INFER: Next checkpoint is final controls, product push, final description and cleanup by02:27.
+
+2026-11-05T02:24:52.528174+00:00 OBSERVED: Product pre-push identity follows.
+
+OBSERVED git remote -v:
+origin	https://github.com/CodexCoder21Organization/jvm-libp2p.git (fetch)
+origin	https://github.com/CodexCoder21Organization/jvm-libp2p.git (push)
+upstream	https://github.com/libp2p/jvm-libp2p.git (fetch)
+upstream	https://github.com/libp2p/jvm-libp2p.git (push)
+
+
+OBSERVED git rev-parse --abbrev-ref HEAD:
+flibp5-acceptor-shutdown-snapshot41
+
+
+OBSERVED git log -1 --oneline:
+f6326b65 Format the PR shutdown sources and regression tests
+
+
+2026-11-05T02:24:56.981492+00:00 OBSERVED: Product local=remote f6326b65a300814f96d871c1009f14f1f9e87e46.
+
+2026-11-05T02:26:03.843832+00:00 OBSERVED: Final permanent register34/34 first attempts,0 skips/retries; final retention removed-fix control0/1 on the intended original-rejection assertion. OBSERVED: Final source f6326b65a300814f96d871c1009f14f1f9e87e46 has dedicated behavior and formatting commits; no uncommitted product changes. OBSERVED: Three reported R93a findings now have inherited/fresh red-green-red proofs; the wider every-path assertion remains unclaimed because full-queue/handshake/churn dimensions and the30x gate are unfinished. OBSERVED: Gap count2/5,30x0/1020,publication none. INFER: Final report must preserve the earlier702 Actions failure counts separately from the final-head pending XML.
+
+2026-11-05T02:26:51.917517+00:00 OBSERVED: Final addendum scan finds no headings. OBSERVED: Cleanup audit0 owned JVM/wrappers,0 F93c slots, no live subagents/timers and clean product tree; no raw process arguments saved. OBSERVED: Final description preserves why, snapshot45 SHA256/evidence and no publication; every unfinished brief item is listed in plan.md. INFER: Final report is unfinished at the reporting deadline, not DONE; evidence branch is the durable resume record and no handoff command is authorized.
+
+2026-11-05T02:26:51.975618+00:00 OBSERVED: Pre-push identity in evidence checkout follows.
+
+OBSERVED git remote -v:
+origin	https://github.com/CodexCoder21Organization/jvm-libp2p.git (fetch)
+origin	https://github.com/CodexCoder21Organization/jvm-libp2p.git (push)
+upstream	https://github.com/libp2p/jvm-libp2p.git (fetch)
+upstream	https://github.com/libp2p/jvm-libp2p.git (push)
+
+
+OBSERVED git rev-parse --abbrev-ref HEAD:
+wip/F93c-evidence-20261105
+
+
+OBSERVED git log -1 --oneline:
+17230aa4 Save F93c live-child counterexample and candidate patch before final window
+

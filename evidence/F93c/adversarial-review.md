@@ -6,7 +6,7 @@ This is a read-only review of the `jvm-libp2p` candidate against `origin/develop
 
 I read these documents in full: `DocumentationRepository/PHILOSOPHY.md`, `DocumentationRepository/CODE_REVIEW.md`, `DocumentationRepository/architecture/TESTING.md`, `jvm-libp2p/README.md`, and `jvm-libp2p/FORK.md`. There is no repository-root `AGENTS.md` in the product checkout.
 
-I read every product file in the `origin/develop` diff in full: `FORK.md`, `README.md`, `build.gradle`, `libp2p/src/main/kotlin/io/libp2p/transport/implementation/NettyChannelClose.kt`, `libp2p/src/main/kotlin/io/libp2p/transport/implementation/PlainNettyTransport.kt`, `libp2p/src/main/kotlin/io/libp2p/transport/quic/QuicTransport.kt`, and all 14 changed test files listed in `coverage-review.md`. I also read the evidence tests in full: `F93cQuicMultipleCloseFailuresTest.kt`, `F93cQuicBindShutdownTest.kt`, `F93bQuicDialPublicationTest.kt`, `F93cQuicDialChurnTest.kt`, `F93cQuicLiveChildRejectedLoopTest.kt`, `F93cQuicListenShutdownTest.kt`, and `F93cPlainTransportInventoryTest.kt`, plus `gap5-inventory-draft-review.md`.
+I read every product file in the `origin/develop` diff in full: `FORK.md`, `README.md`, `build.gradle`, `libp2p/src/main/kotlin/io/libp2p/transport/implementation/NettyChannelClose.kt`, `libp2p/src/main/kotlin/io/libp2p/transport/implementation/PlainNettyTransport.kt`, `libp2p/src/main/kotlin/io/libp2p/transport/quic/QuicTransport.kt`, and all 14 changed test files listed in `coverage-review.md`. I also read the evidence tests in full: `F93cQuicMultipleCloseFailuresTest.kt`, `F93cQuicBindShutdownTest.kt`, `F93bQuicDialPublicationTest.kt`, `F93cQuicDialChurnTest.kt`, `F93cQuicLiveChildRejectedLoopTest.kt`, `F93cQuicListenShutdownTest.kt`, `F93cQuicTerminationFailureRetentionTest.kt`, and `F93cPlainTransportInventoryTest.kt`, plus `gap5-inventory-draft-review.md`.
 
 ## Findings
 
@@ -16,7 +16,7 @@ In `QuicTransport.kt:249-261`, the termination hook saves the results returned b
 
 This risk is specifically the sequence where the event loop terminates and the native hook closes/removes the channel **before the first call to `transport.close()`**. The permanent rejection test calls `transport.close()` while the loop is still held in shutdown, so its initial close operations retain the rejection; that test does not cover the sequence above. No physical-loss or error-loss runtime result is claimed here; this is a source-level finding from the returned futures and collection lifecycle.
 
-Preserve both the original dispatch result and native physical-close result for each channel, then add a public-path test that lets the owned loop terminate before calling transport close. Assert both physical closure and that the later close reports the original rejection. This applies `PHILOSOPHY.md` — “Never Hide a Failure” — and `CODE_REVIEW.md` — “A Dearth of Test Coverage.”
+Preserve both the original dispatch result and native physical-close result for each channel. The evidence-only `F93cQuicTerminationFailureRetentionTest.kt` drafts this public sequence and asserts physical closure plus identity of the original failure, but has not been run. Use it to verify the finding red against the current helper and green after correction. This applies `PHILOSOPHY.md` — “Never Hide a Failure” — and `CODE_REVIEW.md` — “A Dearth of Test Coverage.”
 
 ### A2 — An exception thrown after native close promise completion can be dropped
 
@@ -38,7 +38,7 @@ Close the per-dial parent when its child connection closes, while preserving own
 
 ### A5 — The late-bind error mapping and live-child hook are not verified on the current source
 
-The evidence-only bind test failed before the current `.handle` stage was added, because the pending dial exposed a low-level close error. The live-child rejection test failed against the earlier parent-only hook because the child's physical close future remained incomplete. The current source has since changed both paths, but there is no completed green run for the final source. A recent attempt captured an earlier constructor form that did not compile, so it did not execute either test; the corrected `initCause` form still needs a fresh compile and test run.
+The evidence-only bind test failed before the current `.handle` stage was added, because the pending dial exposed a low-level close error. The live-child rejection test failed against the earlier parent-only hook because the child's physical close future remained incomplete. The termination-failure-retention fixture is evidence-only and unrun. The current source has since changed these paths, but there is no completed compile or green run for the final source. A recent attempt captured an earlier constructor form that did not compile, so it did not execute either test; the corrected `initCause` form still needs a fresh compile and test run.
 
 Keep these outcomes separate from proven current behavior. The final candidate needs successful red/green evidence for pending bind shutdown and live-child rejection, including error-cause assertions and child/parent physical close assertions. This follows `architecture/TESTING.md` — “Bug Fix Testing Workflow,” “Failure Injection and Crash Recovery,” and “Every Flake Is a Real Defect.”
 

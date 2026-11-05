@@ -31,3 +31,17 @@ wip/F93e-evidence-20261105
 
 OBSERVED git log -1 --oneline:
 e6cd6750 Prove candidate defects on product head with single attempts
+
+2026-11-05T04:22:16.976920+00:00 OBSERVED: Product candidate commit924ef391 is local only; product remote remains0363c80e. OBSERVED: Explicit-URL PR read confirms OPEN/CLEAN; an unqualified gh pr view selected upstream/libp2p and was rejected, so all future PR reads use the full fork URL. OBSERVED: Evidence remote d26ced024716bc5755b02dbdbbd6e19575282f63 equals local checkpoint. OBSERVED: All6 slots belong to3 other lanes; no F93e slot held during GitHub or dependency reading. INFER: Exact failed-registration QUIC child remains a source-level concern without a direct public observer; no visibility change or guessed fix is authorized. INFER: Next checkpoint is native fullqueue fixture compilation and the stronger isolated-cycle soak draft.
+
+OBSERVED git remote -v:
+origin	https://github.com/CodexCoder21Organization/jvm-libp2p.git (fetch) [blob:none]
+origin	https://github.com/CodexCoder21Organization/jvm-libp2p.git (push)
+upstream	https://github.com/libp2p/jvm-libp2p.git (fetch)
+upstream	https://github.com/libp2p/jvm-libp2p.git (push)
+
+OBSERVED git rev-parse --abbrev-ref HEAD:
+wip/F93e-evidence-20261105
+
+OBSERVED git log -1 --oneline:
+d26ced02 Record forty-one candidate passes and repeated red controls

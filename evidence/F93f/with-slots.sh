@@ -24,9 +24,20 @@ for p in Path(sys.argv[1]).glob('jvm-slot-*/owner'):
 print(len(owners))
 COUNT
 }
+own_slot_count() {
+ local owned=0
+ for p in "$base"/jvm-slot-*/owner; do
+  if [[ -f "$p" && $(cat "$p") == F93f ]]; then owned=$((owned+1)); fi
+ done
+ echo "$owned"
+}
 while :; do
  if (( SECONDS >= deadline )) || { [[ -f "$fixed_deadline_file" ]] && (( $(date +%s) >= $(cat "$fixed_deadline_file") )); }; then echo 'PROBLEM: JVM slot deadline reached'; exit 75; fi
  if (( $(lane_count) >= 3 )) && ! ( for p in "$base"/jvm-slot-*/owner; do [[ -f "$p" && $(cat "$p") == F93f ]] && exit 0; done; exit 1; ); then
+  sleep 30
+  continue
+ fi
+ if (( $(own_slot_count) + count > 2 )); then
   sleep 30
   continue
  fi
@@ -34,7 +45,7 @@ while :; do
   if mkdir "$base/jvm-slot-$n" 2>/dev/null; then
    echo F93f > "$base/jvm-slot-$n/owner"; slots+=("$n")
    if (( ${#slots[@]} == count )); then
-    if (( $(lane_count) <= 3 )); then break 2; fi
+    if (( $(lane_count) <= 3 && $(own_slot_count) <= 2 )); then break 2; fi
     cleanup
     break
    fi

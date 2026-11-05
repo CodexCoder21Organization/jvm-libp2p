@@ -159,3 +159,28 @@ wip/F93c-evidence-20261105
 OBSERVED git log -1 --oneline:
 3082f631 Save F93c pending-bind reproducer and single-attempt gate launcher
 
+
+2026-11-05T01:47:39.908717+00:00 OBSERVED: Evidence local=remote 16492f8f60a895089ef9805d4d8a28949bfb3cf0.
+
+2026-11-05T01:49:13.319558+00:00 OBSERVED: Gap4-green launcher exited2 before any JVM/test because its queued shell read a modified with-slot.sh at a changed file offset;0 attempts. OBSERVED: bash-n on final wrapper is clean; audit found0 owned JVM/wrappers and released one F93c slot left by the pre-trap parse error. OBSERVED: Wrapper is now frozen while any invocation runs; a v2 launch is new preparation, not a retried test. INFER: Runtime launcher files must be immutable after dispatch, including during slot waiting. INFER: Next checkpoint is gap4 actual green and explicit pre-aggregation red for the multi-failure test.
+
+2026-11-05T01:49:58.219822+00:00 OBSERVED: Gap4 visitor red0/1 then green1/1 on the actual public dial, one native attempt each; no retries. OBSERVED: Registering a late child now atomically checks terminal transport state before adding inventory; visitor shutdown is checked before connection-handler publication. INFER: Next checkpoint is held-bind red plus the pre-aggregation multiple-failure control, then one final targeted register.
+
+2026-11-05T01:54:01.697626+00:00 OBSERVED: All six slots belong to other lanes again; pending bind-red and consolidated compiler hold none. OBSERVED: Replaced the still-queued old-control-only compiler with one consolidated compiler covering current PlainNetty source, the pre-aggregation QUIC control and all current product test additions plus four evidence fixtures; cancellation occurred before a JVM started and is not a test failure. OBSERVED: Inventory draft reviewed whole by parent: four TCP/WS listeners,32 real accepted roots, exact per-channel close counts, native futures, private/shared groups and thread checks. INFER: It is not a heap/descriptor/thread-curve soak proof; churn remains red and gap5 unfinished. INFER: Next checkpoint remains actual queued bind result and consolidated compile, then publish only after all gates (not currently permitted).
+
+2026-11-05T01:54:01.749513+00:00 OBSERVED: Pre-push identity in evidence checkout follows.
+
+OBSERVED git remote -v:
+origin	https://github.com/CodexCoder21Organization/jvm-libp2p.git (fetch)
+origin	https://github.com/CodexCoder21Organization/jvm-libp2p.git (push)
+upstream	https://github.com/libp2p/jvm-libp2p.git (fetch)
+upstream	https://github.com/libp2p/jvm-libp2p.git (push)
+
+
+OBSERVED git rev-parse --abbrev-ref HEAD:
+wip/F93c-evidence-20261105
+
+
+OBSERVED git log -1 --oneline:
+16492f8f Record F93c Actions compiler finding and pending coverage state
+

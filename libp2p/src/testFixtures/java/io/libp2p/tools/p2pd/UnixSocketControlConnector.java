@@ -10,13 +10,16 @@ import io.netty.channel.epoll.EpollDomainSocketChannel;
 import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.epoll.EpollServerDomainSocketChannel;
 import io.netty.channel.unix.DomainSocketAddress;
+import io.netty.util.concurrent.DefaultThreadFactory;
 import java.net.SocketAddress;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
 /** Created by Anton Nashatyrev on 06.08.2019. */
 public class UnixSocketControlConnector extends ControlConnector {
-  protected static final EventLoopGroup group = new EpollEventLoopGroup();
+  // Shared by all fixture connectors for the lifetime of the JVM.
+  protected static final EventLoopGroup group =
+      new EpollEventLoopGroup(new DefaultThreadFactory("p2pd-control-unix", true));
 
   public CompletableFuture<DaemonChannelHandler> connect() {
     return connect("/tmp/p2pd.sock");

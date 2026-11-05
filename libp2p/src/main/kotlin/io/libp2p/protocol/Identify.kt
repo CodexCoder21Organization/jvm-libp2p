@@ -16,6 +16,11 @@ interface IdentifyController {
     fun id(): CompletableFuture<IdentifyOuterClass.Identify>
 }
 
+/**
+ * Each host needs its own default binding. Builder-configured defaults advertise current
+ * bound listeners. Explicit messages retain
+ * their advertised addresses, including messages assigned after host construction.
+ */
 class Identify(idMessage: IdentifyOuterClass.Identify? = null) : IdentifyBinding(IdentifyProtocol(idMessage))
 
 open class IdentifyBinding(override val protocol: IdentifyProtocol) :
@@ -27,6 +32,8 @@ class IdentifyProtocol(var idMessage: IdentifyOuterClass.Identify? = null) :
         IDENTIFY_MAX_REQUEST_SIZE,
         IDENTIFY_MAX_RESPONSE_SIZE
     ) {
+
+    internal var defaultIdMessageFactory: (() -> IdentifyOuterClass.Identify?)? = null
 
     override fun onStartInitiator(stream: Stream): CompletableFuture<IdentifyController> {
         val handler = IdentifyRequesterChannelHandler()
@@ -63,7 +70,7 @@ class IdentifyProtocol(var idMessage: IdentifyOuterClass.Identify? = null) :
 
     inner class IdentifyResponderChannelHandler(val remoteAddr: Multiaddr) : IdentifyHandler {
         override fun onActivated(stream: Stream) {
-            val msg = idMessage ?: IdentifyOuterClass.Identify.newBuilder()
+            val msg = defaultIdMessageFactory?.invoke() ?: idMessage ?: IdentifyOuterClass.Identify.newBuilder()
                 .setAgentVersion("jvm/0.1")
                 .build()
 

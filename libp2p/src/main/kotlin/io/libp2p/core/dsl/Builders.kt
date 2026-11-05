@@ -171,7 +171,9 @@ open class Builder {
 
         val privKey = identity.factory!!()
 
-        protocols.values.mapNotNull { (it as? IdentifyBinding) }.map { it.protocol }.find { it.idMessage == null }?.apply {
+        val defaultIdentify = protocols.values.mapNotNull { (it as? IdentifyBinding) }
+            .map { it.protocol }.find { it.idMessage == null }
+        defaultIdentify?.apply {
             // initializing Identify with appropriate values
             IdentifyOuterClass.Identify.newBuilder().apply {
                 agentVersion = "jvm/0.1"
@@ -232,6 +234,7 @@ open class Builder {
         )
         val networkImpl = NetworkImpl(allTransports, broadcastConnHandler)
 
+        val generatedIdentifyMessage = defaultIdentify?.idMessage
         return HostImpl(
             privKey,
             networkImpl,
@@ -240,7 +243,24 @@ open class Builder {
             updatableProtocols,
             broadcastConnHandler,
             streamVisitors
-        )
+        ).also {
+            if (defaultIdentify != null && generatedIdentifyMessage != null) {
+                defaultIdentify.defaultIdMessageFactory = {
+                    val currentMessage = defaultIdentify.idMessage
+                    if (currentMessage !== generatedIdentifyMessage) {
+                        currentMessage
+                    } else {
+                        generatedIdentifyMessage.toBuilder()
+                            .clearListenAddrs()
+                            .addAllListenAddrs(
+                                allTransports.flatMap { transport -> transport.listenAddresses() }
+                                    .map { address -> address.serialize().toProtobuf() }
+                            )
+                            .build()
+                    }
+                }
+            }
+        }
     }
 }
 

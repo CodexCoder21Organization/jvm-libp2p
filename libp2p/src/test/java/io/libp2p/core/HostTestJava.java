@@ -33,7 +33,7 @@ public class HostTestJava {
                 b.getDebug().getAfterSecureHandler().setLogger(LogLevel.ERROR, "host-1-AS");
             });
     */
-    String localListenAddress = "/ip4/127.0.0.1/tcp/40002";
+    String localListenAddress = "/ip4/127.0.0.1/tcp/0";
 
     Host clientHost =
         new HostBuilder()
@@ -57,6 +57,8 @@ public class HostTestJava {
     System.out.println("Client started");
     serverStarted.get(5, TimeUnit.SECONDS);
     System.out.println("Server started");
+    localListenAddress = serverHost.listenAddresses().get(0).toString().split("/p2p/")[0];
+    Assertions.assertNotEquals("/ip4/127.0.0.1/tcp/0", localListenAddress);
 
     Assertions.assertEquals(0, clientHost.listenAddresses().size());
     Assertions.assertEquals(1, serverHost.listenAddresses().size());
@@ -95,7 +97,7 @@ public class HostTestJava {
   @Test
   void largePing() throws Exception {
     int pingSize = 200 * 1024;
-    String localListenAddress = "/ip4/127.0.0.1/tcp/40002";
+    String localListenAddress = "/ip4/127.0.0.1/tcp/0";
 
     Host clientHost =
         new HostBuilder()
@@ -119,6 +121,8 @@ public class HostTestJava {
     System.out.println("Client started");
     serverStarted.get(5, TimeUnit.SECONDS);
     System.out.println("Server started");
+    localListenAddress = serverHost.listenAddresses().get(0).toString().split("/p2p/")[0];
+    Assertions.assertNotEquals("/ip4/127.0.0.1/tcp/0", localListenAddress);
 
     Assertions.assertEquals(0, clientHost.listenAddresses().size());
     Assertions.assertEquals(1, serverHost.listenAddresses().size());
@@ -157,7 +161,7 @@ public class HostTestJava {
   @Test
   void largeBlob() throws Exception {
     int blobSize = 1024 * 1024;
-    String localListenAddress = "/ip4/127.0.0.1/tcp/40002";
+    String localListenAddress = "/ip4/127.0.0.1/tcp/0";
 
     Host clientHost =
         new HostBuilder()
@@ -185,6 +189,8 @@ public class HostTestJava {
     System.out.println("Client started");
     serverStarted.get(5, TimeUnit.SECONDS);
     System.out.println("Server started");
+    localListenAddress = serverHost.listenAddresses().get(0).toString().split("/p2p/")[0];
+    Assertions.assertNotEquals("/ip4/127.0.0.1/tcp/0", localListenAddress);
 
     Assertions.assertEquals(0, clientHost.listenAddresses().size());
     Assertions.assertEquals(1, serverHost.listenAddresses().size());
@@ -222,7 +228,7 @@ public class HostTestJava {
 
   @Test
   void addPingAfterHostStart() throws Exception {
-    String localListenAddress = "/ip4/127.0.0.1/tcp/40002";
+    String localListenAddress = "/ip4/127.0.0.1/tcp/0";
 
     Host clientHost =
         new HostBuilder()
@@ -245,6 +251,8 @@ public class HostTestJava {
     System.out.println("Client started");
     serverStarted.get(5, TimeUnit.SECONDS);
     System.out.println("Server started");
+    localListenAddress = serverHost.listenAddresses().get(0).toString().split("/p2p/")[0];
+    Assertions.assertNotEquals("/ip4/127.0.0.1/tcp/0", localListenAddress);
 
     Assertions.assertEquals(0, clientHost.listenAddresses().size());
     Assertions.assertEquals(1, serverHost.listenAddresses().size());

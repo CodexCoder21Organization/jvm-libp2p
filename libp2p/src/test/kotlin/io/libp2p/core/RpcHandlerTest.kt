@@ -93,6 +93,8 @@ class OpClientHandler(val stream: Stream, val activationFut: CompletableFuture<O
 
 class RpcHandlerTest {
 
+    var onListening: (Multiaddr) -> Unit = {}
+
     @Test
     fun test1() {
         val host1 = host {
@@ -133,7 +135,7 @@ class RpcHandlerTest {
                 +RpcProtocol()
             }
             network {
-                listen("/ip4/0.0.0.0/tcp/40002")
+                listen("/ip4/127.0.0.1/tcp/0")
             }
             debug {
                 muxFramesHandler.addLogger(LogLevel.ERROR, "Host-2")
@@ -146,6 +148,7 @@ class RpcHandlerTest {
         println("Host #1 started")
         start2.get(5, TimeUnit.SECONDS)
         println("Host #2 started")
+        onListening(host2.listenAddresses().single())
 
         var streamCounter1 = 0
         host1.addStreamVisitor { streamCounter1++ }
@@ -153,7 +156,7 @@ class RpcHandlerTest {
         host2.addStreamVisitor { streamCounter2++ }
 
         run {
-            val ctr = host1.newStream<OpController>(listOf(protoPrefix + protoAdd), host2.peerId, Multiaddr("/ip4/127.0.0.1/tcp/40002"))
+            val ctr = host1.newStream<OpController>(listOf(protoPrefix + protoAdd), host2.peerId, host2.listenAddresses().single())
                 .controller.get(5, TimeUnit.SECONDS)
             println("Controller created")
             val res = ctr.calculate(100, 10).get(5, TimeUnit.SECONDS)
@@ -177,7 +180,7 @@ class RpcHandlerTest {
         val connection = host1.network.connections[0]
 
         run {
-            val ctr = host1.newStream<OpController>(listOf(protoPrefix + protoMul), host2.peerId, Multiaddr("/ip4/127.0.0.1/tcp/40002"))
+            val ctr = host1.newStream<OpController>(listOf(protoPrefix + protoMul), host2.peerId, host2.listenAddresses().single())
                 .controller.get(5, TimeUnit.SECONDS)
             println("Controller created")
             val res = ctr.calculate(100, 10).get(5, TimeUnit.SECONDS)

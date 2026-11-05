@@ -38,8 +38,8 @@ import io.netty.channel.nio.NioIoHandler
 import io.netty.channel.socket.nio.NioDatagramChannel
 import io.netty.handler.codec.quic.*
 import io.netty.handler.ssl.ClientAuth
-import io.netty.util.concurrent.SingleThreadEventExecutor
 import io.netty.util.concurrent.DefaultThreadFactory
+import io.netty.util.concurrent.SingleThreadEventExecutor
 import org.slf4j.LoggerFactory
 import java.net.InetSocketAddress
 import java.net.SocketAddress

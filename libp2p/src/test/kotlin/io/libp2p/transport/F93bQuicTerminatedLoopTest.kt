@@ -9,6 +9,7 @@ import io.libp2p.transport.quic.QuicTransport
 import io.netty.channel.Channel
 import io.netty.channel.EventLoopGroup
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -59,6 +60,7 @@ class F93bQuicTerminatedLoopTest {
             assertTrue(ownedGroup.isTerminated, "The QUIC worker group must be terminal before transport close")
             val close = client.close().also { clientCloseAttempted = true }
             val reportedFailure = close.handle { _, failure -> failure }.get(10, TimeUnit.SECONDS)
+            assertNull(reportedFailure, "A UDP parent closed before graceful loop termination must retain its successful shutdown result")
             assertTrue(parentCloseFuture.isDone, "Transport close must settle the UDP parent even after its child left the live connection set")
             assertTrue(parentCloseFuture.isSuccess, "The separately owned UDP parent must close successfully")
             assertFalse(parent.isOpen, "The UDP parent must be physically closed before transport close returns")

@@ -27,6 +27,7 @@ import io.libp2p.security.tls.verifyAndExtractPeerId
 import io.libp2p.transport.implementation.ConnectionOverNetty
 import io.libp2p.transport.implementation.NettyTransport
 import io.libp2p.transport.implementation.closeNettyChannelOnce
+import io.libp2p.transport.implementation.transportCloseResult
 import io.netty.bootstrap.Bootstrap
 import io.netty.buffer.AdaptiveByteBufAllocator
 import io.netty.buffer.ByteBuf
@@ -151,9 +152,12 @@ class QuicTransport(
 
         // A dial owns its UDP parent separately from the QUIC child. Close those parents
         // after every child outcome, including failure or a child closed before this call.
-        val datagramsClosed = allClosed.handle { _, _ ->
-            CompletableFuture.allOf(*datagramSnapshot.map { closeNettyChannelOnce(it) }.toTypedArray())
-        }.thenCompose { it }
+        val datagramOperations = allClosed.handle { _, _ ->
+            datagramSnapshot.map { closeNettyChannelOnce(it) }
+        }
+        val datagramsClosed = datagramOperations.thenCompose { operations ->
+            CompletableFuture.allOf(*operations.toTypedArray())
+        }
 
         // Cleanup observes every channel outcome independently of the caller's future.
         val groupClosed = datagramsClosed.handle { _, _ ->
@@ -165,12 +169,8 @@ class QuicTransport(
             // how long shutdownGracefully will wait for that exit.
             workerGroup.shutdownGracefully(0, 5, TimeUnit.SECONDS).toVoidCompletableFuture()
         }.thenCompose { it }
-        groupClosed.handle { _, shutdownFailure ->
-            // Cleanup starts after allClosed settles, so join cannot block here.
-            // Read that outcome first to preserve the original channel-close failure.
-            allClosed.join()
-            datagramsClosed.join()
-            if (shutdownFailure != null) throw shutdownFailure
+        groupClosed.handle { _, _ ->
+            transportCloseResult(everythingThatNeedsToClose.toList() + datagramOperations.join() + groupClosed)
             Unit
         }.whenComplete { _, failure ->
             if (failure == null) completion.complete(Unit) else completion.completeExceptionally(failure)

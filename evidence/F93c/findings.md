@@ -245,3 +245,24 @@ wip/F93c-evidence-20261105
 OBSERVED git log -1 --oneline:
 10820e47 Record F93c pushed dial guard and exact unfinished gate counts
 
+
+2026-11-05T01:58:16.396225+00:00 OBSERVED: Evidence local=remote 48e212ac0c6d267f39fe793f6819b61da3f81677.
+
+2026-11-05T02:02:41.330775+00:00 OBSERVED: Independent source review identifies QUIC listen check/bind/registration outside one snapshot critical section; physical outcome is not runtime-confirmed. OBSERVED: Drafted public signing-barrier listener fixture to force close between admission and bind, with full error and active-listener assertions. INFER: Listener late publication is another row of the same terminal-ownership surface and must be tested before any source correction. OBSERVED: Live-child/bind mixed run and multi-failure control still have no JVM slot; no additional attempt counts are claimed. INFER: Next checkpoint is their actual results, then this listener fixture if capacity allows.
+
+2026-11-05T02:05:32.793685+00:00 OBSERVED: Pre-push identity in evidence checkout follows.
+
+OBSERVED git remote -v:
+origin	https://github.com/CodexCoder21Organization/jvm-libp2p.git (fetch)
+origin	https://github.com/CodexCoder21Organization/jvm-libp2p.git (push)
+upstream	https://github.com/libp2p/jvm-libp2p.git (fetch)
+upstream	https://github.com/libp2p/jvm-libp2p.git (push)
+
+
+OBSERVED git rev-parse --abbrev-ref HEAD:
+wip/F93c-evidence-20261105
+
+
+OBSERVED git log -1 --oneline:
+48e212ac Record held-bind failing assertion and live-child rejection audit
+

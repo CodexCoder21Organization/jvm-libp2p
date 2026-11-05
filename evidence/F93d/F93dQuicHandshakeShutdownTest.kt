@@ -34,10 +34,10 @@ class F93dQuicHandshakeShutdownTest {
             val address = server.listenAddresses().single().withP2P(PeerId.fromPubKey(key.publicKey()))
             val first = client.dial(address, { }, null).get(10, TimeUnit.SECONDS) as ConnectionOverNetty
             val listener = (accepted.get(10, TimeUnit.SECONDS) as ConnectionOverNetty).nettyChannel.parent()
-            val firstSender = first.nettyChannel.parent().localAddress()
+            val firstPort = (first.nettyChannel.parent().localAddress() as InetSocketAddress).port
             listener.pipeline().addFirst("hold-new-handshakes", object : ChannelInboundHandlerAdapter() {
                 override fun channelRead(ctx: ChannelHandlerContext, message: Any) {
-                    if (message is DatagramPacket && message.sender() != firstSender) {
+                    if (message is DatagramPacket && message.sender().port != firstPort) {
                         pendingSender.complete(message.sender())
                         ReferenceCountUtil.release(message)
                     } else {

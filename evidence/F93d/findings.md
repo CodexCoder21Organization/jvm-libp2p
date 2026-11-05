@@ -80,7 +80,7 @@ OBSERVED git log -1 --oneline:
 6b4956c Classify the three unchanged cleanup expectations
 
 
-2026-11-05T03:00 UTC OBSERVED: Read binding Addendum A1 in full; it approves the three cleanup corrections and two additive assertions, with original bounds and test bodies preserved. OBSERVED: Product commit c1 cleanup result is local pending compiler; shared ConnectionCloseRetry fixture observes the transport result already checked against the body-local failure, then asserts identical client.stop root cause and separately awaits server.stop. OBSERVED: Main-test questions are now0 under A1. OBSERVED: WS source ordering independently verified from tagged Netty AbstractChannel.java:615-689; corrected inherited HTML-derived line references in the agent note. INFER: A deterministic inventory control can hold only the final channelInactive callback after all32 sockets physically close, making the old premature registration assertion fail without delaying sibling physical closes; the correction awaits actual channelUnregistered events. INFER: Next checkpoint is the first-corrections compiler and these public-path controls. OBSERVED: Cancelled queued zero-JVM preparations were consolidated; the replacement keeps the original03:18:30 UTC slot deadline, so cancellation does not extend the allowed wait.
+2026-11-05T03:00 UTC OBSERVED: Read binding Addendum A1 in full; it approves the three cleanup corrections and two additive assertions, with original bounds and test bodies preserved. OBSERVED: Product commit3caf5260 cleanup result is local pending compiler; shared ConnectionCloseRetry fixture observes the transport result already checked against the body-local failure, then asserts identical client.stop root cause and separately awaits server.stop. OBSERVED: Main-test questions are now0 under A1. OBSERVED: WS source ordering independently verified from tagged Netty AbstractChannel.java:615-689; corrected inherited HTML-derived line references in the agent note. INFER: A deterministic inventory control can hold only the final channelInactive callback after all32 sockets physically close, making the old premature registration assertion fail without delaying sibling physical closes; the correction awaits actual channelUnregistered events. INFER: Next checkpoint is the first-corrections compiler and these public-path controls. OBSERVED: Cancelled queued zero-JVM preparations were consolidated; the replacement keeps the original03:18:30 UTC slot deadline, so cancellation does not extend the allowed wait.
 
 2026-11-05T03:02:14.041475+00:00 OBSERVED: first-corrections compiler succeeds0 at product3caf5260 (Noise source correction plus approved A1 test cleanup); no compiler warnings. OBSERVED: A1 entire ParentCloseOwnership/ConnectionCloseRetry classes and unchanged-head churn counterexample are queued as two independent one-JVM runs, maximum two JVMs for this lane. OBSERVED: Candidate WS red/green fixtures now force the final inactive-before-unregistered order; not yet compiled or counted. OBSERVED: Addendum A1 saved verbatim in approved-addendum-A1.md; approved questions0. INFER: Next checkpoint is actual A1 green and churn red, then Noise corrected30 and coverage runs.
 
@@ -99,4 +99,40 @@ wip/F93d-evidence-20261105
 
 OBSERVED git log -1 --oneline:
 6a023d8 Prove Noise readiness regression on thirty attempts per head
+
+
+2026-11-05T03:11:06.992206+00:00 OBSERVED: First product corrections pre-push identity follows; rebase on develop is unchanged. OBSERVED: A1 class register12/12 and unchanged Noise child body1/1 green, one attempt each; full Noise JUnit30 gate remains to run. OBSERVED: Formatter tool now succeeds0; its unrelated reformatting of default test bodies was restored so A1 bodies remain exact apart from the two approved additions.
+
+OBSERVED git remote -v:
+origin	https://github.com/CodexCoder21Organization/jvm-libp2p.git (fetch)
+origin	https://github.com/CodexCoder21Organization/jvm-libp2p.git (push)
+upstream	https://github.com/libp2p/jvm-libp2p.git (fetch)
+upstream	https://github.com/libp2p/jvm-libp2p.git (push)
+
+
+OBSERVED git rev-parse --abbrev-ref HEAD:
+flibp5-acceptor-shutdown-snapshot41
+
+
+OBSERVED git log -1 --oneline:
+3caf5260 Assert retained shutdown failures in approved fixture cleanup
+
+
+2026-11-05T03:20:39.786085+00:00 OBSERVED: Product first-correction local=remote3caf5260c3d8dddc1e6996ffda96f6cf9c717ae5, pushed from product checkout after unchanged develop rebase and OPEN check. OBSERVED: A1 classes12/12 and Noise unchanged child body1/1 green; fresh churn red0/1. OBSERVED: Four current-head controls fail on intended assertions: ordinary child ordering0/1, premature inventory registration0/2, handshake closed-result0/1; corrected sender-port fixtures then fail2/2 for handshake closed result and a failed handshake retaining its UDP port. OBSERVED: Full real native queue probe with2048 configured slots fails0/1 on snapshot45 physical-child close assertion and passes1/1 on current source; no retries or JVM tuning changes. OBSERVED: Candidate QUIC source records the child until parent cleanup settles, releases successful ordinary child parents, retains failure records and cleans failed-handshake parents before dial failure delivery; compile0 and combined40-case attempt queued. OBSERVED: Independent first-corrections review read three touched files whole and all named docs; found shared cleanup could accept unrelated errors and serialize unaffected stop calls. OBSERVED: Follow-up edits preserve exact lambda bodies plus two additions, use already-completed public ready() to distinguish prior shutdown, and keep unaffected allOf/client+server10s bound; compiled verification pending. OBSERVED: No Addendum beyond A1 at03:19. INFER: Next checkpoint is40-case candidate outcome and the final cleanup run, then product adoption and gate. OBSERVED: Last findings interval exceeded five minutes during source/review work; this entry restores the checkpoint with current facts rather than backdating it.
+
+OBSERVED: Evidence pre-push identity follows.
+
+OBSERVED git remote -v:
+origin	https://github.com/CodexCoder21Organization/jvm-libp2p.git (fetch) [blob:none]
+origin	https://github.com/CodexCoder21Organization/jvm-libp2p.git (push)
+upstream	https://github.com/libp2p/jvm-libp2p.git (fetch)
+upstream	https://github.com/libp2p/jvm-libp2p.git (push)
+
+
+OBSERVED git rev-parse --abbrev-ref HEAD:
+wip/F93d-evidence-20261105
+
+
+OBSERVED git log -1 --oneline:
+004dbcd Record approved cleanup ruling and deterministic inventory controls
 

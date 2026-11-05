@@ -36,7 +36,7 @@ object F93dQuicFullQueueProbe {
     @JvmStatic
     fun main(args: Array<String>) {
         // Shrink the real dependency's queue before any Netty class initializes; no machine load is needed.
-        System.setProperty("io.netty.eventexecutor.maxPendingTasks", "16")
+        System.setProperty("io.netty.eventLoop.maxPendingTasks", "2048")
         val key = generateEd25519KeyPair().first
         val server = QuicTransport.ECDSA(key, emptyList())
         val client = QuicTransport.ECDSA(generateEd25519KeyPair().first, emptyList())
@@ -56,8 +56,8 @@ object F93dQuicFullQueueProbe {
                 check(release.await(10, TimeUnit.SECONDS)) { "The full-queue fixture must release the loop" }
             }
             entered.get(10, TimeUnit.SECONDS)
-            repeat(16) { loop.execute { } }
-            assertEquals(16, loop.pendingTasks(), "The actual native queue must be full before shutdown")
+            repeat(2048) { loop.execute { } }
+            assertEquals(2048, loop.pendingTasks(), "The actual native queue must be full before shutdown")
             assertThrows(RejectedExecutionException::class.java) { loop.execute { } }
             assertFalse(loop.isShutdown, "Queue fullness must be the rejection condition, before shutdown")
             val closing = client.close().also { closeStarted = true }

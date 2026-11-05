@@ -24,6 +24,8 @@ class F93dQuicOrdinaryCloseOrderingTest {
         val client = QuicTransport.ECDSA(generateEd25519KeyPair().first, emptyList())
         val pendingChild = CompletableFuture<ChannelPromise>()
         val parentRequests = AtomicInteger()
+        val pendingParent = CompletableFuture<Pair<ChannelHandlerContext, ChannelPromise>>()
+        var ordinaryStarted = false
         val failure = IOException("The ordinary child close reports failure only after physical closure")
         var shutdown: CompletableFuture<Unit>? = null
         try {
@@ -35,7 +37,7 @@ class F93dQuicOrdinaryCloseOrderingTest {
             parent.pipeline().addFirst("count-parent-close", object : ChannelOutboundHandlerAdapter() {
                 override fun close(ctx: ChannelHandlerContext, promise: ChannelPromise) {
                     parentRequests.incrementAndGet()
-                    ctx.close(promise)
+                    pendingParent.complete(ctx to promise)
                 }
             })
             child.pipeline().addFirst("hold-ordinary-child-result", object : ChannelOutboundHandlerAdapter() {
@@ -44,7 +46,7 @@ class F93dQuicOrdinaryCloseOrderingTest {
                 }
             })
             child.eventLoop().submit { }.get(10, TimeUnit.SECONDS)
-            val ordinary = connection.close()
+            val ordinary = connection.close().also { ordinaryStarted = true }
             val result = pendingChild.get(10, TimeUnit.SECONDS)
             child.eventLoop().submit { }.get(10, TimeUnit.SECONDS)
             assertFalse(child.isOpen)
@@ -57,6 +59,7 @@ class F93dQuicOrdinaryCloseOrderingTest {
             assertFalse(closing.isDone, "Shutdown must preserve ownership of the pending ordinary close")
             result.setFailure(failure)
             val ordinaryError = assertThrows(ExecutionException::class.java) { ordinary.get(10, TimeUnit.SECONDS) }
+            pendingParent.get(10, TimeUnit.SECONDS).let { (ctx, promise) -> ctx.close(promise) }
             val shutdownError = assertThrows(ExecutionException::class.java) { closing.get(10, TimeUnit.SECONDS) }
             assertSame(failure, ordinaryError.cause)
             assertSame(failure, shutdownError.cause)
@@ -65,10 +68,16 @@ class F93dQuicOrdinaryCloseOrderingTest {
             assertFalse(parent.isOpen)
         } finally {
             try {
-                pendingChild.getNow(null)?.tryFailure(failure)
-                // Error identity is asserted in the body; cleanup still awaits terminal shutdown
-                // after releasing the deliberate failure if an earlier assertion stopped the body.
-                (shutdown ?: client.close()).handle { _, _ -> Unit }.get(10, TimeUnit.SECONDS)
+                if (ordinaryStarted) {
+                    pendingChild.get(10, TimeUnit.SECONDS).tryFailure(failure)
+                    val closing = shutdown ?: client.close()
+                    pendingParent.get(10, TimeUnit.SECONDS).let { (ctx, promise) -> ctx.close(promise) }
+                    // Error identity is asserted in the body. Cleanup awaits terminal shutdown
+                    // after releasing the deliberate failure even if an earlier assertion failed.
+                    closing.handle { _, _ -> Unit }.get(10, TimeUnit.SECONDS)
+                } else {
+                    client.close().get(10, TimeUnit.SECONDS)
+                }
             } finally {
                 server.close().get(10, TimeUnit.SECONDS)
             }

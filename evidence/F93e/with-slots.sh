@@ -7,17 +7,41 @@ cleanup() { for n in "${slots[@]}"; do if [[ -f "$base/jvm-slot-$n/owner" && $(c
 trap cleanup EXIT
 trap 'exit 143' TERM
 trap 'exit 130' INT
+wait_started=$SECONDS
 deadline=$((SECONDS+1500))
+fixed_deadline_file=$(dirname "$0")/slot-wait-deadline
+lane_count() {
+ python3 - "$base" <<'COUNT'
+from pathlib import Path
+import sys
+owners=set()
+for p in Path(sys.argv[1]).glob('jvm-slot-*/owner'):
+ try:
+  owner=p.read_text().strip().split()
+  if owner: owners.add(owner[0])
+ except FileNotFoundError:
+  pass
+print(len(owners))
+COUNT
+}
 while :; do
- if (( SECONDS >= deadline )); then echo 'PROBLEM: JVM slot deadline reached'; exit 75; fi
+ if (( SECONDS >= deadline )) || { [[ -f "$fixed_deadline_file" ]] && (( $(date +%s) >= $(cat "$fixed_deadline_file") )); }; then echo 'PROBLEM: JVM slot deadline reached'; exit 75; fi
+ if (( $(lane_count) >= 3 )) && ! ( for p in "$base"/jvm-slot-*/owner; do [[ -f "$p" && $(cat "$p") == F93e ]] && exit 0; done; exit 1; ); then
+  sleep 30
+  continue
+ fi
  for n in 1 2 3 4 5 6; do
   if mkdir "$base/jvm-slot-$n" 2>/dev/null; then
    echo F93e > "$base/jvm-slot-$n/owner"; slots+=("$n")
-   if (( ${#slots[@]} == count )); then break 2; fi
+   if (( ${#slots[@]} == count )); then
+    if (( $(lane_count) <= 3 )); then break 2; fi
+    cleanup
+    break
+   fi
   fi
  done
  cleanup
  sleep 30
 done
-echo "SLOTS_ACQUIRED F93e slots=${slots[*]} utc=$(date -u +%FT%TZ)"
+echo "SLOTS_ACQUIRED F93e slots=${slots[*]} utc=$(date -u +%FT%TZ) wait_seconds=$((SECONDS-wait_started))"
 "$@"

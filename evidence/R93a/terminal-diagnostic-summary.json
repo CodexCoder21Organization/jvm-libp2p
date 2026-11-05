@@ -1,0 +1,17 @@
+{
+  "purpose": "Additional cause-chain instrumentation of the deterministic terminal-loop reproduction; a separate explicit run, not a runner retry or a CI rerun.",
+  "cases": [
+    {
+      "class": "io.libp2p.transport.R93aQuicTerminatedLoopTest",
+      "name": "udpParentCloseSettlesWhenItsLoopWasAlreadyTerminated()",
+      "failure": "Transport close must settle the UDP parent even after its child left the live connection set ==> expected: <true> but was: <false>"
+    }
+  ],
+  "cause_chain": [
+    "type=java.util.concurrent.CompletionException message=java.util.concurrent.RejectedExecutionException: event executor terminated",
+    "type=java.util.concurrent.RejectedExecutionException message=event executor terminated"
+  ],
+  "physical_state": [
+    "reportedFailure=java.util.concurrent.CompletionException parentOpen=true parentRegistered=true physicalCloseDone=false"
+  ]
+}

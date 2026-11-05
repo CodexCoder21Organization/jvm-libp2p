@@ -1,0 +1,41 @@
+
+Thanks for using JUnit! Support its development at https://junit.org/sponsoring
+
+R93A_TERMINAL_CAUSE type=java.util.concurrent.CompletionException message=java.util.concurrent.RejectedExecutionException: event executor terminated
+R93A_TERMINAL_CAUSE type=java.util.concurrent.RejectedExecutionException message=event executor terminated
+R93A_TERMINATED reportedFailure=java.util.concurrent.CompletionException parentOpen=true parentRegistered=true physicalCloseDone=false
+╷
+├─ JUnit Platform Suite ✔
+├─ JUnit Jupiter ✔
+│  └─ R93aQuicTerminatedLoopTest ✔
+│     └─ udpParentCloseSettlesWhenItsLoopWasAlreadyTerminated() ✘ Transport close must settle the UDP parent even after its child left the live connection set ==> expected: <true> but was: <false>
+└─ JUnit Vintage ✔
+
+Failures (1):
+  JUnit Jupiter:R93aQuicTerminatedLoopTest:udpParentCloseSettlesWhenItsLoopWasAlreadyTerminated()
+    MethodSource [className = 'io.libp2p.transport.R93aQuicTerminatedLoopTest', methodName = 'udpParentCloseSettlesWhenItsLoopWasAlreadyTerminated', methodParameterTypes = '']
+    => org.opentest4j.AssertionFailedError: Transport close must settle the UDP parent even after its child left the live connection set ==> expected: <true> but was: <false>
+       org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+       org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+       org.junit.jupiter.api.AssertTrue.failNotTrue(AssertTrue.java:63)
+       org.junit.jupiter.api.AssertTrue.assertTrue(AssertTrue.java:36)
+       org.junit.jupiter.api.Assertions.assertTrue(Assertions.java:214)
+       io.libp2p.transport.R93aQuicTerminatedLoopTest.udpParentCloseSettlesWhenItsLoopWasAlreadyTerminated(R93aQuicTerminatedLoopTest.kt:70)
+       java.base/java.lang.reflect.Method.invoke(Method.java:580)
+       java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+       java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+
+Test run finished after 1644 ms
+[         4 containers found      ]
+[         0 containers skipped    ]
+[         4 containers started    ]
+[         0 containers aborted    ]
+[         4 containers successful ]
+[         0 containers failed     ]
+[         1 tests found           ]
+[         0 tests skipped         ]
+[         1 tests started         ]
+[         0 tests aborted         ]
+[         0 tests successful      ]
+[         1 tests failed          ]
+

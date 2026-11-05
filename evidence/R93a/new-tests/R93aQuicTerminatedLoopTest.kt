@@ -59,6 +59,11 @@ class R93aQuicTerminatedLoopTest {
             assertTrue(ownedGroup.isTerminated, "The QUIC worker group must be terminal before transport close")
             val close = client.close().also { clientCloseAttempted = true }
             val reportedFailure = close.handle { _, failure -> failure }.get(10, TimeUnit.SECONDS)
+            var cause = reportedFailure
+            while (cause != null) {
+                println("R93A_TERMINAL_CAUSE type=${cause.javaClass.name} message=${cause.message}")
+                cause = cause.cause
+            }
             // An operation may report rejection, but it must still settle its physical close future.
             println("R93A_TERMINATED reportedFailure=${reportedFailure?.javaClass?.name} parentOpen=${parent.isOpen} parentRegistered=${parent.isRegistered} physicalCloseDone=${parentCloseFuture.isDone}")
 

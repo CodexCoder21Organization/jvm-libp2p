@@ -1,0 +1,5 @@
+# F93e findings
+
+2026-11-05T04:11 UTC OBSERVED: Fresh product and evidence clones read F93d resume/findings and R93a review. OBSERVED: develop remains436997d5; product0363c80e rebases unchanged onto origin/develop and no equivalent default-branch fix exists. OBSERVED: No Addendum headings at launch. INFER: QUIC candidate fixes owned dial UDP-parent cleanup and stopped-dial error reporting, both explicitly within this PR contract, so it qualifies for adoption after independent red/green/revert-red. INFER: The three remaining dimensions are native-dispatch physical cleanup (full queue), in-flight dial/late-child cleanup, and long-lived inventory/soak; handshake and late child are one lifecycle dimension in the original five-gap register. INFER: Next checkpoint is reconstructed local launcher and candidate red tests.
+
+The status skill was read; no cron tool exists in this environment, so reports are driven during active work. User task prohibits handoff-cli and overrides skill handoff steps. Publication is explicitly authorized only after its gate. Evidence paths stay separate from product checkout.

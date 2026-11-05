@@ -1,0 +1,25 @@
+<testsuite name="io.libp2p.security.noise.NoisePreparationLifecycleTest" tests="5" skipped="0" failures="1" errors="0" timestamp="2026-11-05T02:33:23.691Z" hostname="runnervmnwato" time="16.924">
+  <testcase name="stop reentered from readiness prevents empty listener startup()" classname="io.libp2p.security.noise.NoisePreparationLifecycleTest" time="10.743">
+    <failure message="java.lang.IllegalStateException: Noise probe exited before BODY_COMPLETE:&#10;NOISE_PROBE_PHASE=READY&#10;NOISE_PROBE_PHASE=CLEANUP_COMPLETE&#10;Exception in thread &quot;main&quot; java.util.concurrent.TimeoutException&#10;&#09;at java.base/java.util.concurrent.CompletableFuture.timedGet(CompletableFuture.java:1892)&#10;&#09;at java.base/java.util.concurrent.CompletableFuture.get(CompletableFuture.java:2027)&#10;&#09;at io.libp2p.security.noise.NoisePreparationLifecycleProbe.main(NoisePreparationLifecycleTest.kt:133)&#10;" type="java.lang.IllegalStateException">java.lang.IllegalStateException: Noise probe exited before BODY_COMPLETE:
+NOISE_PROBE_PHASE=READY
+NOISE_PROBE_PHASE=CLEANUP_COMPLETE
+Exception in thread "main" java.util.concurrent.TimeoutException
+	at java.base/java.util.concurrent.CompletableFuture.timedGet(CompletableFuture.java:1892)
+	at java.base/java.util.concurrent.CompletableFuture.get(CompletableFuture.java:2027)
+	at io.libp2p.security.noise.NoisePreparationLifecycleProbe.main(NoisePreparationLifecycleTest.kt:133)
+
+	at io.libp2p.security.noise.NoiseProbePhasesKt.awaitNoiseProbe(NoiseProbePhases.kt:47)
+	at io.libp2p.security.noise.NoiseProbePhasesKt.awaitNoiseProbe$default(NoiseProbePhases.kt:12)
+	at io.libp2p.security.noise.NoisePreparationLifecycleTestKt.lifecycleProbe(NoisePreparationLifecycleTest.kt:76)
+	at io.libp2p.security.noise.NoisePreparationLifecycleTestKt.access$lifecycleProbe(NoisePreparationLifecycleTest.kt:1)
+	at io.libp2p.security.noise.NoisePreparationLifecycleTest.stop reentered from readiness prevents empty listener startup(NoisePreparationLifecycleTest.kt:36)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:566)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1541)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1541)
+</failure>
+  </testcase>
+  <testcase name="direct network listen and connect await preparation without start()" classname="io.libp2p.security.noise.NoisePreparationLifecycleTest" time="1.793" />
+  <testcase name="dial and start after stop fail while shared preparation is held()" classname="io.libp2p.security.noise.NoisePreparationLifecycleTest" time="1.459" />
+  <testcase name="stop fails pending readiness start listen and connect without listen addresses()" classname="io.libp2p.security.noise.NoisePreparationLifecycleTest" time="1.476" />
+  <testcase name="direct network listen and connect preserve pending and completed preparation failure()" classname="io.libp2p.security.noise.NoisePreparationLifecycleTest" time="1.452" />
+  </testsuite>

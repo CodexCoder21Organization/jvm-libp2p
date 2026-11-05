@@ -18,3 +18,24 @@ wip/F93d-evidence-20261105
 OBSERVED git log -1 --oneline:
 84e1014 Record F93c final proofs incomplete gates and cleanup
 
+
+2026-11-05T02:37:34.031553+00:00 OBSERVED: Evidence local=remote d9fbc09dae03492ed530040bf615ca61e03c68e6. OBSERVED: All268 inherited dependency files present; snapshot45 freshly downloaded and SHA verified. OBSERVED: Initial compiler is queued with zero JVMs/slots owned while six slots belong to other lanes; 25-minute acquisition cap and trap release are active. OBSERVED: Current-head required Actions still running and artifact listings empty at02:33/02:34 reads; next read no earlier than02:39. OBSERVED: Cleanup provenance task delegated to one luna max agent, no JVMs or product writes permitted. OBSERVED: No Addendum headings at02:35. INFER: Churn mechanism is per-dial UDP parents retained until transport shutdown after their children close; prospective fix must preserve child-operation settlement order while releasing each completed live dial. INFER: Next checkpoint is actual compiler/result plus current-head XML.
+
+2026-11-05T02:43:22.301525+00:00 OBSERVED: Current-head Actions41955053537 XML parsed:1586/1592 first-attempt passes,4 failures,2 skips,retry elements[]. Same three cleanup cases plus Noise ready-close fail on f6326b65; sanitized247 XMLs and archive SHA recorded. OBSERVED: Initial compiler preparation failed on mismatched Kotlin metadata, zero test attempts; compiler/runtime classpaths corrected to compatible Kotlin1.9.25 compiler with project1.6.21 runtime and build tools excluded. OBSERVED: Baseline/develop compilers now running within at most two slots. INFER: Reentrant readiness success callbacks can be re-drained by completeExceptionally on already-completed readiness; the newly retained shutdown owner then makes the nested stop wait on the first call before its cleanup was installed. This hypothesis needs the local30/30 comparison and a focused correction. INFER: Next checkpoint is Noise head/develop counts and first new coverage attempts.
+
+OBSERVED: Evidence pre-push identity follows.
+
+OBSERVED git remote -v:
+origin	https://github.com/CodexCoder21Organization/jvm-libp2p.git (fetch) [blob:none]
+origin	https://github.com/CodexCoder21Organization/jvm-libp2p.git (push)
+upstream	https://github.com/libp2p/jvm-libp2p.git (fetch)
+upstream	https://github.com/libp2p/jvm-libp2p.git (push)
+
+
+OBSERVED git rev-parse --abbrev-ref HEAD:
+wip/F93d-evidence-20261105
+
+
+OBSERVED git log -1 --oneline:
+d9fbc09 Record F93d resume plan and unchanged develop base
+

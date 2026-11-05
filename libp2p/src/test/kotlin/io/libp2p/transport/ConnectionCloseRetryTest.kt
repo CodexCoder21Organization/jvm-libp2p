@@ -119,7 +119,7 @@ class ConnectionCloseRetryTest {
 
     @Test
     fun transportOwnedFailureCanBeRetriedWithoutChangingOrdinaryResult() {
-        withRetryConnection(expectRetainedFailure = true) { connection, _ ->
+        withRetryConnection { connection, _ ->
             val requests = AtomicInteger()
             val failure = IOException("Cannot close test connection: physical close attempt 1 failed.")
             installRetryCloseHandler(connection) { ctx, promise ->
@@ -182,7 +182,7 @@ class ConnectionCloseRetryTest {
 
     @Test
     fun concurrentRetriesShareHeldAttemptAndIsolateCallerFutureChanges() {
-        withRetryConnection(expectRetainedFailure = true) { connection, _ ->
+        withRetryConnection { connection, _ ->
             val held = CopyOnWriteArrayList<Pair<ChannelHandlerContext, ChannelPromise>>()
             val requests = AtomicInteger()
             val failure = IOException("Cannot close test connection: physical close attempt 1 failed.")
@@ -327,7 +327,7 @@ private fun retryCloseFailure(future: CompletableFuture<Unit>): Throwable {
     return failure
 }
 
-private fun withRetryConnection(expectRetainedFailure: Boolean = false, body: (ConnectionOverNetty, Connection) -> Unit) {
+private fun withRetryConnection(body: (ConnectionOverNetty, Connection) -> Unit) {
     val remote = CompletableFuture<Connection>()
     val server = retryCloseHost { remote.complete(it) }
     val client = retryCloseHost()
@@ -344,12 +344,17 @@ private fun withRetryConnection(expectRetainedFailure: Boolean = false, body: (C
             cleanupRetryConnection(parent, "retry-close-control")
         } finally {
             val connection = parent
-            if (!expectRetainedFailure || connection == null) {
+            val readiness = connection?.transport()?.ready()
+            assertTrue(readiness == null || readiness.isDone, "The fixture must already have completed transport preparation.")
+            if (readiness == null || !readiness.isCompletedExceptionally) {
                 CompletableFuture.allOf(client.stop(), server.stop()).get(10, TimeUnit.SECONDS)
             } else {
                 try {
+                    var closed: Throwable = assertThrows(ExecutionException::class.java) { readiness.get(10, TimeUnit.SECONDS) }
+                    while (closed.cause != null) closed = closed.cause!!
+                    assertEquals("Transport is closed", closed.message)
                     // The scenario already checks this same public result against its local failure object.
-                    val expected = retryCloseFailure(connection.transport().close())
+                    val expected = retryCloseFailure(requireNotNull(connection).transport().close())
                     var reported: Throwable = assertThrows(ExecutionException::class.java) { client.stop().get(10, TimeUnit.SECONDS) }
                     while (reported.cause != null) reported = reported.cause!!
                     assertSame(expected, reported, "Host shutdown must retain the same failed transport result after socket cleanup.")

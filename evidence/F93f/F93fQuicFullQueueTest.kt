@@ -22,7 +22,9 @@ class F93fQuicFullQueueTest {
         // The queue capacity is fixed at Netty initialization, so this scenario owns a fresh JVM.
         val process = ProcessBuilder(
             File(System.getProperty("java.home"), "bin/java").absolutePath,
-            "-ea", "-cp", System.getProperty("java.class.path"),
+            "-ea",
+            "-cp",
+            System.getProperty("java.class.path"),
             "io.libp2p.transport.F93fQuicFullQueueProbe"
         ).inheritIO().start()
         try {
@@ -74,9 +76,10 @@ object F93fQuicFullQueueProbe {
                 check(release.await(10, TimeUnit.SECONDS)) { "The full-queue fixture must release the loop" }
             }
             entered.get(10, TimeUnit.SECONDS)
-            repeat(2048) { loop.execute { } }
+            assertThrows(RejectedExecutionException::class.java) {
+                repeat(2049) { loop.execute { } }
+            }
             assertEquals(2048, loop.pendingTasks(), "The actual native queue must be full before shutdown")
-            assertThrows(RejectedExecutionException::class.java) { loop.execute { } }
             assertFalse(loop.isShutdown, "Queue fullness must be the rejection condition, before shutdown")
             val closing = client.close().also { closeStarted = true }
             release.countDown()

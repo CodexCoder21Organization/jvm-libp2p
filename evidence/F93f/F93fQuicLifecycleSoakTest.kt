@@ -31,7 +31,9 @@ class F93fQuicLifecycleSoakTest {
     fun repeatedConcurrentQuicLifecyclesReleaseChannelsGroupsThreadsAndDescriptors() {
         val process = ProcessBuilder(
             File(System.getProperty("java.home"), "bin/java").absolutePath,
-            "-ea", "-cp", System.getProperty("java.class.path"),
+            "-ea",
+            "-cp",
+            System.getProperty("java.class.path"),
             "io.libp2p.transport.F93fQuicLifecycleSoakProbe"
         ).inheritIO().start()
         try {

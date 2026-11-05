@@ -29,3 +29,45 @@ OBSERVED pre-push git rev-parse --abbrev-ref HEAD: wip/F93b-evidence-20261105
 
 OBSERVED pre-push git log -1 --oneline: 0f05252d Record F93b evidence push identity
 
+
+2026-11-05T00:32:24.124696+00:00 OBSERVED: F1 red/green/removed-fix red are 0/1,1/1,0/1 on intended physical-future assertion, one attempt each; source overlay compiled directly with unchanged helper and verified snapshot45. OBSERVED: No main test edits. OBSERVED: PR still OPEN at pre-push read. INFER: Next checkpoint is checkpoint product push then finding 2 tests.
+
+OBSERVED product pre-push git remote -v: origin	https://github.com/CodexCoder21Organization/jvm-libp2p.git (fetch)
+origin	https://github.com/CodexCoder21Organization/jvm-libp2p.git (push)
+upstream	https://github.com/libp2p/jvm-libp2p.git (fetch)
+upstream	https://github.com/libp2p/jvm-libp2p.git (push)
+
+
+OBSERVED product pre-push git rev-parse --abbrev-ref HEAD: flibp5-acceptor-shutdown-snapshot41
+
+
+OBSERVED product pre-push git log -1 --oneline: 943946a2 Close owned QUIC UDP parents before their event loop terminates
+
+
+2026-11-05T00:36:28.916921+00:00 OBSERVED: Product push verified local=remote 943946a23daf5bc4290828ee0086640718b18f1e. OBSERVED: F2 four actual first attempts failed as expected on settled repeat failure retention and pending child-before-parent ordering; correction passes4/4. OBSERVED: Initial direct compilation could not access existing internal startupPreparationsSnapshot; absolute friend artifact restores module compilation boundary without changing test or product visibility. OBSERVED: Removed-fix control running against previous F1 production classes, original errors preserved. INFER: Next checkpoint is F2 red-again confirmation, product checkpoint, then F3 red.
+
+OBSERVED product pre-push git remote -v: origin	https://github.com/CodexCoder21Organization/jvm-libp2p.git (fetch)
+origin	https://github.com/CodexCoder21Organization/jvm-libp2p.git (push)
+upstream	https://github.com/libp2p/jvm-libp2p.git (fetch)
+upstream	https://github.com/libp2p/jvm-libp2p.git (push)
+
+
+OBSERVED product pre-push git rev-parse --abbrev-ref HEAD: flibp5-acceptor-shutdown-snapshot41
+
+
+OBSERVED product pre-push git log -1 --oneline: 847b63f3 Retain one transport shutdown result across repeated calls
+
+
+2026-11-05T00:37:34.739580+00:00 OBSERVED: F2 red/green/removed-fix red =0/4,4/4,0/4 all actual first attempts; product local=remote847b63f33ccc66fb205f9e4ddba431c65d78e87d. OBSERVED: Two of three findings have initial red/green/red evidence; no main tests edited. OBSERVED: F3 reproducer compilation completed, red now running; no F3 source change. OBSERVED: No Addendum headings found at last checkpoint. INFER: Next checkpoint is F3 suppression correction.
+
+OBSERVED evidence pre-push git remote -v: origin	https://github.com/CodexCoder21Organization/jvm-libp2p.git (fetch)
+origin	https://github.com/CodexCoder21Organization/jvm-libp2p.git (push)
+upstream	https://github.com/libp2p/jvm-libp2p.git (fetch)
+upstream	https://github.com/libp2p/jvm-libp2p.git (push)
+
+
+OBSERVED evidence pre-push git rev-parse --abbrev-ref HEAD: wip/F93b-evidence-20261105
+
+
+OBSERVED evidence pre-push git log -1 --oneline: f9d70426 Record F93b terminated-loop failing test
+

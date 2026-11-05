@@ -1,0 +1,86 @@
+package io.libp2p.transport
+
+import io.libp2p.core.PeerId
+import io.libp2p.core.multiformats.Multiaddr
+import io.libp2p.crypto.keys.generateEd25519KeyPair
+import io.libp2p.transport.implementation.ConnectionOverNetty
+import io.libp2p.transport.quic.QuicTransport
+import io.netty.channel.ChannelHandlerContext
+import io.netty.channel.ChannelOutboundHandlerAdapter
+import io.netty.channel.ChannelPromise
+import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Test
+import java.io.IOException
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.ExecutionException
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
+
+class F93dQuicOrdinaryCloseOrderingTest {
+    @Test
+    fun shutdownWaitsForAnOrdinaryChildCloseThatWasAlreadyPhysicallyRemoved() {
+        val key = generateEd25519KeyPair().first
+        val server = QuicTransport.ECDSA(key, emptyList())
+        val client = QuicTransport.ECDSA(generateEd25519KeyPair().first, emptyList())
+        val pendingChild = CompletableFuture<ChannelPromise>()
+        val parentRequests = AtomicInteger()
+        val pendingParent = CompletableFuture<Pair<ChannelHandlerContext, ChannelPromise>>()
+        var ordinaryStarted = false
+        val failure = IOException("The ordinary child close reports failure only after physical closure")
+        var shutdown: CompletableFuture<Unit>? = null
+        try {
+            server.listen(Multiaddr("/ip4/127.0.0.1/udp/0/quic-v1"), { }, null).get(10, TimeUnit.SECONDS)
+            val connection = client.dial(server.listenAddresses().single().withP2P(PeerId.fromPubKey(key.publicKey())), { }, null)
+                .get(10, TimeUnit.SECONDS) as ConnectionOverNetty
+            val child = connection.nettyChannel
+            val parent = child.parent()
+            parent.pipeline().addFirst("count-parent-close", object : ChannelOutboundHandlerAdapter() {
+                override fun close(ctx: ChannelHandlerContext, promise: ChannelPromise) {
+                    parentRequests.incrementAndGet()
+                    pendingParent.complete(ctx to promise)
+                }
+            })
+            child.pipeline().addFirst("hold-ordinary-child-result", object : ChannelOutboundHandlerAdapter() {
+                override fun close(ctx: ChannelHandlerContext, promise: ChannelPromise) {
+                    ctx.close(ctx.newPromise()).addListener { pendingChild.complete(promise) }
+                }
+            })
+            child.eventLoop().submit { }.get(10, TimeUnit.SECONDS)
+            val ordinary = connection.close().also { ordinaryStarted = true }
+            val result = pendingChild.get(10, TimeUnit.SECONDS)
+            child.eventLoop().submit { }.get(10, TimeUnit.SECONDS)
+            assertFalse(child.isOpen)
+            assertEquals(0, client.activeConnections)
+            assertFalse(result.isDone)
+            val closing = client.close()
+            shutdown = closing
+            parent.eventLoop().submit { }.get(10, TimeUnit.SECONDS)
+            assertEquals(0, parentRequests.get(), "Shutdown must await the original child operation even after physical removal")
+            assertFalse(closing.isDone, "Shutdown must preserve ownership of the pending ordinary close")
+            result.setFailure(failure)
+            val ordinaryError = assertThrows(ExecutionException::class.java) { ordinary.get(10, TimeUnit.SECONDS) }
+            pendingParent.get(10, TimeUnit.SECONDS).let { (ctx, promise) -> if (!promise.isDone) ctx.close(promise) }
+            val shutdownError = assertThrows(ExecutionException::class.java) { closing.get(10, TimeUnit.SECONDS) }
+            assertSame(failure, ordinaryError.cause)
+            assertSame(failure, shutdownError.cause)
+            assertEquals(1, parentRequests.get())
+            assertTrue(parent.closeFuture().isDone)
+            assertFalse(parent.isOpen)
+        } finally {
+            try {
+                if (ordinaryStarted) {
+                    pendingChild.get(10, TimeUnit.SECONDS).tryFailure(failure)
+                    val closing = shutdown ?: client.close()
+                    pendingParent.get(10, TimeUnit.SECONDS).let { (ctx, promise) -> if (!promise.isDone) ctx.close(promise) }
+                    // Error identity is asserted in the body. Cleanup awaits terminal shutdown
+                    // after releasing the deliberate failure even if an earlier assertion failed.
+                    closing.handle { _, _ -> Unit }.get(10, TimeUnit.SECONDS)
+                } else {
+                    client.close().get(10, TimeUnit.SECONDS)
+                }
+            } finally {
+                server.close().get(10, TimeUnit.SECONDS)
+            }
+        }
+    }
+}

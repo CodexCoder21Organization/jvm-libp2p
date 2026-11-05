@@ -10,6 +10,7 @@ import io.netty.channel.Channel
 import io.netty.channel.EventLoopGroup
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CompletableFuture
@@ -18,7 +19,7 @@ import java.util.concurrent.TimeUnit
 
 class F93cQuicRejectedLoopTest {
     @Test
-    fun udpParentCloseSettlesWhenItsLoopRejectsDispatchBeforeTermination() {
+    fun releasedUdpParentKeepsItsSuccessfulResultWhenItsLoopLaterRejectsDispatch() {
         val serverKey = generateEd25519KeyPair().first
         val server = QuicTransport.ECDSA(serverKey, emptyList())
         val client = QuicTransport.ECDSA(generateEd25519KeyPair().first, emptyList())
@@ -55,6 +56,9 @@ class F93cQuicRejectedLoopTest {
             assertTrue(child.closeFuture().isSuccess, "The ordinary connection close must physically close its child")
             assertFalse(child.isOpen, "The outbound child must be closed before transport shutdown starts")
             assertEquals(0, client.activeConnections, "The closed child must no longer be an active transport connection")
+            assertTrue(parentCloseFuture.await(10, TimeUnit.SECONDS), "An ordinary child close must release its UDP parent before native shutdown")
+            assertTrue(parentCloseFuture.isSuccess)
+            assertFalse(parent.isOpen)
 
             val enteredLoop = CompletableFuture<Unit>()
             parent.eventLoop().execute {
@@ -69,19 +73,9 @@ class F93cQuicRejectedLoopTest {
             val close = client.close().also { clientCloseAttempted = true }
             releaseLoop.countDown()
             val reportedFailure = close.handle { _, failure -> failure }.get(10, TimeUnit.SECONDS)
-            assertTrue(
-                generateSequence(reportedFailure) {
-                    it.cause
-                }.any { it is java.util.concurrent.RejectedExecutionException },
-                "Shutdown must retain the native close rejection"
-            )
+            assertNull(reportedFailure, "An already-released parent must not report a close rejection that never occurred")
             val repeatedFailure = client.close().handle { _, failure -> failure }.get(10, TimeUnit.SECONDS)
-            assertTrue(
-                generateSequence(repeatedFailure) {
-                    it.cause
-                }.last() === generateSequence(reportedFailure) { it.cause }.last(),
-                "Repeated shutdown must preserve the original rejection"
-            )
+            assertNull(repeatedFailure, "Repeated shutdown must preserve the original successful release")
 
             assertTrue(
                 parentCloseFuture.isDone,

@@ -58,3 +58,24 @@ wip/F93d-evidence-20261105
 OBSERVED git log -1 --oneline:
 74b071b Record final-head Actions failures and coverage reproducers
 
+
+2026-11-05T02:48:06.162130+00:00 OBSERVED: Noise original-head measurement currently17 failures/17 single attempts. OBSERVED: JDK source confirms completeExceptionally always invokes postComplete even when its compare-and-set returns false. OBSERVED: Candidate b6785f40 moves readiness invalidation after all close stages have been installed; no test edited, source not yet pushed/green. INFER: This removes the exact dependency cycle: first close -> readiness callbacks -> repeated close waiting for first close, before first close scheduled its group shutdown. OBSERVED: Comparison keeps immutable compiled f6326b65 classes, so the source edit does not change its measured head. OBSERVED: No Addendum at02:47; next checkpoint remains complete30+30 Noise comparison and candidate green.
+
+2026-11-05T02:55:07.862969+00:00 OBSERVED: Full Noise comparison: original head0/30 passes, develop30/30 passes;60 single attempts, no retry elements. OBSERVED: Four Actions failures classified introduced4/inherited0/unknown0; three default-branch questions and zero existing test edits. OBSERVED: Noise candidate source and extra gap compiler are queued with zero F93d slots after the measurement released both slots. OBSERVED: Snapshot46 jar/POM HEAD preflight both404, not a publication. OBSERVED: New ordinary-child ordering fixture covers shutdown arriving after a connection-close operation physically removed the child but before its result settles; not yet counted as an attempt. INFER: Next checkpoint is candidate Noise green and current-head coverage counterexamples.
+
+OBSERVED: Evidence pre-push identity follows.
+
+OBSERVED git remote -v:
+origin	https://github.com/CodexCoder21Organization/jvm-libp2p.git (fetch) [blob:none]
+origin	https://github.com/CodexCoder21Organization/jvm-libp2p.git (push)
+upstream	https://github.com/libp2p/jvm-libp2p.git (fetch)
+upstream	https://github.com/libp2p/jvm-libp2p.git (push)
+
+
+OBSERVED git rev-parse --abbrev-ref HEAD:
+wip/F93d-evidence-20261105
+
+
+OBSERVED git log -1 --oneline:
+6b4956c Classify the three unchanged cleanup expectations
+

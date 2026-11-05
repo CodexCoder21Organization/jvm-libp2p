@@ -4,7 +4,7 @@ root=Path(__file__).resolve().parents[3]; repo=root/'jvm-libp2p'; b=root/'f93d-b
 mode=sys.argv[1]; files=sys.argv[2:]
 subprocess.run(['git','fetch','origin'],cwd=repo,check=True,stdout=subprocess.DEVNULL)
 subprocess.run(['git','rebase','origin/develop'],cwd=repo,check=True,stdout=subprocess.DEVNULL)
-cmd=['/opt/java/bin/java','-cp',(b/'compiler-classpath').read_text(),'org.jetbrains.kotlin.cli.jvm.K2JVMCompiler','-no-stdlib','-no-reflect','-jvm-target','11','-language-version','1.6','-Xjvm-default=all','-Xfriend-paths='+str(b/'snapshot45.jar'),'-classpath',(b/'classpath').read_text(),'-d',str(b/mode)]+files
+cmd=['/opt/java/bin/java','-cp',(b/'compiler-classpath').read_text(),'org.jetbrains.kotlin.cli.jvm.K2JVMCompiler','-no-stdlib','-no-reflect','-jvm-target','11','-language-version','1.6','-Xjvm-default=all','-Xfriend-paths='+str(b/'snapshot45.jar'),'-classpath',str(b/'baseline-all')+':'+(b/'classpath').read_text(),'-d',str(b/mode)]+files
 start=time.time()
 with (e/(mode+'.log')).open('w') as f:
  p=subprocess.Popen([str(e/'with-slots.sh'),'1','timeout','600']+cmd,cwd=repo,stdout=f,stderr=subprocess.STDOUT)

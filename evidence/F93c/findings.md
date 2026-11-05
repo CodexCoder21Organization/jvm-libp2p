@@ -77,3 +77,24 @@ wip/F93c-evidence-20261105
 OBSERVED git log -1 --oneline:
 b1757215 Record F93c native close plan and slot wait
 
+
+2026-11-05T01:11:04.412642+00:00 OBSERVED: Evidence local=remote e9f787c40e2c2dc2e5b05d1a403c96b95be76295.
+
+2026-11-05T01:12:59.625720+00:00 OBSERVED: Native rejection green1/1 and churn baseline red0/1 on physical UDP parent retention, each actual first attempt with no retries. OBSERVED: F1 source and permanent regression committed55fc5fe7; removed-fix control running on retained baseline classes. OBSERVED: No existing main or PR-added test edited. INFER: Native hook closure resolves the physical ownership issue inside this library; no Netty publication is needed. INFER: Next checkpoint is F1 revert-red/product push, then dial publication and churn correction.
+
+2026-11-05T01:13:07.480534+00:00 OBSERVED: Pre-push identity in evidence checkout follows.
+
+OBSERVED git remote -v:
+origin	https://github.com/CodexCoder21Organization/jvm-libp2p.git (fetch)
+origin	https://github.com/CodexCoder21Organization/jvm-libp2p.git (push)
+upstream	https://github.com/libp2p/jvm-libp2p.git (fetch)
+upstream	https://github.com/libp2p/jvm-libp2p.git (push)
+
+
+OBSERVED git rev-parse --abbrev-ref HEAD:
+wip/F93c-evidence-20261105
+
+
+OBSERVED git log -1 --oneline:
+e9f787c4 Record F93c native rejection failing-first proof
+

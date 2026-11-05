@@ -131,6 +131,7 @@ class ConnectionCloseRetryTest {
             connection.closeFuture().get(5, TimeUnit.SECONDS)
             assertEquals(2, requests.get(), "Retry must recover a physical close first owned by transport shutdown.")
             assertSame(failure, retryCloseFailure(connection.close()))
+            assertSame(failure, retryCloseFailure(connection.transport().close()))
         }
     }
 
@@ -220,6 +221,7 @@ class ConnectionCloseRetryTest {
                 connection.retryClose().get(5, TimeUnit.SECONDS)
                 assertSame(failure, retryCloseFailure(connection.close()))
                 assertEquals(2, requests.get(), "Success must remain terminal across subsequent retry and ordinary callers.")
+                assertSame(failure, retryCloseFailure(connection.transport().close()))
             } finally {
                 workers.shutdownNow()
                 try {
@@ -341,7 +343,22 @@ private fun withRetryConnection(body: (ConnectionOverNetty, Connection) -> Unit)
         try {
             cleanupRetryConnection(parent, "retry-close-control")
         } finally {
-            CompletableFuture.allOf(client.stop(), server.stop()).get(10, TimeUnit.SECONDS)
+            try {
+                // The body checks this transport result against its injected failure.
+                // Observe it again through the public API because that failure is local to the body.
+                val retainedFailure = parent?.transport()?.close()?.handle { _, failure -> failure }?.get(10, TimeUnit.SECONDS)
+                if (retainedFailure == null) {
+                    client.stop().get(10, TimeUnit.SECONDS)
+                } else {
+                    var expected: Throwable = retainedFailure
+                    while (expected.cause != null) expected = expected.cause!!
+                    var reported: Throwable = assertThrows(ExecutionException::class.java) { client.stop().get(10, TimeUnit.SECONDS) }
+                    while (reported.cause != null) reported = reported.cause!!
+                    assertSame(expected, reported, "Host shutdown must retain the same failed transport result after socket cleanup.")
+                }
+            } finally {
+                server.stop().get(10, TimeUnit.SECONDS)
+            }
         }
     }
 }

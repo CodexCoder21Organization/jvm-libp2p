@@ -177,9 +177,6 @@ abstract class PlainNettyTransport(
             channelsToClose = channels.toList()
         }
 
-        // Complete outside the monitor: readiness callbacks can re-enter transport operations.
-        readiness.completeExceptionally(Libp2pException("Transport is closed"))
-
         val unbindsCompleted =
             listenersToClose
                 .map { closeNettyChannelOnce(it) }
@@ -234,6 +231,10 @@ abstract class PlainNettyTransport(
         }.whenComplete { _, failure ->
             if (failure == null) completion.complete(Unit) else completion.completeExceptionally(failure)
         }
+        // Completing an already-settled readiness future can drain its remaining callbacks.
+        // Install all cleanup first, so a readiness callback can await a reentrant close
+        // without preventing the first shutdown from scheduling that cleanup.
+        readiness.completeExceptionally(Libp2pException("Transport is closed"))
         return completion.thenApply { Unit }
     } // close
 

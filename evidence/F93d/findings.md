@@ -39,3 +39,22 @@ wip/F93d-evidence-20261105
 OBSERVED git log -1 --oneline:
 d9fbc09 Record F93d resume plan and unchanged develop base
 
+
+2026-11-05T02:46:47.606526+00:00 OBSERVED: Two compatible local compiles pass; head overlay contains exact three product source files plus test register, develop overlay contains exact develop PlainNettyTransport and close helper. OBSERVED: Noise head comparison currently 12 single attempts, 0 passes and 12 failures; ongoing measurement, not a gate retry. OBSERVED: Three unchanged develop test questions now recorded individually in existing-test-question.md with exact proposed expectations and current/earlier XML. OBSERVED: No main-test or product edits yet; no Addendum headings at02:43. INFER: Next checkpoint remains all30 head and30 develop Noise outcomes before source correction.
+
+OBSERVED: Evidence pre-push identity follows.
+
+OBSERVED git remote -v:
+origin	https://github.com/CodexCoder21Organization/jvm-libp2p.git (fetch) [blob:none]
+origin	https://github.com/CodexCoder21Organization/jvm-libp2p.git (push)
+upstream	https://github.com/libp2p/jvm-libp2p.git (fetch)
+upstream	https://github.com/libp2p/jvm-libp2p.git (push)
+
+
+OBSERVED git rev-parse --abbrev-ref HEAD:
+wip/F93d-evidence-20261105
+
+
+OBSERVED git log -1 --oneline:
+74b071b Record final-head Actions failures and coverage reproducers
+

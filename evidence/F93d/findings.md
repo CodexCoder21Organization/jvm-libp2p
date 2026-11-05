@@ -79,3 +79,24 @@ wip/F93d-evidence-20261105
 OBSERVED git log -1 --oneline:
 6b4956c Classify the three unchanged cleanup expectations
 
+
+2026-11-05T03:00 UTC OBSERVED: Read binding Addendum A1 in full; it approves the three cleanup corrections and two additive assertions, with original bounds and test bodies preserved. OBSERVED: Product commit c1 cleanup result is local pending compiler; shared ConnectionCloseRetry fixture observes the transport result already checked against the body-local failure, then asserts identical client.stop root cause and separately awaits server.stop. OBSERVED: Main-test questions are now0 under A1. OBSERVED: WS source ordering independently verified from tagged Netty AbstractChannel.java:615-689; corrected inherited HTML-derived line references in the agent note. INFER: A deterministic inventory control can hold only the final channelInactive callback after all32 sockets physically close, making the old premature registration assertion fail without delaying sibling physical closes; the correction awaits actual channelUnregistered events. INFER: Next checkpoint is the first-corrections compiler and these public-path controls. OBSERVED: Cancelled queued zero-JVM preparations were consolidated; the replacement keeps the original03:18:30 UTC slot deadline, so cancellation does not extend the allowed wait.
+
+2026-11-05T03:02:14.041475+00:00 OBSERVED: first-corrections compiler succeeds0 at product3caf5260 (Noise source correction plus approved A1 test cleanup); no compiler warnings. OBSERVED: A1 entire ParentCloseOwnership/ConnectionCloseRetry classes and unchanged-head churn counterexample are queued as two independent one-JVM runs, maximum two JVMs for this lane. OBSERVED: Candidate WS red/green fixtures now force the final inactive-before-unregistered order; not yet compiled or counted. OBSERVED: Addendum A1 saved verbatim in approved-addendum-A1.md; approved questions0. INFER: Next checkpoint is actual A1 green and churn red, then Noise corrected30 and coverage runs.
+
+OBSERVED: Evidence pre-push identity follows.
+
+OBSERVED git remote -v:
+origin	https://github.com/CodexCoder21Organization/jvm-libp2p.git (fetch) [blob:none]
+origin	https://github.com/CodexCoder21Organization/jvm-libp2p.git (push)
+upstream	https://github.com/libp2p/jvm-libp2p.git (fetch)
+upstream	https://github.com/libp2p/jvm-libp2p.git (push)
+
+
+OBSERVED git rev-parse --abbrev-ref HEAD:
+wip/F93d-evidence-20261105
+
+
+OBSERVED git log -1 --oneline:
+6a023d8 Prove Noise readiness regression on thirty attempts per head
+

@@ -116,3 +116,7 @@ The already-preserved current-head Action run is [41955053537](https://github.co
 
 - Product checkout: `README.md` (470 lines) and `CLAUDE.md` (314 lines); no root `AGENTS.md` exists.
 - Sibling DocumentationRepository: `PHILOSOPHY.md` (93 lines), `architecture/TESTING.md` (1,054 lines), and `CODE_REVIEW.md` (232 lines).
+
+## Ruling applied
+
+Binding [Addendum A1](approved-addendum-A1.md) approves the cleanup-only changes and two additive assertions. Root implemented them in dedicated product commit 3caf5260; the test bodies are otherwise unchanged. The shared retry fixture obtains its already-asserted transport failure via the public transport.close() result, compares client.stop() to that same unwrapped object, and awaits server.stop() separately. Verification is pending the queued class-wide run; open questions0.

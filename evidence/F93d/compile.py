@@ -7,7 +7,7 @@ subprocess.run(['git','rebase','origin/develop'],cwd=repo,check=True,stdout=subp
 cmd=['/opt/java/bin/java','-cp',(b/'compiler-classpath').read_text(),'org.jetbrains.kotlin.cli.jvm.K2JVMCompiler','-no-stdlib','-no-reflect','-jvm-target','11','-language-version','1.6','-Xjvm-default=all','-Xfriend-paths='+str(b/'snapshot45.jar'),'-classpath',str(b/'baseline-all')+':'+(b/'classpath').read_text(),'-d',str(b/mode)]+files
 start=time.time()
 with (e/(mode+'.log')).open('w') as f:
- p=subprocess.Popen([str(e/'with-slots.sh'),'1','timeout','600']+cmd,cwd=repo,stdout=f,stderr=subprocess.STDOUT)
+ p=subprocess.Popen([str(e/'with-slots-early-deadline.sh'),'1','timeout','600']+cmd,cwd=repo,stdout=f,stderr=subprocess.STDOUT)
  (e/(mode+'.pid')).write_text(str(p.pid)); code=p.wait();(e/(mode+'.pid')).unlink()
 (e/(mode+'.exit')).write_text(str(code)); print(mode,code,round(time.time()-start,2),flush=True)
 sys.exit(code)

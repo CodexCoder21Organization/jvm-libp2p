@@ -46,6 +46,7 @@ import java.time.Duration
 import java.util.*
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 
 class QuicTransport(
     private val localKey: PrivKey,
@@ -56,6 +57,8 @@ class QuicTransport(
     private val logger = LoggerFactory.getLogger(QuicTransport::class.java)
 
     private var closed = false
+
+    private val shutdown = AtomicReference<CompletableFuture<Unit>?>()
 
     private val connectTimeout = Duration.ofSeconds(15)
 
@@ -131,6 +134,10 @@ class QuicTransport(
     }
 
     override fun close(): CompletableFuture<Unit> {
+        val completion = CompletableFuture<Unit>()
+        // Claim shutdown before taking inventory or invoking callbacks that can re-enter.
+        if (!shutdown.compareAndSet(null, completion)) return shutdown.get()!!.thenApply { Unit }
+
         val (listenerSnapshot, channelSnapshot, datagramSnapshot) = synchronized(this@QuicTransport) {
             closed = true
             Triple(listeners.values.toList(), channels.toList(), clientDatagramChannels.toList())
@@ -158,14 +165,17 @@ class QuicTransport(
             // how long shutdownGracefully will wait for that exit.
             workerGroup.shutdownGracefully(0, 5, TimeUnit.SECONDS).toVoidCompletableFuture()
         }.thenCompose { it }
-        return groupClosed.handle { _, shutdownFailure ->
+        groupClosed.handle { _, shutdownFailure ->
             // Cleanup starts after allClosed settles, so join cannot block here.
             // Read that outcome first to preserve the original channel-close failure.
             allClosed.join()
             datagramsClosed.join()
             if (shutdownFailure != null) throw shutdownFailure
             Unit
+        }.whenComplete { _, failure ->
+            if (failure == null) completion.complete(Unit) else completion.completeExceptionally(failure)
         }
+        return completion.thenApply { Unit }
     }
 
     override fun listen(

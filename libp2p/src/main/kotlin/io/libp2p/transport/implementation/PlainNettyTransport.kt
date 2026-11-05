@@ -33,6 +33,7 @@ import java.time.Duration
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * A plain `NettyTransport` without embedded security and muxer
@@ -45,6 +46,8 @@ abstract class PlainNettyTransport(
     // that read it under-lock — see the comment on close() for why both are needed.
     @Volatile
     private var closed = false
+
+    private val shutdown = AtomicReference<CompletableFuture<Unit>?>()
     var connectTimeout = Duration.ofSeconds(15)
 
     // `listeners` and `channels` are mutated by listen()/dial() under
@@ -137,6 +140,10 @@ abstract class PlainNettyTransport(
         if (closed) completedExceptionally(Libp2pException("Transport is closed")) else preparation.thenApply { }
 
     override fun close(): CompletableFuture<Unit> {
+        val completion = CompletableFuture<Unit>()
+        // Claim shutdown before taking inventory or invoking callbacks that can re-enter.
+        if (!shutdown.compareAndSet(null, completion)) return shutdown.get()!!.thenApply { Unit }
+
         // Take a consistent snapshot of the listener and child-channel collections
         // under the same monitor that listen() / dial() / registerChannel() use to
         // mutate them.
@@ -218,13 +225,16 @@ abstract class PlainNettyTransport(
             // from under every other live host in the JVM.
             bossGroup.shutdownGracefully(0, 5, TimeUnit.SECONDS).toVoidCompletableFuture()
         }.thenCompose { it }
-        return groupClosed.handle { _, shutdownFailure ->
+        groupClosed.handle { _, shutdownFailure ->
             // Cleanup starts after allClosed settles, so join cannot block here.
             // Read that outcome first to preserve the original channel-close failure.
             allClosed.join()
             if (shutdownFailure != null) throw shutdownFailure
             Unit
+        }.whenComplete { _, failure ->
+            if (failure == null) completion.complete(Unit) else completion.completeExceptionally(failure)
         }
+        return completion.thenApply { Unit }
     } // close
 
     override fun listen(

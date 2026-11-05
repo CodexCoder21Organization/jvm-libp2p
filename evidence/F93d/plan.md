@@ -1,6 +1,15 @@
-# F93d plan
-- [done] Verify current-head Actions XML; classify cleanup provenance and exact assertions; run Noise ready-close 30 single attempts per head/develop.
-- [in progress] Close full-queue, handshake/failed-dial, churn/inventory gaps with failing-first public tests and controls; fix cause of WS assertion.
-- [pending] Independent full-file test and code review, final product push, 30 single attempts per new/changed/PR-added case with at most two JVM slots.
-- [pending] Read final-head Actions XML and record every attempt; publish one proved-unused snapshot from final head with complete entry/POM verification; update description.
-- [pending] Push evidence, verify remote SHAs, process/slot cleanup, exact-count report by approximately 04:00 UTC.
+# F93d status: unfinished
+- [x] Fresh clones and unchanged rebase onto develop436997d5; no equivalent default-branch fix.
+- [x] Current-head f632 Actions XML:1586/1592 first passes,4 failures,2 existing skips,no retries; classify introduced4/inherited0/unknown0.
+- [x] Noise comparison red0/30 PR head, green30/30 develop; source correction passes unchanged child body and later Actions test. Approved three cleanup corrections and two additive checks; full affected classes12/12 and removed-fix control9/12 with exactly3 expected failures.
+- [x] A1 ruling recorded, open questions0. Product0363c80e pushed and remote verified, including stricter cleanup and exact one-line Gradle formatter correction.
+- [x] Actions3caf1590/1592 first passes,0 failures,2 skips,no retries. Required job failed solely a formatter line; corrected in0363. Final-head Actions pending.
+- [x] Full native queue proof red0/1 snapshot45 and green1/1 current source, actual2048 queue entries, physical child/parent futures and termination. Fixture remains evidence-only.
+- [x] Current-head churn red0/1; handshake/failed-handshake red0/2; ordinary child ordering red0/1; deterministic premature inventory assertion red0/2.
+- [x] Candidate first run37/40; fix nested aggregation and duplicate fixture cleanup; add global child-settlement handoff test red0/1 and barrier correction. Candidate v2 runs41/41 first attempts,0 retries.
+- [ ] Adopt full-queue fixture into PR with its outer JUnit run and formatting check.
+- [ ] Resolve late child creation after shutdown snapshot: review identifies owner.child assigned after rejected registration and an unjoined close future. Need a deterministic public-API reproducer before further source changes. V2 is not adopted.
+- [ ] Finish high-inventory/soak guard: current128-dial churn proves physical parent release and stable groups, not flat heap/descriptor curves; no stronger claim.
+- [ ] Final source review and30x gate.0/1770 currently planned attempts; final register must be verified after remaining fixes.
+- [ ] New snapshot: none.46 preflight404 only,45 never overwritten. Publication awaits finished source/gates.
+- [ ] Final-head Actions artifact and final evidence/process cleanup checkpoint before lane deadline.

@@ -61,6 +61,7 @@ class QuicTransport(
     private var closed = false
 
     private val shutdown = AtomicReference<CompletableFuture<Unit>?>()
+    private val shutdownChildrenSettled = CompletableFuture<Unit>()
 
     private val connectTimeout = Duration.ofSeconds(15)
 
@@ -171,6 +172,9 @@ class QuicTransport(
         // after every child outcome, including failure or a child closed before this call.
         val datagramOperations =
             allClosed.handle { _, _ ->
+                shutdownChildrenSettled.complete(Unit)
+                Unit
+            }.thenApply {
                 datagramSnapshot.map { closeDialParent(it) }
             }
         val datagramsClosed =
@@ -293,7 +297,9 @@ class QuicTransport(
             .bind(0)
             .also { bind ->
                 val parent = bind.channel()
-                val owner = DialParent(parent) {
+                val owner = DialParent(parent, {
+                    if (shutdown.get() == null) CompletableFuture.completedFuture(Unit) else shutdownChildrenSettled
+                }) {
                     synchronized(this@QuicTransport) { clientDatagramChannels -= parent }
                 }
                 dialOwner.set(owner)
@@ -440,7 +446,7 @@ class QuicTransport(
             } else {
                 QuicSslContextBuilder.forServer(javaPrivateKey, null, cert).clientAuth(ClientAuth.REQUIRE)
             }
-        )
+            )
             .trustManager(trustManager)
             .applicationProtocols("libp2p")
             .build()
@@ -601,7 +607,7 @@ class QuicTransport(
             .withComponent(QUICV1)
 }
 
-private class DialParent(val parent: Channel, val released: () -> Unit) {
+private class DialParent(val parent: Channel, val beforeParentClose: () -> CompletableFuture<Unit>, val released: () -> Unit) {
     @Volatile
     var child: Channel? = null
 }
@@ -609,7 +615,8 @@ private class DialParent(val parent: Channel, val released: () -> Unit) {
 /** A dial releases its parent only after the original child operation settles. */
 private fun closeDialParent(owner: DialParent): CompletableFuture<Unit> {
     val childClosed = owner.child?.let { closeNettyChannelOnce(it) } ?: CompletableFuture.completedFuture(Unit)
-    val parentClosed = childClosed.handle { _, _ -> closeNettyChannelOnce(owner.parent) }.thenCompose { it }
+    val parentClosed = childClosed.handle { _, _ -> owner.beforeParentClose() }
+        .thenCompose { it }.thenCompose { closeNettyChannelOnce(owner.parent) }
     return parentClosed.whenComplete { _, failure ->
         if (failure == null && !childClosed.isCompletedExceptionally) owner.released()
     }

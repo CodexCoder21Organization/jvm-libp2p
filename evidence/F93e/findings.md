@@ -77,3 +77,5 @@ wip/F93e-evidence-20261105
 
 OBSERVED git log -1 --oneline:
 f2e7f605 Save lifecycle soak draft and enforce both shared JVM limits
+
+2026-11-05T04:35:46.398610+00:00 OBSERVED: Corrected formatter acquired a slot at04:32:59 and exited0; additional-fixture compilation acquired its slot at04:33:10 and now exits0. OBSERVED: Formatter and compiler overlap stayed within two JVMs/three owning lanes; first acquisition followed about17 minutes of queue wait, below the preserved25-minute cap. OBSERVED: Fixed cap marker was removed only after actual JVMs started; future independent acquisitions retain the25-minute rule. OBSERVED: Product whitespace-only format commit6fcad691 rebases unchanged onto develop436997d5; its exact source compiler is running. INFER: Next checkpoint is diagnostic late-creation and native/soak physical controls.

@@ -1,0 +1,11 @@
+--- libp2p/src/main/kotlin/io/libp2p/transport/quic/QuicTransport.kt
++++ mutant/QuicTransport.kt
+@@ -234,7 +234,7 @@
+                     if (closed) {
+                         true
+                     } else {
+-                        clientDatagramChannels += parent
++                        Unit // R93a mutation: deliberately drop UDP parent ownership registration
+                         false
+                     }
+                 }

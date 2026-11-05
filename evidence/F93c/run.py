@@ -14,7 +14,7 @@ if action=='compile':
     command=[java,'-cp',(build/'compiler-classpath').read_text(),'org.jetbrains.kotlin.cli.jvm.K2JVMCompiler','-no-stdlib','-no-reflect','-jvm-target','11','-language-version','1.6','-Xjvm-default=all','-Xfriend-paths='+str(build/'snapshot45.jar'),'-classpath',cp+':'+console,'-d',str(build/mode)]+args
 else:
     overlays, *classes=args
-    command=[java,'-jar',console,'execute','--class-path',':'.join(str(build/x) for x in overlays.split(','))+':'+cp,'--reports-dir',str(evidence/mode),'--fail-if-no-tests']
+    command=[java,'-ea','-jar',console,'execute','--class-path',':'.join(str(build/x) for x in overlays.split(','))+':'+cp,'--reports-dir',str(evidence/mode),'--fail-if-no-tests']
     for c in classes:command+=['--select-class','io.libp2p.transport.'+c]
 start=time.time()
 with (evidence/(mode+'.log')).open('w') as log:

@@ -56,3 +56,24 @@ wip/F93c-evidence-20261105
 OBSERVED git log -1 --oneline:
 24dc2ea0 Record F93c plan and inherited review state
 
+
+2026-11-05T01:05:43.160685+00:00 OBSERVED: Evidence local=remote b1757215721697f0dda51035c70e156607e709f2.
+
+2026-11-05T01:10:59.881502+00:00 OBSERVED: F1 native rejection fails0/1 on actual physical-parent closeFuture assertion, no setup error; assertions enabled and retries unavailable. OBSERVED: Baseline compiler wait439.724 seconds including slot wait; actual compilation succeeded. OBSERVED: Existing normal close sequence is child outcomes, parent outcomes, group termination. INFER: The hook can force native closure while still owning its loop, even when native shutdown rejected off-loop dispatch. OBSERVED: Native cleanup futures are added to final transport failure assembly rather than logging or dropping them. INFER: Next checkpoint is F1 green, baseline removed-fix red, then product push.
+
+2026-11-05T01:10:59.939349+00:00 OBSERVED: Pre-push identity in evidence checkout follows.
+
+OBSERVED git remote -v:
+origin	https://github.com/CodexCoder21Organization/jvm-libp2p.git (fetch)
+origin	https://github.com/CodexCoder21Organization/jvm-libp2p.git (push)
+upstream	https://github.com/libp2p/jvm-libp2p.git (fetch)
+upstream	https://github.com/libp2p/jvm-libp2p.git (push)
+
+
+OBSERVED git rev-parse --abbrev-ref HEAD:
+wip/F93c-evidence-20261105
+
+
+OBSERVED git log -1 --oneline:
+b1757215 Record F93c native close plan and slot wait
+

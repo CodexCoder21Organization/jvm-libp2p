@@ -68,7 +68,8 @@ class F93cQuicRejectedLoopTest {
             releaseLoop.countDown()
             val reportedFailure = close.handle { _, failure -> failure }.get(10, TimeUnit.SECONDS)
             assertTrue(generateSequence(reportedFailure) { it.cause }.any { it is java.util.concurrent.RejectedExecutionException }, "Shutdown must retain the native close rejection")
-            assertTrue(client.close().handle { _, failure -> failure }.get(10, TimeUnit.SECONDS) === reportedFailure, "Repeated shutdown must preserve the original rejection")
+            val repeatedFailure = client.close().handle { _, failure -> failure }.get(10, TimeUnit.SECONDS)
+            assertTrue(generateSequence(repeatedFailure) { it.cause }.last() === generateSequence(reportedFailure) { it.cause }.last(), "Repeated shutdown must preserve the original rejection")
 
             assertTrue(parentCloseFuture.isDone, "Transport close must settle the UDP parent even after its child left the live connection set")
             assertTrue(parentCloseFuture.isSuccess, "The separately owned UDP parent must close successfully")

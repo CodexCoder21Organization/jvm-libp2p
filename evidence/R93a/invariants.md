@@ -1,0 +1,13 @@
+# R93a ownership and lifecycle invariants
+
+| Resource/result | Creator / owner / closer | Terminal state and caller rights | Hostile public scenario / coverage |
+|---|---|---|---|
+| TCP/WS listener | listen / transport / shared close operation | Physical close settled; owned acceptor group terminates even on close failure | FailedCloseTest covers refusal/throw/deferred/caller mutation; FailedCloseSet covers two listeners/eight children |
+| TCP/WS accepted/dial root | connect/accept / transport / shared close operation | Shared worker group remains usable; caller must see original close failure | Existing ParentCloseOwnership covers pending repeated calls; settled repeated failure needs fresh test |
+| QUIC listening UDP parent + accepted children | listen / server transport / parent close | Private group terminates after physical listener closes; child callbacks may re-enter | FailedCloseTest covers six outcomes; actual loop rejection and terminal-loop coverage needs audit |
+| QUIC outbound child | dial / client transport / shared close operation | Child completion precedes explicit UDP-parent close; already-closed child cannot relinquish parent ownership | FailedConnectionSet uses deterministic last-child callback; ClosedChildParent covers ordinary child close before transport stop |
+| QUIC per-dial UDP parent | bind / clientDatagramChannels under transport monitor / transport after children | Removed only on physical parent close; close racing registration must either snapshot it or close immediately | Existing mutation catches dropped registration; close during bind/dial needs explicit coverage audit |
+| Owned acceptor / QUIC group | lazy transport creation / transport / unconditional cleanup handle | Termination after prior channel outcomes, failure or success; no lock held while waiting | All PR-added tests observe real group termination and captured threads; shared/independent groups remain alive |
+| Shutdown result | close / transport operation / cleanup completion | Each caller may mutate its own observer; repeated shutdown must retain the original failed operation per README | Observer mutation covered; settled repeated error is not covered by current tests, fresh public repro planned |
+
+No persisted resource exists in these transports; restart from a durable record is not applicable. Re-entry is possible through Netty pipeline close handlers and completion callbacks. Private snapshots are taken under the monitor, and slow cleanup runs outside it. A close while a dial is in flight is specifically a required review dimension rather than assumed covered by established-connection tests.

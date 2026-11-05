@@ -1,20 +1,28 @@
-# F93b plan
-- [x] Read R93a review and verify current develop/PR identities (no overlap).
-- [ ] Finish required whole-document reading and reproduce finding 1.
-- [ ] Finding 1: public terminated/rejected-loop parent test red, choke-point fix, green, removed-fix red.
-- [ ] Finding 2: settled and pending repeated shutdown red, single private owner fix, green, removed-fix red.
-- [ ] Finding 3: complete failure reporting red, fix, green, removed-fix red.
-- [ ] Five review coverage gaps, each red first: overlap, combined failures, actual native rejection, pending dial, inventory/churn.
-- [ ] Independent test and adversarial review, whole touched files and named documents.
-- [ ] All changed/new and 18 PR cases 30x single attempt, at most two JVMs.
-- [ ] Product push; Actions final-head per-attempt XML.
-- [ ] One unused snapshot publication, all-entry/POM byte verification and provenance; description update.
+# F93b final checkpoint — unfinished, no publication
 
-# Invariants
-|Resource|Creator/owner/closer|Terminal state|Caller/reentry/close rule|
-|---|---|---|---|
-|Dial UDP parent|Transport creates, owns, closes|Physical close future done, closed, deregistered|Cleanup survives rejected and terminated loop; no caller mutation can stop it|
-|Close ordering|Transport owns child operation and parent|All child operations settle before parent close|Repeated/reentrant call shares same private shutdown owner|
-|First shutdown result|Transport/host|Retained success or original failure|Independent observers; repeated call cannot replace result|
-|Combined failures|Transport/host|Every distinct error retained|Primary preserved, later errors suppressed without hiding any|
-No persisted records exist, so restart from storage does not apply.
+- [x] Fresh clone, R93a first, README/FORK and three named policy documents read; rebase onto unchanged origin/develop436997d5, no equivalent fix.
+- [ ] Finding1 every-path physical parent close: graceful terminated-loop red/green/red0/1,1/1,0/1; native immediate-rejection counterexample remains0/1; direct native close still registered0/1. Partial, not counted fixed.
+- [x] Finding2 repeated failure and child-before-parent ordering: red/green/red0/4,4/4,0/4; private owner before callbacks, independent observers.
+- [x] Finding3 secondary reporting: red/green/red1/2,2/2,1/2; suppression-disabled neighbor red1/2,green2/2. All individual channel/parent/group stages examined.
+- [x] Gap1 repeated settled and pending shutdown public cases added and proven red first.
+- [ ] Gap2 partial: secondary parent and suppression-disabled reporting covered; multi-child/group failure tests remain.
+- [ ] Gap3 partial: graceful terminated-loop case fixed; actual native rejection remains failing; full-queue route not completed.
+- [ ] Gap4 public reentrant dial-visitor shutdown reproduction is red1/1; no implementation fix adopted.
+- [ ] Gap5 large inventory/churn/heap-descriptor-thread soak not implemented.
+- [ ] Full independent test-comprehensiveness and adversarial reviews not completed; no clean-review claim.
+- [ ] 30x single-attempt gate not run:0/810; final targeted native JUnit register27/27, zero retries/skips.
+- [ ] Final-head Actions XML not inspected; runs pending at final read (links in final-actions-runs.json).
+- [x] Completed product changes pushed from product checkout to flibp5-acceptor-shutdown-snapshot41; exact b7eecc3a0498f829088fa35a083790bb24199bc2 verified against remote.
+- [x] Description opening why retained, snapshot45 publication/SHA256/FLIBP8 link corrected; current incomplete state explicit.
+- [ ] New publication blocked; none attempted,45 untouched. Needs native correction and authorized dependency artifact before remaining gates and one library publication.
+- [x] Process/slot cleanup check: no owned JVM/wrapper, no F93b slots, no subagents/timers; no handoff-cli or merge/enqueue/close/deploy used.
+
+## Invariants
+|Resource|Creator/owner/closer|Terminal state|Caller and reentry rule|Evidence|
+|---|---|---|---|---|
+|Dial UDP parent|Transport|Closed, deregistered, physical future done|Loop rejection must not strand parent|Graceful case passes; native rejection fails, still unfinished|
+|Close ordering|Transport|Every child operation settled before parent cleanup|One private shutdown owner before callbacks|F2 pending-overlap red/green/red|
+|First shutdown result|Transport/host|Original success/failure retained|Caller mutation affects observer only|F2 settled-repeat red/green/red|
+|Combined failures|Transport/host|Every distinct outcome retained|Primary plus suppressed or aggregate|F3 red/green/red plus disabled-suppression red/green|
+
+There is no persisted resource state; restart-from-record does not apply.

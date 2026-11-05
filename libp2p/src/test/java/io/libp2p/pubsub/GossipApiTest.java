@@ -60,18 +60,24 @@ public class GossipApiTest {
 
     P2PService.PeerHandler peerHandler = peerHandlerStub(router);
 
+    List<TestPubsubMessage> delivered = new ArrayList<>();
+    List<WBytes> canonicalIds = new ArrayList<>();
+    List<Integer> createdCounts = new ArrayList<>();
+
     try {
+      Rpc.RPC firstDelivery = newMessage("Hello-1");
+      Rpc.RPC duplicateDelivery = newMessage("Hello-1");
       // An empty delivery queue does not acknowledge a queued inbound task.
       // Inspect each message only after onInbound returns on the router event thread.
       router
           .submitOnEventThread(
               () -> {
-                router.onInbound(peerHandler, newMessage("Hello-1"));
+                router.onInbound(peerHandler, firstDelivery);
                 TestPubsubMessage message1 = (TestPubsubMessage) messages.poll();
 
-                assertThat(message1).isNotNull();
-                assertThat(message1.canonicalId).isNotNull();
-                assertThat(createdMessages.size()).isEqualTo(1);
+                delivered.add(message1);
+                canonicalIds.add(message1 == null ? null : message1.canonicalId);
+                createdCounts.add(createdMessages.size());
                 createdMessages.clear();
                 return null;
               })
@@ -79,17 +85,25 @@ public class GossipApiTest {
               unused ->
                   router.submitOnEventThread(
                       () -> {
-                        router.onInbound(peerHandler, newMessage("Hello-1"));
+                        router.onInbound(peerHandler, duplicateDelivery);
                         TestPubsubMessage message2 = (TestPubsubMessage) messages.poll();
 
-                        assertThat(message2).isNull();
-                        assertThat(createdMessages.size()).isEqualTo(1);
-                        // The duplicate is filtered by fastId without calculating its canonicalId.
-                        assertThat(createdMessages.get(0).canonicalId).isNull();
+                        delivered.add(message2);
+                        createdCounts.add(createdMessages.size());
+                        canonicalIds.add(
+                            createdMessages.isEmpty() ? null : createdMessages.get(0).canonicalId);
                         createdMessages.clear();
                         return null;
                       }))
           .get(1, TimeUnit.SECONDS);
+      // Assertion-library setup is outside the router completion wait.
+      assertThat(delivered.get(0)).isNotNull();
+      assertThat(canonicalIds.get(0)).isNotNull();
+      assertThat(createdCounts.get(0)).isEqualTo(1);
+      assertThat(delivered.get(1)).isNull();
+      assertThat(createdCounts.get(1)).isEqualTo(1);
+      // The duplicate is filtered by fastId without calculating its canonicalId.
+      assertThat(canonicalIds.get(1)).isNull();
     } finally {
       routerBuilder.getScheduledAsyncExecutor().shutdownNow();
     }
@@ -140,7 +154,8 @@ public class GossipApiTest {
 
     @Override
     public int hashCode() {
-      return message.hashCode();
+      // Equal protobuf messages have equal data; hashing needs no descriptor table.
+      return message.getData().hashCode();
     }
   }
 }

@@ -264,112 +264,114 @@ class QuicTransport(
                 .initialMaxStreamDataBidirectionalLocal(1 shl 18)
                 .build()
 
-        val dial: CompletableFuture<Connection> = client.clone()
-            .handler(
-                nettyInitializer { context ->
-                    val parent = context.channel
-                    val loop = parent.eventLoop() as SingleThreadEventExecutor
-                    // Retain a close owner on the loop before bind can publish the UDP socket.
-                    // Once the loop has terminated no close dispatch can release that socket.
-                    val closeAtTermination =
-                        Runnable {
-                            val children =
+        val dial: CompletableFuture<Connection> =
+            client.clone()
+                .handler(
+                    nettyInitializer { context ->
+                        val parent = context.channel
+                        val loop = parent.eventLoop() as SingleThreadEventExecutor
+                        // Retain a close owner on the loop before bind can publish the UDP socket.
+                        // Once the loop has terminated no close dispatch can release that socket.
+                        val closeAtTermination =
+                            Runnable {
+                                val children =
+                                    synchronized(this@QuicTransport) {
+                                        (channels + listOfNotNull(clientDatagramChannels[parent]?.child))
+                                            .filter { it.parent() === parent }.distinct()
+                                    }
+                                val childCloses = children.map { closeRejectedChannelOnLoop(it) }
+                                val childrenClosed = CompletableFuture.allOf(*childCloses.toTypedArray())
+                                val parentClosed =
+                                    childrenClosed.handle { _, _ ->
+                                        closeRejectedChannelOnLoop(parent)
+                                    }.thenCompose { it }
                                 synchronized(this@QuicTransport) {
-                                    (channels + listOfNotNull(clientDatagramChannels[parent]?.child))
-                                        .filter { it.parent() === parent }.distinct()
+                                    terminationCloses += childCloses
+                                    terminationCloses += parentClosed
                                 }
-                            val childCloses = children.map { closeRejectedChannelOnLoop(it) }
-                            val childrenClosed = CompletableFuture.allOf(*childCloses.toTypedArray())
-                            val parentClosed =
-                                childrenClosed.handle { _, _ ->
-                                    closeRejectedChannelOnLoop(parent)
-                                }.thenCompose { it }
-                            synchronized(this@QuicTransport) {
-                                terminationCloses += childCloses
-                                terminationCloses += parentClosed
+                            }
+                        loop.addShutdownHook(closeAtTermination)
+                        parent.closeFuture().addListener { loop.removeShutdownHook(closeAtTermination) }
+                        context.addLastLocal(requestsHandler)
+                    }
+                )
+                .bind(0)
+                .also { bind ->
+                    val parent = bind.channel()
+                    val owner =
+                        DialParent(parent, {
+                            if (shutdown.get() == null) CompletableFuture.completedFuture(Unit) else shutdownChildrenSettled
+                        }) {
+                            synchronized(this@QuicTransport) { clientDatagramChannels -= parent }
+                        }
+                    dialOwner.set(owner)
+                    val closeImmediately =
+                        synchronized(this@QuicTransport) {
+                            if (closed) {
+                                true
+                            } else {
+                                clientDatagramChannels[parent] = owner
+                                false
                             }
                         }
-                    loop.addShutdownHook(closeAtTermination)
-                    parent.closeFuture().addListener { loop.removeShutdownHook(closeAtTermination) }
-                    context.addLastLocal(requestsHandler)
+                    if (closeImmediately) closeDialParent(owner)
                 }
-            )
-            .bind(0)
-            .also { bind ->
-                val parent = bind.channel()
-                val owner = DialParent(parent, {
-                    if (shutdown.get() == null) CompletableFuture.completedFuture(Unit) else shutdownChildrenSettled
-                }) {
-                    synchronized(this@QuicTransport) { clientDatagramChannels -= parent }
-                }
-                dialOwner.set(owner)
-                val closeImmediately =
-                    synchronized(this@QuicTransport) {
-                        if (closed) {
-                            true
-                        } else {
-                            clientDatagramChannels[parent] = owner
-                            false
+                .toCompletableFuture()
+                .handle { channel, failure ->
+                    if (closed) {
+                        throw Libp2pException("Transport is closed").apply {
+                            if (failure != null) initCause(failure)
                         }
                     }
-                if (closeImmediately) closeDialParent(owner)
-            }
-            .toCompletableFuture()
-            .handle { channel, failure ->
-                if (closed) {
-                    throw Libp2pException("Transport is closed").apply {
-                        if (failure != null) initCause(failure)
-                    }
+                    if (failure != null) throw java.util.concurrent.CompletionException(failure)
+                    channel
                 }
-                if (failure != null) throw java.util.concurrent.CompletionException(failure)
-                channel
-            }
-            .thenCompose {
-                if (closed) throw Libp2pException("Transport is closed")
-                QuicChannel.newBootstrap(it)
-                    .streamOption(ChannelOption.ALLOCATOR, allocator)
-                    .option(ChannelOption.AUTO_READ, true)
-                    .option(ChannelOption.ALLOCATOR, allocator)
-                    .remoteAddress(fromMultiaddr(addr))
-                    .streamHandler(InboundStreamHandler(multistreamProtocol, protocols))
-                    .connect()
-                    .toCompletableFuture()
-            }
-            .thenApply {
-                if (!registerChannel(it)) throw Libp2pException("Transport is closed")
-                val owner = requireNotNull(dialOwner.get())
-                owner.child = it
-                it.closeFuture().addListener {
-                    if (!closed) closeDialParent(owner)
+                .thenCompose {
+                    if (closed) throw Libp2pException("Transport is closed")
+                    QuicChannel.newBootstrap(it)
+                        .streamOption(ChannelOption.ALLOCATOR, allocator)
+                        .option(ChannelOption.AUTO_READ, true)
+                        .option(ChannelOption.ALLOCATOR, allocator)
+                        .remoteAddress(fromMultiaddr(addr))
+                        .streamHandler(InboundStreamHandler(multistreamProtocol, protocols))
+                        .connect()
+                        .toCompletableFuture()
                 }
-                val connection = ConnectionOverNetty(it, this@QuicTransport, true)
-
-                connection.setMuxerSession(QuicMuxerSession(it, connection))
-
-                val pubHash = Multihash.of(addr.getPeerId()!!.bytes.toByteBuf())
-                val remotePubKey =
-                    if (pubHash.desc.digest == Multihash.Digest.Identity) {
-                        unmarshalPublicKey(pubHash.bytes.toByteArray())
-                    } else {
-                        getPublicKeyFromCert(arrayOf(trustManager.remoteCert!!))
+                .thenApply {
+                    if (!registerChannel(it)) throw Libp2pException("Transport is closed")
+                    val owner = requireNotNull(dialOwner.get())
+                    owner.child = it
+                    it.closeFuture().addListener {
+                        if (!closed) closeDialParent(owner)
                     }
-                connection.setSecureSession(
-                    SecureChannel.Session(
-                        PeerId.fromPubKey(localKey.publicKey()),
-                        addr.getPeerId()!!,
-                        remotePubKey,
-                        null
+                    val connection = ConnectionOverNetty(it, this@QuicTransport, true)
+
+                    connection.setMuxerSession(QuicMuxerSession(it, connection))
+
+                    val pubHash = Multihash.of(addr.getPeerId()!!.bytes.toByteBuf())
+                    val remotePubKey =
+                        if (pubHash.desc.digest == Multihash.Digest.Identity) {
+                            unmarshalPublicKey(pubHash.bytes.toByteArray())
+                        } else {
+                            getPublicKeyFromCert(arrayOf(trustManager.remoteCert!!))
+                        }
+                    connection.setSecureSession(
+                        SecureChannel.Session(
+                            PeerId.fromPubKey(localKey.publicKey()),
+                            addr.getPeerId()!!,
+                            remotePubKey,
+                            null
+                        )
                     )
-                )
 
-                preHandler?.also { visitor -> visitor.visit(connection) }
-                if (closed) throw Libp2pException("Transport is closed")
-                connHandler.handleConnection(connection)
+                    preHandler?.also { visitor -> visitor.visit(connection) }
+                    if (closed) throw Libp2pException("Transport is closed")
+                    connHandler.handleConnection(connection)
 
-                it.attr(CONNECTION).set(connection)
+                    it.attr(CONNECTION).set(connection)
 
-                connection
-            }
+                    connection
+                }
         return dial.handle { connection, failure ->
             if (failure == null) {
                 CompletableFuture.completedFuture<Connection>(connection)
@@ -446,7 +448,7 @@ class QuicTransport(
             } else {
                 QuicSslContextBuilder.forServer(javaPrivateKey, null, cert).clientAuth(ClientAuth.REQUIRE)
             }
-            )
+        )
             .trustManager(trustManager)
             .applicationProtocols("libp2p")
             .build()
@@ -615,8 +617,9 @@ private class DialParent(val parent: Channel, val beforeParentClose: () -> Compl
 /** A dial releases its parent only after the original child operation settles. */
 private fun closeDialParent(owner: DialParent): CompletableFuture<Unit> {
     val childClosed = owner.child?.let { closeNettyChannelOnce(it) } ?: CompletableFuture.completedFuture(Unit)
-    val parentClosed = childClosed.handle { _, _ -> owner.beforeParentClose() }
-        .thenCompose { it }.thenCompose { closeNettyChannelOnce(owner.parent) }
+    val parentClosed =
+        childClosed.handle { _, _ -> owner.beforeParentClose() }
+            .thenCompose { it }.thenCompose { closeNettyChannelOnce(owner.parent) }
     return parentClosed.whenComplete { _, failure ->
         if (failure == null && !childClosed.isCompletedExceptionally) owner.released()
     }

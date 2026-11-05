@@ -118,7 +118,13 @@ class ParentCloseOwnershipTest {
                 parent.nettyChannel.close().get(5, TimeUnit.SECONDS)
                 parent.nettyChannel.eventLoop().submit {}.get(5, TimeUnit.SECONDS)
             }
-            CompletableFuture.allOf(client.stop(), server.stop()).get(10, TimeUnit.SECONDS)
+            try {
+                var reported: Throwable = assertThrows(ExecutionException::class.java) { client.stop().get(10, TimeUnit.SECONDS) }
+                while (reported.cause != null) reported = reported.cause!!
+                assertSame(failure, reported, "Host shutdown must retain the original failed parent close after socket cleanup.")
+            } finally {
+                server.stop().get(10, TimeUnit.SECONDS)
+            }
         }
     }
 }

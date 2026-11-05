@@ -58,6 +58,7 @@ class QuicTransport(
 
     private val logger = LoggerFactory.getLogger(QuicTransport::class.java)
 
+    @Volatile
     private var closed = false
 
     private val shutdown = AtomicReference<CompletableFuture<Unit>?>()
@@ -294,7 +295,7 @@ class QuicTransport(
                     .toCompletableFuture()
             }
             .thenApply {
-                registerChannel(it)
+                if (!registerChannel(it)) throw Libp2pException("Transport is closed")
                 val connection = ConnectionOverNetty(it, this@QuicTransport, true)
 
                 connection.setMuxerSession(QuicMuxerSession(it, connection))
@@ -315,6 +316,7 @@ class QuicTransport(
                 )
 
                 preHandler?.also { visitor -> visitor.visit(connection) }
+                if (closed) throw Libp2pException("Transport is closed")
                 connHandler.handleConnection(connection)
 
                 it.attr(CONNECTION).set(connection)
@@ -323,20 +325,23 @@ class QuicTransport(
             }
     }
 
-    private fun registerChannel(ch: Channel) {
-        if (closed) {
-            closeNettyChannelOnce(ch)
-            return
-        }
-
-        synchronized(this@QuicTransport) {
-            channels += ch
-            ch.closeFuture().addListener {
-                synchronized(this@QuicTransport) {
-                    channels -= ch
-                }
+    private fun registerChannel(ch: Channel): Boolean {
+        val registered = synchronized(this@QuicTransport) {
+            if (closed) false else {
+                channels += ch
+                true
             }
         }
+        if (!registered) {
+            closeNettyChannelOnce(ch)
+            return false
+        }
+        ch.closeFuture().addListener {
+            synchronized(this@QuicTransport) {
+                channels -= ch
+            }
+        }
+        return true
     }
 
     private fun handlesHost(addr: Multiaddr) =

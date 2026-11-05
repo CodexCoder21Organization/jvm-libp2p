@@ -224,3 +224,24 @@ wip/F93c-evidence-20261105
 OBSERVED git log -1 --oneline:
 06d7b9de Checkpoint F93c larger inventory draft and exact remaining gates
 
+
+2026-11-05T01:56:14.517714+00:00 OBSERVED: Evidence local=remote 10820e47b12c761a13624e0ee071ffa57fe71848.
+
+2026-11-05T01:58:12.188059+00:00 OBSERVED: Held-bind red0/1 now exists on a public API assertion: shutdown returns a lower-level channel error instead of the full Transport is closed contract. OBSERVED: Added closed check before QUIC handshake creation, compilation pending. OBSERVED: Drafted native rejection with a LIVE child (F93cQuicLiveChildRejectedLoopTest); original permanent regression closed its child ordinarily first. INFER: Parent-only native proof does not prove live-child cleanup; no every-path guarantee is claimed until this new dimension runs. INFER: Next checkpoint is consolidated compiler, bind green and live-child native result.
+
+2026-11-05T01:58:12.396229+00:00 OBSERVED: Pre-push identity in evidence checkout follows.
+
+OBSERVED git remote -v:
+origin	https://github.com/CodexCoder21Organization/jvm-libp2p.git (fetch)
+origin	https://github.com/CodexCoder21Organization/jvm-libp2p.git (push)
+upstream	https://github.com/libp2p/jvm-libp2p.git (fetch)
+upstream	https://github.com/libp2p/jvm-libp2p.git (push)
+
+
+OBSERVED git rev-parse --abbrev-ref HEAD:
+wip/F93c-evidence-20261105
+
+
+OBSERVED git log -1 --oneline:
+10820e47 Record F93c pushed dial guard and exact unfinished gate counts
+

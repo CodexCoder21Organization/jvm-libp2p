@@ -3,6 +3,7 @@ package io.libp2p.transport.implementation
 import io.libp2p.etc.types.toVoidCompletableFuture
 import io.netty.channel.Channel
 import io.netty.util.AttributeKey
+import java.util.concurrent.CompletionException
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
@@ -81,4 +82,22 @@ private fun requestPhysicalClose(channel: Channel, operation: CompletableFuture<
     } catch (failure: Throwable) {
         operation.completeExceptionally(failure)
     }
+}
+
+/** Every operation has settled before its shutdown result is assembled. */
+internal fun transportCloseResult(operations: List<CompletableFuture<*>>) {
+    var primary: Throwable? = null
+    operations.forEach { operation ->
+        val failure = operation.handle { _, failure -> failure }.join()
+        val original = if (failure is CompletionException) failure.cause ?: failure else failure
+        if (original != null) {
+            val first = primary
+            if (first == null) {
+                primary = original
+            } else if (first !== original && first.suppressed.none { it === original }) {
+                first.addSuppressed(original)
+            }
+        }
+    }
+    primary?.let { throw CompletionException(it) }
 }

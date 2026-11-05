@@ -225,11 +225,8 @@ abstract class PlainNettyTransport(
             // from under every other live host in the JVM.
             bossGroup.shutdownGracefully(0, 5, TimeUnit.SECONDS).toVoidCompletableFuture()
         }.thenCompose { it }
-        groupClosed.handle { _, shutdownFailure ->
-            // Cleanup starts after allClosed settles, so join cannot block here.
-            // Read that outcome first to preserve the original channel-close failure.
-            allClosed.join()
-            if (shutdownFailure != null) throw shutdownFailure
+        groupClosed.handle { _, _ ->
+            transportCloseResult(everythingThatNeedsToClose.toList() + groupClosed)
             Unit
         }.whenComplete { _, failure ->
             if (failure == null) completion.complete(Unit) else completion.completeExceptionally(failure)

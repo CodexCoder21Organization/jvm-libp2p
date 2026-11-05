@@ -12,6 +12,7 @@ import io.netty.channel.Channel
 import io.netty.channel.ChannelHandlerContext
 import io.netty.channel.ChannelOutboundHandlerAdapter
 import io.netty.channel.ChannelPromise
+import io.netty.handler.codec.quic.QuicChannel
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 import java.net.DatagramSocket
@@ -64,14 +65,14 @@ class F93fQuicLateChildHandoffProbeTest {
                 { connection: Connection ->
                     val channel = (connection as ConnectionOverNetty).nettyChannel
                     // Read the peer's UDP endpoint before the accepted QUIC child closes.
-                    val remoteUdpAddress = channel.remoteSocketAddress() as InetSocketAddress
+                    val remoteUdpAddress = (channel as QuicChannel).remoteSocketAddress() as InetSocketAddress
                     accepted.offer(Accepted(acceptedSequence.incrementAndGet(), remoteUdpAddress, channel))
                 },
                 null
             ).get(10, TimeUnit.SECONDS)
 
-            val serverAddress = server.listenAddresses().single()
-                .withP2P(PeerId.fromPubKey(serverKey.publicKey()))
+            val listeningAddress = server.listenAddresses().single()
+            val serverAddress = listeningAddress.withP2P(PeerId.fromPubKey(serverKey.publicKey()))
 
             val warmup = client.dial(serverAddress, { }, null).get(10, TimeUnit.SECONDS) as ConnectionOverNetty
             awaitAccepted(1)
@@ -156,12 +157,12 @@ class F93fQuicLateChildHandoffProbeTest {
 
             val remoteUdpAddress = lateAccepted.remoteUdpAddress
             assertTrue(remoteUdpAddress.port > 0, "The server must capture the client's UDP source port")
-            assertThrows(SocketException::class.java, "The late dial's UDP parent must remain bound") {
+            assertThrows(SocketException::class.java, {
                 DatagramSocket(null).use { probe ->
                     probe.reuseAddress = false
                     probe.bind(InetSocketAddress(remoteUdpAddress.address, remoteUdpAddress.port))
                 }
-            }
+            }, "The late dial's UDP parent must remain bound")
 
             heldAnchor.context.close(heldAnchor.promise)
             closing.get(10, TimeUnit.SECONDS)
@@ -180,7 +181,7 @@ class F93fQuicLateChildHandoffProbeTest {
                 probe.bind(InetSocketAddress(remoteUdpAddress.address, remoteUdpAddress.port))
             }
             assertEquals(1, server.activeListeners, "Client shutdown must preserve the server listener")
-            assertEquals(serverAddress.withoutP2P(), server.listenAddresses().single())
+            assertEquals(listeningAddress, server.listenAddresses().single())
         } finally {
             releaseGroupLoops.countDown()
             try {

@@ -63,3 +63,17 @@ wip/F93e-evidence-20261105
 
 OBSERVED git log -1 --oneline:
 09fe1048 Record queued resource checks and remove transient process marker
+
+2026-11-05T04:32:47.422483+00:00 OBSERVED: Explicit fork PR check remains OPEN at remote0363c80e, saved with the current description. OBSERVED: Exact local product candidate924ef391 is now preserved as product-candidate-924ef391.patch in evidence while formatting cannot run; no unformatted product push or new Actions run is claimed. OBSERVED: Additional-fixture compiler now consolidates fullqueue, soak, late-creation diagnostic and the five-case Noise lifecycle support, still zero JVMs/slots held during its queue wait. OBSERVED: Shared wait cap remains04:40:52 UTC without extension, no Addendum headings at04:32. INFER: Next checkpoint remains the first actual preparation result, then physical resource tests.
+
+OBSERVED git remote -v:
+origin	https://github.com/CodexCoder21Organization/jvm-libp2p.git (fetch) [blob:none]
+origin	https://github.com/CodexCoder21Organization/jvm-libp2p.git (push)
+upstream	https://github.com/libp2p/jvm-libp2p.git (fetch)
+upstream	https://github.com/libp2p/jvm-libp2p.git (push)
+
+OBSERVED git rev-parse --abbrev-ref HEAD:
+wip/F93e-evidence-20261105
+
+OBSERVED git log -1 --oneline:
+f2e7f605 Save lifecycle soak draft and enforce both shared JVM limits

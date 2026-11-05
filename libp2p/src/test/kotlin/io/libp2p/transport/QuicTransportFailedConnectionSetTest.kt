@@ -43,8 +43,9 @@ class QuicTransportFailedConnectionSetTest {
         try {
             server.listen(Multiaddr("/ip4/127.0.0.1/udp/0/quic-v1"), { accepted.offer(it) }, null)
                 .get(10, TimeUnit.SECONDS)
-            val remoteAddress = server.listenAddresses().single()
-                .withP2P(PeerId.fromPubKey(serverKey.publicKey()))
+            val remoteAddress =
+                server.listenAddresses().single()
+                    .withP2P(PeerId.fromPubKey(serverKey.publicKey()))
             repeat(4) { index ->
                 val connection = client.dial(remoteAddress, { }, null).get(10, TimeUnit.SECONDS)
                 clientChannels += (connection as ConnectionOverNetty).nettyChannel
@@ -66,16 +67,20 @@ class QuicTransportFailedConnectionSetTest {
             clientGroup = ownedGroup
             val listeningGroup = serverChannels.first().eventLoop().parent()
             serverGroup = listeningGroup
-            val clientThreads = ownedGroup.map { executor ->
-                executor.submit<Thread> { Thread.currentThread() }.get(10, TimeUnit.SECONDS)
-            }
+            val clientThreads =
+                ownedGroup.map { executor ->
+                    executor.submit<Thread> { Thread.currentThread() }.get(10, TimeUnit.SECONDS)
+                }
             val clientCloseFutures = clientChannels.map { it.closeFuture() }
             val parentCloseFutures = identityParents.map { it.closeFuture() }
             val firstClientChannel = clientChannels.first()
             firstClientChannel.pipeline().addFirst(
                 "release-then-fail-close",
                 object : ChannelOutboundHandlerAdapter() {
-                    override fun close(ctx: ChannelHandlerContext, promise: ChannelPromise) {
+                    override fun close(
+                        ctx: ChannelHandlerContext,
+                        promise: ChannelPromise
+                    ) {
                         pendingClose.complete(ctx to promise)
                     }
                 }
@@ -95,9 +100,10 @@ class QuicTransportFailedConnectionSetTest {
             context.executor().execute {
                 context.close(context.newPromise()).addListener { promise.setFailure(failure) }
             }
-            val error = assertThrows(ExecutionException::class.java) {
-                close.get(10, TimeUnit.SECONDS)
-            }
+            val error =
+                assertThrows(ExecutionException::class.java) {
+                    close.get(10, TimeUnit.SECONDS)
+                }
             assertSame(failure, error.cause, "The client transport must report the injected failure object")
             assertTrue(ownedGroup.isTerminated, "Failed close must still terminate the owned QUIC worker group")
 

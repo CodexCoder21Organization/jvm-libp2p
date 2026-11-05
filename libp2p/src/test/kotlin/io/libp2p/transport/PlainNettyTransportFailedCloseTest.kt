@@ -25,17 +25,19 @@ class PlainNettyTransportFailedCloseTest {
     @ParameterizedTest
     @ValueSource(strings = ["listener", "connection", "listener-throw", "listener-deferred", "caller-cancel", "caller-complete", "success"])
     fun closeTerminatesEveryAcceptorThread(outcome: String) {
-        val serverHost = host {
-            transports { add(::TcpTransport) }
-            secureChannels { add(::NoiseXXSecureChannel) }
-            muxers { add(StreamMuxerProtocol.getYamux()) }
-            network { listen("/ip4/127.0.0.1/tcp/0") }
-        }
-        val clientHost = host {
-            transports { add(::TcpTransport) }
-            secureChannels { add(::NoiseXXSecureChannel) }
-            muxers { add(StreamMuxerProtocol.getYamux()) }
-        }
+        val serverHost =
+            host {
+                transports { add(::TcpTransport) }
+                secureChannels { add(::NoiseXXSecureChannel) }
+                muxers { add(StreamMuxerProtocol.getYamux()) }
+                network { listen("/ip4/127.0.0.1/tcp/0") }
+            }
+        val clientHost =
+            host {
+                transports { add(::TcpTransport) }
+                secureChannels { add(::NoiseXXSecureChannel) }
+                muxers { add(StreamMuxerProtocol.getYamux()) }
+            }
         val server = serverHost.network.transports.single()
         val client = clientHost.network.transports.single()
         val accepted = CompletableFuture<Connection>()
@@ -62,7 +64,10 @@ class PlainNettyTransportFailedCloseTest {
                 target.pipeline().addFirst(
                     "refuse-close",
                     object : ChannelOutboundHandlerAdapter() {
-                        override fun close(ctx: ChannelHandlerContext, promise: ChannelPromise) {
+                        override fun close(
+                            ctx: ChannelHandlerContext,
+                            promise: ChannelPromise
+                        ) {
                             if (outcome == "listener-throw") {
                                 ctx.close(ctx.newPromise())
                                 throw failure

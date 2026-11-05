@@ -26,15 +26,16 @@ import java.util.concurrent.TimeUnit
 class PlainNettyTransportFailedCloseSetTest {
     @Test
     fun oneListenerCloseFailureStillClosesEveryListenerAndAcceptedRoot() {
-        val serverHost = host {
-            transports { add(::TcpTransport) }
-            secureChannels { add(::NoiseXXSecureChannel) }
-            muxers { add(StreamMuxerProtocol.getYamux()) }
-            network {
-                listen("/ip4/127.0.0.1/tcp/0")
-                listen("/ip4/127.0.0.2/tcp/0")
+        val serverHost =
+            host {
+                transports { add(::TcpTransport) }
+                secureChannels { add(::NoiseXXSecureChannel) }
+                muxers { add(StreamMuxerProtocol.getYamux()) }
+                network {
+                    listen("/ip4/127.0.0.1/tcp/0")
+                    listen("/ip4/127.0.0.2/tcp/0")
+                }
             }
-        }
         val server = serverHost.network.transports.single()
         val clients = mutableListOf<Host>()
         val accepted = LinkedBlockingQueue<Connection>()
@@ -50,11 +51,12 @@ class PlainNettyTransportFailedCloseSetTest {
             assertEquals(2, listenAddresses.size, "The server must expose both ephemeral listener addresses")
 
             repeat(8) { index ->
-                val clientHost = host {
-                    transports { add(::TcpTransport) }
-                    secureChannels { add(::NoiseXXSecureChannel) }
-                    muxers { add(StreamMuxerProtocol.getYamux()) }
-                }
+                val clientHost =
+                    host {
+                        transports { add(::TcpTransport) }
+                        secureChannels { add(::NoiseXXSecureChannel) }
+                        muxers { add(StreamMuxerProtocol.getYamux()) }
+                    }
                 clients += clientHost
                 clientHost.start().get(10, TimeUnit.SECONDS)
                 clientHost.network.connect(serverHost.peerId, listenAddresses[index % listenAddresses.size])
@@ -74,16 +76,20 @@ class PlainNettyTransportFailedCloseSetTest {
             bossGroup = ownedGroup
             assertTrue(listenerChannels.all { it.eventLoop().parent() === ownedGroup }, "Both listeners must use the owned boss group")
             val workerGroup = acceptedChannels.first().eventLoop().parent()
-            val bossThreads = ownedGroup.map { executor ->
-                executor.submit<Thread> { Thread.currentThread() }.get(10, TimeUnit.SECONDS)
-            }
+            val bossThreads =
+                ownedGroup.map { executor ->
+                    executor.submit<Thread> { Thread.currentThread() }.get(10, TimeUnit.SECONDS)
+                }
             val listenerCloseFutures = listenerChannels.map { it.closeFuture() }
             val rootCloseFutures = acceptedChannels.map { it.closeFuture() }
 
             firstListener.pipeline().addFirst(
                 "release-then-fail-close",
                 object : ChannelOutboundHandlerAdapter() {
-                    override fun close(ctx: ChannelHandlerContext, promise: ChannelPromise) {
+                    override fun close(
+                        ctx: ChannelHandlerContext,
+                        promise: ChannelPromise
+                    ) {
                         ctx.close(ctx.newPromise()).addListener { promise.setFailure(failure) }
                     }
                 }
@@ -91,9 +97,10 @@ class PlainNettyTransportFailedCloseSetTest {
             firstListener.eventLoop().submit { }.get(10, TimeUnit.SECONDS)
 
             val close = server.close().also { closeAttempted = true }
-            val error = assertThrows(ExecutionException::class.java) {
-                close.get(10, TimeUnit.SECONDS)
-            }
+            val error =
+                assertThrows(ExecutionException::class.java) {
+                    close.get(10, TimeUnit.SECONDS)
+                }
             assertSame(failure, error.cause, "The transport must report the injected listener failure object")
             assertTrue(ownedGroup.isTerminated, "Failed close must still terminate the owned TCP acceptor group")
 

@@ -4,6 +4,7 @@ base=/tmp/claude-501/-code/eff1f329-f18f-4c39-ad01-4fe1302ac178/scratchpad/out
 deadline=$((SECONDS+1500))
 slot=
 while [[ -z "$slot" ]]; do
+  if (( SECONDS >= deadline )); then echo "PROBLEM: JVM slot deadline reached"; exit 75; fi
   for n in 1 2 3 4 5 6; do
     if mkdir "$base/jvm-slot-$n" 2>/dev/null; then
       echo F93c > "$base/jvm-slot-$n/owner"
@@ -16,6 +17,9 @@ while [[ -z "$slot" ]]; do
   sleep 30
 done
 trap 'rm -rf "$base/jvm-slot-$slot"' EXIT
-trap 'exit 143' TERM
+trap 'if [[ -n "${child:-}" ]]; then kill -TERM "$child" 2>/dev/null || true; fi; exit 143' TERM
 trap 'exit 130' INT
-"$@"
+echo "SLOT_ACQUIRED F93c slot=$slot utc=$(date -u +%FT%TZ)"
+"$@" &
+child=$!
+wait "$child"

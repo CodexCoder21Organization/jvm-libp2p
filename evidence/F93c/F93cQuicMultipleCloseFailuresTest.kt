@@ -192,7 +192,7 @@ class F93cQuicMultipleCloseFailuresTest {
                         clientChannels.filter { it.isOpen }.forEach { it.close().syncUninterruptibly() }
                         clientChannels.mapNotNull { it.parent() }.distinct().filter { it.isOpen }
                             .forEach { it.close().syncUninterruptibly() }
-                        clientGroup.shutdownGracefully(0, 5, TimeUnit.SECONDS).syncUninterruptibly()
+                        clientGroup!!.shutdownGracefully(0, 5, TimeUnit.SECONDS).syncUninterruptibly()
                     }
                 } finally {
                     try {
@@ -202,7 +202,7 @@ class F93cQuicMultipleCloseFailuresTest {
                             serverChannels.filter { it.isOpen }.forEach { it.close().syncUninterruptibly() }
                             serverChannels.mapNotNull { it.parent() }.distinct().filter { it.isOpen }
                                 .forEach { it.close().syncUninterruptibly() }
-                            serverGroup.shutdownGracefully(0, 5, TimeUnit.SECONDS).syncUninterruptibly()
+                            serverGroup!!.shutdownGracefully(0, 5, TimeUnit.SECONDS).syncUninterruptibly()
                         }
                     }
                 }

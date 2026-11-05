@@ -1,0 +1,83 @@
+diff --git a/libp2p/src/main/kotlin/io/libp2p/transport/quic/QuicTransport.kt b/libp2p/src/main/kotlin/io/libp2p/transport/quic/QuicTransport.kt
+index 153c5e23..b23c4e22 100644
+--- a/libp2p/src/main/kotlin/io/libp2p/transport/quic/QuicTransport.kt
++++ b/libp2p/src/main/kotlin/io/libp2p/transport/quic/QuicTransport.kt
+@@ -58,6 +58,7 @@ class QuicTransport(
+ 
+     private val logger = LoggerFactory.getLogger(QuicTransport::class.java)
+ 
++    @Volatile
+     private var closed = false
+ 
+     private val shutdown = AtomicReference<CompletableFuture<Unit>?>()
+@@ -294,7 +295,7 @@ class QuicTransport(
+                     .toCompletableFuture()
+             }
+             .thenApply {
+-                registerChannel(it)
++                if (!registerChannel(it)) throw Libp2pException("Transport is closed")
+                 val connection = ConnectionOverNetty(it, this@QuicTransport, true)
+ 
+                 connection.setMuxerSession(QuicMuxerSession(it, connection))
+@@ -315,6 +316,7 @@ class QuicTransport(
+                 )
+ 
+                 preHandler?.also { visitor -> visitor.visit(connection) }
++                if (closed) throw Libp2pException("Transport is closed")
+                 connHandler.handleConnection(connection)
+ 
+                 it.attr(CONNECTION).set(connection)
+@@ -323,20 +325,23 @@ class QuicTransport(
+             }
+     }
+ 
+-    private fun registerChannel(ch: Channel) {
+-        if (closed) {
++    private fun registerChannel(ch: Channel): Boolean {
++        val registered = synchronized(this@QuicTransport) {
++            if (closed) false else {
++                channels += ch
++                true
++            }
++        }
++        if (!registered) {
+             closeNettyChannelOnce(ch)
+-            return
++            return false
+         }
+-
+-        synchronized(this@QuicTransport) {
+-            channels += ch
+-            ch.closeFuture().addListener {
+-                synchronized(this@QuicTransport) {
+-                    channels -= ch
+-                }
++        ch.closeFuture().addListener {
++            synchronized(this@QuicTransport) {
++                channels -= ch
+             }
+         }
++        return true
+     }
+ 
+     private fun handlesHost(addr: Multiaddr) =
+diff --git a/libp2p/src/test/kotlin/io/libp2p/transport/F93bQuicTerminatedLoopTest.kt b/libp2p/src/test/kotlin/io/libp2p/transport/F93bQuicTerminatedLoopTest.kt
+index 693eeb16..d4434bf3 100644
+--- a/libp2p/src/test/kotlin/io/libp2p/transport/F93bQuicTerminatedLoopTest.kt
++++ b/libp2p/src/test/kotlin/io/libp2p/transport/F93bQuicTerminatedLoopTest.kt
+@@ -9,6 +9,7 @@ import io.libp2p.transport.quic.QuicTransport
+ import io.netty.channel.Channel
+ import io.netty.channel.EventLoopGroup
+ import org.junit.jupiter.api.Assertions.assertEquals
++import org.junit.jupiter.api.Assertions.assertNull
+ import org.junit.jupiter.api.Assertions.assertFalse
+ import org.junit.jupiter.api.Assertions.assertTrue
+ import org.junit.jupiter.api.Test
+@@ -59,6 +60,7 @@ class F93bQuicTerminatedLoopTest {
+             assertTrue(ownedGroup.isTerminated, "The QUIC worker group must be terminal before transport close")
+             val close = client.close().also { clientCloseAttempted = true }
+             val reportedFailure = close.handle { _, failure -> failure }.get(10, TimeUnit.SECONDS)
++            assertNull(reportedFailure, "A UDP parent closed before graceful loop termination must retain its successful shutdown result")
+             assertTrue(parentCloseFuture.isDone, "Transport close must settle the UDP parent even after its child left the live connection set")
+             assertTrue(parentCloseFuture.isSuccess, "The separately owned UDP parent must close successfully")
+             assertFalse(parent.isOpen, "The UDP parent must be physically closed before transport close returns")

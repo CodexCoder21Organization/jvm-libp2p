@@ -138,3 +138,24 @@ wip/F93c-evidence-20261105
 OBSERVED git log -1 --oneline:
 c57dc9f3 Record F93c physical-close correction and churn counterexample
 
+
+2026-11-05T01:17:44.364167+00:00 OBSERVED: Evidence local=remote 3082f631703038906aaa6dd7e55828cd2b45d802.
+
+2026-11-05T01:47:36.062935+00:00 OBSERVED: Actions on55fc5fe7 stops during compileTestKotlin because F93bQuicTerminatedLoopTest.kt:61 reportedFailure is unused and Gradle enables Werror; no native test-attempt verdict exists. OBSERVED: Dedicated PR-added test commit adds assertNull on the already obtained graceful shutdown result, strengthening the test; main-test edits remain none. OBSERVED: Gap2 draft compiler found captured-local smart cast errors in finally; changed only nullable group access in evidence, not counted as attempts. OBSERVED: Second compiler commands spent roughly30 minutes including waiting and preparation; slot wrapper now checks its deadline before acquisition and logs acquisition UTC. OBSERVED: No Addendum at latest scan. INFER: Next checkpoint is remaining targeted green and a source rebase/build with Werror, then final product/evidence pushes.
+
+2026-11-05T01:47:36.109033+00:00 OBSERVED: Pre-push identity in evidence checkout follows.
+
+OBSERVED git remote -v:
+origin	https://github.com/CodexCoder21Organization/jvm-libp2p.git (fetch)
+origin	https://github.com/CodexCoder21Organization/jvm-libp2p.git (push)
+upstream	https://github.com/libp2p/jvm-libp2p.git (fetch)
+upstream	https://github.com/libp2p/jvm-libp2p.git (push)
+
+
+OBSERVED git rev-parse --abbrev-ref HEAD:
+wip/F93c-evidence-20261105
+
+
+OBSERVED git log -1 --oneline:
+3082f631 Save F93c pending-bind reproducer and single-attempt gate launcher
+

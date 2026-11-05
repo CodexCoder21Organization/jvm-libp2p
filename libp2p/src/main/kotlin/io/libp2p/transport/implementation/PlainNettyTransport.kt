@@ -189,7 +189,10 @@ abstract class PlainNettyTransport(
 
         // Only the transport waiter is interrupted. Noise owns the shared setup worker.
         // A readiness callback may close this transport from the completing worker itself.
-        if (preparationToInterrupt !== Thread.currentThread()) preparationToInterrupt?.interrupt()
+        if (preparationToInterrupt != null && preparationToInterrupt !== Thread.currentThread()) {
+            preparationToInterrupt.interrupt()
+            TransportPreparationOrdering.afterInterrupt?.invoke(preparationToInterrupt)
+        }
 
         // Complete outside the monitor: readiness callbacks can re-enter transport operations.
         readiness.completeExceptionally(Libp2pException("Transport is closed"))
@@ -408,4 +411,10 @@ abstract class PlainNettyTransport(
             MultiThreadIoEventLoopGroup(DefaultThreadFactory("libp2p-nio-worker", true), NioIoHandler.newFactory())
         }
     }
+}
+
+// Orders the close/interruption boundary in an isolated lifecycle regression.
+internal object TransportPreparationOrdering {
+    @Volatile
+    var afterInterrupt: ((Thread) -> Unit)? = null
 }

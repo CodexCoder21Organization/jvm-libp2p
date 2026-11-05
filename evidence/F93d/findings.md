@@ -136,3 +136,22 @@ wip/F93d-evidence-20261105
 OBSERVED git log -1 --oneline:
 004dbcd Record approved cleanup ruling and deterministic inventory controls
 
+
+2026-11-05T03:30 UTC OBSERVED: Candidate register is37/40 first attempts,0 retries. OBSERVED: One PR-added native test still expects a rejection after ordinary child close now already released its parent; it must instead prove early release and preserved success, with live-child/full-queue cases retaining rejection coverage. OBSERVED: New ordinary-ordering test's body reaches its expected path but its finally forwards an already-completed parent promise twice; fixture guard corrected before relying on that case. OBSERVED: Existing unsuppressed-child/parent test catches a candidate regression: nested aggregation makes the UDP-parent error indirect instead of directly suppressed. INFER: Aggregate each original operation once at shutdown, return the parent's own result from per-dial cleanup, and retain the owner when either child or parent fails. OBSERVED: Root independent review found a second candidate ordering issue: auto cleanup admitted before shutdown may close its parent when its own child settles while a sibling's shutdown close remains held; a two-child public test is now queued to prove it before a barrier correction. OBSERVED: Final A1 compiler0, class-wide rerun queued. INFER: These new findings prevent claiming the candidate, gate or publication complete; next checkpoint is the two-child red and corrected candidate green. OBSERVED: No Addendum beyond A1 at03:28.
+
+2026-11-05T03:30:55.948383+00:00 OBSERVED: Evidence pre-push identity follows.
+
+OBSERVED git remote -v:
+origin	https://github.com/CodexCoder21Organization/jvm-libp2p.git (fetch) [blob:none]
+origin	https://github.com/CodexCoder21Organization/jvm-libp2p.git (push)
+upstream	https://github.com/libp2p/jvm-libp2p.git (fetch)
+upstream	https://github.com/libp2p/jvm-libp2p.git (push)
+
+
+OBSERVED git rev-parse --abbrev-ref HEAD:
+wip/F93d-evidence-20261105
+
+
+OBSERVED git log -1 --oneline:
+2015425 Checkpoint full-queue proof and failing handshake ownership controls
+

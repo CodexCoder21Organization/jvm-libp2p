@@ -377,7 +377,7 @@ class QuicTransport(
                 } else {
                     val cleanup = closeDialParent(owner)
                     cleanup.handle { _, _ ->
-                        transportCloseResult(listOf(failed, cleanup))
+                        transportCloseResult(listOfNotNull(failed, owner.child?.let { closeNettyChannelOnce(it) }, cleanup))
                         Unit
                     }.thenCompose { failed }
                 }
@@ -610,11 +610,8 @@ private class DialParent(val parent: Channel, val released: () -> Unit) {
 private fun closeDialParent(owner: DialParent): CompletableFuture<Unit> {
     val childClosed = owner.child?.let { closeNettyChannelOnce(it) } ?: CompletableFuture.completedFuture(Unit)
     val parentClosed = childClosed.handle { _, _ -> closeNettyChannelOnce(owner.parent) }.thenCompose { it }
-    return parentClosed.handle { _, _ ->
-        transportCloseResult(listOf(childClosed, parentClosed))
-        Unit
-    }.whenComplete { _, failure ->
-        if (failure == null) owner.released()
+    return parentClosed.whenComplete { _, failure ->
+        if (failure == null && !childClosed.isCompletedExceptionally) owner.released()
     }
 }
 

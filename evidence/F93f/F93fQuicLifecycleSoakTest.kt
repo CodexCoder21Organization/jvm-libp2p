@@ -38,13 +38,16 @@ class F93fQuicLifecycleSoakTest {
             assertTrue(process.waitFor(30, TimeUnit.SECONDS), "The QUIC lifecycle soak probe must finish")
             assertEquals(0, process.exitValue(), "The QUIC lifecycle soak probe must pass every assertion")
         } finally {
-            process.destroyForcibly().waitFor(5, TimeUnit.SECONDS)
+            assertTrue(process.destroyForcibly().waitFor(5, TimeUnit.SECONDS), "The owned lifecycle soak probe JVM must exit during cleanup")
         }
     }
 }
 object F93fQuicLifecycleSoakProbe {
     @JvmStatic
     fun main(args: Array<String>) {
+        // Four dependency event loops match the documented two-core test runner on every host.
+        // All sixteen public callers still compete; host CPU count must not size this fixture.
+        System.setProperty("io.netty.eventLoopThreads", "4")
         val descriptorBean = ManagementFactory.getOperatingSystemMXBean() as? UnixOperatingSystemMXBean
             ?: throw AssertionError("The lifecycle soak requires Unix open-file-descriptor counters")
 

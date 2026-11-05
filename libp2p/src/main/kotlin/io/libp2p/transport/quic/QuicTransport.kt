@@ -414,7 +414,7 @@ class QuicTransport(
             } else {
                 QuicSslContextBuilder.forServer(javaPrivateKey, null, cert).clientAuth(ClientAuth.REQUIRE)
             }
-        )
+            )
             .trustManager(trustManager)
             .applicationProtocols("libp2p")
             .build()

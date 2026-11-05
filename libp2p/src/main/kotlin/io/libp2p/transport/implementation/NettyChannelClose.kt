@@ -3,7 +3,10 @@ package io.libp2p.transport.implementation
 import io.libp2p.etc.types.toVoidCompletableFuture
 import io.netty.channel.Channel
 import io.netty.util.AttributeKey
+import java.util.Collections
+import java.util.IdentityHashMap
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CompletionException
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 
@@ -36,14 +39,15 @@ internal fun observeConnectionClose(
 }
 
 /** Ordinary owners always observe the original close, even after an explicit retry. */
-internal fun closeNettyChannelOnce(channel: Channel): CompletableFuture<Unit> =
-    closeOperation(channel, retry = false).thenApply { Unit }
+internal fun closeNettyChannelOnce(channel: Channel): CompletableFuture<Unit> = closeOperation(channel, retry = false).thenApply { Unit }
 
 /** Only a settled failure permits a new physical attempt; pending callers share its owner. */
-internal fun retryNettyChannelClose(channel: Channel): CompletableFuture<Unit> =
-    closeOperation(channel, retry = true).thenApply { Unit }
+internal fun retryNettyChannelClose(channel: Channel): CompletableFuture<Unit> = closeOperation(channel, retry = true).thenApply { Unit }
 
-private fun closeOperation(channel: Channel, retry: Boolean): CompletableFuture<Unit> {
+private fun closeOperation(
+    channel: Channel,
+    retry: Boolean
+): CompletableFuture<Unit> {
     val candidateState = ChannelCloseState()
     val state = channel.attr(closeOperationKey).setIfAbsent(candidateState) ?: candidateState
     // Publish ownership before handlers or future callbacks can re-enter.
@@ -63,7 +67,10 @@ private fun closeOperation(channel: Channel, retry: Boolean): CompletableFuture<
     }
 }
 
-private fun requestPhysicalClose(channel: Channel, operation: CompletableFuture<Unit>) {
+private fun requestPhysicalClose(
+    channel: Channel,
+    operation: CompletableFuture<Unit>
+) {
     try {
         if (channel.closeFuture().isDone) {
             if ((channel.attr(closeNotificationKey).get()?.get() ?: 0) > 0) {
@@ -81,4 +88,29 @@ private fun requestPhysicalClose(channel: Channel, operation: CompletableFuture<
     } catch (failure: Throwable) {
         operation.completeExceptionally(failure)
     }
+}
+
+/** Every operation has settled before its shutdown result is assembled. */
+internal fun transportCloseResult(operations: List<CompletableFuture<*>>) {
+    var primary: Throwable? = null
+    val seen = Collections.newSetFromMap(IdentityHashMap<Throwable, Boolean>())
+    operations.forEach { operation ->
+        val failure = operation.handle { _, failure -> failure }.join()
+        val original = if (failure is CompletionException) failure.cause ?: failure else failure
+        if (original != null && seen.add(original)) {
+            val first = primary
+            if (first == null) {
+                primary = original
+            } else if (first !== original && first.suppressed.none { it === original }) {
+                first.addSuppressed(original)
+                if (first.suppressed.none { it === original }) {
+                    primary =
+                        IllegalStateException("Transport shutdown reported multiple failures", first).apply {
+                            addSuppressed(original)
+                        }
+                }
+            }
+        }
+    }
+    primary?.let { throw CompletionException(it) }
 }

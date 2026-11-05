@@ -13,7 +13,9 @@ class ClosedPreparationRetentionTest {
         val output = Files.createTempFile("closed-preparation-", ".log")
         val process = ProcessBuilder(
             File(System.getProperty("java.home"), "bin/java").absolutePath,
-            "-Xmx128m", "-Dio.netty.eventLoopThreads=1", "-cp",
+            "-Xmx128m",
+            "-Dio.netty.eventLoopThreads=1",
+            "-cp",
             System.getProperty("java.class.path"),
             "io.libp2p.transport.ClosedPreparationRetentionProbe"
         ).redirectErrorStream(true).redirectOutput(output.toFile()).start()

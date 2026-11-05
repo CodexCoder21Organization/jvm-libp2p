@@ -22,7 +22,9 @@ class F93fQuicFullQueueTest {
         // The queue capacity is fixed at Netty initialization, so this scenario owns a fresh JVM.
         val process = ProcessBuilder(
             File(System.getProperty("java.home"), "bin/java").absolutePath,
-            "-ea", "-cp", System.getProperty("java.class.path"),
+            "-ea",
+            "-cp",
+            System.getProperty("java.class.path"),
             "io.libp2p.transport.F93fQuicFullQueueProbe"
         ).inheritIO().start()
         try {

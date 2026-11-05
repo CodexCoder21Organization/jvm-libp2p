@@ -103,19 +103,33 @@ abstract class PlainNettyTransport(
     // Closing this transport settles its callers without interrupting shared algorithm setup.
     private val readiness = CompletableFuture<Unit>()
 
+    // Guarded by this transport monitor; the shared initializer is owned by Noise.
+    private var preparationThread: Thread? = null
+
     private val preparation by lazy {
         val preparations = upgrader.startupPreparationsSnapshot()
         if (preparations.isEmpty()) {
             readiness.complete(Unit)
         } else {
-            Thread({
-                try {
-                    preparations.forEach { it() }
-                    readiness.complete(Unit)
-                } catch (failure: Throwable) {
-                    readiness.completeExceptionally(failure)
+            synchronized(this@PlainNettyTransport) {
+                if (!closed) {
+                    preparationThread = Thread({
+                        try {
+                            if (!closed) {
+                                preparations.forEach { it() }
+                                readiness.complete(Unit)
+                            }
+                        } catch (failure: Throwable) {
+                            readiness.completeExceptionally(failure)
+                        } finally {
+                            synchronized(this@PlainNettyTransport) {
+                                preparationThread = null
+                            }
+                        }
+                    }, "libp2p-transport-preparation").apply { isDaemon = true }
+                    preparationThread!!.start()
                 }
-            }, "libp2p-transport-preparation").apply { isDaemon = true }.start()
+            }
         }
         readiness
     }
@@ -164,11 +178,18 @@ abstract class PlainNettyTransport(
         // listener can slip in during the shutdownGracefully phase below.
         val listenersToClose: List<Channel>
         val channelsToClose: List<Channel>
+        val preparationToInterrupt: Thread?
         synchronized(this@PlainNettyTransport) {
             closed = true
+            preparationToInterrupt = preparationThread
+            preparationThread = null
             listenersToClose = listeners.values.toList()
             channelsToClose = channels.toList()
         }
+
+        // Only the transport waiter is interrupted. Noise owns the shared setup worker.
+        // A readiness callback may close this transport from the completing worker itself.
+        if (preparationToInterrupt !== Thread.currentThread()) preparationToInterrupt?.interrupt()
 
         // Complete outside the monitor: readiness callbacks can re-enter transport operations.
         readiness.completeExceptionally(Libp2pException("Transport is closed"))

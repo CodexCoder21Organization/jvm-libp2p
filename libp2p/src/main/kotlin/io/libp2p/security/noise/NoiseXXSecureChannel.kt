@@ -38,6 +38,7 @@ import org.slf4j.LoggerFactory
 import spipe.pb.Spipe
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
+import java.util.concurrent.ExecutionException
 import java.util.concurrent.Executor
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -46,6 +47,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.atomic.AtomicReference
 
 enum class Role(val intVal: Int) { INIT(HandshakeState.INITIATOR), RESP(HandshakeState.RESPONDER) }
 
@@ -645,7 +647,40 @@ private val preparedNoiseHandshakeAlgorithms: Unit by lazy {
     }
 }
 
-internal fun prepareNoiseHandshakeAlgorithms(): Unit = preparedNoiseHandshakeAlgorithms
+// The shared worker owns algorithm setup even when the first transport closes.
+// Transport workers wait interruptibly and keep no callbacks in this shared future.
+private val noiseAlgorithmPreparation = AtomicReference<CompletableFuture<Unit>?>()
+
+internal fun prepareNoiseHandshakeAlgorithms() {
+    var pending = noiseAlgorithmPreparation.get()
+    while (pending == null) {
+        val candidate = CompletableFuture<Unit>()
+        if (noiseAlgorithmPreparation.compareAndSet(null, candidate)) {
+            pending = candidate
+            try {
+                Thread({
+                    try {
+                        candidate.complete(preparedNoiseHandshakeAlgorithms)
+                    } catch (failure: Throwable) {
+                        // Preserve lazy initialization's ability to try again after a provider failure.
+                        noiseAlgorithmPreparation.compareAndSet(candidate, null)
+                        candidate.completeExceptionally(failure)
+                    }
+                }, "noise-algorithm-preparation").apply { isDaemon = true }.start()
+            } catch (failure: Throwable) {
+                noiseAlgorithmPreparation.compareAndSet(candidate, null)
+                candidate.completeExceptionally(failure)
+            }
+        } else {
+            pending = noiseAlgorithmPreparation.get()
+        }
+    }
+    try {
+        requireNotNull(pending).get()
+    } catch (failure: ExecutionException) {
+        throw failure.cause ?: failure
+    }
+}
 
 private fun prepareNoiseIdentity(localKey: PrivKey): PreparedNoiseIdentity {
     val staticKey = Noise.createDH("25519")

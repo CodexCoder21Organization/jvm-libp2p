@@ -6,10 +6,11 @@ slot=evidence/'with-slot.sh';java='/opt/java/bin/java'; console='/tmp/flibp6-jun
 mode,action,*args=sys.argv[1:]
 cp=(build/'classpath').read_text()
 if action=='compile':
-    subprocess.run(['git','stash','push','-u','-m','F93b build rebase'],cwd=repo,check=True,stdout=subprocess.DEVNULL)
+    dirty=bool(subprocess.check_output(['git','status','--porcelain'],cwd=repo,text=True).strip())
+    if dirty: subprocess.run(['git','stash','push','-u','-m','F93b build rebase'],cwd=repo,check=True,stdout=subprocess.DEVNULL)
     subprocess.run(['git','fetch','origin'],cwd=repo,check=True)
     subprocess.run(['git','rebase','origin/develop'],cwd=repo,check=True)
-    subprocess.run(['git','stash','pop'],cwd=repo,check=True,stdout=subprocess.DEVNULL)
+    if dirty: subprocess.run(['git','stash','pop'],cwd=repo,check=True,stdout=subprocess.DEVNULL)
     command=[java,'-cp',(build/'compiler-classpath').read_text(),'org.jetbrains.kotlin.cli.jvm.K2JVMCompiler','-no-stdlib','-no-reflect','-jvm-target','11','-language-version','1.6','-Xjvm-default=all','-Xfriend-paths='+str(build/'snapshot45.jar'),'-classpath',cp+':'+console,'-d',str(build/mode)]+args
 else:
     overlays, *classes=args

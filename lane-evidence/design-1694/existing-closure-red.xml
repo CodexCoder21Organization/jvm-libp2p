@@ -1,0 +1,157 @@
+<tests>
+  <buildrule name="foundation.url.resolver.buildMaven()" success="true" time="194740" output-files="72" output-bytes="44157578" executions="1"/>
+  <test file="/code/workspace/design-1694/lane-runtime/register/scripts/../tests/testPingRetainedParentBecomesReadyWhileDuplicatePublicationIsHeld.kts" name="foundation.url.resolver.testPingRetainedParentBecomesReadyWhileDuplicatePublicationIsHeld" success="false" time="12781">
+    <stacktrace>java.util.concurrent.TimeoutException
+	at java.base/java.util.concurrent.CompletableFuture.timedGet(CompletableFuture.java:1960)
+	at java.base/java.util.concurrent.CompletableFuture.get(CompletableFuture.java:2095)
+	at foundation.url.resolver.TestPingRetainedParentBecomesReadyWhileDuplicatePublicationIsHeldKt.testPingRetainedParentBecomesReadyWhileDuplicatePublicationIsHeld(testPingRetainedParentBecomesReadyWhileDuplicatePublicationIsHeld.kt:276)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at kompile.TestRunner.executeTest(TestRunner.kt:49)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at community.kotlin.kompile.testrunner.bootstrap.BootstrapRunner.main(BootstrapRunner.java:449)
+</stacktrace>
+    <console-output>HANDSHAKE_STARTED=1 channel=P2PChannelOverNetty(nettyChannel=[id: 0xff58248c, L:/127.0.0.1:33399 - R:/127.0.0.1:48002], isInitiator=false)
+HANDSHAKE_STARTED=2 channel=P2PChannelOverNetty(nettyChannel=[id: 0x6dc67fcf, L:/127.0.0.2:37755 - R:/127.0.0.1:45460], isInitiator=false)
+HANDSHAKE_STARTED=3 channel=P2PChannelOverNetty(nettyChannel=[id: 0xcfe09969, L:/127.0.0.1:33399 - R:/127.0.0.1:48016], isInitiator=false)
+PUBLISHED=P2PChannelOverNetty(nettyChannel=[id: 0xa34dd269, L:/127.0.0.1:45460 - R:/127.0.0.2:37755], isInitiator=true) raw=P2PChannelOverNetty(nettyChannel=[id: 0x9e8c21e8, L:/127.0.0.1:48016 - R:/127.0.0.1:33399], isInitiator=true) same=false
+PUBLISHED=P2PChannelOverNetty(nettyChannel=[id: 0x9e8c21e8, L:/127.0.0.1:48016 - R:/127.0.0.1:33399], isInitiator=true) raw=P2PChannelOverNetty(nettyChannel=[id: 0x9e8c21e8, L:/127.0.0.1:48016 - R:/127.0.0.1:33399], isInitiator=true) same=true
+PING_DECISION=probe-created
+Closing root connection to unknown-peer/shared-root: reason=ADMISSION_RETIREMENT, pendingClientRequests=0, initiatedBy=PendingDialAdmissionController.Entry.closeChannel
+Closing root connection to QmeArBbvyabBzZiZm2RKrPv7oaAMyX6jhNC5Hknr1Nt2dP/shared-root: reason=EXPLICIT_CLOSE, pendingClientRequests=0, initiatedBy=UrlProtocol2.close
+Closing root connection to QmeArBbvyabBzZiZm2RKrPv7oaAMyX6jhNC5Hknr1Nt2dP/shared-root: reason=EXPLICIT_CLOSE, pendingClientRequests=0, initiatedBy=UrlProtocol2.close
+[ConnectionClosed] Connection connection@5c2c32c5 closed: initiator=LOCAL_CLOSE; direction=outbound; localAddress=/ip4/127.0.0.1/tcp/45460; remoteAddress=/ip4/127.0.0.2/tcp/37755; remotePeerId=QmeArBbvyabBzZiZm2RKrPv7oaAMyX6jhNC5Hknr1Nt2dP; closedBy=unknown; cause=none. Root link connection@5c2c32c5: localPeerId=12D3KooWF3fgtN4u7M5FyAcjvDVwgdnFDZytqXkVvPkc2tH7EAcV; remotePeerId=QmeArBbvyabBzZiZm2RKrPv7oaAMyX6jhNC5Hknr1Nt2dP; localEndpoint=/ip4/127.0.0.1/tcp/45460; remoteEndpoint=/ip4/127.0.0.2/tcp/37755; openedAtMillis=1794181761299; substreamIds=[]; inFlightSubstreams=0; reason=none; initiatedBy=LOCAL_CLOSE; remoteReportedReason=not received.
+[ConnectionClosed] Connection connection@66f13320 closed: initiator=LOCAL_CLOSE; direction=outbound; localAddress=/ip4/127.0.0.1/tcp/48016; remoteAddress=/ip4/127.0.0.1/tcp/33399; remotePeerId=QmeArBbvyabBzZiZm2RKrPv7oaAMyX6jhNC5Hknr1Nt2dP; closedBy=foundation.url.resolver.TestPingRetainedParentBecomesReadyWhileDuplicatePublicationIsHeldKt$testPingRetainedParentBecomesReadyWhileDuplicatePublicationIsHeld$8$1.close; cause=none. Root link connection@66f13320: localPeerId=12D3KooWF3fgtN4u7M5FyAcjvDVwgdnFDZytqXkVvPkc2tH7EAcV; remotePeerId=QmeArBbvyabBzZiZm2RKrPv7oaAMyX6jhNC5Hknr1Nt2dP; localEndpoint=/ip4/127.0.0.1/tcp/48016; remoteEndpoint=/ip4/127.0.0.1/tcp/33399; openedAtMillis=1794181761345; substreamIds=[]; inFlightSubstreams=0; reason=none; initiatedBy=LOCAL_CLOSE; remoteReportedReason=not received.
+java.lang.reflect.InvocationTargetException
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:118)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at community.kotlin.kompile.testrunner.bootstrap.BootstrapRunner.main(BootstrapRunner.java:449)
+Caused by: java.util.concurrent.TimeoutException
+	at java.base/java.util.concurrent.CompletableFuture.timedGet(CompletableFuture.java:1960)
+	at java.base/java.util.concurrent.CompletableFuture.get(CompletableFuture.java:2095)
+	at foundation.url.resolver.TestPingRetainedParentBecomesReadyWhileDuplicatePublicationIsHeldKt.testPingRetainedParentBecomesReadyWhileDuplicatePublicationIsHeld(testPingRetainedParentBecomesReadyWhileDuplicatePublicationIsHeld.kt:276)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at kompile.TestRunner.executeTest(TestRunner.kt:49)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	... 2 more
+</console-output>
+  </test>
+  <attempt-history file="/code/workspace/design-1694/lane-runtime/register/scripts/../tests/testPingRetainedParentBecomesReadyWhileDuplicatePublicationIsHeld.kts" name="foundation.url.resolver.testPingRetainedParentBecomesReadyWhileDuplicatePublicationIsHeld">
+    <attempt number="1" success="false" time="12781">
+      <stacktrace>java.util.concurrent.TimeoutException
+	at java.base/java.util.concurrent.CompletableFuture.timedGet(CompletableFuture.java:1960)
+	at java.base/java.util.concurrent.CompletableFuture.get(CompletableFuture.java:2095)
+	at foundation.url.resolver.TestPingRetainedParentBecomesReadyWhileDuplicatePublicationIsHeldKt.testPingRetainedParentBecomesReadyWhileDuplicatePublicationIsHeld(testPingRetainedParentBecomesReadyWhileDuplicatePublicationIsHeld.kt:276)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at kompile.TestRunner.executeTest(TestRunner.kt:49)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at community.kotlin.kompile.testrunner.bootstrap.BootstrapRunner.main(BootstrapRunner.java:449)
+</stacktrace>
+      <console-output>HANDSHAKE_STARTED=1 channel=P2PChannelOverNetty(nettyChannel=[id: 0xff58248c, L:/127.0.0.1:33399 - R:/127.0.0.1:48002], isInitiator=false)
+HANDSHAKE_STARTED=2 channel=P2PChannelOverNetty(nettyChannel=[id: 0x6dc67fcf, L:/127.0.0.2:37755 - R:/127.0.0.1:45460], isInitiator=false)
+HANDSHAKE_STARTED=3 channel=P2PChannelOverNetty(nettyChannel=[id: 0xcfe09969, L:/127.0.0.1:33399 - R:/127.0.0.1:48016], isInitiator=false)
+PUBLISHED=P2PChannelOverNetty(nettyChannel=[id: 0xa34dd269, L:/127.0.0.1:45460 - R:/127.0.0.2:37755], isInitiator=true) raw=P2PChannelOverNetty(nettyChannel=[id: 0x9e8c21e8, L:/127.0.0.1:48016 - R:/127.0.0.1:33399], isInitiator=true) same=false
+PUBLISHED=P2PChannelOverNetty(nettyChannel=[id: 0x9e8c21e8, L:/127.0.0.1:48016 - R:/127.0.0.1:33399], isInitiator=true) raw=P2PChannelOverNetty(nettyChannel=[id: 0x9e8c21e8, L:/127.0.0.1:48016 - R:/127.0.0.1:33399], isInitiator=true) same=true
+PING_DECISION=probe-created
+Closing root connection to unknown-peer/shared-root: reason=ADMISSION_RETIREMENT, pendingClientRequests=0, initiatedBy=PendingDialAdmissionController.Entry.closeChannel
+Closing root connection to QmeArBbvyabBzZiZm2RKrPv7oaAMyX6jhNC5Hknr1Nt2dP/shared-root: reason=EXPLICIT_CLOSE, pendingClientRequests=0, initiatedBy=UrlProtocol2.close
+Closing root connection to QmeArBbvyabBzZiZm2RKrPv7oaAMyX6jhNC5Hknr1Nt2dP/shared-root: reason=EXPLICIT_CLOSE, pendingClientRequests=0, initiatedBy=UrlProtocol2.close
+[ConnectionClosed] Connection connection@5c2c32c5 closed: initiator=LOCAL_CLOSE; direction=outbound; localAddress=/ip4/127.0.0.1/tcp/45460; remoteAddress=/ip4/127.0.0.2/tcp/37755; remotePeerId=QmeArBbvyabBzZiZm2RKrPv7oaAMyX6jhNC5Hknr1Nt2dP; closedBy=unknown; cause=none. Root link connection@5c2c32c5: localPeerId=12D3KooWF3fgtN4u7M5FyAcjvDVwgdnFDZytqXkVvPkc2tH7EAcV; remotePeerId=QmeArBbvyabBzZiZm2RKrPv7oaAMyX6jhNC5Hknr1Nt2dP; localEndpoint=/ip4/127.0.0.1/tcp/45460; remoteEndpoint=/ip4/127.0.0.2/tcp/37755; openedAtMillis=1794181761299; substreamIds=[]; inFlightSubstreams=0; reason=none; initiatedBy=LOCAL_CLOSE; remoteReportedReason=not received.
+[ConnectionClosed] Connection connection@66f13320 closed: initiator=LOCAL_CLOSE; direction=outbound; localAddress=/ip4/127.0.0.1/tcp/48016; remoteAddress=/ip4/127.0.0.1/tcp/33399; remotePeerId=QmeArBbvyabBzZiZm2RKrPv7oaAMyX6jhNC5Hknr1Nt2dP; closedBy=foundation.url.resolver.TestPingRetainedParentBecomesReadyWhileDuplicatePublicationIsHeldKt$testPingRetainedParentBecomesReadyWhileDuplicatePublicationIsHeld$8$1.close; cause=none. Root link connection@66f13320: localPeerId=12D3KooWF3fgtN4u7M5FyAcjvDVwgdnFDZytqXkVvPkc2tH7EAcV; remotePeerId=QmeArBbvyabBzZiZm2RKrPv7oaAMyX6jhNC5Hknr1Nt2dP; localEndpoint=/ip4/127.0.0.1/tcp/48016; remoteEndpoint=/ip4/127.0.0.1/tcp/33399; openedAtMillis=1794181761345; substreamIds=[]; inFlightSubstreams=0; reason=none; initiatedBy=LOCAL_CLOSE; remoteReportedReason=not received.
+java.lang.reflect.InvocationTargetException
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:118)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at community.kotlin.kompile.testrunner.bootstrap.BootstrapRunner.main(BootstrapRunner.java:449)
+Caused by: java.util.concurrent.TimeoutException
+	at java.base/java.util.concurrent.CompletableFuture.timedGet(CompletableFuture.java:1960)
+	at java.base/java.util.concurrent.CompletableFuture.get(CompletableFuture.java:2095)
+	at foundation.url.resolver.TestPingRetainedParentBecomesReadyWhileDuplicatePublicationIsHeldKt.testPingRetainedParentBecomesReadyWhileDuplicatePublicationIsHeld(testPingRetainedParentBecomesReadyWhileDuplicatePublicationIsHeld.kt:276)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at kompile.TestRunner.executeTest(TestRunner.kt:49)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	... 2 more
+</console-output>
+    </attempt>
+    <attempt number="2" success="false" time="12652">
+      <stacktrace>java.util.concurrent.TimeoutException
+	at java.base/java.util.concurrent.CompletableFuture.timedGet(CompletableFuture.java:1960)
+	at java.base/java.util.concurrent.CompletableFuture.get(CompletableFuture.java:2095)
+	at foundation.url.resolver.TestPingRetainedParentBecomesReadyWhileDuplicatePublicationIsHeldKt.testPingRetainedParentBecomesReadyWhileDuplicatePublicationIsHeld(testPingRetainedParentBecomesReadyWhileDuplicatePublicationIsHeld.kt:276)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at kompile.TestRunner.executeTest(TestRunner.kt:49)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at community.kotlin.kompile.testrunner.bootstrap.BootstrapRunner.main(BootstrapRunner.java:449)
+</stacktrace>
+      <console-output>HANDSHAKE_STARTED=2 channel=P2PChannelOverNetty(nettyChannel=[id: 0x663309a8, L:/127.0.0.2:46153 - R:/127.0.0.1:51234], isInitiator=false)
+HANDSHAKE_STARTED=1 channel=P2PChannelOverNetty(nettyChannel=[id: 0x91815396, L:/127.0.0.1:40913 - R:/127.0.0.1:49100], isInitiator=false)
+HANDSHAKE_STARTED=3 channel=P2PChannelOverNetty(nettyChannel=[id: 0x69afe06d, L:/127.0.0.1:40913 - R:/127.0.0.1:49102], isInitiator=false)
+PUBLISHED=P2PChannelOverNetty(nettyChannel=[id: 0xde56fdba, L:/127.0.0.1:51234 - R:/127.0.0.2:46153], isInitiator=true) raw=P2PChannelOverNetty(nettyChannel=[id: 0x7f321db8, L:/127.0.0.1:49102 - R:/127.0.0.1:40913], isInitiator=true) same=false
+PUBLISHED=P2PChannelOverNetty(nettyChannel=[id: 0x7f321db8, L:/127.0.0.1:49102 - R:/127.0.0.1:40913], isInitiator=true) raw=P2PChannelOverNetty(nettyChannel=[id: 0x7f321db8, L:/127.0.0.1:49102 - R:/127.0.0.1:40913], isInitiator=true) same=true
+PING_DECISION=probe-created
+Closing root connection to unknown-peer/shared-root: reason=ADMISSION_RETIREMENT, pendingClientRequests=0, initiatedBy=PendingDialAdmissionController.Entry.closeChannel
+Closing root connection to QmciWS8CFYZqiBbcmnFt6hVDZvioDceaJus4X83aGNzMfY/shared-root: reason=EXPLICIT_CLOSE, pendingClientRequests=0, initiatedBy=UrlProtocol2.close
+Closing root connection to QmciWS8CFYZqiBbcmnFt6hVDZvioDceaJus4X83aGNzMfY/shared-root: reason=EXPLICIT_CLOSE, pendingClientRequests=0, initiatedBy=UrlProtocol2.close
+[ConnectionClosed] Connection connection@5d0d6931 closed: initiator=LOCAL_CLOSE; direction=outbound; localAddress=/ip4/127.0.0.1/tcp/51234; remoteAddress=/ip4/127.0.0.2/tcp/46153; remotePeerId=QmciWS8CFYZqiBbcmnFt6hVDZvioDceaJus4X83aGNzMfY; closedBy=unknown; cause=none. Root link connection@5d0d6931: localPeerId=12D3KooWQsS93377N8BHwRW4AZWuPdGnJquEvZRT2u82rYooa39S; remotePeerId=QmciWS8CFYZqiBbcmnFt6hVDZvioDceaJus4X83aGNzMfY; localEndpoint=/ip4/127.0.0.1/tcp/51234; remoteEndpoint=/ip4/127.0.0.2/tcp/46153; openedAtMillis=1794181774034; substreamIds=[]; inFlightSubstreams=0; reason=none; initiatedBy=LOCAL_CLOSE; remoteReportedReason=not received.
+[ConnectionClosed] Connection connection@799d19d5 closed: initiator=LOCAL_CLOSE; direction=outbound; localAddress=/ip4/127.0.0.1/tcp/49102; remoteAddress=/ip4/127.0.0.1/tcp/40913; remotePeerId=QmciWS8CFYZqiBbcmnFt6hVDZvioDceaJus4X83aGNzMfY; closedBy=foundation.url.resolver.TestPingRetainedParentBecomesReadyWhileDuplicatePublicationIsHeldKt$testPingRetainedParentBecomesReadyWhileDuplicatePublicationIsHeld$8$1.close; cause=none. Root link connection@799d19d5: localPeerId=12D3KooWQsS93377N8BHwRW4AZWuPdGnJquEvZRT2u82rYooa39S; remotePeerId=QmciWS8CFYZqiBbcmnFt6hVDZvioDceaJus4X83aGNzMfY; localEndpoint=/ip4/127.0.0.1/tcp/49102; remoteEndpoint=/ip4/127.0.0.1/tcp/40913; openedAtMillis=1794181774064; substreamIds=[]; inFlightSubstreams=0; reason=none; initiatedBy=LOCAL_CLOSE; remoteReportedReason=not received.
+java.lang.reflect.InvocationTargetException
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:118)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at community.kotlin.kompile.testrunner.bootstrap.BootstrapRunner.main(BootstrapRunner.java:449)
+Caused by: java.util.concurrent.TimeoutException
+	at java.base/java.util.concurrent.CompletableFuture.timedGet(CompletableFuture.java:1960)
+	at java.base/java.util.concurrent.CompletableFuture.get(CompletableFuture.java:2095)
+	at foundation.url.resolver.TestPingRetainedParentBecomesReadyWhileDuplicatePublicationIsHeldKt.testPingRetainedParentBecomesReadyWhileDuplicatePublicationIsHeld(testPingRetainedParentBecomesReadyWhileDuplicatePublicationIsHeld.kt:276)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at kompile.TestRunner.executeTest(TestRunner.kt:49)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	... 2 more
+</console-output>
+    </attempt>
+    <attempt number="3" success="false" time="13013">
+      <stacktrace>java.util.concurrent.TimeoutException
+	at java.base/java.util.concurrent.CompletableFuture.timedGet(CompletableFuture.java:1960)
+	at java.base/java.util.concurrent.CompletableFuture.get(CompletableFuture.java:2095)
+	at foundation.url.resolver.TestPingRetainedParentBecomesReadyWhileDuplicatePublicationIsHeldKt.testPingRetainedParentBecomesReadyWhileDuplicatePublicationIsHeld(testPingRetainedParentBecomesReadyWhileDuplicatePublicationIsHeld.kt:276)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at kompile.TestRunner.executeTest(TestRunner.kt:49)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at community.kotlin.kompile.testrunner.bootstrap.BootstrapRunner.main(BootstrapRunner.java:449)
+</stacktrace>
+      <console-output>HANDSHAKE_STARTED=1 channel=P2PChannelOverNetty(nettyChannel=[id: 0xc1a382e6, L:/127.0.0.1:34065 - R:/127.0.0.1:47014], isInitiator=false)
+HANDSHAKE_STARTED=2 channel=P2PChannelOverNetty(nettyChannel=[id: 0x23899d82, L:/127.0.0.2:42375 - R:/127.0.0.1:45486], isInitiator=false)
+HANDSHAKE_STARTED=3 channel=P2PChannelOverNetty(nettyChannel=[id: 0x684712fe, L:/127.0.0.1:34065 - R:/127.0.0.1:47024], isInitiator=false)
+PUBLISHED=P2PChannelOverNetty(nettyChannel=[id: 0x67dad4a1, L:/127.0.0.1:45486 - R:/127.0.0.2:42375], isInitiator=true) raw=P2PChannelOverNetty(nettyChannel=[id: 0x756f42ba, L:/127.0.0.1:47024 - R:/127.0.0.1:34065], isInitiator=true) same=false
+PUBLISHED=P2PChannelOverNetty(nettyChannel=[id: 0x756f42ba, L:/127.0.0.1:47024 - R:/127.0.0.1:34065], isInitiator=true) raw=P2PChannelOverNetty(nettyChannel=[id: 0x756f42ba, L:/127.0.0.1:47024 - R:/127.0.0.1:34065], isInitiator=true) same=true
+PING_DECISION=probe-created
+Closing root connection to unknown-peer/shared-root: reason=ADMISSION_RETIREMENT, pendingClientRequests=0, initiatedBy=PendingDialAdmissionController.Entry.closeChannel
+Closing root connection to QmNRh6CSe3hdAxuwFPDmjUe3cSDtbg8PiRisyZBiPQv6Pd/shared-root: reason=EXPLICIT_CLOSE, pendingClientRequests=0, initiatedBy=UrlProtocol2.close
+Closing root connection to QmNRh6CSe3hdAxuwFPDmjUe3cSDtbg8PiRisyZBiPQv6Pd/shared-root: reason=EXPLICIT_CLOSE, pendingClientRequests=0, initiatedBy=UrlProtocol2.close
+[ConnectionClosed] Connection connection@64586a9a closed: initiator=LOCAL_CLOSE; direction=outbound; localAddress=/ip4/127.0.0.1/tcp/47024; remoteAddress=/ip4/127.0.0.1/tcp/34065; remotePeerId=QmNRh6CSe3hdAxuwFPDmjUe3cSDtbg8PiRisyZBiPQv6Pd; closedBy=foundation.url.resolver.TestPingRetainedParentBecomesReadyWhileDuplicatePublicationIsHeldKt$testPingRetainedParentBecomesReadyWhileDuplicatePublicationIsHeld$8$1.close; cause=none. Root link connection@64586a9a: localPeerId=12D3KooWS7R3mLUdDFBbgJvjegjKPT8tmKaT6M7SzT6ysj8H4No6; remotePeerId=QmNRh6CSe3hdAxuwFPDmjUe3cSDtbg8PiRisyZBiPQv6Pd; localEndpoint=/ip4/127.0.0.1/tcp/47024; remoteEndpoint=/ip4/127.0.0.1/tcp/34065; openedAtMillis=1794181787011; substreamIds=[]; inFlightSubstreams=0; reason=none; initiatedBy=LOCAL_CLOSE; remoteReportedReason=not received.
+[ConnectionClosed] Connection connection@69a74cdd closed: initiator=LOCAL_CLOSE; direction=outbound; localAddress=/ip4/127.0.0.1/tcp/45486; remoteAddress=/ip4/127.0.0.2/tcp/42375; remotePeerId=QmNRh6CSe3hdAxuwFPDmjUe3cSDtbg8PiRisyZBiPQv6Pd; closedBy=unknown; cause=none. Root link connection@69a74cdd: localPeerId=12D3KooWS7R3mLUdDFBbgJvjegjKPT8tmKaT6M7SzT6ysj8H4No6; remotePeerId=QmNRh6CSe3hdAxuwFPDmjUe3cSDtbg8PiRisyZBiPQv6Pd; localEndpoint=/ip4/127.0.0.1/tcp/45486; remoteEndpoint=/ip4/127.0.0.2/tcp/42375; openedAtMillis=1794181786966; substreamIds=[]; inFlightSubstreams=0; reason=none; initiatedBy=LOCAL_CLOSE; remoteReportedReason=not received.
+java.lang.reflect.InvocationTargetException
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:118)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at community.kotlin.kompile.testrunner.bootstrap.BootstrapRunner.main(BootstrapRunner.java:449)
+Caused by: java.util.concurrent.TimeoutException
+	at java.base/java.util.concurrent.CompletableFuture.timedGet(CompletableFuture.java:1960)
+	at java.base/java.util.concurrent.CompletableFuture.get(CompletableFuture.java:2095)
+	at foundation.url.resolver.TestPingRetainedParentBecomesReadyWhileDuplicatePublicationIsHeldKt.testPingRetainedParentBecomesReadyWhileDuplicatePublicationIsHeld(testPingRetainedParentBecomesReadyWhileDuplicatePublicationIsHeld.kt:276)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at kompile.TestRunner.executeTest(TestRunner.kt:49)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	... 2 more
+</console-output>
+    </attempt>
+  </attempt-history>
+</tests>

@@ -1,0 +1,22 @@
+# Lane outcome
+
+OBSERVED: PARTIAL. Ownership is resolved and both closure failures are reproduced. The requested implementation, green/reversal and consumer qualification are incomplete. No product commit, upstream PR, artifact publication or resolver product push occurred. The brief's hard rule 2 forbids the snapshot publication required by its chosen upstream path; hard rule 6 also forbids the whole upstream local suite requested later. The provided kompile publication build rule does not exist in this Gradle checkout.
+
+| Brief item | State and evidence |
+| --- | --- |
+| Read both contracts and write ownership table | Done. ownership-decision.md records physical-parent, provisional-child, reservation, stable-parent and retirement ownership, including public APIs. |
+| Choose owner | Done: (b), upstream coordinated retirement with an owned provisional hold and resolver use of it. Current API has no release. Explicit close cannot preserve accepted siblings. Clearing lifetime retention on a child-free snapshot would break the reservation-before-child guarantee. |
+| Existing closure red | Done: testPingRetainedParentBecomesReadyWhileDuplicatePublicationIsHeld, fresh native FIRST 0/1 against unchanged PR source; first failure at its physical close future wait. existing-closure-red.xml and first-errors file preserve the full result. Runtime resolver/protocol/libp2p files and exact source manifest captured. |
+| New cancelled-child public red | Done: testAbandonedProvisionalParentClosesAfterStableSelection, fresh native FIRST 0/1, assertion at the desired physical close. public-red.xml and public-red-first-errors preserve complete evidence. |
+| Discriminating controls | Done: testUnselectedParentWithoutChildClosesAfterStableSelection FIRST 1/1; testExplicitParentCloseClosesItsAcceptedChild FIRST 1/1. The second control confirms accepted work closes under explicit parent close; it is not a passing version of the requested retirement invariant. |
+| Product implementation, green and reversal | Incomplete. No supported safe resolver-only release was found; no upstream provisional-hold implementation is supplied or claimed fixed. The additive contract and required public scenarios are written down for implementation. |
+| Five reservation probes and ping register | New remote eight-selector register failed in provisioning, zero executed tests and no native XML. No new register qualification. Prior reservation native FIRST 5/5 and prior three-ping service first attempts 2/3 are inherited evidence only. |
+| Upstream suite, snapshot 47, POM 200, upstream PR and consumer bump | Incomplete; no publication or whole local suite under the hard prohibitions. Existing upstream source declares snapshot 41 and has Gradle release instructions, not the named kompile build rule. No upstream product branch or PR. |
+| Resolver rebase | Done; fetch/rebase reports unchanged, up to date at a2b9d056483fd559d87187dd7f0f3c6541d2db7c. |
+| README pins | Matching 1467/46 patch prepared and apply-checked as evidence only. Not applied to the PR. |
+| Resolver PR push and description | Not performed: product qualification gate is incomplete. https://github.com/CodexCoder21Organization/UrlResolver/pull/1694 stays OPEN/draft at a2b9d056483fd559d87187dd7f0f3c6541d2db7c. |
+| Read checks once, leave unmerged | Done: pr-state-and-checks.json. All three existing checks are completed FAILURE. No check re-request, mark-ready, approval, queue, merge or close action. |
+
+OBSERVED: Existing test edits: none. The new public probe corrects only an overloaded Noise constructor reference from its prior unqualified draft before execution. All existing copied scenario bodies, time bounds and assertions are unchanged. No product fix was applied, so no restored-green or reversal count is claimed.
+
+INFER: Next lane first: resolve the publication prohibition in its brief, then implement the owned provisional-hold API upstream while keeping the existing parent-lifetime reserveConnection contract. Update the resolver's provisional ping selection to use that API. Use the new public assertion and existing closure scenario as red gates, add accepted-sibling and independent-provisional-caller coverage from the table, then run the requested green/reversal and complete reservation/ping register before any PR product push. Do not substitute explicit parent close or weaken the closure expectation.

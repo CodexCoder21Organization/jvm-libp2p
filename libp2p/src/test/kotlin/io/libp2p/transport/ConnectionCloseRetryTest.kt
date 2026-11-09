@@ -119,9 +119,15 @@ class ConnectionCloseRetryTest {
 
     @Test
     fun transportOwnedFailureCanBeRetriedWithoutChangingOrdinaryResult() {
-        withRetryConnection { connection, _ ->
+        val failure = IOException("Cannot close test connection: physical close attempt 1 failed.")
+        withRetryConnection(cleanup = { client, server ->
+            try {
+                assertSame(failure, retryCloseFailure(client.stop().thenApply { Unit }))
+            } finally {
+                server.stop().get(10, TimeUnit.SECONDS)
+            }
+        }) { connection, _ ->
             val requests = AtomicInteger()
-            val failure = IOException("Cannot close test connection: physical close attempt 1 failed.")
             installRetryCloseHandler(connection) { ctx, promise ->
                 if (requests.incrementAndGet() == 1) promise.setFailure(failure) else ctx.close(promise)
             }
@@ -182,10 +188,16 @@ class ConnectionCloseRetryTest {
 
     @Test
     fun concurrentRetriesShareHeldAttemptAndIsolateCallerFutureChanges() {
-        withRetryConnection { connection, _ ->
+        val failure = IOException("Cannot close test connection: physical close attempt 1 failed.")
+        withRetryConnection(cleanup = { client, server ->
+            try {
+                assertSame(failure, retryCloseFailure(client.stop().thenApply { Unit }))
+            } finally {
+                server.stop().get(10, TimeUnit.SECONDS)
+            }
+        }) { connection, _ ->
             val held = CopyOnWriteArrayList<Pair<ChannelHandlerContext, ChannelPromise>>()
             val requests = AtomicInteger()
-            val failure = IOException("Cannot close test connection: physical close attempt 1 failed.")
             installRetryCloseHandler(connection) { ctx, promise ->
                 if (requests.incrementAndGet() == 1) promise.setFailure(failure) else held.add(ctx to promise)
             }
@@ -327,7 +339,12 @@ private fun retryCloseFailure(future: CompletableFuture<Unit>): Throwable {
     return failure
 }
 
-private fun withRetryConnection(body: (ConnectionOverNetty, Connection) -> Unit) {
+private fun withRetryConnection(
+    cleanup: (io.libp2p.core.Host, io.libp2p.core.Host) -> Unit = { client, server ->
+        CompletableFuture.allOf(client.stop(), server.stop()).get(10, TimeUnit.SECONDS)
+    },
+    body: (ConnectionOverNetty, Connection) -> Unit
+) {
     val remote = CompletableFuture<Connection>()
     val server = retryCloseHost { remote.complete(it) }
     val client = retryCloseHost()
@@ -343,25 +360,7 @@ private fun withRetryConnection(body: (ConnectionOverNetty, Connection) -> Unit)
         try {
             cleanupRetryConnection(parent, "retry-close-control")
         } finally {
-            val connection = parent
-            val readiness = connection?.transport()?.ready()
-            assertTrue(readiness == null || readiness.isDone, "The fixture must already have completed transport preparation.")
-            if (readiness == null || !readiness.isCompletedExceptionally) {
-                CompletableFuture.allOf(client.stop(), server.stop()).get(10, TimeUnit.SECONDS)
-            } else {
-                try {
-                    var closed: Throwable = assertThrows(ExecutionException::class.java) { readiness.get(10, TimeUnit.SECONDS) }
-                    while (closed.cause != null) closed = closed.cause!!
-                    assertEquals("Transport is closed", closed.message)
-                    // The scenario already checks this same public result against its local failure object.
-                    val expected = retryCloseFailure(requireNotNull(connection).transport().close())
-                    var reported: Throwable = assertThrows(ExecutionException::class.java) { client.stop().get(10, TimeUnit.SECONDS) }
-                    while (reported.cause != null) reported = reported.cause!!
-                    assertSame(expected, reported, "Host shutdown must retain the same failed transport result after socket cleanup.")
-                } finally {
-                    server.stop().get(10, TimeUnit.SECONDS)
-                }
-            }
+            cleanup(client, server)
         }
     }
 }

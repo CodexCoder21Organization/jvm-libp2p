@@ -1,0 +1,23 @@
+[boxrun] slot 3 acquired at 06:42:20 for: python3 .github/scripts/test_download_verified.py --log .lane-evidence/pacing-red.xml DownloadVerifiedTest.test_504_retries_wait_one_then_two_seconds
+test_504_retries_wait_one_then_two_seconds (__main__.DownloadVerifiedTest.test_504_retries_wait_one_then_two_seconds) ... 504 retry gaps in seconds: [0.01383221393916756, 0.014663830981589854]
+FAIL
+
+======================================================================
+FAIL: test_504_retries_wait_one_then_two_seconds (__main__.DownloadVerifiedTest.test_504_retries_wait_one_then_two_seconds)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/code/workspace/fix-libp2p98b/.github/scripts/test_download_verified.py", line 124, in test_504_retries_wait_one_then_two_seconds
+    self.assertTrue(all(gap >= delay for gap, delay in zip(gaps, (1, 2))),
+AssertionError: False is not true : Retry gaps must be at least 1 then 2 seconds; observed [0.01383221393916756, 0.014663830981589854].
+Verified download: http://127.0.0.1:33287/primary; HTTP 200; attempt 3 of 3.
+curl: (22) The requested URL returned error: 504
+Download failed: http://127.0.0.1:33287/primary; HTTP 504; curl exit 22; attempt 1 of 3.
+curl: (22) The requested URL returned error: 504
+Download failed: http://127.0.0.1:33287/primary; HTTP 504; curl exit 22; attempt 2 of 3.
+
+
+----------------------------------------------------------------------
+Ran 1 test in 0.558s
+
+FAILED (failures=1)
+[boxrun] slot 3 released at 06:42:20 rc=1

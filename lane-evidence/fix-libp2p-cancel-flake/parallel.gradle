@@ -1,0 +1,9 @@
+allprojects { tasks.withType(Test).configureEach {
+ maxParallelForks = 1
+ maxHeapSize = '256m'
+ jvmArgs '-XX:+UseSerialGC'
+ systemProperty 'junit.jupiter.execution.parallel.enabled', 'true'
+ systemProperty 'junit.jupiter.execution.parallel.config.strategy', 'fixed'
+ systemProperty 'junit.jupiter.execution.parallel.config.fixed.parallelism', '4'
+ systemProperty 'junit.jupiter.execution.parallel.config.fixed.max-pool-size', '8'
+} }

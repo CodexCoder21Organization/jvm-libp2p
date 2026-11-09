@@ -40,10 +40,10 @@ class NetworkProvisionalReleaseTest {
             add { key, _ ->
                 val delegate = NoiseXXSecureChannel(key)
                 object : SecureChannel by delegate {
-                    override fun initChannel(channel: P2PChannel, protocol: String): CompletableFuture<SecureChannel.Session> {
+                    override fun initChannel(ch: P2PChannel, selectedProtocol: String): CompletableFuture<SecureChannel.Session> {
                         val ordinal = handshakes.getAndIncrement()
                         check(ordinal < 2) { "Only the two requested physical handshakes may start" }
-                        channel.pushHandler("hold-provisional-handshake", object : io.netty.channel.ChannelOutboundHandlerAdapter() {
+                        ch.pushHandler("hold-provisional-handshake", object : io.netty.channel.ChannelOutboundHandlerAdapter() {
                             private val held = mutableListOf<Pair<Any, io.netty.channel.ChannelPromise>>()
                             private var released = false
                             override fun handlerAdded(ctx: io.netty.channel.ChannelHandlerContext) {
@@ -62,7 +62,7 @@ class NetworkProvisionalReleaseTest {
                             }
                         })
                         starts[ordinal].countDown()
-                        return delegate.initChannel(channel, protocol)
+                        return delegate.initChannel(ch, selectedProtocol)
                     }
                 }
             }

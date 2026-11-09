@@ -112,10 +112,9 @@ class YamuxOutboundBufferBudgetRefCountTest {
                     StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) }
                 ).stream.get(5, TimeUnit.SECONDS)
 
-                // A second write on the first stream waits behind its held parent frame.
-                val secondStream = harness.handler.createStream(
-                    StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) }
-                ).stream.get(5, TimeUnit.SECONDS)
+                harness.onClientEventLoop {
+                    harness.client.write(harness.client.alloc().buffer(300).writeZero(300))
+                }
 
                 val firstData = harness.client.alloc().buffer(100).writeZero(100)
                 val inFlightFuture = harness.onClientEventLoop {
@@ -125,11 +124,7 @@ class YamuxOutboundBufferBudgetRefCountTest {
 
                 val secondData = harness.client.alloc().buffer(300).writeZero(300)
                 val budgetFailure = try {
-                    harness.onClientEventLoop {
-                        // Queue filler only after the first frame is held below the allowance.
-                        harness.client.write(harness.client.alloc().buffer(300).writeZero(300))
-                        secondStream.writeAndFlushWithFuture(secondData)
-                    }.join()
+                    stream.writeAndFlushWithFuture(secondData).join()
                     throw AssertionError("Expected second Yamux write to fail on the parent outbound budget")
                 } catch (e: CompletionException) {
                     e.cause ?: e

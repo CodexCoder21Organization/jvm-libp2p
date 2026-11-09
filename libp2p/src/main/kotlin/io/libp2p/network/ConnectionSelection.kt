@@ -42,6 +42,7 @@ internal class ConnectionSelection(
     // The retirement request that currently excludes this parent, or null. Only that request
     // may release the exclusion, so a late failure of an older request cannot undo a newer one.
     private var exclusion: RetirementRequest? = null
+    private var approvedExclusion: RetirementRequest? = null
     private var retired = false
 
     @Synchronized
@@ -85,6 +86,7 @@ internal class ConnectionSelection(
         // Explicit close has its own terminal marker and is never undone here.
         if (exclusion !== request) return
         exclusion = null
+        approvedExclusion = null
         retired = false
     }
 
@@ -123,7 +125,18 @@ internal class ConnectionSelection(
                     connection,
                     failure
                 )
-                accepted -> connection.close()
+                accepted -> {
+                    val closeNow = synchronized(this) {
+                        if (exclusion !== request) false else {
+                            approvedExclusion = request
+                            if (provisionalUses == 0L && !closing) {
+                                closing = true
+                                true
+                            } else false
+                        }
+                    }
+                    if (closeNow) connection.close()
+                }
             }
         }
     }
@@ -131,6 +144,17 @@ internal class ConnectionSelection(
     @Synchronized
     private fun acquireUse(): ProvisionalUse? {
         if (!eligible()) return null
+        provisionalUses++
+        return ProvisionalUse { releaseUse() }
+    }
+
+    @Synchronized
+    private fun incomingEligible(): Boolean =
+        !closing && !connection.closeFuture().isDone && (exclusion == null || connection.isInitiator)
+
+    @Synchronized
+    private fun acquireIncomingUse(): ProvisionalUse? {
+        if (!incomingEligible()) return null
         provisionalUses++
         return ProvisionalUse { releaseUse() }
     }
@@ -147,7 +171,14 @@ internal class ConnectionSelection(
             }
         }
         approvals.forEach { (future, request) -> publishApproval(future, request) }
-        if (synchronized(this) { duplicate }) rejectDuplicate()
+        val closeNow = synchronized(this) {
+            if (provisionalUses == 0L && approvedExclusion != null && approvedExclusion === exclusion && !closing) {
+                closing = true
+                true
+            } else false
+        }
+        if (closeNow) connection.close()
+        else if (synchronized(this) { duplicate }) rejectDuplicate()
     }
 
     private fun publishApproval(future: CompletableFuture<RetirementRequest?>, request: RetirementRequest?) {
@@ -156,14 +187,14 @@ internal class ConnectionSelection(
 
     /** Incoming negotiation and retirement share the same admission ordering. */
     fun observeIncomingStream(stream: Stream): (String) -> Boolean {
-        val use = acquireUse()
+        val use = acquireIncomingUse()
         stream.closeFuture().whenComplete { _, _ -> use?.close() }
         return { protocol ->
             if (protocol == SELECTION_PROTOCOL) {
                 use?.close()
                 true
             } else {
-                use != null && eligible()
+                use != null && incomingEligible()
             }
         }
     }

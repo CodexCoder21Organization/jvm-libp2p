@@ -1,0 +1,328 @@
+From 0fc2c8f9ab0f9194de30e4f0420399ff6a0bd935 Mon Sep 17 00:00:00 2001
+From: CodexCoder21 <codexcoder21@users.noreply.github.com>
+Date: Mon, 9 Nov 2026 14:41:03 +0000
+Subject: [PATCH 1/2] Wait for selector cleanup before completing failed UDP
+ dials
+
+---
+ .../transport/quic/DatagramPortRelease.kt     | 80 +++++++++++++++++++
+ .../io/libp2p/transport/quic/QuicTransport.kt | 12 ++-
+ .../F93hQuicConnectionSetupReleaseTest.kt     | 63 +++++++++++++++
+ .../transport/F93hQuicDatagramReleaseTest.kt  | 63 +++++++++++++++
+ 4 files changed, 214 insertions(+), 4 deletions(-)
+ create mode 100644 libp2p/src/main/kotlin/io/libp2p/transport/quic/DatagramPortRelease.kt
+ create mode 100644 libp2p/src/test/kotlin/io/libp2p/transport/F93hQuicConnectionSetupReleaseTest.kt
+ create mode 100644 libp2p/src/test/kotlin/io/libp2p/transport/F93hQuicDatagramReleaseTest.kt
+
+diff --git a/libp2p/src/main/kotlin/io/libp2p/transport/quic/DatagramPortRelease.kt b/libp2p/src/main/kotlin/io/libp2p/transport/quic/DatagramPortRelease.kt
+new file mode 100644
+index 00000000..e8db5b65
+--- /dev/null
++++ b/libp2p/src/main/kotlin/io/libp2p/transport/quic/DatagramPortRelease.kt
+@@ -0,0 +1,80 @@
++package io.libp2p.transport.quic
++
++import io.netty.channel.DefaultSelectStrategyFactory
++import io.netty.channel.IoHandler
++import io.netty.channel.IoHandlerFactory
++import io.netty.channel.SelectStrategy
++import io.netty.channel.SelectStrategyFactory
++import io.netty.channel.nio.NioIoHandler
++import io.netty.util.IntSupplier
++import io.netty.util.concurrent.ThreadAwareExecutor
++import java.nio.channels.spi.SelectorProvider
++import java.util.concurrent.CompletableFuture
++
++/** A closed JDK datagram channel releases its descriptor when its cancelled key is removed. */
++internal class DatagramPortRelease(private val wakeup: () -> Unit) : SelectStrategy {
++    private val ordinary = DefaultSelectStrategyFactory.INSTANCE.newSelectStrategy()
++    private val waiting = mutableListOf<CompletableFuture<Unit>>()
++    private var destroyed = false
++
++    fun awaitRelease(): CompletableFuture<Unit> {
++        val result = CompletableFuture<Unit>()
++        val enqueue = synchronized(this) {
++            if (destroyed) {
++                false
++            } else {
++                waiting.add(result)
++                true
++            }
++        }
++        if (enqueue) wakeup() else result.complete(Unit)
++        return result
++    }
++
++    override fun calculateStrategy(selectSupplier: IntSupplier, hasTasks: Boolean): Int {
++        val batch = synchronized(this) {
++            waiting.toList().also { waiting.clear() }
++        }
++        if (batch.isEmpty()) return ordinary.calculateStrategy(selectSupplier, hasTasks)
++
++        val selected = try {
++            selectSupplier.get()
++        } catch (failure: Throwable) {
++            synchronized(this) { waiting.addAll(0, batch) }
++            throw failure
++        }
++        // Re-entry adds to the next batch, after this selector pass has already finished.
++        batch.forEach { it.complete(Unit) }
++        return selected
++    }
++
++    fun completeAfterDestroy() {
++        val batch = synchronized(this) {
++            destroyed = true
++            waiting.toList().also { waiting.clear() }
++        }
++        batch.forEach { it.complete(Unit) }
++    }
++}
++
++internal fun datagramPortReleaseIoFactory(
++    releases: MutableMap<Any, DatagramPortRelease>
++): IoHandlerFactory = object : IoHandlerFactory {
++    override fun newHandler(executor: ThreadAwareExecutor): IoHandler {
++        lateinit var handler: IoHandler
++        val release = DatagramPortRelease { handler.wakeup(executor) }
++        handler = NioIoHandler.newFactory(
++            SelectorProvider.provider(),
++            SelectStrategyFactory { release }
++        ).newHandler(executor)
++        releases[executor] = release
++        return object : IoHandler by handler {
++            override fun destroy() {
++                handler.destroy()
++                release.completeAfterDestroy()
++            }
++        }
++    }
++
++    override fun isChangingThreadSupported(): Boolean = true
++}
+diff --git a/libp2p/src/main/kotlin/io/libp2p/transport/quic/QuicTransport.kt b/libp2p/src/main/kotlin/io/libp2p/transport/quic/QuicTransport.kt
+index d02bb10e..2b4b567f 100644
+--- a/libp2p/src/main/kotlin/io/libp2p/transport/quic/QuicTransport.kt
++++ b/libp2p/src/main/kotlin/io/libp2p/transport/quic/QuicTransport.kt
+@@ -34,7 +34,6 @@ import io.netty.buffer.ByteBuf
+ import io.netty.channel.*
+ import io.netty.channel.epoll.Epoll
+ import io.netty.channel.epoll.EpollDatagramChannel
+-import io.netty.channel.nio.NioIoHandler
+ import io.netty.channel.socket.nio.NioDatagramChannel
+ import io.netty.handler.codec.quic.*
+ import io.netty.handler.ssl.ClientAuth
+@@ -47,6 +46,7 @@ import java.net.SocketAddress
+ import java.time.Duration
+ import java.util.*
+ import java.util.concurrent.CompletableFuture
++import java.util.concurrent.ConcurrentHashMap
+ import java.util.concurrent.TimeUnit
+ import java.util.concurrent.atomic.AtomicReference
+ 
+@@ -75,8 +75,10 @@ class QuicTransport(
+     // JVM open past the runner's kill — matching PlainNettyTransport. Kept per-instance
+     // (shut down in close()) because QUIC is not on the high-fan-out host path that
+     // motivated PlainNettyTransport's shared worker group.
++    private val datagramPortReleases = ConcurrentHashMap<Any, DatagramPortRelease>()
++
+     private var workerGroup by lazyVar {
+-        MultiThreadIoEventLoopGroup(DefaultThreadFactory("libp2p-quic-worker", true), NioIoHandler.newFactory())
++        MultiThreadIoEventLoopGroup(DefaultThreadFactory("libp2p-quic-worker", true), datagramPortReleaseIoFactory(datagramPortReleases))
+     }
+     private var allocator by lazyVar { AdaptiveByteBufAllocator(true) }
+     private var multistreamProtocol: MultistreamProtocol = MultistreamProtocolV1
+@@ -301,7 +303,7 @@ class QuicTransport(
+                     val owner =
+                         DialParent(parent, {
+                             if (shutdown.get() == null) CompletableFuture.completedFuture(Unit) else shutdownChildrenSettled
+-                        }) {
++                        }, datagramPortReleases.getValue(parent.eventLoop())) {
+                             synchronized(this@QuicTransport) { clientDatagramChannels -= parent }
+                         }
+                     dialOwner.set(owner)
+@@ -609,7 +611,7 @@ class QuicTransport(
+             .withComponent(QUICV1)
+ }
+ 
+-private class DialParent(val parent: Channel, val beforeParentClose: () -> CompletableFuture<Unit>, val released: () -> Unit) {
++private class DialParent(val parent: Channel, val beforeParentClose: () -> CompletableFuture<Unit>, val portRelease: DatagramPortRelease, val released: () -> Unit) {
+     @Volatile
+     var child: Channel? = null
+ }
+@@ -620,6 +622,8 @@ private fun closeDialParent(owner: DialParent): CompletableFuture<Unit> {
+     val parentClosed =
+         childClosed.handle { _, _ -> owner.beforeParentClose() }
+             .thenCompose { it }.thenCompose { closeNettyChannelOnce(owner.parent) }
++            .thenCompose { owner.parent.closeFuture().toVoidCompletableFuture() }
++            .thenCompose { owner.portRelease.awaitRelease() }
+     return parentClosed.whenComplete { _, failure ->
+         if (failure == null && !childClosed.isCompletedExceptionally) owner.released()
+     }
+diff --git a/libp2p/src/test/kotlin/io/libp2p/transport/F93hQuicConnectionSetupReleaseTest.kt b/libp2p/src/test/kotlin/io/libp2p/transport/F93hQuicConnectionSetupReleaseTest.kt
+new file mode 100644
+index 00000000..a2b4842d
+--- /dev/null
++++ b/libp2p/src/test/kotlin/io/libp2p/transport/F93hQuicConnectionSetupReleaseTest.kt
+@@ -0,0 +1,63 @@
++package io.libp2p.transport
++
++import io.libp2p.core.PeerId
++import io.libp2p.core.multiformats.Multiaddr
++import io.libp2p.crypto.keys.generateEd25519KeyPair
++import io.libp2p.transport.implementation.ConnectionOverNetty
++import io.libp2p.transport.quic.QuicTransport
++import io.netty.channel.ChannelHandlerContext
++import io.netty.channel.ChannelInboundHandlerAdapter
++import org.junit.jupiter.api.Assertions.*
++import org.junit.jupiter.api.Test
++import java.net.DatagramSocket
++import java.net.InetSocketAddress
++import java.util.concurrent.CompletableFuture
++import java.util.concurrent.CountDownLatch
++import java.util.concurrent.ExecutionException
++import java.util.concurrent.TimeUnit
++
++class F93hQuicConnectionSetupReleaseTest {
++    @Test
++    fun failedDialDoesNotReportBeforeItsUdpPortIsPhysicallyReleased() {
++        val key = generateEd25519KeyPair().first
++        val server = QuicTransport.ECDSA(key, emptyList())
++        val client = QuicTransport.ECDSA(generateEd25519KeyPair().first, emptyList())
++        val addressSeen = CompletableFuture<InetSocketAddress>()
++        val unregisterEntered = CompletableFuture<Unit>()
++        val releaseUnregister = CountDownLatch(1)
++        val expected = IllegalStateException("The public dial visitor rejects this connection")
++        try {
++            server.listen(Multiaddr("/ip4/127.0.0.1/udp/0/quic-v1"), { }, null).get(10, TimeUnit.SECONDS)
++            val dial = client.dial(
++                server.listenAddresses().single().withP2P(PeerId.fromPubKey(key.publicKey())),
++                { fail<Unit>("A rejected dial must not publish a connection") },
++                { connection ->
++                    val parent = (connection as ConnectionOverNetty).nettyChannel.parent()
++                    addressSeen.complete(parent.localAddress() as InetSocketAddress)
++                    parent.pipeline().addLast(object : ChannelInboundHandlerAdapter() {
++                        override fun channelInactive(ctx: ChannelHandlerContext) {
++                            unregisterEntered.complete(Unit)
++                            check(releaseUnregister.await(10, TimeUnit.SECONDS)) { "The fixture must release UDP deregistration" }
++                            ctx.fireChannelInactive()
++                        }
++                    })
++                    throw expected
++                }
++            )
++            val bound = addressSeen.get(10, TimeUnit.SECONDS)
++            unregisterEntered.get(10, TimeUnit.SECONDS)
++            assertFalse(dial.isDone, "A failed dial must wait until its UDP parent has deregistered")
++            releaseUnregister.countDown()
++            val failure = assertThrows(ExecutionException::class.java) { dial.get(10, TimeUnit.SECONDS) }
++            assertSame(expected, failure.cause)
++            DatagramSocket(null).use { socket -> socket.bind(bound) }
++        } finally {
++            releaseUnregister.countDown()
++            try {
++                client.close().get(10, TimeUnit.SECONDS)
++            } finally {
++                server.close().get(10, TimeUnit.SECONDS)
++            }
++        }
++    }
++}
+diff --git a/libp2p/src/test/kotlin/io/libp2p/transport/F93hQuicDatagramReleaseTest.kt b/libp2p/src/test/kotlin/io/libp2p/transport/F93hQuicDatagramReleaseTest.kt
+new file mode 100644
+index 00000000..844d6b34
+--- /dev/null
++++ b/libp2p/src/test/kotlin/io/libp2p/transport/F93hQuicDatagramReleaseTest.kt
+@@ -0,0 +1,63 @@
++package io.libp2p.transport
++
++import io.libp2p.core.PeerId
++import io.libp2p.core.multiformats.Multiaddr
++import io.libp2p.crypto.keys.generateEd25519KeyPair
++import io.libp2p.transport.implementation.ConnectionOverNetty
++import io.libp2p.transport.quic.QuicTransport
++import io.netty.channel.ChannelHandlerContext
++import io.netty.channel.ChannelInboundHandlerAdapter
++import org.junit.jupiter.api.Assertions.*
++import org.junit.jupiter.api.Test
++import java.net.DatagramSocket
++import java.net.InetSocketAddress
++import java.util.concurrent.CompletableFuture
++import java.util.concurrent.CountDownLatch
++import java.util.concurrent.ExecutionException
++import java.util.concurrent.TimeUnit
++
++class F93hQuicDatagramReleaseTest {
++    @Test
++    fun failedDialDoesNotReportBeforeItsUdpPortIsPhysicallyReleased() {
++        val key = generateEd25519KeyPair().first
++        val server = QuicTransport.ECDSA(key, emptyList())
++        val client = QuicTransport.ECDSA(generateEd25519KeyPair().first, emptyList())
++        val addressSeen = CompletableFuture<InetSocketAddress>()
++        val unregisterEntered = CompletableFuture<Unit>()
++        val releaseUnregister = CountDownLatch(1)
++        val expected = IllegalStateException("The public dial visitor rejects this connection")
++        try {
++            server.listen(Multiaddr("/ip4/127.0.0.1/udp/0/quic-v1"), { }, null).get(10, TimeUnit.SECONDS)
++            val dial = client.dial(
++                server.listenAddresses().single().withP2P(PeerId.fromPubKey(key.publicKey())),
++                { fail<Unit>("A rejected dial must not publish a connection") },
++                { connection ->
++                    val parent = (connection as ConnectionOverNetty).nettyChannel.parent()
++                    addressSeen.complete(parent.localAddress() as InetSocketAddress)
++                    parent.pipeline().addLast(object : ChannelInboundHandlerAdapter() {
++                        override fun channelUnregistered(ctx: ChannelHandlerContext) {
++                            unregisterEntered.complete(Unit)
++                            check(releaseUnregister.await(10, TimeUnit.SECONDS)) { "The fixture must release UDP deregistration" }
++                            ctx.fireChannelUnregistered()
++                        }
++                    })
++                    throw expected
++                }
++            )
++            val bound = addressSeen.get(10, TimeUnit.SECONDS)
++            unregisterEntered.get(10, TimeUnit.SECONDS)
++            assertFalse(dial.isDone, "A failed dial must wait until its UDP parent has deregistered")
++            releaseUnregister.countDown()
++            val failure = assertThrows(ExecutionException::class.java) { dial.get(10, TimeUnit.SECONDS) }
++            assertSame(expected, failure.cause)
++            DatagramSocket(null).use { socket -> socket.bind(bound) }
++        } finally {
++            releaseUnregister.countDown()
++            try {
++                client.close().get(10, TimeUnit.SECONDS)
++            } finally {
++                server.close().get(10, TimeUnit.SECONDS)
++            }
++        }
++    }
++}
+-- 
+2.39.5
+
+
+From 7842024467bf5b2e5eedc2d4194284ed96a47b40 Mon Sep 17 00:00:00 2001
+From: CodexCoder21 <codexcoder21@users.noreply.github.com>
+Date: Mon, 9 Nov 2026 14:44:49 +0000
+Subject: [PATCH 2/2] Use the pinned Netty handler wakeup method
+
+---
+ .../main/kotlin/io/libp2p/transport/quic/DatagramPortRelease.kt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/libp2p/src/main/kotlin/io/libp2p/transport/quic/DatagramPortRelease.kt b/libp2p/src/main/kotlin/io/libp2p/transport/quic/DatagramPortRelease.kt
+index e8db5b65..540f1743 100644
+--- a/libp2p/src/main/kotlin/io/libp2p/transport/quic/DatagramPortRelease.kt
++++ b/libp2p/src/main/kotlin/io/libp2p/transport/quic/DatagramPortRelease.kt
+@@ -62,7 +62,7 @@ internal fun datagramPortReleaseIoFactory(
+ ): IoHandlerFactory = object : IoHandlerFactory {
+     override fun newHandler(executor: ThreadAwareExecutor): IoHandler {
+         lateinit var handler: IoHandler
+-        val release = DatagramPortRelease { handler.wakeup(executor) }
++        val release = DatagramPortRelease { handler.wakeup() }
+         handler = NioIoHandler.newFactory(
+             SelectorProvider.provider(),
+             SelectStrategyFactory { release }
+-- 
+2.39.5
+

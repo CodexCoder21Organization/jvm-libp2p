@@ -5,13 +5,20 @@ e = Path(__file__).resolve().parent
 lane = e.parents[2]
 build = lane / 'f93h-build'
 name, repeats, *selectors = sys.argv[1:]
+requested_slots = next((x.split('=', 1)[1] for x in selectors if x.startswith('--slots=')), '1' if name.startswith('held-') and int(repeats) == 1 else '2')
+selectors = [x for x in selectors if not x.startswith('--slots=')]
+product_overlay = next((x.split('=', 1)[1] for x in selectors if x.startswith('--product=')), None)
+selectors = [x for x in selectors if not x.startswith('--product=')]
 if selectors == ['--pr']:
     selectors = json.loads((e / 'pr-selectors.json').read_text())
-classpath = ':'.join([str(build / 'overlay'), str(build / 'gate'), '/tmp/F93h-junit-console.jar', (build / 'runtime-classpath').read_text()])
+baseline = '--baseline' in selectors
+if baseline:
+    selectors.remove('--baseline')
+classpath = ':'.join(([str(build / 'baseline-main')] if baseline else []) + ([str(build / product_overlay)] if product_overlay else []) + [str(build / 'overlay'), str(build / 'gate'), '/tmp/F93h-junit-console.jar', (build / 'runtime-classpath').read_text()])
 command = ['/opt/java/bin/java', '-ea', '-cp', classpath, 'F93dGate', str(e / name), repeats] + selectors
 started = time.monotonic()
 with (e / (name + '.log')).open('w') as output:
-    process = subprocess.Popen([str(e / 'with-slots.sh'), '2', 'timeout', '1200'] + command, cwd=lane / 'jvm-libp2p', stdout=output, stderr=subprocess.STDOUT)
+    process = subprocess.Popen([str(e / 'with-slots.sh'), requested_slots, 'timeout', '1200'] + command, cwd=lane / 'jvm-libp2p', stdout=output, stderr=subprocess.STDOUT)
     (e / (name + '.pid')).write_text(str(process.pid))
     code = process.wait()
     (e / (name + '.pid')).unlink()

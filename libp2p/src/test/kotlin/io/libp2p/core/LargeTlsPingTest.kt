@@ -40,8 +40,8 @@ class LargeTlsPingTest {
                     // Each caller waits for its own previous reply while sibling streams run concurrently.
                     repeat(20) {
                         assertThatCode {
-                    assertThat(controller.ping().get(5, TimeUnit.SECONDS)).isGreaterThanOrEqualTo(0)
-                }.doesNotThrowAnyException()
+                            assertThat(controller.ping().get(5, TimeUnit.SECONDS)).isGreaterThanOrEqualTo(0)
+                        }.doesNotThrowAnyException()
                     }
                 }
             }

@@ -32,5 +32,4 @@ class ProtocolMessageHandlerAdapter<TMessage>(
         }
         super.userEventTriggered(ctx, evt)
     }
-
 }

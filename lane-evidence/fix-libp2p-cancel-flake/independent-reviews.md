@@ -23,3 +23,5 @@ Pass 2: code and ownership
 - Under “Work-in-Progress Support Files”, only the three scenario files belong on the PR branch. Procedures, logs, this report and findings remain on the evidence branch.
 
 No additional issue was identified in the final three-file correction. The earlier cancellation controls, full native module register, spotlessCheck and detekt remain required gates; their results are recorded separately in findings and native XML. README does not need a change because runtime behavior and the public API are unchanged.
+
+Final gate results: prior cancellation implementation FIRST 0/4; restored full native register FIRST 1538/1540 with zero failures and two unchanged skips; spotlessCheck and detekt pass. Final diff is exactly 13 added lines across the three reviewed scenario files, with no deleted or changed original line. PR head is 8a47f8ecf30278cca52a4447c456ab8e4cc04e4f.

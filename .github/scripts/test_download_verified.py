@@ -42,6 +42,15 @@ def source_server(responses):
             if response == "stalled":
                 release.wait(10)
                 return
+            if response == "octet-stream-only":
+                response = (200, BODY, len(BODY)) if self.headers.get("Accept") == "application/octet-stream" else (200, b"asset metadata", 14)
+            if response == "stalled-body":
+                self.send_response(200)
+                self.send_header("Content-Length", str(len(BODY)))
+                self.end_headers()
+                self.wfile.flush()
+                release.wait(10)
+                return
             status, body, declared_length = response
             self.send_response(status)
             self.send_header("Content-Length", str(declared_length))
@@ -134,6 +143,16 @@ class DownloadVerifiedTest(unittest.TestCase):
         self.download({"/primary": ["stalled"], "/secondary": [response()]},
                       ["/primary"] * 3 + ["/secondary"], True,
                       ["Download failed: {base}/primary; HTTP 000; curl exit 28; attempt 3 of 3."],
+                      options=("--max-time", "1"))
+
+    def test_rest_source_receives_binary_accept_header(self):
+        self.download({"/primary": [response(404)], "/secondary": ["octet-stream-only"]},
+                      ["/primary", "/secondary"], True)
+
+    def test_stalled_body_moves_on_without_retry(self):
+        self.download({"/primary": ["stalled-body"], "/secondary": [response()]},
+                      ["/primary", "/secondary"], True,
+                      ["Download failed: {base}/primary; HTTP 200; curl exit 28; attempt 1 of 3."],
                       options=("--max-time", "1"))
 
     def test_gradle_preparation_uses_second_source(self):

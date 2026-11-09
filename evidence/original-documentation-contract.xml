@@ -1,0 +1,89 @@
+<?xml version='1.0' encoding='utf-8'?>
+<testsuite name="DocumentationContractTest" tests="9" failures="8" time="4.419"><testcase classname="DocumentationContractTest" name="standaloneJavadocAliasGeneratesPublicApiPages" time="3.901"><failure type="AssertionError">Traceback (most recent call last):
+  File "/home/runner/work/jvm-libp2p/jvm-libp2p/scripts/verify-documentation.py", line 66, in case
+    detail = action()
+  File "/home/runner/work/jvm-libp2p/jvm-libp2p/scripts/verify-documentation.py", line 274, in verify_standalone_javadoc_alias
+    require(return_code == 0 and not timed_out,
+    ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+            f"Standalone dokkaJavadoc must exit 0 before the documentation deadline; "
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+            f"exit={return_code}, timed_out={timed_out}. See standalone-javadoc/gradle.log.")
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/jvm-libp2p/jvm-libp2p/scripts/verify-documentation.py", line 211, in require
+    raise AssertionError(message)
+AssertionError: Standalone dokkaJavadoc must exit 0 before the documentation deadline; exit=1, timed_out=False. See standalone-javadoc/gradle.log.
+</failure></testcase><testcase classname="DocumentationContractTest" name="combinedBuildAndShutdown" time="0.516"><failure type="AssertionError">Traceback (most recent call last):
+  File "/home/runner/work/jvm-libp2p/jvm-libp2p/scripts/verify-documentation.py", line 66, in case
+    detail = action()
+  File "/home/runner/work/jvm-libp2p/jvm-libp2p/scripts/verify-documentation.py", line 324, in build_documentation
+    require(
+    ~~~~~~~^
+        build_result["finished"] and build_result["return_code"] == 0,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...&lt;2 lines&gt;...
+        f"timed_out={build_result['timed_out']}. See gradle.log for the complete output.",
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/home/runner/work/jvm-libp2p/jvm-libp2p/scripts/verify-documentation.py", line 211, in require
+    raise AssertionError(message)
+AssertionError: The complete Gradle documentation contract build must exit 0 before the 1200-second deadline; exit=1, timed_out=False. See gradle.log for the complete output.
+</failure></testcase><testcase classname="DocumentationContractTest" name="completeLogHasNoMemoryOrShutdownErrors" time="0.000" /><testcase classname="DocumentationContractTest" name="documentationTasksWereProfiled" time="0.000"><failure type="AssertionError">Traceback (most recent call last):
+  File "/home/runner/work/jvm-libp2p/jvm-libp2p/scripts/verify-documentation.py", line 66, in case
+    detail = action()
+  File "/home/runner/work/jvm-libp2p/jvm-libp2p/scripts/verify-documentation.py", line 355, in load_profiles
+    require(ledger.is_file(), f"Dokka profiling ledger is missing: {ledger}")
+    ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/jvm-libp2p/jvm-libp2p/scripts/verify-documentation.py", line 211, in require
+    raise AssertionError(message)
+AssertionError: Dokka profiling ledger is missing: /tmp/documentation-verification-ym81jfz8/reports/profiles/tasks.jsonl
+</failure></testcase><testcase classname="DocumentationContractTest" name="aggregateRootAndDokkaWorkerMetaspaceBudget" time="0.000"><failure type="AssertionError">Traceback (most recent call last):
+  File "/home/runner/work/jvm-libp2p/jvm-libp2p/scripts/verify-documentation.py", line 66, in case
+    detail = action()
+  File "/home/runner/work/jvm-libp2p/jvm-libp2p/scripts/verify-documentation.py", line 375, in check_aggregate_metaspace_budget
+    require(bool(finished), "Cannot check process caps without completed Dokka profile records")
+    ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/jvm-libp2p/jvm-libp2p/scripts/verify-documentation.py", line 211, in require
+    raise AssertionError(message)
+AssertionError: Cannot check process caps without completed Dokka profile records
+</failure></testcase><testcase classname="DocumentationContractTest" name="runtimeClasspathPinsKotlinStdlib" time="0.000"><failure type="AssertionError">Traceback (most recent call last):
+  File "/home/runner/work/jvm-libp2p/jvm-libp2p/scripts/verify-documentation.py", line 66, in case
+    detail = action()
+  File "/home/runner/work/jvm-libp2p/jvm-libp2p/scripts/verify-documentation.py", line 417, in verify_runtime_stdlib
+    require(report_path.is_file(), f"The runtime stdlib version task did not write {report_path}")
+    ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/jvm-libp2p/jvm-libp2p/scripts/verify-documentation.py", line 211, in require
+    raise AssertionError(message)
+AssertionError: The runtime stdlib version task did not write /tmp/documentation-verification-ym81jfz8/reports/runtime-stdlib.json
+</failure></testcase><testcase classname="DocumentationContractTest" name="allSourceModulesHaveHtmlContent" time="0.000"><failure type="AssertionError">Traceback (most recent call last):
+  File "/home/runner/work/jvm-libp2p/jvm-libp2p/scripts/verify-documentation.py", line 66, in case
+    detail = action()
+  File "/home/runner/work/jvm-libp2p/jvm-libp2p/scripts/verify-documentation.py", line 448, in verify_html_outputs
+    require(index.is_file() and index.stat().st_size &gt; 0,
+    ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+            f"{module}: expected a nonempty HTML documentation index at {index}")
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/jvm-libp2p/jvm-libp2p/scripts/verify-documentation.py", line 211, in require
+    raise AssertionError(message)
+AssertionError: libp2p: expected a nonempty HTML documentation index at /home/runner/work/jvm-libp2p/jvm-libp2p/libp2p/build/dokka/index.html
+</failure></testcase><testcase classname="DocumentationContractTest" name="javadocArchivesContainPublicApiPages" time="0.001"><failure type="AssertionError">Traceback (most recent call last):
+  File "/home/runner/work/jvm-libp2p/jvm-libp2p/scripts/verify-documentation.py", line 66, in case
+    detail = action()
+  File "/home/runner/work/jvm-libp2p/jvm-libp2p/scripts/verify-documentation.py", line 470, in verify_javadoc_archive_and_api_page
+    require(len(libraries) == 1,
+    ~~~~~~~^^^^^^^^^^^^^^^^^^^^^
+            f"{module}: expected exactly one Javadoc jar, found {[str(path) for path in libraries]}")
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/jvm-libp2p/jvm-libp2p/scripts/verify-documentation.py", line 211, in require
+    raise AssertionError(message)
+AssertionError: libp2p: expected exactly one Javadoc jar, found []
+</failure></testcase><testcase classname="DocumentationContractTest" name="hostBytecodeAndKotlinMetadataMatchPublishedContract" time="0.000"><failure type="AssertionError">Traceback (most recent call last):
+  File "/home/runner/work/jvm-libp2p/jvm-libp2p/scripts/verify-documentation.py", line 66, in case
+    detail = action()
+  File "/home/runner/work/jvm-libp2p/jvm-libp2p/scripts/verify-documentation.py", line 493, in verify_host_bytecode_metadata
+    require(class_file.is_file(), f"Compiled public API class is missing: {class_file}")
+    ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/jvm-libp2p/jvm-libp2p/scripts/verify-documentation.py", line 211, in require
+    raise AssertionError(message)
+AssertionError: Compiled public API class is missing: /home/runner/work/jvm-libp2p/jvm-libp2p/libp2p/build/classes/kotlin/main/io/libp2p/core/Host.class
+</failure></testcase></testsuite>

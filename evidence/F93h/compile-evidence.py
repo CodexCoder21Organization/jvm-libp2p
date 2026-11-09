@@ -18,7 +18,7 @@ commands = [
 ]
 with (e / 'compile-evidence.log').open('w') as output:
     for command in commands:
-        result = subprocess.run([str(e / 'with-slots.sh'), '2', 'timeout', '600'] + command, cwd=repo, stdout=output, stderr=subprocess.STDOUT)
+        result = subprocess.run([str(e / 'with-slots.sh'), '1', 'timeout', '600'] + command, cwd=repo, stdout=output, stderr=subprocess.STDOUT)
         if result.returncode:
             print('Evidence compile exit', result.returncode)
             sys.exit(result.returncode)

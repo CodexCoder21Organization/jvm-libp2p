@@ -376,7 +376,15 @@ class QuicTransport(
                 }
         return dial.handle { connection, failure ->
             if (failure == null) {
-                CompletableFuture.completedFuture<Connection>(connection)
+                val owner = dialOwner.get()
+                val closing = (connection as ConnectionOverNetty).closeWasRequested() ||
+                    !connection.nettyChannel.isOpen || closed
+                if (owner != null && closing) {
+                    // Keep the callback's successful result; shutdown retains cleanup failures.
+                    closeDialParent(owner).handle<Connection> { _, _ -> connection }
+                } else {
+                    CompletableFuture.completedFuture<Connection>(connection)
+                }
             } else {
                 val original = if (failure is java.util.concurrent.CompletionException) failure.cause ?: failure else failure
                 val reported = if (closed) Libp2pException("Transport is closed").apply { initCause(original) } else original

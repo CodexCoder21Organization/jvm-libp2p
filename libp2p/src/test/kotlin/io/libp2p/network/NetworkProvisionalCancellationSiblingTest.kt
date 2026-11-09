@@ -12,13 +12,13 @@ import io.libp2p.transport.tcp.TcpTransport
 import io.netty.channel.ChannelHandlerContext
 import io.netty.channel.ChannelOutboundHandlerAdapter
 import io.netty.channel.ChannelPromise
+import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit.SECONDS
 import java.util.concurrent.atomic.AtomicInteger
-import org.junit.jupiter.api.Assertions.*
-import org.junit.jupiter.params.ParameterizedTest
-import org.junit.jupiter.params.provider.ValueSource
 
 class NetworkProvisionalCancellationSiblingTest {
     @ParameterizedTest
@@ -42,7 +42,10 @@ class NetworkProvisionalCancellationSiblingTest {
             transports { +::TcpTransport }
             secureChannels { add { key, _ -> NoiseXXSecureChannel(key) } }
             muxers { +(if (mplex) StreamMuxerProtocol.Mplex else StreamMuxerProtocol.getYamux()) }
-            protocols { +Echo(); +binding }
+            protocols {
+                +Echo()
+                +binding
+            }
             network { listen("/ip4/127.0.0.1/tcp/0") }
         }
         val server = node()
@@ -53,17 +56,20 @@ class NetworkProvisionalCancellationSiblingTest {
             val parent = client.network.connect(server.peerId, server.listenAddresses().single()).get(5, SECONDS)
             val accepted = client.newStream<EchoController>(listOf("/test/echo"), parent)
             val echo = accepted.controller.get(5, SECONDS)
-            accepted.stream.get(5, SECONDS).pushHandler("hold-sibling-write", object : ChannelOutboundHandlerAdapter() {
-                private var first = true
-                override fun write(ctx: ChannelHandlerContext, message: Any, promise: ChannelPromise) {
-                    if (first) {
-                        first = false
-                        entered.countDown()
-                        check(release.await(10, SECONDS)) { "The scenario must release the accepted sibling's write" }
+            accepted.stream.get(5, SECONDS).pushHandler(
+                "hold-sibling-write",
+                object : ChannelOutboundHandlerAdapter() {
+                    private var first = true
+                    override fun write(ctx: ChannelHandlerContext, message: Any, promise: ChannelPromise) {
+                        if (first) {
+                            first = false
+                            entered.countDown()
+                            check(release.await(10, SECONDS)) { "The scenario must release the accepted sibling's write" }
+                        }
+                        ctx.write(message, promise)
                     }
-                    ctx.write(message, promise)
                 }
-            })
+            )
             val pendingEcho = echo.echo("accepted sibling before cancellation")
             assertTrue(entered.await(5, SECONDS), "The accepted sibling must hold the parent event loop before queued child creation")
             val hold = checkNotNull(client.network.holdConnection(parent).get(5, SECONDS))
@@ -81,7 +87,11 @@ class NetworkProvisionalCancellationSiblingTest {
             accepted.stream.get(5, SECONDS).close().get(5, SECONDS)
         } finally {
             release.countDown()
-            try { client.stop().get(10, SECONDS) } finally { server.stop().get(10, SECONDS) }
+            try {
+                client.stop().get(10, SECONDS)
+            } finally {
+                server.stop().get(10, SECONDS)
+            }
         }
     }
 }

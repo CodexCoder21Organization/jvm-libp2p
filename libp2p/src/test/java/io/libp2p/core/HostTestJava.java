@@ -6,6 +6,7 @@ import io.libp2p.core.crypto.PrivKey;
 import io.libp2p.core.crypto.PubKey;
 import io.libp2p.core.dsl.HostBuilder;
 import io.libp2p.core.multiformats.Multiaddr;
+import io.libp2p.core.multiformats.Protocol;
 import io.libp2p.core.mux.StreamMuxerProtocol;
 import io.libp2p.protocol.*;
 import io.libp2p.security.noise.*;
@@ -33,7 +34,7 @@ public class HostTestJava {
                 b.getDebug().getAfterSecureHandler().setLogger(LogLevel.ERROR, "host-1-AS");
             });
     */
-    String localListenAddress = "/ip4/127.0.0.1/tcp/40002";
+    String localListenAddress = "/ip4/127.0.0.1/tcp/0";
 
     Host clientHost =
         new HostBuilder()
@@ -60,6 +61,11 @@ public class HostTestJava {
 
     Assertions.assertEquals(0, clientHost.listenAddresses().size());
     Assertions.assertEquals(1, serverHost.listenAddresses().size());
+    int boundPort =
+        Integer.parseInt(
+            serverHost.listenAddresses().get(0).getFirstComponent(Protocol.TCP).getStringValue());
+    Assertions.assertTrue(boundPort > 0);
+    localListenAddress = "/ip4/127.0.0.1/tcp/" + boundPort;
     Assertions.assertEquals(
         localListenAddress + "/p2p/" + serverHost.getPeerId(),
         serverHost.listenAddresses().get(0).toString());
@@ -95,7 +101,7 @@ public class HostTestJava {
   @Test
   void largePing() throws Exception {
     int pingSize = 200 * 1024;
-    String localListenAddress = "/ip4/127.0.0.1/tcp/40002";
+    String localListenAddress = "/ip4/127.0.0.1/tcp/0";
 
     Host clientHost =
         new HostBuilder()
@@ -122,6 +128,11 @@ public class HostTestJava {
 
     Assertions.assertEquals(0, clientHost.listenAddresses().size());
     Assertions.assertEquals(1, serverHost.listenAddresses().size());
+    int boundPort =
+        Integer.parseInt(
+            serverHost.listenAddresses().get(0).getFirstComponent(Protocol.TCP).getStringValue());
+    Assertions.assertTrue(boundPort > 0);
+    localListenAddress = "/ip4/127.0.0.1/tcp/" + boundPort;
     Assertions.assertEquals(
         localListenAddress + "/p2p/" + serverHost.getPeerId(),
         serverHost.listenAddresses().get(0).toString());
@@ -157,7 +168,7 @@ public class HostTestJava {
   @Test
   void largeBlob() throws Exception {
     int blobSize = 1024 * 1024;
-    String localListenAddress = "/ip4/127.0.0.1/tcp/40002";
+    String localListenAddress = "/ip4/127.0.0.1/tcp/0";
 
     Host clientHost =
         new HostBuilder()
@@ -188,6 +199,11 @@ public class HostTestJava {
 
     Assertions.assertEquals(0, clientHost.listenAddresses().size());
     Assertions.assertEquals(1, serverHost.listenAddresses().size());
+    int boundPort =
+        Integer.parseInt(
+            serverHost.listenAddresses().get(0).getFirstComponent(Protocol.TCP).getStringValue());
+    Assertions.assertTrue(boundPort > 0);
+    localListenAddress = "/ip4/127.0.0.1/tcp/" + boundPort;
     Assertions.assertEquals(
         localListenAddress + "/p2p/" + serverHost.getPeerId(),
         serverHost.listenAddresses().get(0).toString());
@@ -222,7 +238,7 @@ public class HostTestJava {
 
   @Test
   void addPingAfterHostStart() throws Exception {
-    String localListenAddress = "/ip4/127.0.0.1/tcp/40002";
+    String localListenAddress = "/ip4/127.0.0.1/tcp/0";
 
     Host clientHost =
         new HostBuilder()
@@ -248,6 +264,11 @@ public class HostTestJava {
 
     Assertions.assertEquals(0, clientHost.listenAddresses().size());
     Assertions.assertEquals(1, serverHost.listenAddresses().size());
+    int boundPort =
+        Integer.parseInt(
+            serverHost.listenAddresses().get(0).getFirstComponent(Protocol.TCP).getStringValue());
+    Assertions.assertTrue(boundPort > 0);
+    localListenAddress = "/ip4/127.0.0.1/tcp/" + boundPort;
     Assertions.assertEquals(
         localListenAddress + "/p2p/" + serverHost.getPeerId(),
         serverHost.listenAddresses().get(0).toString());

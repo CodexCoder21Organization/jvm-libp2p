@@ -1,7 +1,6 @@
 package io.libp2p.pubsub.gossip
 
 import io.libp2p.core.dsl.host
-import io.libp2p.core.multiformats.Multiaddr
 import io.libp2p.core.mux.StreamMuxerProtocol
 import io.libp2p.etc.util.netty.LoggingHandlerShort
 import io.libp2p.pubsub.gossip.builders.GossipRouterBuilder
@@ -36,7 +35,7 @@ abstract class TwoGossipHostTestBase {
                 add(::TcpTransport)
             }
             network {
-                listen("/ip4/127.0.0.1/tcp/40002")
+                listen("/ip4/127.0.0.1/tcp/0")
             }
             secureChannels {
                 add(::NoiseXXSecureChannel)
@@ -62,7 +61,7 @@ abstract class TwoGossipHostTestBase {
                 add(::TcpTransport)
             }
             network {
-                listen("/ip4/127.0.0.1/tcp/40001")
+                listen("/ip4/127.0.0.1/tcp/0")
             }
             secureChannels {
                 add(::NoiseXXSecureChannel)
@@ -104,7 +103,7 @@ abstract class TwoGossipHostTestBase {
 
     protected fun connect() {
         val connect = host1.network
-            .connect(host2.peerId, Multiaddr.fromString("/ip4/127.0.0.1/tcp/40001/p2p/" + host2.peerId))
+            .connect(host2.peerId, host2.listenAddresses().single())
         connect.get(10, TimeUnit.SECONDS)
 
         waitFor { gossipConnected(router1) }

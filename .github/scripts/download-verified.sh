@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Publish only a complete HTTP download matching the caller's SHA-256 pin.
 # Each source gets at most three attempts; permanent responses move on immediately.
+# Retryable failures wait 1 then 2 seconds (exponential backoff capped at 2 seconds).
 set -euo pipefail
 connect_time=30
 max_time=180
@@ -35,6 +36,7 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 total=0
 for url in "$@"; do
+  retry_delay=1
   for attempt in 1 2 3; do
     total=$((total + 1))
     curl_exit=0
@@ -62,6 +64,11 @@ for url in "$@"; do
       ''|000|429|5[0-9][0-9]) ;;
       *) break ;;
     esac
+    if [ "$attempt" -lt 3 ]; then
+      sleep "$retry_delay"
+      retry_delay=$((retry_delay * 2))
+      if [ "$retry_delay" -gt 2 ]; then retry_delay=2; fi
+    fi
   done
 done
 echo "No source supplied an archive matching the pinned SHA-256 after $total attempt(s)." >&2

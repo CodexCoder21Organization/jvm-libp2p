@@ -9,6 +9,7 @@ import io.netty.buffer.Unpooled
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.TimeUnit
 
 class ProtocolRetainedMessageTest {
     @Test
@@ -24,7 +25,7 @@ class ProtocolRetainedMessageTest {
         val input = Unpooled.buffer(4).writeInt(123456)
         try {
             channel.writeInbound(input)
-            val owned = retained.join()
+            val owned = retained.get(5, TimeUnit.SECONDS)
             assertThat(owned.readInt()).isEqualTo(123456)
             assertThat(owned.refCnt()).isEqualTo(1)
             assertThat(owned.release()).isTrue()

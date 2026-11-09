@@ -16,7 +16,7 @@ def main():
     args = parser.parse_args()
     selectors = args.tests or [
         "io.libp2p.core.RpcHandlerTest",
-        "io.libp2p.core.HostTestJava.ping",
+        "io.libp2p.core.HostTestJava",
         "io.libp2p.pubsub.gossip.GossipBackwardCompatibilityTest",
         "io.libp2p.pubsub.gossip.GossipTwoHostTest",
         "io.libp2p.pubsub.gossip.SubscriptionsLimitTest",

@@ -2,20 +2,28 @@
 # Publish only a complete HTTP download matching the caller's SHA-256 pin.
 # Each source gets at most three attempts; permanent responses move on immediately.
 set -euo pipefail
+connect_time=30
 max_time=180
-if [ "${1:-}" = --max-time ]; then
-  max_time=${2:-}
-  shift 2
-fi
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --connect-timeout|--max-time)
+      option=$1
+      value=${2:-}
+      case "$value" in
+        ''|*[!0-9]*) echo "$option requires a positive integer in seconds." >&2; exit 2 ;;
+      esac
+      if [ "$option" = --connect-timeout ]; then connect_time=$value; else max_time=$value; fi
+      shift 2
+      ;;
+    *) break ;;
+  esac
+done
 if [ "$#" -lt 3 ]; then
-  echo 'Usage: download-verified.sh [--max-time SECONDS] OUTPUT SHA256 URL [URL ...]' >&2
+  echo 'Usage: download-verified.sh [--connect-timeout SECONDS] [--max-time SECONDS] OUTPUT SHA256 URL [URL ...]' >&2
   exit 2
 fi
-case "$max_time" in
-  ''|*[!0-9]*) echo 'Transfer deadline must be an integer from 1 to 180 seconds.' >&2; exit 2 ;;
-esac
-if [ "$max_time" -lt 1 ] || [ "$max_time" -gt 180 ]; then
-  echo 'Transfer deadline must be an integer from 1 to 180 seconds.' >&2
+if [ "$connect_time" -lt 1 ] || [ "$connect_time" -gt 30 ] || [ "$max_time" -lt 1 ] || [ "$max_time" -gt 180 ]; then
+  echo 'Connect deadline must be 1..30 seconds and transfer deadline must be 1..180 seconds.' >&2
   exit 2
 fi
 output=$1
@@ -31,7 +39,7 @@ for url in "$@"; do
     total=$((total + 1))
     curl_exit=0
     status=$(curl -q --fail --silent --show-error --location \
-      --connect-timeout 30 --max-time "$max_time" \
+      --connect-timeout "$connect_time" --max-time "$max_time" \
       --header 'Accept: application/octet-stream' \
       --write-out '%{http_code}' --output "$partial" --url "$url") || curl_exit=$?
     case "$status" in

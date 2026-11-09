@@ -10,6 +10,7 @@ import socket
 import subprocess
 import tempfile
 import threading
+import traceback
 import time
 import unittest
 import xml.etree.ElementTree as ET
@@ -155,6 +156,51 @@ class DownloadVerifiedTest(unittest.TestCase):
             self.assertEqual(expected, properties.read_text())
             self.assertEqual(["/primary"] * 3 + ["/secondary"], calls)
 
+    def test_failed_download_preserves_existing_archive(self):
+        with source_server({"/primary": [response(body=b"different")],
+                            "/secondary": [response(404)]}) as (base, calls), tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "archive"
+            output.write_bytes(BODY)
+            result = subprocess.run(["bash", str(SCRIPT), str(output), DIGEST,
+                                     base + "/primary", base + "/secondary"],
+                                    capture_output=True, text=True, timeout=30)
+            self.assertEqual(1, result.returncode, result.stdout + result.stderr)
+            self.assertEqual(BODY, output.read_bytes())
+            self.assertEqual([output], list(Path(directory).iterdir()))
+            self.assertEqual(["/primary", "/secondary"], calls)
+
+    def test_simultaneous_downloads_publish_complete_archive(self):
+        with source_server({"/primary": [response()]}) as (base, calls), tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "archive"
+            command = ["bash", str(SCRIPT), str(output), DIGEST, base + "/primary"]
+            with subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True) as first:
+                with subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True) as second:
+                    first_output = first.communicate(timeout=30)
+                    second_output = second.communicate(timeout=30)
+                    self.assertEqual(0, first.returncode, first_output)
+                    self.assertEqual(0, second.returncode, second_output)
+            self.assertEqual(BODY, output.read_bytes())
+            self.assertEqual([output], list(Path(directory).iterdir()))
+            self.assertEqual(["/primary", "/primary"], calls)
+
+    def test_gradle_preparation_refuses_wrong_digest_without_changing_properties(self):
+        with source_server({"/primary": [response(body=b"different")],
+                            "/secondary": [response(body=b"different")]}) as (base, calls), tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            properties = root / "gradle-wrapper.properties"
+            original = ("distributionUrl=https\\://services.gradle.org/distributions/gradle-8.14.3-bin.zip\n"
+                        f"distributionSha256Sum={DIGEST}\nnetworkTimeout=10000\n")
+            properties.write_text(original)
+            result = subprocess.run(
+                ["python3", str(SCRIPT.with_name("prepare-gradle.py")), str(root / "archives"),
+                 "--properties", str(properties), "--source", base + "/primary",
+                 "--source", base + "/secondary"], capture_output=True, text=True, timeout=30,
+            )
+            self.assertEqual(1, result.returncode, result.stdout + result.stderr)
+            self.assertEqual(original, properties.read_text())
+            self.assertEqual([], list((root / "archives").iterdir()))
+            self.assertEqual(["/primary", "/secondary"], calls)
+
 
 class XmlResult(unittest.TextTestResult):
     def startTest(self, test):
@@ -168,11 +214,11 @@ class XmlResult(unittest.TextTestResult):
 
     def addFailure(self, test, err):
         super().addFailure(test, err)
-        ET.SubElement(self.case, "failure").text = self._exc_info_to_string(err, test)
+        ET.SubElement(self.case, "failure").text = "".join(traceback.format_exception(*err))
 
     def addError(self, test, err):
         super().addError(test, err)
-        ET.SubElement(self.case, "error").text = self._exc_info_to_string(err, test)
+        ET.SubElement(self.case, "error").text = "".join(traceback.format_exception(*err))
 
 
 if __name__ == "__main__":

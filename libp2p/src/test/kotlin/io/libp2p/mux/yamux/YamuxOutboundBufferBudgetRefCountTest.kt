@@ -28,6 +28,7 @@ import io.netty.channel.socket.nio.NioSocketChannel
 import io.netty.util.ReferenceCountUtil
 import io.netty.util.ResourceLeakDetector
 import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.RepeatedTest
 import org.junit.jupiter.api.Test
 import java.net.InetSocketAddress
 import java.nio.channels.ClosedChannelException
@@ -98,7 +99,7 @@ class YamuxOutboundBufferBudgetRefCountTest {
         }
     }
 
-    @Test
+    @RepeatedTest(10)
     fun `budget close fails undelivered in-flight parent write futures`() {
         withParanoidLeakDetection {
             YamuxHarness(
@@ -116,7 +117,9 @@ class YamuxOutboundBufferBudgetRefCountTest {
                 }
 
                 val firstData = harness.client.alloc().buffer(100).writeZero(100)
-                val inFlightFuture = stream.writeAndFlushWithFuture(firstData)
+                val inFlightFuture = harness.onClientEventLoop {
+                    stream.writeAndFlushWithFuture(firstData)
+                }
                 assertThat(inFlightFuture.isDone).isFalse()
 
                 val secondData = harness.client.alloc().buffer(300).writeZero(300)

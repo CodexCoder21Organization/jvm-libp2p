@@ -57,6 +57,7 @@ class R93ASuccessfulClosedDialReleaseTest {
             assertThrows(BindException::class.java) {
                 DatagramSocket(null as java.net.SocketAddress?).use { socket -> socket.bind(bound) }
             }
+            assertFalse(dial.isCompletedExceptionally, "The normally returning visitor must retain its successful dial result")
             assertFalse(dial.isDone, "A dial returning an already closed connection must wait for UDP release")
             releaseUnregister.countDown()
             dial.get(10, TimeUnit.SECONDS)

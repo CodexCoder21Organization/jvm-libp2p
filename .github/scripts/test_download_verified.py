@@ -21,7 +21,7 @@ DIGEST = hashlib.sha256(BODY).hexdigest()
 
 
 @contextmanager
-def source_server(responses):
+def source_server(responses, request_times=None):
     calls = []
     counts = Counter()
     release = threading.Event()
@@ -31,6 +31,8 @@ def source_server(responses):
             pass
 
         def do_GET(self):
+            if request_times is not None:
+                request_times.append(time.monotonic())
             calls.append(self.path)
             counts[self.path] += 1
             choices = responses[self.path]
@@ -103,6 +105,25 @@ class DownloadVerifiedTest(unittest.TestCase):
         self.download({"/primary": [response(504)], "/secondary": [response()]},
                       ["/primary"] * 3 + ["/secondary"], True,
                       ["Download failed: {base}/primary; HTTP 504; curl exit 22; attempt 3 of 3."])
+
+    def test_504_retries_wait_one_then_two_seconds(self):
+        request_times = []
+        with source_server({"/primary": [response(504), response(504), response()]},
+                           request_times=request_times) as (base, calls), tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "archive"
+            result = subprocess.run(
+                ["bash", str(SCRIPT), str(output), DIGEST, base + "/primary"],
+                text=True, capture_output=True, timeout=30,
+            )
+            self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+            self.assertEqual(["/primary"] * 3, calls, result.stdout + result.stderr)
+            self.assertEqual(BODY, output.read_bytes())
+            self.assertEqual([output], list(Path(directory).iterdir()))
+            gaps = [later - earlier for earlier, later in zip(request_times, request_times[1:])]
+            print(f"504 retry gaps in seconds: {gaps}", flush=True)
+            self.assertTrue(all(gap >= delay for gap, delay in zip(gaps, (1, 2))),
+                            f"Retry gaps must be at least 1 then 2 seconds; observed {gaps}.\n"
+                            + result.stdout + result.stderr)
 
     def test_wrong_digest_is_refused(self):
         wrong = b"different archive"

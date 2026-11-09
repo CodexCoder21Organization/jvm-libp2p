@@ -1,0 +1,61 @@
+<testsuite name="io.libp2p.transport.F93cQuicLiveChildRejectedLoopTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-11-09T16:06:00.291Z" hostname="runnervmwuk1x" time="0.039">
+  <testcase name="liveChildAndUdpParentSettleWhenTheirLoopRejectsTransportShutdown()" classname="io.libp2p.transport.F93cQuicLiveChildRejectedLoopTest" time="0.039" />
+  <system-out>16:06:00.304 [libp2p-quic-worker-823-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Quic server listening on /ip4/127.0.0.1/udp/0/quic-v1
+16:06:00.323 [libp2p-quic-worker-823-1] [?[32mINFO?[m] io.libp2p.transport.quic.QuicTransport - Handshake completed with remote peer id: 12D3KooWMPeQdPeB7XTcNPVxQrKsyzjFiKLdq36PKurAuo3scfir
+16:06:00.326 [libp2p-quic-worker-824-1] [?[33mWARN?[m] io.netty.channel.AbstractChannel - Can't invoke task later as EventLoop rejected it
+java.util.concurrent.RejectedExecutionException: event executor terminated
+	at io.netty.util.concurrent.SingleThreadEventExecutor.reject(SingleThreadEventExecutor.java:1125)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.offerTask(SingleThreadEventExecutor.java:413)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.addTask(SingleThreadEventExecutor.java:406)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.execute(SingleThreadEventExecutor.java:1027)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.execute0(SingleThreadEventExecutor.java:993)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.execute(SingleThreadEventExecutor.java:983)
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.invokeLater(AbstractChannel.java:887)
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.deregister(AbstractChannel.java:667)
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.fireChannelInactiveAndDeregister(AbstractChannel.java:627)
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.close(AbstractChannel.java:610)
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.close(AbstractChannel.java:489)
+	at io.libp2p.transport.quic.QuicTransportKt.closeRejectedChannelOnLoop(QuicTransport.kt:650)
+	at io.libp2p.transport.quic.QuicTransportKt.access$closeRejectedChannelOnLoop(QuicTransport.kt:1)
+	at io.libp2p.transport.quic.QuicTransport$dial$dial$1.invoke$lambda$6(QuicTransport.kt:284)
+	at io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:148)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.runShutdownHooks(SingleThreadEventExecutor.java:757)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.confirmShutdown(SingleThreadEventExecutor.java:929)
+	at io.netty.channel.SingleThreadIoEventLoop.run(SingleThreadIoEventLoop.java:204)
+	at io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:1195)
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+16:06:00.327 [libp2p-quic-worker-824-1] [?[33mWARN?[m] io.netty.channel.AbstractChannel - Can't invoke task later as EventLoop rejected it
+java.util.concurrent.RejectedExecutionException: event executor terminated
+	at io.netty.util.concurrent.SingleThreadEventExecutor.reject(SingleThreadEventExecutor.java:1125)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.offerTask(SingleThreadEventExecutor.java:413)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.addTask(SingleThreadEventExecutor.java:406)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.execute(SingleThreadEventExecutor.java:1027)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.execute0(SingleThreadEventExecutor.java:993)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.execute(SingleThreadEventExecutor.java:983)
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.invokeLater(AbstractChannel.java:887)
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.deregister(AbstractChannel.java:667)
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.fireChannelInactiveAndDeregister(AbstractChannel.java:627)
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.close(AbstractChannel.java:610)
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.close(AbstractChannel.java:489)
+	at io.libp2p.transport.quic.QuicTransportKt.closeRejectedChannelOnLoop(QuicTransport.kt:650)
+	at io.libp2p.transport.quic.QuicTransportKt.access$closeRejectedChannelOnLoop(QuicTransport.kt:1)
+	at io.libp2p.transport.quic.QuicTransport$dial$dial$1$closeAtTermination$1$parentClosed$1.invoke(QuicTransport.kt:288)
+	at io.libp2p.transport.quic.QuicTransport$dial$dial$1$closeAtTermination$1$parentClosed$1.invoke(QuicTransport.kt:287)
+	at io.libp2p.transport.quic.QuicTransport$dial$dial$1.invoke$lambda$6$lambda$3(QuicTransport.kt:287)
+	at java.base/java.util.concurrent.CompletableFuture.uniHandle(CompletableFuture.java:930)
+	at java.base/java.util.concurrent.CompletableFuture.uniHandleStage(CompletableFuture.java:946)
+	at java.base/java.util.concurrent.CompletableFuture.handle(CompletableFuture.java:2272)
+	at io.libp2p.transport.quic.QuicTransport$dial$dial$1.invoke$lambda$6(QuicTransport.kt:287)
+	at io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:148)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.runShutdownHooks(SingleThreadEventExecutor.java:757)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.confirmShutdown(SingleThreadEventExecutor.java:929)
+	at io.netty.channel.SingleThreadIoEventLoop.run(SingleThreadIoEventLoop.java:204)
+	at io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:1195)
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+</system-out>
+  <system-err />
+</testsuite>

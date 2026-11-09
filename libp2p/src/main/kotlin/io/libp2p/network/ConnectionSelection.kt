@@ -127,12 +127,16 @@ internal class ConnectionSelection(
                 )
                 accepted -> {
                     val closeNow = synchronized(this) {
-                        if (exclusion !== request) false else {
+                        if (exclusion !== request) {
+                            false
+                        } else {
                             approvedExclusion = request
                             if (provisionalUses == 0L && !closing) {
                                 closing = true
                                 true
-                            } else false
+                            } else {
+                                false
+                            }
                         }
                     }
                     if (closeNow) connection.close()
@@ -148,6 +152,8 @@ internal class ConnectionSelection(
         return ProvisionalUse { releaseUse() }
     }
 
+    // The peer may retain and open a child before receiving our retirement request.
+    // Its incoming children remain admitted until physical close is committed.
     @Synchronized
     private fun incomingEligible(): Boolean =
         !closing && !connection.closeFuture().isDone && (exclusion == null || connection.isInitiator)
@@ -175,10 +181,15 @@ internal class ConnectionSelection(
             if (provisionalUses == 0L && approvedExclusion != null && approvedExclusion === exclusion && !closing) {
                 closing = true
                 true
-            } else false
+            } else {
+                false
+            }
         }
-        if (closeNow) connection.close()
-        else if (synchronized(this) { duplicate }) rejectDuplicate()
+        if (closeNow) {
+            connection.close()
+        } else if (synchronized(this) { duplicate }) {
+            rejectDuplicate()
+        }
     }
 
     private fun publishApproval(future: CompletableFuture<RetirementRequest?>, request: RetirementRequest?) {

@@ -107,7 +107,8 @@ class NetworkProvisionalReleaseTest {
         assertTrue(published.await(5, SECONDS), "The second parent must reach its held publication callback")
         assertEquals(2, client.network.connections.size, "Both physical parents must be visible before provisional child admission")
         val unused = provisional.get()
-        val child = client.newStream<Unit>(listOf("/test/provisional-parent/1.0.0"), unused)
+        val hold = checkNotNull(client.network.holdConnection(unused).get(5, SECONDS))
+        val child = client.newStream<Unit>(listOf("/test/provisional-parent/1.0.0"), hold)
         child.stream.thenAccept { it.close() }
         assertTrue(child.controller.cancel(false), "The provisional child must be abandoned before negotiation completes")
         releasePublication.countDown()

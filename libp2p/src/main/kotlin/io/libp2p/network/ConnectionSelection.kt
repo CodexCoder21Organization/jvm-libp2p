@@ -2,6 +2,7 @@ package io.libp2p.network
 
 import io.libp2p.core.Connection
 import io.libp2p.core.ConnectionClosedException
+import io.libp2p.core.ConnectionHold
 import io.libp2p.core.Libp2pException
 import io.libp2p.core.Stream
 import io.libp2p.core.StreamPromise
@@ -16,6 +17,7 @@ import io.netty.buffer.ByteBuf
 import io.netty.buffer.Unpooled
 import org.slf4j.LoggerFactory
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.atomic.AtomicBoolean
 
 private const val RETIRE = 2
 private const val SELECTION_PROTOCOL = "/libp2p/connection-selection/1.0.0"
@@ -28,6 +30,13 @@ internal class ConnectionSelection(
 ) : StreamMuxer.Session {
     private var closing = false
     private var retained = false
+    private var provisionalUses = 0L
+    private var duplicate = false
+    private val pendingRetirements = mutableSetOf<CompletableFuture<RetirementRequest?>>()
+
+    init {
+        connection.closeFuture().thenRun { closeRequested() }
+    }
 
     // The retirement request that currently excludes this parent, or null. Only that request
     // may release the exclusion, so a late failure of an older request cannot undo a newer one.
@@ -45,11 +54,21 @@ internal class ConnectionSelection(
     }
 
     /** Returns the request that now owns the exclusion, or null when retirement is denied. */
-    @Synchronized
-    fun retireAtAcceptor(): RetirementRequest? {
-        // A parent already excluded by another approval (pending or delivered) is never approved again.
-        if (retained || exclusion != null) return null
-        return exclude()
+    fun retireAtAcceptor(): CompletableFuture<RetirementRequest?> {
+        val result = CompletableFuture<RetirementRequest?>()
+        val approval = synchronized(this) {
+            when {
+                retained || !eligible() -> true to null
+                provisionalUses != 0L -> {
+                    pendingRetirements.add(result)
+                    false to null
+                }
+                else -> true to exclude()
+            }
+        }
+        result.whenComplete { _, _ -> synchronized(this) { pendingRetirements.remove(result) } }
+        if (approval.first) publishApproval(result, approval.second)
+        return result
     }
 
     private fun exclude(): RetirementRequest {
@@ -71,9 +90,12 @@ internal class ConnectionSelection(
     @Synchronized
     fun wasRetired(): Boolean = retired
 
-    @Synchronized
     fun closeRequested() {
-        closing = true
+        val pending = synchronized(this) {
+            closing = true
+            pendingRetirements.toList().also { pendingRetirements.clear() }
+        }
+        pending.forEach { it.complete(null) }
     }
 
     fun reserve(): CompletableFuture<Boolean> {
@@ -85,7 +107,8 @@ internal class ConnectionSelection(
         // that it has not retained this parent.
         if (!connection.isInitiator) return
         val request = synchronized(this) {
-            if (retained || !eligible()) return
+            duplicate = true
+            if (retained || provisionalUses != 0L || !eligible()) return
             exclude()
         }
         requestRetirement().whenComplete { accepted, failure ->
@@ -100,6 +123,104 @@ internal class ConnectionSelection(
                     failure
                 )
                 accepted -> connection.close()
+            }
+        }
+    }
+
+    @Synchronized
+    private fun acquireUse(): ProvisionalUse? {
+        if (!eligible()) return null
+        provisionalUses++
+        return ProvisionalUse { releaseUse() }
+    }
+
+    private fun releaseUse() {
+        val approvals = synchronized(this) {
+            provisionalUses--
+            if (provisionalUses == 0L) {
+                pendingRetirements.map { future ->
+                    future to if (!future.isDone && !retained && eligible()) exclude() else null
+                }.also { pendingRetirements.clear() }
+            } else emptyList()
+        }
+        approvals.forEach { (future, request) -> publishApproval(future, request) }
+        if (synchronized(this) { duplicate }) rejectDuplicate()
+    }
+
+    private fun publishApproval(future: CompletableFuture<RetirementRequest?>, request: RetirementRequest?) {
+        if (!future.complete(request) && request != null) restoreAfterFailedRetirement(request)
+    }
+
+    /** Incoming negotiation and retirement share the same admission ordering. */
+    fun observeIncomingStream(stream: Stream): (String) -> Boolean {
+        val use = acquireUse()
+        stream.closeFuture().whenComplete { _, _ -> use?.close() }
+        return { protocol ->
+            if (protocol == SELECTION_PROTOCOL) {
+                use?.close()
+                true
+            } else use != null && eligible()
+        }
+    }
+
+    fun hold(): ConnectionHold? {
+        val use = acquireUse() ?: return null
+        // Baseline path: retain the parent as the existing reservation does.
+        synchronized(this) { retained = true }
+        return object : ConnectionHold {
+            override val connection: Connection get() = this@ConnectionSelection.connection
+
+            override fun promote(): Boolean = synchronized(this@ConnectionSelection) {
+                !use.released.get() && retain()
+            }
+
+            override fun close() = use.close()
+
+            override fun <T> createStream(protocols: List<ProtocolBinding<T>>): StreamPromise<T> {
+                val childUse = synchronized(this@ConnectionSelection) {
+                    if (use.released.get()) null else acquireUse()
+                } ?: return failedProvisionalStream(connection)
+                val source = try {
+                    session.createStream(protocols)
+                } catch (failure: Throwable) {
+                    childUse.close()
+                    close()
+                    throw failure
+                }
+                val streamResult = CompletableFuture<Stream>()
+                val controllerResult = CompletableFuture<T>()
+                val abandoned = AtomicBoolean()
+                val abandon = {
+                    if (abandoned.compareAndSet(false, true)) {
+                        source.stream.thenAccept { stream ->
+                            stream.close().whenComplete { _, failure ->
+                                if (failure != null) selectionLogger.warn("Provisional child close failed on {}", stream, failure)
+                            }
+                        }
+                        source.controller.cancel(false)
+                        close()
+                    }
+                }
+                streamResult.whenComplete { _, failure -> if (failure != null) abandon() }
+                controllerResult.whenComplete { _, failure -> if (failure != null) abandon() }
+                source.stream.whenComplete { stream, failure ->
+                    if (failure != null) {
+                        childUse.close()
+                        streamResult.completeExceptionally(failure)
+                    } else {
+                        stream.closeFuture().whenComplete { _, _ -> childUse.close() }
+                        if (eligible()) streamResult.complete(stream)
+                        else streamResult.completeExceptionally(provisionalStreamFailure(connection))
+                    }
+                }
+                source.controller.whenComplete { value, failure ->
+                    when {
+                        failure != null -> controllerResult.completeExceptionally(failure)
+                        !eligible() -> controllerResult.completeExceptionally(provisionalStreamFailure(connection))
+                        else -> controllerResult.complete(value)
+                    }
+                }
+                return StreamPromise(streamResult, controllerResult)
             }
         }
     }
@@ -130,6 +251,22 @@ internal class ConnectionSelection(
 /** Identity of one retirement request; compared by reference only. */
 internal class RetirementRequest
 
+private class ProvisionalUse(private val release: () -> Unit) {
+    val released = AtomicBoolean()
+    fun close() {
+        if (released.compareAndSet(false, true)) release()
+    }
+}
+
+private fun provisionalStreamFailure(connection: Connection) = ConnectionClosedException(
+    "Cannot open a provisional stream because its hold was released or its connection is closed or excluded from selection: $connection"
+)
+
+private fun <T> failedProvisionalStream(connection: Connection): StreamPromise<T> {
+    val failure = provisionalStreamFailure(connection)
+    return StreamPromise(completedExceptionally<Stream>(failure), completedExceptionally<T>(failure))
+}
+
 private fun connectionSelection(connection: Connection): ConnectionSelection? =
     if (connection is ConnectionOverNetty) {
         // Before mux setup, the Netty parent already records explicit close requests.
@@ -147,6 +284,9 @@ internal fun connectionEligible(connection: Connection): Boolean {
 
 internal fun duplicateRetired(connection: Connection): Boolean =
     connectionSelection(connection)?.wasRetired() == true
+
+internal fun holdConnectionLocally(connection: Connection): ConnectionHold? =
+    if (connectionEligible(connection)) connectionSelection(connection)?.hold() else null
 
 internal fun reserveConnection(connection: Connection): CompletableFuture<Boolean> =
     if (!connectionEligible(connection)) {
@@ -197,12 +337,13 @@ private class SelectionProtocol : ProtocolHandler<Boolean>(1, 1) {
             override fun onMessage(stream: Stream, msg: ByteBuf) {
                 val connection = stream.connection
                 val selection = (connection as? ConnectionOverNetty)?.selection
-                val request = if (msg.readableBytes() == 1 && selection != null && !connection.isInitiator) {
-                    if (msg.readUnsignedByte().toInt() == RETIRE) selection.retireAtAcceptor() else null
-                } else {
-                    null
-                }
-                stream.writeAndFlushWithFuture(Unpooled.buffer(1).writeByte(if (request != null) 1 else 0))
+                val approval = if (msg.readableBytes() == 1 && selection != null && !connection.isInitiator &&
+                    msg.readUnsignedByte().toInt() == RETIRE
+                ) selection.retireAtAcceptor() else CompletableFuture.completedFuture(null)
+                stream.closeFuture().whenComplete { _, _ -> approval.cancel(false) }
+                approval.whenComplete { request, approvalFailure ->
+                    if (approvalFailure != null) return@whenComplete
+                    stream.writeAndFlushWithFuture(Unpooled.buffer(1).writeByte(if (request != null) 1 else 0))
                     .whenComplete { _, failure ->
                         if (failure != null) {
                             if (request != null) selection?.restoreAfterFailedRetirement(request)
@@ -210,6 +351,7 @@ private class SelectionProtocol : ProtocolHandler<Boolean>(1, 1) {
                         }
                         stream.closeWrite()
                     }
+                }
             }
             override fun onException(cause: Throwable?) {
                 selectionLogger.warn("Connection selection request failed on {}", stream.connection, cause)

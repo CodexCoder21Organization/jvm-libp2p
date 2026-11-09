@@ -1,0 +1,432 @@
+examples/chatter/src/main/kotlin/io/libp2p/example/chat/ChatProtocol.kt
+fun onMessage(stream: Stream, msg: ByteBuf) {
+            val msgStr = msg.toString(Charset.defaultCharset())
+            chatCallback(stream.remotePeerId(), msgStr)
+        }
+
+libp2p/src/main/java/io/libp2p/protocol/autonat/AutonatProtocol.java
+void onMessage(@NotNull Stream stream, Autonat.Message msg) {
+      queue.poll().complete(msg);
+    }
+
+libp2p/src/main/java/io/libp2p/protocol/autonat/AutonatProtocol.java
+void onMessage(@NotNull Stream stream, Autonat.Message msg) {
+      switch (msg.getType()) {
+        case DIAL:
+          {
+            Autonat.Message.Dial dial = msg.getDial();
+            PeerId peerId = new PeerId(dial.getPeer().getId().toByteArray());
+            List<Multiaddr> requestedDials =
+                dial.getPeer().getAddrsList().stream()
+                    .map(s -> Multiaddr.deserialize(s.toByteArray()))
+                    .collect(Collectors.toList());
+            PeerId streamPeerId = stream.remotePeerId();
+            if (!peerId.equals(streamPeerId)) {
+              p2pstream.close();
+              return;
+            }
+
+            Multiaddr remote = stream.getConnection().remoteAddress();
+            Optional<Multiaddr> reachable =
+                requestedDials.stream()
+                    .filter(a -> sameIP(a, remote))
+                    .filter(a -> !a.has(Protocol.P2PCIRCUIT))
+                    .filter(a -> reachableIP(a))
+                    .findAny();
+            Autonat.Message.Builder resp =
+                Autonat.Message.newBuilder().setType(Autonat.Message.MessageType.DIAL_RESPONSE);
+            if (reachable.isPresent()) {
+              resp =
+                  resp.setDialResponse(
+                      Autonat.Message.DialResponse.newBuilder()
+                          .setStatus(Autonat.Message.ResponseStatus.OK)
+                          .setAddr(ByteString.copyFrom(reachable.get().serialize())));
+            } else {
+              resp =
+                  resp.setDialResponse(
+                      Autonat.Message.DialResponse.newBuilder()
+                          .setStatus(Autonat.Message.ResponseStatus.E_DIAL_ERROR));
+            }
+            p2pstream.writeAndFlush(resp);
+          }
+        default:
+          {
+          }
+      }
+    }
+
+libp2p/src/main/java/io/libp2p/protocol/circuit/CircuitHopProtocol.java
+void onMessage(@NotNull Stream stream, Circuit.HopMessage msg) {
+      queue.poll().complete(msg);
+    }
+
+libp2p/src/main/java/io/libp2p/protocol/circuit/CircuitHopProtocol.java
+void onMessage(@NotNull Stream stream, Circuit.HopMessage msg) {
+      switch (msg.getType()) {
+        case RESERVE:
+          {
+            PeerId requestor = stream.remotePeerId();
+            Optional<Reservation> reservation =
+                manager.createReservation(requestor, stream.getConnection().remoteAddress());
+            if (reservation.isEmpty()
+                || new Multiaddr(stream.getConnection().remoteAddress().toString())
+                    .has(Protocol.P2PCIRCUIT)) {
+              stream.writeAndFlush(
+                  Circuit.HopMessage.newBuilder()
+                      .setType(Circuit.HopMessage.Type.STATUS)
+                      .setStatus(Circuit.Status.RESERVATION_REFUSED));
+              return;
+            }
+            Reservation resv = reservation.get();
+            stream.writeAndFlush(
+                Circuit.HopMessage.newBuilder()
+                    .setType(Circuit.HopMessage.Type.STATUS)
+                    .setStatus(Circuit.Status.OK)
+                    .setReservation(
+                        Circuit.Reservation.newBuilder()
+                            .setExpire(resv.expiry.toEpochSecond(ZoneOffset.UTC))
+                            .addAllAddrs(
+                                publicAddresses.get().stream()
+                                    .map(a -> ByteString.copyFrom(a.serialize()))
+                                    .collect(Collectors.toList()))
+                            .setVoucher(ByteString.copyFrom(resv.voucher)))
+                    .setLimit(
+                        Circuit.Limit.newBuilder()
+                            .setDuration(resv.durationSeconds)
+                            .setData(resv.maxBytes)));
+          }
+        case CONNECT:
+          {
+            PeerId target = new PeerId(msg.getPeer().getId().toByteArray());
+            if (manager.hasReservation(target)) {
+              PeerId initiator = stream.remotePeerId();
+              Optional<Reservation> res = manager.allowConnection(target, initiator);
+              if (res.isPresent()) {
+                Reservation resv = res.get();
+                try {
+                  CircuitStopProtocol.StopController stop =
+                      this.stop
+                          .dial(us, target, resv.addrs)
+                          .getController()
+                          .orTimeout(15, TimeUnit.SECONDS)
+                          .join();
+                  Circuit.StopMessage reply =
+                      stop.connect(initiator, resv.durationSeconds, resv.maxBytes).join();
+                  if (reply.getStatus().equals(Circuit.Status.OK)) {
+                    stream.writeAndFlush(
+                        Circuit.HopMessage.newBuilder()
+                            .setType(Circuit.HopMessage.Type.STATUS)
+                            .setStatus(Circuit.Status.OK));
+                    Stream toTarget = stop.getStream();
+                    Stream fromRequestor = stream;
+                    // remove hop and stop handlers from streams before proxying
+                    fromRequestor.pushHandler(STREAM_CLEARER_NAME, new HopRemover());
+                    toTarget.pushHandler(
+                        CircuitStopProtocol.STOP_REMOVER_NAME,
+                        new CircuitStopProtocol.StopRemover());
+
+                    // connect these streams with time + bytes enforcement
+                    if (resv.maxBytes > 0) {
+                      fromRequestor.pushHandler(new InboundTrafficLimitHandler(resv.maxBytes));
+                    }
+                    if (resv.durationSeconds > 0) {
+                      fromRequestor.pushHandler(
+                          new TotalTimeoutHandler(
+                              Duration.of(resv.durationSeconds, ChronoUnit.SECONDS)));
+                    }
+                    if (resv.maxBytes > 0) {
+                      toTarget.pushHandler(new InboundTrafficLimitHandler(resv.maxBytes));
+                    }
+                    if (resv.durationSeconds > 0) {
+                      toTarget.pushHandler(
+                          new TotalTimeoutHandler(
+                              Duration.of(resv.durationSeconds, ChronoUnit.SECONDS)));
+                    }
+                    fromRequestor.pushHandler(new ProxyHandler(toTarget));
+                    toTarget.pushHandler(new ProxyHandler(fromRequestor));
+                  } else {
+                    stream.writeAndFlush(
+                        Circuit.HopMessage.newBuilder()
+                            .setType(Circuit.HopMessage.Type.STATUS)
+                            .setStatus(reply.getStatus()));
+                  }
+                } catch (Exception e) {
+                  stream.writeAndFlush(
+                      Circuit.HopMessage.newBuilder()
+                          .setType(Circuit.HopMessage.Type.STATUS)
+                          .setStatus(Circuit.Status.CONNECTION_FAILED));
+                }
+              } else {
+                stream.writeAndFlush(
+                    Circuit.HopMessage.newBuilder()
+                        .setType(Circuit.HopMessage.Type.STATUS)
+                        .setStatus(Circuit.Status.RESOURCE_LIMIT_EXCEEDED));
+              }
+            } else {
+              stream.writeAndFlush(
+                  Circuit.HopMessage.newBuilder()
+                      .setType(Circuit.HopMessage.Type.STATUS)
+                      .setStatus(Circuit.Status.NO_RESERVATION));
+            }
+          }
+      }
+    }
+
+libp2p/src/main/java/io/libp2p/protocol/circuit/CircuitStopProtocol.java
+void onMessage(@NotNull Stream stream, Circuit.StopMessage msg) {
+      queue.poll().complete(msg);
+    }
+
+libp2p/src/main/java/io/libp2p/protocol/circuit/CircuitStopProtocol.java
+void onMessage(@NotNull Stream stream, Circuit.StopMessage msg) {
+      if (msg.getType() == Circuit.StopMessage.Type.CONNECT) {
+        PeerId remote = new PeerId(msg.getPeer().getId().toByteArray());
+        int durationSeconds = msg.getLimit().getDuration();
+        long limitBytes = msg.getLimit().getData();
+        stream.writeAndFlush(
+            Circuit.StopMessage.newBuilder()
+                .setType(Circuit.StopMessage.Type.STATUS)
+                .setStatus(Circuit.Status.OK)
+                .build());
+        // remove STOP handler from stream before upgrading
+        stream.pushHandler(STOP_REMOVER_NAME, new StopRemover());
+
+        // now upgrade connection with security and muxer protocol
+        ConnectionHandler connHandler = null; // TODO
+        RelayTransport.upgradeStream(
+            stream, false, transport.upgrader, transport, remote, connHandler);
+      }
+    }
+
+libp2p/src/main/kotlin/io/libp2p/network/ConnectionSelection.kt
+fun onMessage(stream: Stream, msg: ByteBuf) {
+                if (msg.readableBytes() != 1 || msg.getUnsignedByte(msg.readerIndex()).toInt() !in 0..1) {
+                    response.completeExceptionally(Libp2pException("Invalid connection selection response: expected one byte containing 0 or 1"))
+                } else {
+                    response.complete(msg.readUnsignedByte().toInt() == 1)
+                }
+            }
+
+libp2p/src/main/kotlin/io/libp2p/network/ConnectionSelection.kt
+fun onMessage(stream: Stream, msg: ByteBuf) {
+                val connection = stream.connection
+                val selection = (connection as? ConnectionOverNetty)?.selection
+                val request = if (msg.readableBytes() == 1 && selection != null && !connection.isInitiator) {
+                    if (msg.readUnsignedByte().toInt() == RETIRE) selection.retireAtAcceptor() else null
+                } else {
+                    null
+                }
+                stream.writeAndFlushWithFuture(Unpooled.buffer(1).writeByte(if (request != null) 1 else 0))
+                    .whenComplete { _, failure ->
+                        if (failure != null) {
+                            if (request != null) selection?.restoreAfterFailedRetirement(request)
+                            selectionLogger.warn("Connection selection response failed on {}", connection, failure)
+                        }
+                        stream.closeWrite()
+                    }
+            }
+
+libp2p/src/main/kotlin/io/libp2p/protocol/Identify.kt
+fun onMessage(stream: Stream, msg: IdentifyOuterClass.Identify) {
+            resp.complete(msg)
+            stream.closeWrite()
+        }
+
+libp2p/src/main/kotlin/io/libp2p/protocol/Ping.kt
+fun onMessage(stream: Stream, msg: ByteBuf) {
+            stream.writeAndFlush(msg)
+        }
+
+libp2p/src/main/kotlin/io/libp2p/protocol/Ping.kt
+fun onMessage(stream: Stream, msg: ByteBuf) {
+            val dataS = msg.toByteArray().toHex()
+            val request = synchronized(requests) {
+                requests.remove(dataS).also {
+                    if (it != null) timeoutTasks.remove(dataS)?.cancel(false)
+                }
+            } ?: throw BadPeerException("Unknown or expired ping data in response: $dataS")
+            val (sentT, future) = request
+            future.complete(curTime() - sentT)
+        }
+
+libp2p/src/main/kotlin/io/libp2p/protocol/ProtocolMessageHandler.kt
+fun onMessage(stream: Stream, msg: TMessage) = Unit
+    fun onClosed(stream: Stream) = Unit
+    fun onReadClosed(stream: Stream) = Unit
+    fun onException(cause: Throwable?) = Unit
+}
+
+
+libp2p/src/test/kotlin/io/libp2p/multistream/ProtocolSelectionCloseNotificationTest.kt
+fun onMessage(stream: Stream, msg: ByteBuf) {
+                            events.add(msg.toString(CharsetUtil.UTF_8))
+                            stream.close()
+                        }
+
+libp2p/src/test/kotlin/io/libp2p/multistream/ProtocolSelectionCloseNotificationTest.kt
+fun onMessage(stream: Stream, msg: ByteBuf) {
+                            events.add("payload")
+                        }
+
+libp2p/src/test/kotlin/io/libp2p/multistream/ProtocolSelectionCloseNotificationTest.kt
+fun onMessage(stream: Stream, msg: ByteBuf) {
+                            events.add("payload")
+                        }
+
+libp2p/src/test/kotlin/io/libp2p/network/NetworkReservationConcurrentTest.kt
+fun onMessage(stream: Stream, msg: ByteBuf) {
+                            assertThat(msg.readableBytes()).isEqualTo(1)
+                            val reply = msg.readUnsignedByte().toInt()
+                            assertThat(reply).isIn(0, 1)
+                            result.complete(reply == 1)
+                        }
+
+libp2p/src/test/kotlin/io/libp2p/network/NetworkReservationDecoratedConnectTest.kt
+fun onMessage(stream: Stream, msg: ByteBuf) {
+                            assertThat(msg.readableBytes()).isEqualTo(1)
+                            val reply = msg.readUnsignedByte().toInt()
+                            assertThat(reply).isIn(0, 1)
+                            result.complete(reply == 1)
+                        }
+
+libp2p/src/test/kotlin/io/libp2p/network/NetworkReservationDecoratedRetainedTest.kt
+fun onMessage(stream: Stream, msg: ByteBuf) {
+                            assertThat(msg.readableBytes()).isEqualTo(1)
+                            val reply = msg.readUnsignedByte().toInt()
+                            assertThat(reply).isIn(0, 1)
+                            result.complete(reply == 1)
+                        }
+
+libp2p/src/test/kotlin/io/libp2p/network/NetworkReservationDecoratedRetiredTest.kt
+fun onMessage(stream: Stream, msg: ByteBuf) {
+                            assertThat(msg.readableBytes()).isEqualTo(1)
+                            val reply = msg.readUnsignedByte().toInt()
+                            assertThat(reply).isIn(0, 1)
+                            result.complete(reply == 1)
+                        }
+
+libp2p/src/test/kotlin/io/libp2p/network/NetworkReservationEventLoopTest.kt
+fun onMessage(stream: Stream, msg: ByteBuf) {
+                            assertThat(msg.readableBytes()).isEqualTo(1)
+                            val reply = msg.readUnsignedByte().toInt()
+                            assertThat(reply).isIn(0, 1)
+                            result.complete(reply == 1)
+                        }
+
+libp2p/src/test/kotlin/io/libp2p/network/NetworkReservationRecoveryTest.kt
+fun onMessage(stream: Stream, msg: ByteBuf) {
+                            assertThat(msg.readableBytes()).isEqualTo(1)
+                            val reply = msg.readUnsignedByte().toInt()
+                            assertThat(reply).isIn(0, 1)
+                            result.complete(reply == 1)
+                        }
+
+libp2p/src/test/kotlin/io/libp2p/network/NetworkReservationRetainedTest.kt
+fun onMessage(stream: Stream, msg: ByteBuf) {
+                            assertThat(msg.readableBytes()).isEqualTo(1)
+                            val reply = msg.readUnsignedByte().toInt()
+                            assertThat(reply).isIn(0, 1)
+                            result.complete(reply == 1)
+                        }
+
+libp2p/src/test/kotlin/io/libp2p/network/NetworkReservationRetiredTest.kt
+fun onMessage(stream: Stream, msg: ByteBuf) {
+                            assertThat(msg.readableBytes()).isEqualTo(1)
+                            val reply = msg.readUnsignedByte().toInt()
+                            assertThat(reply).isIn(0, 1)
+                            result.complete(reply == 1)
+                        }
+
+libp2p/src/test/kotlin/io/libp2p/network/NetworkReservationSessionDecoratedRetainedTest.kt
+fun onMessage(stream: Stream, msg: ByteBuf) {
+                            assertThat(msg.readableBytes()).isEqualTo(1)
+                            val reply = msg.readUnsignedByte().toInt()
+                            assertThat(reply).isIn(0, 1)
+                            result.complete(reply == 1)
+                        }
+
+libp2p/src/test/kotlin/io/libp2p/network/NetworkReservationSessionDecoratedRetiredTest.kt
+fun onMessage(stream: Stream, msg: ByteBuf) {
+                            assertThat(msg.readableBytes()).isEqualTo(1)
+                            val reply = msg.readUnsignedByte().toInt()
+                            assertThat(reply).isIn(0, 1)
+                            result.complete(reply == 1)
+                        }
+
+libp2p/src/test/kotlin/io/libp2p/network/NetworkRetirementCloseRaceTest.kt
+fun onMessage(stream: Stream, msg: ByteBuf) {
+                                        assertThat(msg.readableBytes()).isEqualTo(1)
+                                        assertThat(msg.readUnsignedByte().toInt()).isEqualTo(2)
+                                        request.complete(stream)
+                                    }
+
+libp2p/src/test/kotlin/io/libp2p/network/NetworkRetirementOwnershipTest.kt
+fun onMessage(stream: Stream, msg: ByteBuf) {
+                    assertThat(msg.readableBytes()).isEqualTo(1)
+                    reply.complete(msg.readUnsignedByte().toInt() == 1)
+                }
+
+libp2p/src/test/kotlin/io/libp2p/network/NetworkRetirementPendingCallerTest.kt
+fun onMessage(stream: Stream, msg: ByteBuf) {
+                                    assertThat(msg.readableBytes()).isEqualTo(1)
+                                    assertThat(msg.readUnsignedByte().toInt()).isEqualTo(2)
+                                    request.complete(stream)
+                                    replyGate.thenRun { endRequest(stream) }
+                                }
+
+libp2p/src/test/kotlin/io/libp2p/network/NetworkRetirementTerminationTest.kt
+fun onMessage(stream: Stream, msg: ByteBuf) {
+                                    assertThat(msg.readableBytes()).isEqualTo(1)
+                                    assertThat(msg.readUnsignedByte().toInt()).isEqualTo(2)
+                                    request.complete(stream)
+                                    endRequest(stream)
+                                }
+
+libp2p/src/test/kotlin/io/libp2p/network/NetworkSelectionEofTest.kt
+fun onMessage(stream: Stream, msg: ByteBuf) {
+                stream.closeWrite()
+            }
+
+libp2p/src/testFixtures/kotlin/io/libp2p/tools/CountingPingProtocol.kt
+fun onMessage(stream: Stream, msg: ByteBuf) {
+            ++pingsReceived
+            super.onMessage(stream, msg)
+        }
+
+libp2p/src/testFixtures/kotlin/io/libp2p/tools/EchoProtocol.kt
+fun onMessage(stream: Stream, msg: ByteBuf) {
+            stream.writeAndFlush(msg.retain())
+        }
+
+libp2p/src/testFixtures/kotlin/io/libp2p/tools/EchoProtocol.kt
+fun onMessage(stream: Stream, msg: ByteBuf) {
+            val message = String(msg.toByteArray(), Charset.defaultCharset())
+            ret.complete(message)
+        }
+
+libp2p/src/testFixtures/kotlin/io/libp2p/protocol/Blob.kt
+fun onMessage(stream: Stream, msg: ByteArray) {
+            println("Responder::onMessage")
+            stream.writeAndFlush(msg)
+        }
+
+libp2p/src/testFixtures/kotlin/io/libp2p/protocol/Blob.kt
+fun onMessage(stream: Stream, msg: ByteArray) {
+            println("Initiator::onMessage")
+            val dataS = msg.toHex()
+            val (sentT, future) = requests.remove(dataS)
+                ?: throw BadPeerException("Unknown or expired blob data in response: $dataS")
+            future.complete(curTime() - sentT)
+        }
+
+libp2p/src/testFixtures/kotlin/io/libp2p/protocol/OneShotPing.kt
+fun onMessage(stream: Stream, msg: ByteBuf) {
+            println("OneShotPingResponder: onMessage $msg")
+            outBuf.writeBytes(msg)
+        }
+
+libp2p/src/testFixtures/kotlin/io/libp2p/protocol/OneShotPing.kt
+fun onMessage(stream: Stream, msg: ByteBuf) {
+            println("OneShotPingInitiator: onMessage $msg")
+            responseFuture.complete(null)
+        }

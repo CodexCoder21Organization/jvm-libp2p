@@ -1,0 +1,171 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.14.3/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+Build configured without Android submodules.
+    To include Android submodules define a valid SDK location with an ANDROID_HOME environment variable 
+    or by setting the sdk.dir path in your project's local properties file local.properties.
+
+> Configure project :
+    
+    Thank you for enabling Dokka Gradle plugin V2!
+    To learn about migrating read the migration guide https://kotl.in/dokka-gradle-migration
+    
+    We would appreciate your feedback!
+     - Please report any feedback or problems https://kotl.in/dokka-issues
+     - Chat with the community visit #dokka in https://kotlinlang.slack.com/ (To sign up visit https://kotl.in/slack)
+    
+    You can suppress this message by adding
+        org.jetbrains.dokka.experimental.gradle.pluginMode.noWarn=true
+    to your project's `gradle.properties` file.
+    
+
+> Task :libp2p:checkKotlinGradlePluginConfigurationErrors
+> Task :libp2p:extractIncludeProto UP-TO-DATE
+> Task :libp2p:extractProto UP-TO-DATE
+> Task :libp2p:generateProto UP-TO-DATE
+> Task :libp2p:compileKotlin UP-TO-DATE
+> Task :libp2p:compileJava UP-TO-DATE
+> Task :libp2p:processResources UP-TO-DATE
+> Task :libp2p:classes UP-TO-DATE
+> Task :libp2p:jar UP-TO-DATE
+> Task :tools:schedulers:processResources NO-SOURCE
+> Task :libp2p:extractIncludeTestFixturesProto UP-TO-DATE
+> Task :libp2p:extractTestFixturesProto UP-TO-DATE
+> Task :libp2p:generateTestFixturesProto NO-SOURCE
+> Task :tools:schedulers:checkKotlinGradlePluginConfigurationErrors
+> Task :tools:schedulers:compileKotlin NO-SOURCE
+> Task :tools:schedulers:compileJava UP-TO-DATE
+> Task :tools:schedulers:classes UP-TO-DATE
+> Task :tools:schedulers:jar UP-TO-DATE
+> Task :libp2p:compileTestFixturesKotlin UP-TO-DATE
+> Task :libp2p:compileTestFixturesJava UP-TO-DATE
+> Task :libp2p:processTestFixturesResources NO-SOURCE
+> Task :libp2p:testFixturesClasses UP-TO-DATE
+> Task :libp2p:testFixturesJar UP-TO-DATE
+> Task :libp2p:extractIncludeTestProto UP-TO-DATE
+> Task :libp2p:extractTestProto UP-TO-DATE
+> Task :libp2p:generateTestProto NO-SOURCE
+> Task :libp2p:processTestResources UP-TO-DATE
+> Task :libp2p:compileTestKotlin
+> Task :libp2p:compileTestJava UP-TO-DATE
+> Task :libp2p:testClasses UP-TO-DATE
+
+> Task :libp2p:test
+
+NetworkProvisionalCancellationSiblingTest > cancelledQueuedChildLeavesAcceptedSiblingUsable(boolean) > [1] false FAILED
+    java.util.concurrent.ExecutionException: io.libp2p.core.ProtocolViolationException: Inbound traffic quota reached
+        at java.base/java.util.concurrent.CompletableFuture.reportGet(CompletableFuture.java:396)
+        at java.base/java.util.concurrent.CompletableFuture.get(CompletableFuture.java:2096)
+        at io.libp2p.network.NetworkProvisionalCancellationSiblingTest.cancelledQueuedChildLeavesAcceptedSiblingUsable(NetworkProvisionalCancellationSiblingTest.kt:101)
+
+        Caused by:
+        io.libp2p.core.ProtocolViolationException: Inbound traffic quota reached
+            at app//io.libp2p.etc.util.netty.InboundTrafficLimitHandler.channelRead(InboundTrafficLimitHandler.kt:22)
+            at app//io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:357)
+            at app//io.libp2p.multistream.ProtocolSelect.channelRead(ProtocolSelect.kt:46)
+            at app//io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:357)
+            at app//io.netty.channel.DefaultChannelPipeline$HeadContext.channelRead(DefaultChannelPipeline.java:1442)
+            at app//io.netty.channel.DefaultChannelPipeline.fireChannelRead(DefaultChannelPipeline.java:931)
+            at app//io.libp2p.etc.util.netty.mux.AbstractMuxHandler.deliverToChild(AbstractMuxHandler.kt:358)
+            at app//io.libp2p.etc.util.netty.mux.AbstractMuxHandler.childRead(AbstractMuxHandler.kt:245)
+            at app//io.libp2p.mux.yamux.YamuxHandler.access$childRead(YamuxHandler.kt:39)
+            at app//io.libp2p.mux.yamux.YamuxHandler$YamuxStreamHandler.handleDataRead(YamuxHandler.kt:168)
+            at app//io.libp2p.mux.yamux.YamuxHandler$YamuxStreamHandler.handleFrameRead(YamuxHandler.kt:142)
+            at app//io.libp2p.mux.yamux.YamuxHandler.channelRead(YamuxHandler.kt:444)
+            at app//io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:357)
+            at app//io.netty.handler.codec.ByteToMessageDecoder.fireChannelRead(ByteToMessageDecoder.java:361)
+            at app//io.netty.handler.codec.ByteToMessageDecoder.channelRead(ByteToMessageDecoder.java:325)
+            at app//io.netty.handler.codec.ByteToMessageCodec.channelRead(ByteToMessageCodec.java:103)
+            at app//io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:355)
+            at app//io.netty.handler.codec.MessageToMessageDecoder.channelRead(MessageToMessageDecoder.java:107)
+            at app//io.netty.handler.codec.MessageToMessageCodec.channelRead(MessageToMessageCodec.java:120)
+            at app//io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:355)
+            at app//io.netty.channel.CombinedChannelDuplexHandler$DelegatingChannelHandlerContext.fireChannelRead(CombinedChannelDuplexHandler.java:434)
+            at app//io.netty.handler.codec.ByteToMessageDecoder.fireChannelRead(ByteToMessageDecoder.java:361)
+            at app//io.netty.handler.codec.ByteToMessageDecoder.channelRead(ByteToMessageDecoder.java:325)
+            at app//io.netty.channel.CombinedChannelDuplexHandler.channelRead(CombinedChannelDuplexHandler.java:249)
+            at app//io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:355)
+            at app//io.netty.channel.DefaultChannelPipeline$HeadContext.channelRead(DefaultChannelPipeline.java:1442)
+            at app//io.netty.channel.DefaultChannelPipeline.fireChannelRead(DefaultChannelPipeline.java:931)
+            at app//io.netty.channel.nio.AbstractNioByteChannel$NioByteUnsafe.read(AbstractNioByteChannel.java:176)
+            at app//io.netty.channel.nio.AbstractNioChannel$AbstractNioUnsafe.handle(AbstractNioChannel.java:445)
+            at app//io.netty.channel.nio.NioIoHandler$DefaultNioRegistration.handle(NioIoHandler.java:388)
+            at app//io.netty.channel.nio.NioIoHandler.processSelectedKey(NioIoHandler.java:596)
+            at app//io.netty.channel.nio.NioIoHandler.processSelectedKeysOptimized(NioIoHandler.java:571)
+            at app//io.netty.channel.nio.NioIoHandler.processSelectedKeys(NioIoHandler.java:512)
+            at app//io.netty.channel.nio.NioIoHandler.run(NioIoHandler.java:484)
+            at app//io.netty.channel.SingleThreadIoEventLoop.runIo(SingleThreadIoEventLoop.java:225)
+            at app//io.netty.channel.SingleThreadIoEventLoop.run(SingleThreadIoEventLoop.java:196)
+            at app//io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:1195)
+            at app//io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+            at app//io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+            at java.base@21.0.12.1/java.lang.Thread.run(Thread.java:1583)
+
+NetworkProvisionalCancellationSiblingTest > cancelledQueuedChildLeavesAcceptedSiblingUsable(boolean) > [2] true FAILED
+    java.util.concurrent.ExecutionException: io.libp2p.core.ProtocolViolationException: Inbound traffic quota reached
+        at java.base/java.util.concurrent.CompletableFuture.reportGet(CompletableFuture.java:396)
+        at java.base/java.util.concurrent.CompletableFuture.get(CompletableFuture.java:2096)
+        at io.libp2p.network.NetworkProvisionalCancellationSiblingTest.cancelledQueuedChildLeavesAcceptedSiblingUsable(NetworkProvisionalCancellationSiblingTest.kt:101)
+
+        Caused by:
+        io.libp2p.core.ProtocolViolationException: Inbound traffic quota reached
+            at app//io.libp2p.etc.util.netty.InboundTrafficLimitHandler.channelRead(InboundTrafficLimitHandler.kt:22)
+            at app//io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:357)
+            at app//io.libp2p.multistream.ProtocolSelect.channelRead(ProtocolSelect.kt:46)
+            at app//io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:357)
+            at app//io.netty.channel.DefaultChannelPipeline$HeadContext.channelRead(DefaultChannelPipeline.java:1442)
+            at app//io.netty.channel.DefaultChannelPipeline.fireChannelRead(DefaultChannelPipeline.java:931)
+            at app//io.libp2p.etc.util.netty.mux.AbstractMuxHandler.deliverToChild(AbstractMuxHandler.kt:358)
+            at app//io.libp2p.etc.util.netty.mux.AbstractMuxHandler.childRead(AbstractMuxHandler.kt:245)
+            at app//io.libp2p.mux.mplex.MplexHandler.channelRead(MplexHandler.kt:35)
+            at app//io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:357)
+            at app//io.netty.handler.codec.ByteToMessageDecoder.fireChannelRead(ByteToMessageDecoder.java:361)
+            at app//io.netty.handler.codec.ByteToMessageDecoder.channelRead(ByteToMessageDecoder.java:325)
+            at app//io.netty.handler.codec.ByteToMessageCodec.channelRead(ByteToMessageCodec.java:103)
+            at app//io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:355)
+            at app//io.netty.handler.codec.MessageToMessageDecoder.channelRead(MessageToMessageDecoder.java:107)
+            at app//io.netty.handler.codec.MessageToMessageCodec.channelRead(MessageToMessageCodec.java:120)
+            at app//io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:355)
+            at app//io.netty.channel.CombinedChannelDuplexHandler$DelegatingChannelHandlerContext.fireChannelRead(CombinedChannelDuplexHandler.java:434)
+            at app//io.netty.handler.codec.ByteToMessageDecoder.fireChannelRead(ByteToMessageDecoder.java:361)
+            at app//io.netty.handler.codec.ByteToMessageDecoder.channelRead(ByteToMessageDecoder.java:325)
+            at app//io.netty.channel.CombinedChannelDuplexHandler.channelRead(CombinedChannelDuplexHandler.java:249)
+            at app//io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:355)
+            at app//io.netty.channel.DefaultChannelPipeline$HeadContext.channelRead(DefaultChannelPipeline.java:1442)
+            at app//io.netty.channel.DefaultChannelPipeline.fireChannelRead(DefaultChannelPipeline.java:931)
+            at app//io.netty.channel.nio.AbstractNioByteChannel$NioByteUnsafe.read(AbstractNioByteChannel.java:176)
+            at app//io.netty.channel.nio.AbstractNioChannel$AbstractNioUnsafe.handle(AbstractNioChannel.java:445)
+            at app//io.netty.channel.nio.NioIoHandler$DefaultNioRegistration.handle(NioIoHandler.java:388)
+            at app//io.netty.channel.nio.NioIoHandler.processSelectedKey(NioIoHandler.java:596)
+            at app//io.netty.channel.nio.NioIoHandler.processSelectedKeysOptimized(NioIoHandler.java:571)
+            at app//io.netty.channel.nio.NioIoHandler.processSelectedKeys(NioIoHandler.java:512)
+            at app//io.netty.channel.nio.NioIoHandler.run(NioIoHandler.java:484)
+            at app//io.netty.channel.SingleThreadIoEventLoop.runIo(SingleThreadIoEventLoop.java:225)
+            at app//io.netty.channel.SingleThreadIoEventLoop.run(SingleThreadIoEventLoop.java:196)
+            at app//io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:1195)
+            at app//io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+            at app//io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+            at java.base@21.0.12.1/java.lang.Thread.run(Thread.java:1583)
+
+64 tests completed, 2 failed
+
+> Task :libp2p:test FAILED
+
+[Incubating] Problems report is available at: file:///code/workspace/fix-libp2p-cancel-flake/build/reports/problems/problems-report.html
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':libp2p:test'.
+> There were failing tests. See the report at: file:///code/workspace/fix-libp2p-cancel-flake/libp2p/build/reports/tests/test/index.html
+
+* Try:
+> Run with --scan to get full insights.
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 9.0.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/8.14.3/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD FAILED in 54s
+22 actionable tasks: 4 executed, 18 up-to-date

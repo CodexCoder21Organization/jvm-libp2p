@@ -1,0 +1,11 @@
+# Independent review passes
+
+OBSERVED: Both passes were performed directly in this lane, with no other model or agent. They cover this lane's two new public reproductions and the source mechanism. They are not a completed qualification or review of the predecessor's full resolver migration.
+
+OBSERVED: Read Testing Architecture, Code Review Red Flags and Engineering Philosophy in full. Read both new scenario files in full, the existing two-parent control in full, the original held-duplicate ping in full, and the source paths used to identify the extra probes. Code Review Red Flags was applied from its opening non-complete-list rule through its final reviewer resources.
+
+OBSERVED: Test review: both scenarios use real TCP, Noise and Yamux hosts through public APIs, hold real setup/publication callbacks, cancel before releasing publication, wait for both physical sides to close, and count the responder at the dependency boundary. This follows Testing's deterministic-condition, public-API and real-dependency rules. It does not depend on speed or an iteration count. Ports are allocated by the OS and both hosts close in finally. No existing test assertion or condition is weakened (Code Review Red Flags: Weakening an Existing Test; Tests Must Be Hermetically Sealed).
+
+OBSERVED: Source review: source.controller cancellation at ConnectionSelection.kt:245 leaves AbstractMuxHandler's creation result incomplete. That result's guard at line 527 therefore still permits MuxHandler.kt:74 to install the protocol when the event loop resumes. Closing the resulting child later does not undo its responder start. Both artifact and source tests reach precisely the expected-0/actual-1 assertion. This applies Engineering Philosophy's source-layer correction and reproduce-before-fix rules; no consuming-service workaround or source correction was adopted.
+
+INFER: Remaining source-fix coverage belongs to the next lane: both muxers, child cancellation before initialization, close while setup is pending, ordinary retained children, sibling holds and promotion. The existing upstream register and this new assertion must then become first-attempt green before publication and renewed consumer qualification. No green or reversal result is claimed here.

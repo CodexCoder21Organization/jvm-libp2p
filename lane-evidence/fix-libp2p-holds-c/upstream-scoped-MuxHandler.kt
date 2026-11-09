@@ -1,0 +1,105 @@
+package io.libp2p.mux
+
+import io.libp2p.core.ConnectionClosedException
+import io.libp2p.core.Stream
+import io.libp2p.core.StreamHandler
+import io.libp2p.core.StreamPromise
+import io.libp2p.core.multistream.MultistreamProtocol
+import io.libp2p.core.multistream.ProtocolBinding
+import io.libp2p.core.mux.StreamMuxer
+import io.libp2p.etc.CONNECTION
+import io.libp2p.etc.STREAM
+import io.libp2p.etc.STREAM_SETUP_CAUSE
+import io.libp2p.etc.STREAM_SETUP_RESULT
+import io.libp2p.etc.StreamSetupFuture
+import io.libp2p.etc.types.forward
+import io.libp2p.etc.types.forwardException
+import io.libp2p.etc.util.netty.mux.AbstractMuxHandler
+import io.libp2p.etc.util.netty.mux.DEFAULT_MAX_INBOUND_STREAMS
+import io.libp2p.etc.util.netty.mux.MuxChannel
+import io.libp2p.etc.util.netty.mux.MuxChannelInitializer
+import io.libp2p.transport.implementation.StreamOverNetty
+import io.netty.buffer.ByteBuf
+import io.netty.channel.ChannelHandlerContext
+import java.util.concurrent.CompletableFuture
+
+abstract class MuxHandler(
+    private val ready: CompletableFuture<StreamMuxer.Session>?,
+    inboundStreamHandler: StreamHandler<*>,
+    maxInboundStreams: Int = DEFAULT_MAX_INBOUND_STREAMS
+) : AbstractMuxHandler<ByteBuf>(maxInboundStreams), StreamMuxer.Session {
+
+    protected abstract val multistreamProtocol: MultistreamProtocol
+    protected abstract val maxFrameDataLength: Int
+
+    override val inboundInitializer: MuxChannelInitializer<ByteBuf> = {
+        inboundStreamHandler.handleStream(createStream(it))
+    }
+
+    override fun handlerAdded(ctx: ChannelHandlerContext) {
+        super.handlerAdded(ctx)
+        if (ready != null) {
+            ctx.channel().closeFuture().addListener {
+                ready.completeExceptionally(ConnectionClosedException())
+            }
+        }
+    }
+
+    override fun channelActive(ctx: ChannelHandlerContext?) {
+        super.channelActive(ctx)
+        // Publication may synchronously close the parent, so activate before invoking consumers.
+        if (ctx?.channel()?.isOpen == true) ready?.complete(this)
+    }
+
+    private fun createStream(channel: MuxChannel<ByteBuf>): Stream {
+        val connection = ctx!!.channel().attr(CONNECTION).get()
+        val stream = StreamOverNetty(channel, connection, channel.initiator)
+        channel.attr(STREAM).set(stream)
+        return stream
+    }
+
+    override fun <T> createStream(protocols: List<ProtocolBinding<T>>): StreamPromise<T> {
+        return createStream(multistreamProtocol.createMultistream(protocols).toStreamHandler())
+    }
+
+    fun <T> createStream(streamHandler: StreamHandler<T>): StreamPromise<T> {
+        val controller = StreamSetupFuture<T>()
+        val muxChannel = newStream { channel ->
+            controller.channel = channel
+            if (controller.isCancelled) {
+                channel.close()
+                return@newStream
+            }
+            channel.closeFuture().addListener {
+                channel.attr(STREAM_SETUP_CAUSE).get()?.let { cause ->
+                    controller.completeExceptionally(cause)
+                }
+            }
+            val result = streamHandler.handleStream(createStream(channel))
+            channel.attr(STREAM_SETUP_RESULT).set(result)
+            channel.attr(STREAM_SETUP_CAUSE).get()?.let { result.completeExceptionally(it) }
+            result.forward(controller)
+        }
+        controller.whenComplete { _, _ ->
+            if (controller.isCancelled && muxChannel.cancel(false)) {
+                controller.channel?.close()
+            }
+        }
+        // Observe the owned creation result, independently of the caller's mutable stream future.
+        muxChannel.forwardException(controller)
+        val stream = muxChannel.thenApply {
+            it.attr(STREAM_SETUP_CAUSE).get()?.let { cause -> throw cause }
+            it.attr(STREAM).get()
+        }
+        return StreamPromise(stream, controller)
+    }
+
+    override fun releaseMessage(msg: ByteBuf) {
+        msg.release()
+    }
+
+    override fun pendingChildReadSize(data: ByteBuf): Int = data.readableBytes()
+
+    override val maxPendingChildReadBytes: Long
+        get() = maxFrameDataLength.toLong() * 4
+}

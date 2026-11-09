@@ -1,0 +1,187 @@
+diff --git a/src/foundation/url/resolver/RetirementAwareRelayHost.kt b/src/foundation/url/resolver/RetirementAwareRelayHost.kt
+index 3117bb9465..88060af413 100644
+--- a/src/foundation/url/resolver/RetirementAwareRelayHost.kt
++++ b/src/foundation/url/resolver/RetirementAwareRelayHost.kt
+@@ -7,8 +7,6 @@ import foundation.url.protocol.Libp2pRpcProtocol
+ import foundation.url.protocol.RelayProtocol
+ import io.libp2p.core.ChannelVisitor
+ import io.libp2p.core.Connection
+-import io.libp2p.core.ConnectionHold
+-import io.libp2p.core.newStream
+ import io.libp2p.core.ConnectionClosedException
+ import io.libp2p.core.ConnectionHandler
+ import io.libp2p.core.Host
+@@ -315,14 +313,13 @@ internal class RetirementAwareHost(
+ 
+     fun <T> openConnectionStream(
+         protocols: List<String>, connection: Connection, admitInbound: Boolean, observeSetup: Boolean = true,
+-        provisionalHold: ConnectionHold? = null,
+     ): StreamPromise<T> =
+         recovery.select {
+             if (stopped) failedRecoveryStream<T>(
+                 "Cannot open stream on parent ${connection.remoteAddress()}: its resolver host has stopped."
+             ) else openAdmittedChild<T>(shared, this, recovery, connection, protocols, admitInbound,
+                 retainsRecoveryAdmission(protocols, admitInbound), null, false, null,
+-                observeSetup = observeSetup, provisionalHold = provisionalHold) ?: failedRecoveryStream(
++                observeSetup = observeSetup) ?: failedRecoveryStream(
+                 "Cannot open stream on parent ${connection.remoteAddress()}: the selected parent retired " +
+                     "before stream admission. Select a live connection before opening another stream."
+             )
+@@ -398,11 +395,10 @@ internal fun <T> Host.newStreamWithinDialBudget(
+ }
+ 
+ /** A diagnostic probe owns its child; its caller interprets the result for the shared connection. */
+-internal fun Host.newRpcProbe(connection: Connection, provisionalHold: ConnectionHold? = null): StreamPromise<foundation.url.protocol.Libp2pRpcController> =
++internal fun Host.newRpcProbe(connection: Connection): StreamPromise<foundation.url.protocol.Libp2pRpcController> =
+     when (this) {
+         is RetirementAwareHost -> openConnectionStream(
+             listOf(Libp2pRpcProtocol.PROTOCOL_ID), connection, true, observeSetup = false,
+-            provisionalHold = provisionalHold,
+         )
+         else -> throw IllegalArgumentException(
+             "Cannot open an RPC probe on ${connection.remoteAddress()}: the supplied host $this is not resolver-owned."
+@@ -576,11 +572,10 @@ private fun <T> openAdmittedChild(
+     gatePublication: Boolean = false,
+     callerStopped: java.util.concurrent.atomic.AtomicBoolean = java.util.concurrent.atomic.AtomicBoolean(),
+     observeSetup: Boolean = true,
+-    provisionalHold: ConnectionHold? = null,
+ ): StreamPromise<T>? {
+     // The snapshot can precede duplicate exclusion; admission must retain this exact parent.
+     // Libp2p's local reservation completes synchronously and opens no stream.
+-    if (provisionalHold == null && !shared.network.reserveConnection(connection).getNow(false)) return null
++    if (!shared.network.reserveConnection(connection).getNow(false)) return null
+     return recovery.openStream(connection, admitInbound, retainAdmission, pending) {
+         onConnectionSelected?.invoke(connection, establishedByAttempt)
+         onAdmitted()
+@@ -592,8 +587,7 @@ private fun <T> openAdmittedChild(
+         ) else null
+         val open = {
+             val raw = try {
+-                if (provisionalHold == null) shared.newStream<T>(protocols, connection)
+-                else shared.newStream<T>(protocols, provisionalHold)
++                shared.newStream<T>(protocols, connection)
+             } catch (problem: Throwable) {
+                 if (classifier == null) throw problem
+                 StreamPromise<T>(CompletableFuture.failedFuture(problem), CompletableFuture.failedFuture(problem))
+diff --git a/src/foundation/url/resolver/ReusableConnectionSelection.kt b/src/foundation/url/resolver/ReusableConnectionSelection.kt
+index 97f3a2433e..872f11a957 100644
+--- a/src/foundation/url/resolver/ReusableConnectionSelection.kt
++++ b/src/foundation/url/resolver/ReusableConnectionSelection.kt
+@@ -1,7 +1,6 @@
+ package foundation.url.resolver
+ 
+ import io.libp2p.core.Connection
+-import io.libp2p.core.ConnectionHold
+ import io.libp2p.core.Host
+ 
+ /** Retains a candidate against duplicate retirement without waiting under a selection lock. */
+@@ -11,11 +10,3 @@ internal fun reserveReusableConnection(
+     connection: Connection,
+ ): Boolean = !recovery.needsReplacement(connection) &&
+     host.network.reserveConnection(connection).getNow(false)
+-
+-/** Acquires only this provisional caller's parent hold. */
+-internal fun holdReusableConnection(
+-    host: Host,
+-    recovery: DiscoveryConnectionRecovery,
+-    connection: Connection,
+-): ConnectionHold? = if (recovery.needsReplacement(connection)) null
+-    else host.network.holdConnection(connection).getNow(null)
+diff --git a/src/foundation/url/resolver/UrlResolver.kt b/src/foundation/url/resolver/UrlResolver.kt
+index 31f71f366d..7426d90a9d 100644
+--- a/src/foundation/url/resolver/UrlResolver.kt
++++ b/src/foundation/url/resolver/UrlResolver.kt
+@@ -4,7 +4,6 @@ import foundation.url.protocol.AdmissionOrderedRpcStream
+ import foundation.url.protocol.AdmissionOrderedServiceClientConnection
+ 
+ import io.libp2p.core.Connection
+-import io.libp2p.core.ConnectionHold
+ import io.libp2p.core.ConnectionClosedException
+ import io.libp2p.core.ChannelVisitor
+ import io.libp2p.core.ConnectionHandler
+@@ -13065,7 +13064,6 @@ class UrlProtocol2 : ProjectedPeerExchangeHandler, RelayIngressGossipHandler, Se
+                 host.addConnectionHandler(onConnection)
+                 var retirements: AutoCloseable? = null
+                 val outboundProbes = IdentityHashMap<Connection, StreamPromise<Libp2pRpcController>>()
+-                val provisionalHolds = IdentityHashMap<Connection, ConnectionHold>()
+                 val closeObservations = IdentityHashMap<Connection, AutoCloseable>()
+                 var selected: PingParentSelection? = null
+                 try {
+@@ -13100,10 +13098,8 @@ class UrlProtocol2 : ProjectedPeerExchangeHandler, RelayIngressGossipHandler, Se
+                                     for ((parent, opened) in outboundProbes.toList()) {
+                                         if (discoveryConnectionRecovery.needsReplacement(parent)) {
+                                             closeObservations.remove(parent)?.close()
+-                                            opened.controller.cancel(false)
+                                             cleanupStreamFuture(opened)
+                                             outboundProbes.remove(parent)
+-                                            provisionalHolds.remove(parent)?.close()
+                                         } else if (opened.controller.isDone) {
+                                             try {
+                                                 opened.controller.join()
+@@ -13115,35 +13111,27 @@ class UrlProtocol2 : ProjectedPeerExchangeHandler, RelayIngressGossipHandler, Se
+                                                         "${failure.javaClass.name}: ${failure.message}"
+                                                 }
+                                                 closeObservations.remove(parent)?.close()
+-                                                opened.controller.cancel(false)
+                                                 cleanupStreamFuture(opened)
+                                                 outboundProbes.remove(parent)
+-                                                provisionalHolds.remove(parent)?.close()
+                                             }
+                                         }
+                                     }
+-                                    var candidateHold: ConnectionHold? = null
+                                     val candidate = host.network.connections.firstOrNull {
+                                         it !in attempted &&
+                                             it.secureSession().remoteId == targetPeerId &&
++                                            reserveReusableConnection(host, discoveryConnectionRecovery, it) &&
+                                             !PendingDialAdmissionController.mayOwnUnsettledConnection(
+                                                 host, targetPeerId, it
+-                                            ) && if (it.isInitiator) {
+-                                                holdReusableConnection(host, discoveryConnectionRecovery, it)
+-                                                    ?.also { acquired -> candidateHold = acquired } != null
+-                                            } else reserveReusableConnection(host, discoveryConnectionRecovery, it)
++                                            )
+                                     } ?: continue
+                                     if (!candidate.isInitiator) return@async PingParentSelection(candidate)
+                                     attempted.add(candidate)
+-                                    val hold = checkNotNull(candidateHold)
+-                                    provisionalHolds[candidate] = hold
+                                     val opened = try {
+                                         directProbeConnectionSelectionObserverForTest.get()
+                                             ?.takeIf { it.expectedPeerId == peerId }
+                                             ?.onConnectionSelected?.invoke(candidate)
+-                                        host.newRpcProbe(candidate, hold)
++                                        host.newRpcProbe(candidate)
+                                     } catch (failure: Exception) {
+-                                        provisionalHolds.remove(candidate)?.close()
+                                         debugLogErr {
+                                             "[pingPeerDirect] Outbound arrival to peer '$peerId' " +
+                                                 "could not open its liveness probe: " +
+@@ -13185,9 +13173,6 @@ class UrlProtocol2 : ProjectedPeerExchangeHandler, RelayIngressGossipHandler, Se
+                     selected = if (winner != null && winner.probe == null && admittedProbe != null) {
+                         PingParentSelection(winner.connection, admittedProbe)
+                     } else winner
+-                    // A dial winner already retains its parent. A ready arrival promotes its hold.
+-                    // A close or failed probe can refuse promotion; the probe still reports that result.
+-                    selected?.connection?.let { provisionalHolds[it]?.promote() }
+                     selected
+                 } finally {
+                     try {
+@@ -13196,15 +13181,8 @@ class UrlProtocol2 : ProjectedPeerExchangeHandler, RelayIngressGossipHandler, Se
+                         try {
+                             // The scope has joined both racers. Only the selected probe transfers to
+                             // the caller, including when both racers finished before select chose one.
+-                            try {
+-                                outboundProbes.values.forEach { opened ->
+-                                    if (opened !== selected?.probe) {
+-                                        opened.controller.cancel(false)
+-                                        cleanupStreamFuture(opened)
+-                                    }
+-                                }
+-                            } finally {
+-                                provisionalHolds.values.forEach { it.close() }
++                            outboundProbes.values.forEach { opened ->
++                                if (opened !== selected?.probe) cleanupStreamFuture(opened)
+                             }
+                         } finally {
+                             try {

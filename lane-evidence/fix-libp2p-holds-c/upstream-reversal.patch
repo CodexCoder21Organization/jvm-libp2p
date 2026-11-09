@@ -1,0 +1,27 @@
+diff --git a/libp2p/src/main/kotlin/io/libp2p/mux/MuxHandler.kt b/libp2p/src/main/kotlin/io/libp2p/mux/MuxHandler.kt
+index b4150c84..3845ccea 100644
+--- a/libp2p/src/main/kotlin/io/libp2p/mux/MuxHandler.kt
++++ b/libp2p/src/main/kotlin/io/libp2p/mux/MuxHandler.kt
+@@ -66,10 +66,6 @@ abstract class MuxHandler(
+         val controller = StreamSetupFuture<T>()
+         val muxChannel = newStream { channel ->
+             controller.channel = channel
+-            if (controller.isCancelled) {
+-                channel.close()
+-                return@newStream
+-            }
+             channel.closeFuture().addListener {
+                 channel.attr(STREAM_SETUP_CAUSE).get()?.let { cause ->
+                     controller.completeExceptionally(cause)
+@@ -80,11 +76,6 @@ abstract class MuxHandler(
+             channel.attr(STREAM_SETUP_CAUSE).get()?.let { result.completeExceptionally(it) }
+             result.forward(controller)
+         }
+-        controller.whenComplete { _, _ ->
+-            if (controller.isCancelled && muxChannel.cancel(false)) {
+-                controller.channel?.close()
+-            }
+-        }
+         // Observe the owned creation result, independently of the caller's mutable stream future.
+         muxChannel.forwardException(controller)
+         val stream = muxChannel.thenApply {

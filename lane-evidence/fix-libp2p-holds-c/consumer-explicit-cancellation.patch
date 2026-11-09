@@ -1,0 +1,30 @@
+--- a/src/foundation/url/resolver/UrlResolver.kt
++++ b/src/foundation/url/resolver/UrlResolver.kt
+@@ -13100,6 +13100,7 @@
+                                     for ((parent, opened) in outboundProbes.toList()) {
+                                         if (discoveryConnectionRecovery.needsReplacement(parent)) {
+                                             closeObservations.remove(parent)?.close()
++                                            opened.controller.cancel(false)
+                                             cleanupStreamFuture(opened)
+                                             outboundProbes.remove(parent)
+                                             provisionalHolds.remove(parent)?.close()
+@@ -13114,6 +13115,7 @@
+                                                         "${failure.javaClass.name}: ${failure.message}"
+                                                 }
+                                                 closeObservations.remove(parent)?.close()
++                                                opened.controller.cancel(false)
+                                                 cleanupStreamFuture(opened)
+                                                 outboundProbes.remove(parent)
+                                                 provisionalHolds.remove(parent)?.close()
+@@ -13196,7 +13198,10 @@
+                             // the caller, including when both racers finished before select chose one.
+                             try {
+                                 outboundProbes.values.forEach { opened ->
+-                                    if (opened !== selected?.probe) cleanupStreamFuture(opened)
++                                    if (opened !== selected?.probe) {
++                                        opened.controller.cancel(false)
++                                        cleanupStreamFuture(opened)
++                                    }
+                                 }
+                             } finally {
+                                 provisionalHolds.values.forEach { it.close() }

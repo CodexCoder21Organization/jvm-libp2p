@@ -12,6 +12,7 @@ import io.libp2p.etc.getP2PChannel
 import io.libp2p.etc.types.addAfter
 import io.libp2p.etc.types.forward
 import io.libp2p.etc.util.netty.nettyInitializer
+import io.libp2p.transport.implementation.StreamOverNetty
 import io.netty.channel.ChannelHandlerContext
 import io.netty.channel.ChannelInboundHandlerAdapter
 import io.netty.util.ReferenceCountUtil
@@ -72,6 +73,11 @@ class ProtocolSelect<TController>(val protocols: List<ProtocolBinding<TControlle
     override fun userEventTriggered(ctx: ChannelHandlerContext, evt: Any) {
         when (evt) {
             is ProtocolNegotiationSucceeded -> {
+                val stream = ctx.channel().getP2PChannel() as? StreamOverNetty
+                if (stream?.admitsSelectedProtocol(evt.proto) == false) {
+                    ctx.close()
+                    return
+                }
                 val protocolBinding = protocols.find { it.protocolDescriptor.protocolMatcher.matches(evt.proto) }
                     ?: throw NoSuchLocalProtocolException("Protocol negotiation failed: not supported protocol ${evt.proto}")
                 ctx.channel().attr(PROTOCOL).get()?.complete(evt.proto)

@@ -41,7 +41,7 @@ class NetworkProvisionalCancellationSiblingTest {
             identity { random() }
             transports { +::TcpTransport }
             secureChannels { add { key, _ -> NoiseXXSecureChannel(key) } }
-            muxers { +(if (mplex) StreamMuxerProtocol.getMplex() else StreamMuxerProtocol.getYamux()) }
+            muxers { +(if (mplex) StreamMuxerProtocol.Mplex else StreamMuxerProtocol.getYamux()) }
             protocols { +Echo(); +binding }
             network { listen("/ip4/127.0.0.1/tcp/0") }
         }

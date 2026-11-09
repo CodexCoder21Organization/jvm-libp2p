@@ -28,12 +28,14 @@ class NetworkProvisionalCancellationBeforePublicationTest {
         val provisionalClosed = CountDownLatch(1)
         val remoteProvisionalClosed = CompletableFuture<Unit>()
         val responderStarts = AtomicInteger()
+        val responderStarted = CompletableFuture<Unit>()
         val protocol = object : StrictProtocolBinding<Unit>(
             "/test/provisional-parent/1.0.0",
             object : ProtocolHandler<Unit>(1, 1) {
                 override fun onStartInitiator(stream: Stream) = CompletableFuture.completedFuture(Unit)
                 override fun onStartResponder(stream: Stream): CompletableFuture<Unit> {
                     responderStarts.incrementAndGet()
+                    responderStarted.complete(Unit)
                     return CompletableFuture.completedFuture(Unit)
                 }
             },
@@ -146,6 +148,8 @@ class NetworkProvisionalCancellationBeforePublicationTest {
             )
             val later = client.newStream<Unit>(listOf("/test/provisional-parent/1.0.0"), stable)
             later.controller.get(5, SECONDS)
+            // Initiator readiness does not order the peer responder callback.
+            responderStarted.get(5, SECONDS)
             assertSame(stable, later.stream.get(5, SECONDS).connection, "The retained parent must still serve a later child")
             later.stream.get(5, SECONDS).close().get(5, SECONDS)
             assertEquals(1, responderStarts.get(), "Only the later child on the retained parent may reach its responder")

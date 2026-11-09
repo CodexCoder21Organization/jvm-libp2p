@@ -27,12 +27,14 @@ class NetworkProvisionalCancellationSiblingTest {
         val entered = CountDownLatch(1)
         val release = CountDownLatch(1)
         val responders = AtomicInteger()
+        val responderStarted = CompletableFuture<Unit>()
         val binding = object : StrictProtocolBinding<Unit>(
             "/test/cancelled-sibling/1.0.0",
             object : ProtocolHandler<Unit>(1, 1) {
                 override fun onStartInitiator(stream: Stream) = CompletableFuture.completedFuture(Unit)
                 override fun onStartResponder(stream: Stream): CompletableFuture<Unit> {
                     responders.incrementAndGet()
+                    responderStarted.complete(Unit)
                     return CompletableFuture.completedFuture(Unit)
                 }
             }
@@ -78,8 +80,11 @@ class NetworkProvisionalCancellationSiblingTest {
             release.countDown()
             assertEquals("accepted sibling before cancellation", pendingEcho.get(5, SECONDS))
             assertEquals("accepted sibling after cancellation", echo.echo("accepted sibling after cancellation").get(5, SECONDS))
+            assertEquals(0, responders.get(), "The cancelled queued child must not start a responder before the later child opens")
             val later = client.newStream<Unit>(listOf("/test/cancelled-sibling/1.0.0"), parent)
             later.controller.get(5, SECONDS)
+            // Initiator readiness does not order the peer responder callback.
+            responderStarted.get(5, SECONDS)
             assertEquals(1, responders.get(), "Only the later child may start its responder; the cancelled queued child must not start")
             assertFalse(parent.closeFuture().isDone, "Cancelling a provisional child must leave its accepted sibling's parent open")
             assertFalse(accepted.stream.get(5, SECONDS).closeFuture().isDone, "The accepted sibling must remain open")

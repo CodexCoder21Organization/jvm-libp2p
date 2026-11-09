@@ -1,0 +1,1 @@
+OBSERVED 2026-11-09T17:03Z: Plan 0/6 complete: read both reviews and required docs; rebase and compare develop; reproduce and fix callback-close with red/green/revert-red; restore cleanup and prove mutation red; close deduplicated gaps test-first; run single-attempt register and update description/Actions within 90 minutes. Next checkpoint: review inventory and invariant table.

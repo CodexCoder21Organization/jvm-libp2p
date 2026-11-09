@@ -1,0 +1,1 @@
+OBSERVED: R93A review only; product head12cb229eb8f6baf50c060ac9bc29156611301af8, evidence branch wip/R93A-evidence-20261109 based on current develop3b2b6640. No product mutations permitted. Resume plan in findings.md; prior evidence is on wip/F93i-evidence-20261109, wip/F93h-evidence-20261109, wip/R93a-evidence-20261104. No JVMs or subagents started.

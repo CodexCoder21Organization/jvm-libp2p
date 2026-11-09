@@ -135,6 +135,26 @@ class DownloadVerifiedTest(unittest.TestCase):
                       ["Download failed: {base}/primary; HTTP 000; curl exit 28; attempt 3 of 3."],
                       options=("--max-time", "1"))
 
+    def test_gradle_preparation_uses_second_source(self):
+        with source_server({"/primary": [response(504)], "/secondary": [response()]}) as (base, calls), tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            properties = root / "gradle-wrapper.properties"
+            original = ("distributionUrl=https\\://services.gradle.org/distributions/gradle-8.14.3-bin.zip\n"
+                        f"distributionSha256Sum={DIGEST}\nnetworkTimeout=10000\n")
+            properties.write_text(original)
+            result = subprocess.run(
+                ["python3", str(SCRIPT.with_name("prepare-gradle.py")), str(root / "archives"),
+                 "--properties", str(properties), "--source", base + "/primary",
+                 "--source", base + "/secondary"], capture_output=True, text=True, timeout=30,
+            )
+            self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+            archive = root / "archives/gradle-8.14.3-bin.zip"
+            self.assertEqual(BODY, archive.read_bytes())
+            expected = original.replace("https\\://services.gradle.org/distributions/gradle-8.14.3-bin.zip",
+                                        archive.as_uri().replace(":", "\\:"))
+            self.assertEqual(expected, properties.read_text())
+            self.assertEqual(["/primary"] * 3 + ["/secondary"], calls)
+
 
 class XmlResult(unittest.TextTestResult):
     def startTest(self, test):

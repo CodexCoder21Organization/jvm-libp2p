@@ -487,7 +487,8 @@ or returns `null` when the parent is ineligible or its network does not support 
 no stream and completes locally. `host.newStream(protocols, hold)` uses the host's registered
 bindings without making an ordinary lifetime reservation.
 
-Cancel the child controller to abandon pending negotiation. Cancellation or failed negotiation
+Cancel the child controller to abandon pending negotiation. If child creation is still queued,
+cancellation ends that creation before its protocol is offered. Cancellation or failed negotiation
 closes that child and releases its hold. Closing the hold itself leaves accepted children open;
 each child continues to protect the parent until that child closes. Each caller releases only
 its own hold. Once a surplus parent's last provisional use ends, the network coordinates its

@@ -165,8 +165,6 @@ internal class ConnectionSelection(
 
     fun hold(): ConnectionHold? {
         val use = acquireUse() ?: return null
-        // Baseline path: retain the parent as the existing reservation does.
-        synchronized(this) { retained = true }
         return object : ConnectionHold {
             override val connection: Connection get() = this@ConnectionSelection.connection
 

@@ -1,1 +1,68 @@
 [boxrun] slot 3 acquired at 06:45:33 for: python3 .lane-evidence/verify.py
+pacing-green: FIRST 1/1; exit 0
+test_504_retries_wait_one_then_two_seconds (__main__.DownloadVerifiedTest.test_504_retries_wait_one_then_two_seconds) ... 504 retry gaps in seconds: [1.027113107033074, 2.022395486012101]
+ok
+
+----------------------------------------------------------------------
+Ran 1 test in 3.593s
+
+OK
+
+pacing-reversal: FIRST 0/1; exit 1
+test_504_retries_wait_one_then_two_seconds (__main__.DownloadVerifiedTest.test_504_retries_wait_one_then_two_seconds) ... 504 retry gaps in seconds: [0.014386179973371327, 0.016246260958723724]
+FAIL
+
+======================================================================
+FAIL: test_504_retries_wait_one_then_two_seconds (__main__.DownloadVerifiedTest.test_504_retries_wait_one_then_two_seconds)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/code/workspace/fix-libp2p98b/.github/scripts/test_download_verified.py", line 124, in test_504_retries_wait_one_then_two_seconds
+    self.assertTrue(all(gap >= delay for gap, delay in zip(gaps, (1, 2))),
+AssertionError: False is not true : Retry gaps must be at least 1 then 2 seconds; observed [0.014386179973371327, 0.016246260958723724].
+Verified download: http://127.0.0.1:37645/primary; HTTP 200; attempt 3 of 3.
+curl: (22) The requested URL returned error: 504
+Download failed: http://127.0.0.1:37645/primary; HTTP 504; curl exit 22; attempt 1 of 3.
+curl: (22) The requested URL returned error: 504
+Download failed: http://127.0.0.1:37645/primary; HTTP 504; curl exit 22; attempt 2 of 3.
+
+
+----------------------------------------------------------------------
+Ran 1 test in 0.557s
+
+FAILED (failures=1)
+
+pacing-restored: FIRST 1/1; exit 0
+test_504_retries_wait_one_then_two_seconds (__main__.DownloadVerifiedTest.test_504_retries_wait_one_then_two_seconds) ... 504 retry gaps in seconds: [1.0199424250749871, 2.0202267409767956]
+ok
+
+----------------------------------------------------------------------
+Ran 1 test in 3.564s
+
+OK
+
+download-register: FIRST 17/17; exit 0
+test_404_moves_on_without_retry (__main__.DownloadVerifiedTest.test_404_moves_on_without_retry) ... ok
+test_429_retries_then_succeeds (__main__.DownloadVerifiedTest.test_429_retries_then_succeeds) ... ok
+test_504_retries_wait_one_then_two_seconds (__main__.DownloadVerifiedTest.test_504_retries_wait_one_then_two_seconds) ... 504 retry gaps in seconds: [1.0194432920543477, 2.019567287992686]
+ok
+test_504_uses_second_source (__main__.DownloadVerifiedTest.test_504_uses_second_source) ... ok
+test_all_sources_stop_after_three_attempts (__main__.DownloadVerifiedTest.test_all_sources_stop_after_three_attempts) ... ok
+test_early_close_is_refused (__main__.DownloadVerifiedTest.test_early_close_is_refused) ... ok
+test_failed_download_preserves_existing_archive (__main__.DownloadVerifiedTest.test_failed_download_preserves_existing_archive) ... ok
+test_first_source_success (__main__.DownloadVerifiedTest.test_first_source_success) ... ok
+test_gradle_preparation_refuses_wrong_digest_without_changing_properties (__main__.DownloadVerifiedTest.test_gradle_preparation_refuses_wrong_digest_without_changing_properties) ... ok
+test_gradle_preparation_uses_second_source (__main__.DownloadVerifiedTest.test_gradle_preparation_uses_second_source) ... ok
+test_no_response_uses_second_source (__main__.DownloadVerifiedTest.test_no_response_uses_second_source) ... ok
+test_rest_source_receives_binary_accept_header (__main__.DownloadVerifiedTest.test_rest_source_receives_binary_accept_header) ... ok
+test_simultaneous_downloads_publish_complete_archive (__main__.DownloadVerifiedTest.test_simultaneous_downloads_publish_complete_archive) ... ok
+test_stalled_body_moves_on_without_retry (__main__.DownloadVerifiedTest.test_stalled_body_moves_on_without_retry) ... ok
+test_stalled_source_reaches_second_source (__main__.DownloadVerifiedTest.test_stalled_source_reaches_second_source) ... ok
+test_wrong_digest_can_use_verified_second_source (__main__.DownloadVerifiedTest.test_wrong_digest_can_use_verified_second_source) ... ok
+test_wrong_digest_is_refused (__main__.DownloadVerifiedTest.test_wrong_digest_is_refused) ... ok
+
+----------------------------------------------------------------------
+Ran 17 tests in 35.736s
+
+OK
+
+[boxrun] slot 3 released at 06:46:17 rc=0

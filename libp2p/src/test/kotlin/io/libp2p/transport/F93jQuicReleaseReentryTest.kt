@@ -1,0 +1,216 @@
+package io.libp2p.transport
+
+import io.libp2p.core.Connection
+import io.libp2p.core.ConnectionHandler
+import io.libp2p.core.PeerId
+import io.libp2p.core.multiformats.Multiaddr
+import io.libp2p.crypto.keys.generateEd25519KeyPair
+import io.libp2p.transport.implementation.ConnectionOverNetty
+import io.libp2p.transport.quic.QuicTransport
+import io.netty.channel.Channel
+import io.netty.channel.ChannelHandlerContext
+import io.netty.channel.ChannelOutboundHandlerAdapter
+import io.netty.channel.ChannelPromise
+import io.netty.channel.DefaultChannelPromise
+import io.netty.util.concurrent.ImmediateEventExecutor
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertSame
+import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
+import java.net.BindException
+import java.net.DatagramSocket
+import java.net.InetSocketAddress
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.ExecutionException
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
+
+class F93jQuicReleaseReentryTest {
+    @Test
+    fun releaseStartedFromAnotherReleaseNotificationIsSettledOnTheNextSelectorBatch() {
+        val serverKey = generateEd25519KeyPair().first
+        val server = QuicTransport.ECDSA(serverKey, emptyList())
+        val client = QuicTransport.ECDSA(generateEd25519KeyPair().first, emptyList())
+        val attempts = mutableListOf<F93jReentryDial>()
+        val continueLoop = CountDownLatch(1)
+
+        try {
+            server.listen(Multiaddr("/ip4/127.0.0.1/udp/0/quic-v1"), {}, null).get(10, TimeUnit.SECONDS)
+            val remoteAddress = server.listenAddresses().single()
+                .withP2P(PeerId.fromPubKey(serverKey.publicKey()))
+
+            val first = startFailedDialForReentry(client, remoteAddress)
+            attempts += first
+            val firstParent = first.parent.get(10, TimeUnit.SECONDS)
+            val loopIterator = firstParent.eventLoop().parent().iterator()
+            var actualLoopCount = 0
+            while (loopIterator.hasNext()) {
+                loopIterator.next()
+                actualLoopCount++
+            }
+            assertTrue(actualLoopCount > 0)
+
+            repeat(actualLoopCount) {
+                attempts += startFailedDialForReentry(client, remoteAddress)
+            }
+            attempts.forEach { it.closeRequest.get(10, TimeUnit.SECONDS) }
+
+            val sameLoopPair = attempts.indices.asSequence().flatMap { left ->
+                (left + 1 until attempts.size).asSequence().map { right -> left to right }
+            }.firstOrNull { (left, right) ->
+                attempts[left].parent.get(10, TimeUnit.SECONDS).eventLoop() ===
+                    attempts[right].parent.get(10, TimeUnit.SECONDS).eventLoop()
+            }
+            assertTrue(sameLoopPair != null, "The loop-count dials must include two parents on one actual event loop")
+            val a = attempts[sameLoopPair!!.first]
+            val b = attempts[sameLoopPair.second]
+            assertSame(a.parent.get(10, TimeUnit.SECONDS).eventLoop(), b.parent.get(10, TimeUnit.SECONDS).eventLoop())
+
+            val otherAttempts = attempts.filter { it !== a && it !== b }
+            otherAttempts.forEach { releaseNormally(it) }
+
+            listOf(a, b).forEach { held ->
+                assertFalse(held.dial.isDone)
+                assertUdpPortIsStillBound(held.localAddress.get(10, TimeUnit.SECONDS))
+            }
+
+            val bAtGate = CountDownLatch(1)
+            val callbackResult = a.dial.handle { _, aFailure ->
+                check(a.parent.getNow(null)!!.eventLoop().inEventLoop()) {
+                    "The first dial completion must run on the selected event loop"
+                }
+                check(aFailure != null) { "The first dial must retain its visitor failure" }
+                aFailure
+            }.thenCompose { aFailure ->
+                closeParentAndCompleteOriginalPromises(b).thenApply {
+                    bAtGate.countDown()
+                    check(continueLoop.await(10, TimeUnit.SECONDS)) {
+                        "The reentry release gate was not opened"
+                    }
+                    aFailure
+                }
+            }
+
+            val aReleaseTask = a.parent.get(10, TimeUnit.SECONDS).eventLoop().submit(
+                java.util.concurrent.Callable { closeParentAndCompleteOriginalPromises(a) }
+            )
+
+            assertTrue(bAtGate.await(10, TimeUnit.SECONDS), "The reentrant parent release must reach its loop gate")
+            assertDialFailedWithExpectedVisitorFailure(a)
+            assertFalse(b.dial.isDone)
+            assertUdpPortIsStillBound(b.localAddress.get(10, TimeUnit.SECONDS))
+            assertEquals(1, a.closeRequestCount.get())
+
+            continueLoop.countDown()
+            aReleaseTask.get(10, TimeUnit.SECONDS).get(10, TimeUnit.SECONDS)
+            assertSame(a.expectedFailure, callbackResult.get(10, TimeUnit.SECONDS))
+            assertDialFailedWithExpectedVisitorFailure(b)
+            assertUdpPortCanBeRebound(a.localAddress.get(10, TimeUnit.SECONDS))
+            assertUdpPortCanBeRebound(b.localAddress.get(10, TimeUnit.SECONDS))
+            otherAttempts.forEach {
+                assertDialFailedWithExpectedVisitorFailure(it)
+                assertUdpPortCanBeRebound(it.localAddress.get(10, TimeUnit.SECONDS))
+            }
+            attempts.forEach { assertEquals(1, it.closeRequestCount.get()) }
+        } finally {
+            continueLoop.countDown()
+            try {
+                attempts.forEach { releaseIfCaptured(it) }
+            } finally {
+                try {
+                    client.close().get(10, TimeUnit.SECONDS)
+                } finally {
+                    server.close().get(10, TimeUnit.SECONDS)
+                }
+            }
+        }
+    }
+}
+
+private class F93jReentryDial(val expectedFailure: IllegalStateException) {
+    val parent = CompletableFuture<Channel>()
+    val localAddress = CompletableFuture<InetSocketAddress>()
+    val closeRequest = CompletableFuture<F93jReentryCloseRequest>()
+    val closeRequests = ConcurrentLinkedQueue<F93jReentryCloseRequest>()
+    val closeRequestCount = AtomicInteger()
+    lateinit var dial: CompletableFuture<Connection>
+}
+
+private data class F93jReentryCloseRequest(
+    val context: ChannelHandlerContext,
+    val promise: ChannelPromise
+)
+
+private fun releaseNormally(attempt: F93jReentryDial) {
+    val request = attempt.closeRequest.get(10, TimeUnit.SECONDS)
+    val completed = CompletableFuture<Unit>()
+    val releaseTask = request.context.executor().submit {
+        closeParentAndCompleteOriginalPromises(attempt).whenComplete { _, failure ->
+            if (failure == null) completed.complete(Unit) else completed.completeExceptionally(failure)
+        }
+    }
+    releaseTask.get(10, TimeUnit.SECONDS)
+    completed.get(10, TimeUnit.SECONDS)
+}
+
+private fun closeParentAndCompleteOriginalPromises(attempt: F93jReentryDial): CompletableFuture<Unit> {
+    val request = attempt.closeRequest.getNow(null)
+        ?: throw IllegalStateException("The dial parent has not received an outbound close request")
+    val completed = CompletableFuture<Unit>()
+    val physicalClose = DefaultChannelPromise(request.context.channel(), ImmediateEventExecutor.INSTANCE)
+    physicalClose.addListener { result ->
+        if (!result.isSuccess) {
+            completed.completeExceptionally(result.cause() ?: IllegalStateException("The QUIC UDP parent did not close"))
+        } else {
+            attempt.closeRequests.forEach { it.promise.trySuccess() }
+            completed.complete(Unit)
+        }
+    }
+    request.context.close(physicalClose)
+    return completed
+}
+
+private fun releaseIfCaptured(attempt: F93jReentryDial) {
+    if (!attempt.closeRequest.isDone || attempt.dial.isDone) return
+    releaseNormally(attempt)
+}
+
+private fun startFailedDialForReentry(client: QuicTransport, remoteAddress: Multiaddr): F93jReentryDial {
+    val attempt = F93jReentryDial(IllegalStateException("The reentry test visitor rejects this dial"))
+    attempt.dial = client.dial(remoteAddress, ConnectionHandler { connection ->
+        val parent = (connection as ConnectionOverNetty).nettyChannel.parent()
+        attempt.parent.complete(parent)
+        attempt.localAddress.complete(parent.localAddress() as InetSocketAddress)
+        parent.pipeline().addLast(object : ChannelOutboundHandlerAdapter() {
+            override fun close(ctx: ChannelHandlerContext, promise: ChannelPromise) {
+                val request = F93jReentryCloseRequest(ctx, promise)
+                attempt.closeRequestCount.incrementAndGet()
+                attempt.closeRequests.add(request)
+                attempt.closeRequest.complete(request)
+            }
+        })
+        throw attempt.expectedFailure
+    })
+    return attempt
+}
+
+private fun assertDialFailedWithExpectedVisitorFailure(attempt: F93jReentryDial) {
+    val failure = assertThrows(ExecutionException::class.java) {
+        attempt.dial.get(10, TimeUnit.SECONDS)
+    }
+    assertSame(attempt.expectedFailure, failure.cause)
+}
+
+private fun assertUdpPortIsStillBound(address: InetSocketAddress) {
+    assertThrows(BindException::class.java) {
+        DatagramSocket(null).use { it.bind(address) }
+    }
+}
+
+private fun assertUdpPortCanBeRebound(address: InetSocketAddress) {
+    DatagramSocket(null).use { it.bind(address) }
+}

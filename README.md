@@ -358,6 +358,11 @@ future does not stop the owned cleanup. TCP and WebSocket leave their shared wor
 for other transports. QUIC also closes every UDP parent it allocated for an outbound dial,
 including parents whose QUIC child has already closed, before terminating its worker group.
 
+When a QUIC dial's connection callback or visitor closes the connection and returns normally,
+the successful dial result waits for its UDP parent to release its port. A live successful dial
+keeps its UDP parent. A failed close request that leaves the parent open reports its failure
+without waiting for a port release that has not started; transport shutdown still owns cleanup.
+
 ## Gossip simulator
 
 Deterministic Gossip simulator which may simulate networks as large as 10000 of peers

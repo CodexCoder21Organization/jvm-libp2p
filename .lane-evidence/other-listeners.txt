@@ -1,0 +1,48 @@
+interop-test-client/src/test/resources/compose.yaml:12:  listener:
+libp2p/src/testFixtures/kotlin/io/libp2p/tools/TestStreamChannel.kt:23:    binding: ProtocolBinding<TController>? = null,
+libp2p/src/testFixtures/kotlin/io/libp2p/tools/TestStreamChannel.kt:34:            if (binding != null) {
+libp2p/src/testFixtures/kotlin/io/libp2p/tools/TestStreamChannel.kt:35:                multistreamProtocol.createMultistream(listOf(binding)).initChannel(it.channel.getP2PChannel()).forward(controllerFuture)
+libp2p/src/testFixtures/kotlin/io/libp2p/tools/HostFactory.kt:59:                listen(address.toString())
+libp2p/src/testFixtures/kotlin/io/libp2p/tools/HostFactory.kt:88:    val listenAddress: Multiaddr,
+libp2p/src/testFixtures/kotlin/io/libp2p/tools/HostFactory.kt:89:    val listenPort: Int? = listenAddress.getFirstComponent(Protocol.TCP)?.stringValue?.toInt()
+libp2p/src/testFixtures/kotlin/io/libp2p/transport/NullConnectionUpgrader.kt:17:    override fun <TController> createMultistream(bindings: List<ProtocolBinding<TController>>) = TODO()
+libp2p/src/testFixtures/kotlin/io/libp2p/tools/NullHost.kt:27:    override fun listenAddresses(): List<Multiaddr> {
+libp2p/src/testFixtures/kotlin/io/libp2p/tools/TCPProxy.kt:12:import io.netty.channel.socket.nio.NioServerSocketChannel
+libp2p/src/testFixtures/kotlin/io/libp2p/tools/TCPProxy.kt:21:    fun start(listenPort: Int, dialHost: String, dialPort: Int): ChannelFuture {
+libp2p/src/testFixtures/kotlin/io/libp2p/tools/TCPProxy.kt:24:            channel(NioServerSocketChannel::class.java)
+libp2p/src/testFixtures/kotlin/io/libp2p/tools/TCPProxy.kt:62:        }.bind(listenPort).sync()
+libp2p/src/testFixtures/kotlin/io/libp2p/tools/TCPProxy.kt:63:        println("Proxying TCP traffic from port $listenPort to $dialHost:$dialPort...")
+libp2p/src/testFixtures/java/io/libp2p/tools/p2pd/StreamHandlerWrapper.java:18:  public StreamHandlerWrapper<TEndpoint> onCreate(Consumer<Stream<TEndpoint>> listener) {
+libp2p/src/testFixtures/java/io/libp2p/tools/p2pd/StreamHandlerWrapper.java:19:    this.onCreateListener = listener;
+libp2p/src/testFixtures/java/io/libp2p/tools/p2pd/StreamHandlerWrapper.java:23:  public StreamHandlerWrapper<TEndpoint> onClose(Runnable listener) {
+libp2p/src/testFixtures/java/io/libp2p/tools/p2pd/StreamHandlerWrapper.java:24:    this.onCloseListener = listener;
+libp2p/src/testFixtures/kotlin/io/libp2p/tools/NullTransport.kt:21:    override fun listenAddresses() = stub()
+libp2p/src/testFixtures/kotlin/io/libp2p/tools/NullTransport.kt:23:    override fun listen(
+libp2p/src/testFixtures/kotlin/io/libp2p/tools/NullTransport.kt:29:    override fun unlisten(addr: Multiaddr): CompletableFuture<Unit> = stub()
+libp2p/src/testFixtures/java/io/libp2p/tools/p2pd/libp2pj/Transport.java:15:  CompletableFuture<Listener> listen(
+libp2p/src/testFixtures/java/io/libp2p/tools/p2pd/TCPControlConnector.java:9:import io.netty.channel.socket.nio.NioServerSocketChannel;
+libp2p/src/testFixtures/java/io/libp2p/tools/p2pd/TCPControlConnector.java:47:  public ChannelFuture listen(SocketAddress addr, Consumer<DaemonChannelHandler> handlersConsumer) {
+libp2p/src/testFixtures/java/io/libp2p/tools/p2pd/TCPControlConnector.java:50:        .channel(NioServerSocketChannel.class)
+libp2p/src/testFixtures/java/io/libp2p/tools/p2pd/TCPControlConnector.java:53:        .bind(addr);
+libp2p/src/testFixtures/java/io/libp2p/tools/p2pd/DaemonChannelHandler.java:81:          MuxerAdress localAddr = MuxerAdress.listenAddress(resp.getProto());
+libp2p/src/testFixtures/java/io/libp2p/tools/p2pd/ControlConnector.java:19:  public abstract ChannelFuture listen(
+libp2p/src/testFixtures/java/io/libp2p/tools/p2pd/libp2pj/Connector.java:12:  CompletableFuture<TListener> listen(
+libp2p/src/testFixtures/java/io/libp2p/tools/p2pd/libp2pj/Connector.java:13:      TEndpoint listenAddress, Supplier<StreamHandler<TEndpoint>> handlerFactory);
+libp2p/src/testFixtures/java/io/libp2p/tools/p2pd/P2PDHost.java:151:  public CompletableFuture<Closeable> listen(
+libp2p/src/testFixtures/java/io/libp2p/tools/p2pd/P2PDHost.java:153:    Multiaddr listenMultiaddr;
+libp2p/src/testFixtures/java/io/libp2p/tools/p2pd/P2PDHost.java:154:    SocketAddress listenAddr;
+libp2p/src/testFixtures/java/io/libp2p/tools/p2pd/P2PDHost.java:159:      listenAddr = new InetSocketAddress("127.0.0.1", port);
+libp2p/src/testFixtures/java/io/libp2p/tools/p2pd/P2PDHost.java:160:      listenMultiaddr = new Multiaddr("/ip4/127.0.0.1/tcp/46666");
+libp2p/src/testFixtures/java/io/libp2p/tools/p2pd/P2PDHost.java:164:      listenAddr = new DomainSocketAddress(path);
+libp2p/src/testFixtures/java/io/libp2p/tools/p2pd/P2PDHost.java:165:      listenMultiaddr = new Multiaddr("/unix" + path);
+libp2p/src/testFixtures/java/io/libp2p/tools/p2pd/P2PDHost.java:171:        connector.listen(
+libp2p/src/testFixtures/java/io/libp2p/tools/p2pd/P2PDHost.java:172:            listenAddr,
+libp2p/src/testFixtures/java/io/libp2p/tools/p2pd/P2PDHost.java:200:                                        .setAddr(ByteString.copyFrom(listenMultiaddr.serialize()))
+libp2p/src/testFixtures/java/io/libp2p/tools/p2pd/DaemonLauncher.java:35:    args.add("-listen");
+libp2p/src/testFixtures/java/io/libp2p/tools/p2pd/UnixSocketControlConnector.java:52:  public ChannelFuture listen(String socketPath, Consumer<DaemonChannelHandler> handlersConsumer) {
+libp2p/src/testFixtures/java/io/libp2p/tools/p2pd/UnixSocketControlConnector.java:53:    return listen(new DomainSocketAddress(socketPath), handlersConsumer);
+libp2p/src/testFixtures/java/io/libp2p/tools/p2pd/UnixSocketControlConnector.java:56:  public ChannelFuture listen(SocketAddress addr, Consumer<DaemonChannelHandler> handlersConsumer) {
+libp2p/src/testFixtures/java/io/libp2p/tools/p2pd/UnixSocketControlConnector.java:63:        .bind(addr);
+libp2p/src/testFixtures/java/io/libp2p/tools/p2pd/libp2pj/Host.java:22:  CompletableFuture<Closeable> listen(
+libp2p/src/testFixtures/java/io/libp2p/tools/p2pd/libp2pj/Muxer.java:18:  CompletableFuture<Closeable> listen(
+libp2p/src/testFixtures/java/io/libp2p/tools/p2pd/libp2pj/Muxer.java:22:    public static MuxerAdress listenAddress(String... protocolNames) {

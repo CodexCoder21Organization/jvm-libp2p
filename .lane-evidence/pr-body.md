@@ -10,7 +10,7 @@ First-attempt evidence, with no retries:
 - Original held-port fixture checks: Java `ping` FIRST 0/1, backward compatibility FIRST 0/2, gossip large message FIRST 0/1, subscriptions FIRST 0/3, all with the same bind error.
 - Complete affected classes with former ports held: FIRST 12/12: RPC 1/1, Java host 5/5, backward compatibility 2/2, gossip large message 1/1, subscriptions 3/3. The local `largePing` pass does not establish a fix for its earlier TLS error.
 - Spotless and detekt pass. Workflow contract checks pass 2/2.
-- Full register: PR CI pending; no completed full-register passed/total count is available at submission.
+- Full register: [native CI run](https://github.com/CodexCoder21Organization/jvm-libp2p/actions/runs/42580122997) stopped before tests because the unchanged Kubo download returned HTTP 504 (curl exit 22); no native passed/total result exists. [Documentation CI](https://github.com/CodexCoder21Organization/jvm-libp2p/actions/runs/42580123053) reports 1/9 contract cases passing after its Gradle distribution download returned HTTP 504. At the single checks snapshot, two other native workflow jobs were still running and both kotlin.build checks had passed. No run was re-requested.
 
 Every existing-test edit is isolated in the `Proposed test change` commit:
 

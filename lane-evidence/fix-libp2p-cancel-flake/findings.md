@@ -32,3 +32,4 @@
 2026-11-09T05:02:21.518863+00:00 OBSERVED: The first driver stopped after the 62/64 result and released its slot. A resumed bounded driver will run sibling red, corrected green, reversal, prior-production cancellation controls, candidate checkpoint and the full module/native/static register in one slot. No PR product push has occurred.
 2026-11-09T05:03:46.567921+00:00 OBSERVED: sibling-ordering-red: FIRST 0/2, failed=2, skipped=0; native XML and console at lane-evidence/fix-libp2p-cancel-flake/sibling-ordering-red/. No retries.
 2026-11-09T05:04:37.217647+00:00 OBSERVED: corrected-green: FIRST 66/66, failed=0, skipped=0; native XML and console at lane-evidence/fix-libp2p-cancel-flake/corrected-green/. No retries.
+2026-11-09T05:05:35.957248+00:00 OBSERVED: reversal: FIRST 0/22, failed=22, skipped=0; native XML and console at lane-evidence/fix-libp2p-cancel-flake/reversal/. No retries.

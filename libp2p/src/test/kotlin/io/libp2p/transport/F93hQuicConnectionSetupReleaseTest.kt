@@ -6,9 +6,13 @@ import io.libp2p.crypto.keys.generateEd25519KeyPair
 import io.libp2p.transport.implementation.ConnectionOverNetty
 import io.libp2p.transport.quic.QuicTransport
 import io.netty.channel.ChannelHandlerContext
-import io.netty.channel.ChannelInboundHandlerAdapter
+import io.netty.channel.ChannelOutboundHandlerAdapter
+import io.netty.channel.ChannelPromise
+import io.netty.channel.DefaultChannelPromise
+import io.netty.util.concurrent.ImmediateEventExecutor
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
+import java.net.BindException
 import java.net.DatagramSocket
 import java.net.InetSocketAddress
 import java.util.concurrent.CompletableFuture
@@ -34,11 +38,16 @@ class F93hQuicConnectionSetupReleaseTest {
                 { connection ->
                     val parent = (connection as ConnectionOverNetty).nettyChannel.parent()
                     addressSeen.complete(parent.localAddress() as InetSocketAddress)
-                    parent.pipeline().addLast(object : ChannelInboundHandlerAdapter() {
-                        override fun channelInactive(ctx: ChannelHandlerContext) {
-                            unregisterEntered.complete(Unit)
-                            check(releaseUnregister.await(10, TimeUnit.SECONDS)) { "The fixture must release UDP deregistration" }
-                            ctx.fireChannelInactive()
+                    parent.pipeline().addLast(object : ChannelOutboundHandlerAdapter() {
+                        override fun close(ctx: ChannelHandlerContext, promise: ChannelPromise) {
+                            val physical = DefaultChannelPromise(ctx.channel(), ImmediateEventExecutor.INSTANCE)
+                            physical.addListener { result ->
+                                check(result.isSuccess) { "The fixture must physically close its UDP parent" }
+                                promise.trySuccess()
+                                unregisterEntered.complete(Unit)
+                                check(releaseUnregister.await(10, TimeUnit.SECONDS)) { "The fixture must release UDP deregistration" }
+                            }
+                            ctx.executor().execute { ctx.close(physical) }
                         }
                     })
                     throw expected
@@ -46,6 +55,9 @@ class F93hQuicConnectionSetupReleaseTest {
             )
             val bound = addressSeen.get(10, TimeUnit.SECONDS)
             unregisterEntered.get(10, TimeUnit.SECONDS)
+            assertThrows(BindException::class.java) {
+                DatagramSocket(null as java.net.SocketAddress?).use { socket -> socket.bind(bound) }
+            }
             assertFalse(dial.isDone, "A failed dial must wait until its UDP parent has deregistered")
             releaseUnregister.countDown()
             val failure = assertThrows(ExecutionException::class.java) { dial.get(10, TimeUnit.SECONDS) }

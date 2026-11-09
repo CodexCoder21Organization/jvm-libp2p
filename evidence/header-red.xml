@@ -1,0 +1,19 @@
+<?xml version='1.0' encoding='utf-8'?>
+<testsuite name="DownloadVerifiedTest" tests="1" failures="1" errors="0"><testcase name="__main__.DownloadVerifiedTest.test_rest_source_receives_binary_accept_header" time="0.5827673500170931"><failure>Traceback (most recent call last):
+  File "/usr/lib/python3.11/unittest/case.py", line 57, in testPartExecutor
+    yield
+  File "/usr/lib/python3.11/unittest/case.py", line 623, in run
+    self._callTestMethod(testMethod)
+  File "/usr/lib/python3.11/unittest/case.py", line 579, in _callTestMethod
+    if method() is not None:
+       ^^^^^^^^
+  File "/code/workspace/fix-libp2p-kubo-download/.github/scripts/test_download_verified.py", line 149, in test_rest_source_receives_binary_accept_header
+    self.download({"/primary": [response(404)], "/secondary": ["octet-stream-only"]},
+  File "/code/workspace/fix-libp2p-kubo-download/.github/scripts/test_download_verified.py", line 87, in download
+    self.assertEqual(success, result.returncode == 0, result.stdout + result.stderr)
+AssertionError: True != False : curl: (22) The requested URL returned error: 404
+Download failed: http://127.0.0.1:46271/primary; HTTP 404; curl exit 22; attempt 1 of 3.
+Download refused: http://127.0.0.1:46271/secondary; HTTP 200; attempt 1 of 3; SHA-256 81552df3f2a551c703903b2586bfba8a87cbf2ca5a59a8236006a86d9c59d14b; expected d3aad81437ea5232c89f9715aea1c6d58d447b70f32276635825ddf019fbae9e.
+No source supplied an archive matching the pinned SHA-256 after 2 attempt(s).
+
+</failure></testcase></testsuite>

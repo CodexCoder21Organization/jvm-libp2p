@@ -624,16 +624,16 @@ private fun closeDialParent(owner: DialParent): CompletableFuture<Unit> {
             .thenCompose { it }.thenCompose { closeNettyChannelOnce(owner.parent) }
     val parentReleased =
         parentClose.handle { _, failure ->
-          if (failure != null && owner.parent.isOpen) {
-            CompletableFuture.completedFuture(Unit)
-          } else {
-            owner.parent.closeFuture().toVoidCompletableFuture()
-                .thenCompose { owner.portRelease.awaitRelease() }
-          }
+            if (failure != null && owner.parent.isOpen) {
+                CompletableFuture.completedFuture(Unit)
+            } else {
+                owner.parent.closeFuture().toVoidCompletableFuture()
+                    .thenCompose { owner.portRelease.awaitRelease() }
+            }
         }.thenCompose { it }
     val parentClosed =
         CompletableFuture.allOf(parentClose, parentReleased).handle { _, _ ->
-          transportCloseResult(listOf(parentClose, parentReleased))
+            transportCloseResult(listOf(parentClose, parentReleased))
         }
     return parentClosed.whenComplete { _, failure ->
         if (failure == null && !childClosed.isCompletedExceptionally) owner.released()

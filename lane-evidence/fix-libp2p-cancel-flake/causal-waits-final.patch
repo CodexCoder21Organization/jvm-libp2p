@@ -1,0 +1,87 @@
+diff --git a/libp2p/src/test/kotlin/io/libp2p/network/NetworkProvisionalCancellationBeforePublicationTest.kt b/libp2p/src/test/kotlin/io/libp2p/network/NetworkProvisionalCancellationBeforePublicationTest.kt
+index 9a4aa061..342fd2fb 100644
+--- a/libp2p/src/test/kotlin/io/libp2p/network/NetworkProvisionalCancellationBeforePublicationTest.kt
++++ b/libp2p/src/test/kotlin/io/libp2p/network/NetworkProvisionalCancellationBeforePublicationTest.kt
+@@ -28,12 +28,14 @@ class NetworkProvisionalCancellationBeforePublicationTest {
+         val provisionalClosed = CountDownLatch(1)
+         val remoteProvisionalClosed = CompletableFuture<Unit>()
+         val responderStarts = AtomicInteger()
++        val responderStarted = CompletableFuture<Unit>()
+         val protocol = object : StrictProtocolBinding<Unit>(
+             "/test/provisional-parent/1.0.0",
+             object : ProtocolHandler<Unit>(1, 1) {
+                 override fun onStartInitiator(stream: Stream) = CompletableFuture.completedFuture(Unit)
+                 override fun onStartResponder(stream: Stream): CompletableFuture<Unit> {
+                     responderStarts.incrementAndGet()
++                    responderStarted.complete(Unit)
+                     return CompletableFuture.completedFuture(Unit)
+                 }
+             },
+@@ -146,6 +148,8 @@ class NetworkProvisionalCancellationBeforePublicationTest {
+             )
+             val later = client.newStream<Unit>(listOf("/test/provisional-parent/1.0.0"), stable)
+             later.controller.get(5, SECONDS)
++            // Initiator readiness does not order the peer responder callback.
++            responderStarted.get(5, SECONDS)
+             assertSame(stable, later.stream.get(5, SECONDS).connection, "The retained parent must still serve a later child")
+             later.stream.get(5, SECONDS).close().get(5, SECONDS)
+             assertEquals(1, responderStarts.get(), "Only the later child on the retained parent may reach its responder")
+diff --git a/libp2p/src/test/kotlin/io/libp2p/network/NetworkProvisionalCancellationSiblingTest.kt b/libp2p/src/test/kotlin/io/libp2p/network/NetworkProvisionalCancellationSiblingTest.kt
+index c642d2e8..b43b55ce 100644
+--- a/libp2p/src/test/kotlin/io/libp2p/network/NetworkProvisionalCancellationSiblingTest.kt
++++ b/libp2p/src/test/kotlin/io/libp2p/network/NetworkProvisionalCancellationSiblingTest.kt
+@@ -27,12 +27,14 @@ class NetworkProvisionalCancellationSiblingTest {
+         val entered = CountDownLatch(1)
+         val release = CountDownLatch(1)
+         val responders = AtomicInteger()
++        val responderStarted = CompletableFuture<Unit>()
+         val binding = object : StrictProtocolBinding<Unit>(
+             "/test/cancelled-sibling/1.0.0",
+             object : ProtocolHandler<Unit>(1, 1) {
+                 override fun onStartInitiator(stream: Stream) = CompletableFuture.completedFuture(Unit)
+                 override fun onStartResponder(stream: Stream): CompletableFuture<Unit> {
+                     responders.incrementAndGet()
++                    responderStarted.complete(Unit)
+                     return CompletableFuture.completedFuture(Unit)
+                 }
+             }
+@@ -78,8 +80,11 @@ class NetworkProvisionalCancellationSiblingTest {
+             release.countDown()
+             assertEquals("accepted sibling before cancellation", pendingEcho.get(5, SECONDS))
+             assertEquals("accepted sibling after cancellation", echo.echo("accepted sibling after cancellation").get(5, SECONDS))
++            assertEquals(0, responders.get(), "The cancelled queued child must not start a responder before the later child opens")
+             val later = client.newStream<Unit>(listOf("/test/cancelled-sibling/1.0.0"), parent)
+             later.controller.get(5, SECONDS)
++            // Initiator readiness does not order the peer responder callback.
++            responderStarted.get(5, SECONDS)
+             assertEquals(1, responders.get(), "Only the later child may start its responder; the cancelled queued child must not start")
+             assertFalse(parent.closeFuture().isDone, "Cancelling a provisional child must leave its accepted sibling's parent open")
+             assertFalse(accepted.stream.get(5, SECONDS).closeFuture().isDone, "The accepted sibling must remain open")
+diff --git a/libp2p/src/test/kotlin/io/libp2p/network/NetworkProvisionalMplexCancellationBeforePublicationTest.kt b/libp2p/src/test/kotlin/io/libp2p/network/NetworkProvisionalMplexCancellationBeforePublicationTest.kt
+index ce1c0148..8bbb9d21 100644
+--- a/libp2p/src/test/kotlin/io/libp2p/network/NetworkProvisionalMplexCancellationBeforePublicationTest.kt
++++ b/libp2p/src/test/kotlin/io/libp2p/network/NetworkProvisionalMplexCancellationBeforePublicationTest.kt
+@@ -28,12 +28,14 @@ class NetworkProvisionalMplexCancellationBeforePublicationTest {
+         val provisionalClosed = CountDownLatch(1)
+         val remoteProvisionalClosed = CompletableFuture<Unit>()
+         val responderStarts = AtomicInteger()
++        val responderStarted = CompletableFuture<Unit>()
+         val protocol = object : StrictProtocolBinding<Unit>(
+             "/test/provisional-parent/1.0.0",
+             object : ProtocolHandler<Unit>(1, 1) {
+                 override fun onStartInitiator(stream: Stream) = CompletableFuture.completedFuture(Unit)
+                 override fun onStartResponder(stream: Stream): CompletableFuture<Unit> {
+                     responderStarts.incrementAndGet()
++                    responderStarted.complete(Unit)
+                     return CompletableFuture.completedFuture(Unit)
+                 }
+             },
+@@ -146,6 +148,8 @@ class NetworkProvisionalMplexCancellationBeforePublicationTest {
+             )
+             val later = client.newStream<Unit>(listOf("/test/provisional-parent/1.0.0"), stable)
+             later.controller.get(5, SECONDS)
++            // Initiator readiness does not order the peer responder callback.
++            responderStarted.get(5, SECONDS)
+             assertSame(stable, later.stream.get(5, SECONDS).connection, "The retained parent must still serve a later child")
+             later.stream.get(5, SECONDS).close().get(5, SECONDS)
+             assertEquals(1, responderStarts.get(), "Only the later child on the retained parent may reach its responder")

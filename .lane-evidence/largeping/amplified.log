@@ -1,0 +1,150 @@
+[boxrun] slot 1 acquired at 09:24:11 for: timeout 600 ./gradlew --no-daemon --max-workers=2 -Pkotlin.compiler.execution.strategy=in-process :libp2p:test --tests io.libp2p.core.LargeTlsPingTest
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.14.3/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+Build configured without Android submodules.
+    To include Android submodules define a valid SDK location with an ANDROID_HOME environment variable 
+    or by setting the sdk.dir path in your project's local properties file local.properties.
+
+> Configure project :
+    
+    Thank you for enabling Dokka Gradle plugin V2!
+    To learn about migrating read the migration guide https://kotl.in/dokka-gradle-migration
+    
+    We would appreciate your feedback!
+     - Please report any feedback or problems https://kotl.in/dokka-issues
+     - Chat with the community visit #dokka in https://kotlinlang.slack.com/ (To sign up visit https://kotl.in/slack)
+    
+    You can suppress this message by adding
+        org.jetbrains.dokka.experimental.gradle.pluginMode.noWarn=true
+    to your project's `gradle.properties` file.
+    
+
+> Task :libp2p:checkKotlinGradlePluginConfigurationErrors
+> Task :libp2p:extractIncludeProto UP-TO-DATE
+> Task :libp2p:extractProto UP-TO-DATE
+> Task :libp2p:generateProto UP-TO-DATE
+> Task :libp2p:compileKotlin UP-TO-DATE
+> Task :libp2p:compileJava UP-TO-DATE
+> Task :libp2p:processResources UP-TO-DATE
+> Task :libp2p:classes UP-TO-DATE
+> Task :libp2p:jar UP-TO-DATE
+> Task :tools:schedulers:processResources NO-SOURCE
+> Task :libp2p:extractIncludeTestFixturesProto UP-TO-DATE
+> Task :libp2p:extractTestFixturesProto UP-TO-DATE
+> Task :libp2p:generateTestFixturesProto NO-SOURCE
+> Task :tools:schedulers:checkKotlinGradlePluginConfigurationErrors
+> Task :tools:schedulers:compileKotlin NO-SOURCE
+> Task :tools:schedulers:compileJava UP-TO-DATE
+> Task :tools:schedulers:classes UP-TO-DATE
+> Task :tools:schedulers:jar UP-TO-DATE
+> Task :libp2p:compileTestFixturesKotlin UP-TO-DATE
+> Task :libp2p:compileTestFixturesJava UP-TO-DATE
+> Task :libp2p:processTestFixturesResources NO-SOURCE
+> Task :libp2p:testFixturesClasses UP-TO-DATE
+> Task :libp2p:testFixturesJar UP-TO-DATE
+> Task :libp2p:extractIncludeTestProto UP-TO-DATE
+> Task :libp2p:extractTestProto UP-TO-DATE
+> Task :libp2p:generateTestProto NO-SOURCE
+> Task :libp2p:processTestResources UP-TO-DATE
+> Task :libp2p:compileTestKotlin
+> Task :libp2p:compileTestJava UP-TO-DATE
+> Task :libp2p:testClasses UP-TO-DATE
+
+> Task :libp2p:test
+
+LargeTlsPingTest > large replies keep the shared TLS connection usable() > repetition 10 of 10 FAILED
+    java.util.concurrent.ExecutionException: java.util.concurrent.ExecutionException: io.libp2p.core.ConnectionClosedException: Connection is closed
+        at java.base/java.util.concurrent.CompletableFuture.reportGet(CompletableFuture.java:396)
+        at java.base/java.util.concurrent.CompletableFuture.get(CompletableFuture.java:2096)
+        at io.libp2p.core.LargeTlsPingTest.large replies keep the shared TLS connection usable(LargeTlsPingTest.kt:45)
+
+        Caused by:
+        java.util.concurrent.ExecutionException: io.libp2p.core.ConnectionClosedException: Connection is closed
+            at java.base/java.util.concurrent.CompletableFuture.reportGet(CompletableFuture.java:396)
+            at java.base/java.util.concurrent.CompletableFuture.get(CompletableFuture.java:2096)
+            at io.libp2p.core.LargeTlsPingTest.large_replies_keep_the_shared_TLS_connection_usable$lambda$4$lambda$3(LargeTlsPingTest.kt:41)
+
+            Caused by:
+            io.libp2p.core.ConnectionClosedException: Connection is closed
+                at app//io.libp2p.protocol.PingProtocol$PingInitiator.onClosed(Ping.kt:130)
+                at app//io.libp2p.protocol.ProtocolMessageHandlerAdapter.channelUnregistered(ProtocolMessageHandlerAdapter.kt:42)
+                at app//io.netty.channel.AbstractChannelHandlerContext.fireChannelUnregistered(AbstractChannelHandlerContext.java:191)
+                at app//io.netty.channel.DefaultChannelPipeline$HeadContext.channelUnregistered(DefaultChannelPipeline.java:1420)
+                at app//io.netty.channel.DefaultChannelPipeline.fireChannelUnregistered(DefaultChannelPipeline.java:793)
+                at app//io.libp2p.etc.util.netty.AbstractChildChannel.completeTeardown(AbstractChildChannel.kt:200)
+                at app//io.libp2p.etc.util.netty.AbstractChildChannel.doClose(AbstractChildChannel.kt:171)
+                at app//io.libp2p.etc.util.netty.mux.MuxChannel.doClose(MuxChannel.kt:301)
+                at app//io.netty.channel.AbstractChannel$AbstractUnsafe.doClose0(AbstractChannel.java:617)
+                at app//io.netty.channel.AbstractChannel$AbstractUnsafe.close(AbstractChannel.java:594)
+                at app//io.netty.channel.AbstractChannel$AbstractUnsafe.close(AbstractChannel.java:489)
+                at app//io.netty.channel.DefaultChannelPipeline$HeadContext.close(DefaultChannelPipeline.java:1384)
+                at app//io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:633)
+                at app//io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:453)
+                at app//io.netty.channel.DefaultChannelPipeline.close(DefaultChannelPipeline.java:991)
+                at app//io.netty.channel.Channel.close(Channel.java:312)
+                at app//io.libp2p.etc.util.netty.AbstractChildChannel.closeImpl(AbstractChildChannel.kt:64)
+                at app//io.libp2p.etc.util.netty.AbstractChildChannel.parentCloseListener$lambda$0(AbstractChildChannel.kt:35)
+                at app//io.netty.util.concurrent.DefaultPromise.notifyListener0(DefaultPromise.java:604)
+                at app//io.netty.util.concurrent.DefaultPromise.notifyListeners0(DefaultPromise.java:597)
+                at app//io.netty.util.concurrent.DefaultPromise.notifyListenersNow(DefaultPromise.java:573)
+                at app//io.netty.util.concurrent.DefaultPromise.notifyListeners(DefaultPromise.java:506)
+                at app//io.netty.util.concurrent.DefaultPromise.setValue0(DefaultPromise.java:650)
+                at app//io.netty.util.concurrent.DefaultPromise.setSuccess0(DefaultPromise.java:639)
+                at app//io.netty.util.concurrent.DefaultPromise.trySuccess(DefaultPromise.java:119)
+                at app//io.netty.channel.DefaultChannelPromise.trySuccess(DefaultChannelPromise.java:84)
+                at app//io.netty.channel.AbstractChannel$CloseFuture.setClosed(AbstractChannel.java:1044)
+                at app//io.netty.channel.AbstractChannel$AbstractUnsafe.doClose0(AbstractChannel.java:618)
+                at app//io.netty.channel.AbstractChannel$AbstractUnsafe.close(AbstractChannel.java:594)
+                at app//io.netty.channel.AbstractChannel$AbstractUnsafe.close(AbstractChannel.java:489)
+                at app//io.netty.channel.DefaultChannelPipeline$HeadContext.close(DefaultChannelPipeline.java:1384)
+                at app//io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:633)
+                at app//io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:453)
+                at app//io.netty.handler.ssl.SslUtils.handleHandshakeFailure(SslUtils.java:545)
+                at app//io.netty.handler.ssl.SslHandler.setHandshakeFailure(SslHandler.java:2061)
+                at app//io.netty.handler.ssl.SslHandler.handleUnwrapThrowable(SslHandler.java:1433)
+                at app//io.netty.handler.ssl.SslHandler.decodeNonJdkCompatible(SslHandler.java:1408)
+                at app//io.netty.handler.ssl.SslHandler.decode(SslHandler.java:1446)
+                at app//io.netty.handler.codec.ByteToMessageDecoder.decodeRemovalReentryProtection(ByteToMessageDecoder.java:545)
+                at app//io.netty.handler.codec.ByteToMessageDecoder.callDecode(ByteToMessageDecoder.java:484)
+                at app//io.netty.handler.codec.ByteToMessageDecoder.channelRead(ByteToMessageDecoder.java:296)
+                at app//io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:357)
+                at app//io.netty.channel.DefaultChannelPipeline$HeadContext.channelRead(DefaultChannelPipeline.java:1442)
+                at app//io.netty.channel.DefaultChannelPipeline.fireChannelRead(DefaultChannelPipeline.java:931)
+                at app//io.netty.channel.nio.AbstractNioByteChannel$NioByteUnsafe.read(AbstractNioByteChannel.java:176)
+                at app//io.netty.channel.nio.AbstractNioChannel$AbstractNioUnsafe.handle(AbstractNioChannel.java:445)
+                at app//io.netty.channel.nio.NioIoHandler$DefaultNioRegistration.handle(NioIoHandler.java:388)
+                at app//io.netty.channel.nio.NioIoHandler.processSelectedKey(NioIoHandler.java:596)
+                at app//io.netty.channel.nio.NioIoHandler.processSelectedKeysOptimized(NioIoHandler.java:571)
+                at app//io.netty.channel.nio.NioIoHandler.processSelectedKeys(NioIoHandler.java:512)
+                at app//io.netty.channel.nio.NioIoHandler.run(NioIoHandler.java:484)
+                at app//io.netty.channel.SingleThreadIoEventLoop.runIo(SingleThreadIoEventLoop.java:225)
+                at app//io.netty.channel.SingleThreadIoEventLoop.run(SingleThreadIoEventLoop.java:196)
+                at app//io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:1195)
+                at app//io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+                at app//io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+                at java.base@21.0.12.1/java.lang.Thread.run(Thread.java:1583)
+
+10 tests completed, 1 failed
+
+> Task :libp2p:test FAILED
+
+[Incubating] Problems report is available at: file:///code/workspace/fix-largeping/build/reports/problems/problems-report.html
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':libp2p:test'.
+> There were failing tests. See the report at: file:///code/workspace/fix-largeping/libp2p/build/reports/tests/test/index.html
+
+* Try:
+> Run with --scan to get full insights.
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 9.0.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/8.14.3/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD FAILED in 2m 24s
+22 actionable tasks: 4 executed, 18 up-to-date
+[boxrun] slot 1 released at 09:26:36 rc=1

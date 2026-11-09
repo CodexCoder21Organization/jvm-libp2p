@@ -1,0 +1,106 @@
+[boxrun] slot 1 acquired at 07:24:27 for: python3 scripts/verify-native-port-isolation.py
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.14.3/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+Build configured without Android submodules.
+    To include Android submodules define a valid SDK location with an ANDROID_HOME environment variable 
+    or by setting the sdk.dir path in your project's local properties file local.properties.
+
+> Configure project :
+    
+    Thank you for enabling Dokka Gradle plugin V2!
+    To learn about migrating read the migration guide https://kotl.in/dokka-gradle-migration
+    
+    We would appreciate your feedback!
+     - Please report any feedback or problems https://kotl.in/dokka-issues
+     - Chat with the community visit #dokka in https://kotlinlang.slack.com/ (To sign up visit https://kotl.in/slack)
+    
+    You can suppress this message by adding
+        org.jetbrains.dokka.experimental.gradle.pluginMode.noWarn=true
+    to your project's `gradle.properties` file.
+    
+
+> Task :libp2p:checkKotlinGradlePluginConfigurationErrors
+> Task :libp2p:extractIncludeProto UP-TO-DATE
+> Task :libp2p:extractProto UP-TO-DATE
+> Task :libp2p:generateProto UP-TO-DATE
+> Task :libp2p:compileKotlin UP-TO-DATE
+> Task :libp2p:compileJava UP-TO-DATE
+> Task :libp2p:processResources UP-TO-DATE
+> Task :libp2p:classes UP-TO-DATE
+> Task :libp2p:jar UP-TO-DATE
+> Task :tools:schedulers:processResources NO-SOURCE
+> Task :libp2p:extractIncludeTestFixturesProto UP-TO-DATE
+> Task :libp2p:extractTestFixturesProto UP-TO-DATE
+> Task :libp2p:generateTestFixturesProto NO-SOURCE
+> Task :tools:schedulers:checkKotlinGradlePluginConfigurationErrors
+> Task :tools:schedulers:compileKotlin NO-SOURCE
+> Task :tools:schedulers:compileJava UP-TO-DATE
+> Task :tools:schedulers:classes UP-TO-DATE
+> Task :tools:schedulers:jar UP-TO-DATE
+> Task :libp2p:compileTestFixturesKotlin UP-TO-DATE
+> Task :libp2p:compileTestFixturesJava UP-TO-DATE
+> Task :libp2p:processTestFixturesResources NO-SOURCE
+> Task :libp2p:testFixturesClasses UP-TO-DATE
+> Task :libp2p:testFixturesJar UP-TO-DATE
+> Task :libp2p:extractIncludeTestProto UP-TO-DATE
+> Task :libp2p:extractTestProto UP-TO-DATE
+> Task :libp2p:generateTestProto NO-SOURCE
+> Task :libp2p:processTestResources UP-TO-DATE
+> Task :libp2p:compileTestKotlin
+> Task :libp2p:compileTestJava UP-TO-DATE
+> Task :libp2p:testClasses UP-TO-DATE
+
+> Task :libp2p:test
+
+RpcHandlerTest > test1() FAILED
+    java.util.concurrent.ExecutionException: java.net.BindException: Address already in use
+        at java.base/java.util.concurrent.CompletableFuture.reportGet(CompletableFuture.java:396)
+        at java.base/java.util.concurrent.CompletableFuture.get(CompletableFuture.java:2096)
+        at io.libp2p.core.RpcHandlerTest.test1(RpcHandlerTest.kt:147)
+
+        Caused by:
+        java.net.BindException: Address already in use
+            at java.base/sun.nio.ch.Net.bind0(Native Method)
+            at java.base/sun.nio.ch.Net.bind(Net.java:577)
+            at java.base/sun.nio.ch.ServerSocketChannelImpl.netBind(ServerSocketChannelImpl.java:344)
+            at java.base/sun.nio.ch.ServerSocketChannelImpl.bind(ServerSocketChannelImpl.java:301)
+            at io.netty.channel.socket.nio.NioServerSocketChannel.doBind(NioServerSocketChannel.java:148)
+            at io.netty.channel.AbstractChannel$AbstractUnsafe.bind(AbstractChannel.java:431)
+            at io.netty.channel.DefaultChannelPipeline$HeadContext.bind(DefaultChannelPipeline.java:1366)
+            at io.netty.channel.AbstractChannelHandlerContext.bind(AbstractChannelHandlerContext.java:500)
+            at io.netty.channel.DefaultChannelPipeline.bind(DefaultChannelPipeline.java:1007)
+            at io.netty.channel.Channel.bind(Channel.java:302)
+            at io.netty.bootstrap.AbstractBootstrap$1.run(AbstractBootstrap.java:381)
+            at io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:148)
+            at io.netty.util.concurrent.AbstractEventExecutor.safeExecute(AbstractEventExecutor.java:141)
+            at io.netty.util.concurrent.SingleThreadEventExecutor.runAllTasks(SingleThreadEventExecutor.java:535)
+            at io.netty.channel.SingleThreadIoEventLoop.run(SingleThreadIoEventLoop.java:201)
+            at io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:1195)
+            at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+            at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+            at java.base/java.lang.Thread.run(Thread.java:1583)
+
+1 test completed, 1 failed
+
+> Task :libp2p:test FAILED
+
+[Incubating] Problems report is available at: file:///code/workspace/fix-libp2p-ports/build/reports/problems/problems-report.html
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':libp2p:test'.
+> There were failing tests. See the report at: file:///code/workspace/fix-libp2p-ports/libp2p/build/reports/tests/test/index.html
+
+* Try:
+> Run with --scan to get full insights.
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 9.0.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/8.14.3/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD FAILED in 34s
+22 actionable tasks: 4 executed, 18 up-to-date
+[boxrun] slot 1 released at 07:25:03 rc=1

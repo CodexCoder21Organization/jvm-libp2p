@@ -72,7 +72,7 @@ class NetworkProvisionalMplexCancellationBeforePublicationTest {
                     }
                 }
             }
-            muxers { +StreamMuxerProtocol.getMplex() }
+            muxers { +StreamMuxerProtocol.Mplex }
             network {
                 listen("/ip4/127.0.0.1/tcp/0")
                 listen("/ip4/127.0.0.2/tcp/0")
@@ -83,7 +83,7 @@ class NetworkProvisionalMplexCancellationBeforePublicationTest {
             identity { random() }
             transports { +::TcpTransport }
             secureChannels { add { key, _ -> NoiseXXSecureChannel(key) } }
-            muxers { +StreamMuxerProtocol.getMplex() }
+            muxers { +StreamMuxerProtocol.Mplex }
             network { listen("/ip4/127.0.0.1/tcp/0") }
             protocols { +protocol }
         }

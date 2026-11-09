@@ -106,6 +106,24 @@ Closing either endpoint's full circuit root closes the paired root through the r
 closes its inner children. Other roots remain usable. Stream write-side closure retains
 its existing half-close behavior.
 
+`ProtocolMessageHandler.onMessage` receives a borrowed message. Its adapter releases the incoming
+reference after the callback returns, including when it throws or closes the stream. Retain a
+`ByteBuf` before passing it to a write or keeping it after the callback. A retained reference
+belongs to the write path or to the caller, which must release it when finished. Callbacks that
+previously relied on implicit transfer of the incoming reference must retain it explicitly:
+
+```kotlin
+import io.libp2p.core.Stream
+import io.libp2p.protocol.ProtocolMessageHandler
+import io.netty.buffer.ByteBuf
+
+class EchoMessages : ProtocolMessageHandler<ByteBuf> {
+    override fun onMessage(stream: Stream, msg: ByteBuf) {
+        stream.writeAndFlush(msg.retain())
+    }
+}
+```
+
 ## Negotiated stream capacity results
 
 Applications can offer `YamuxCapacityStreamMuxer` before the existing Yamux binding. Its protocol ID is

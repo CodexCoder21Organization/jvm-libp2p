@@ -33,6 +33,12 @@ jobs:
           distribution: temurin
           java-version: 11
 
+      - name: Verify archive download handling
+        run: python3 .github/scripts/test_download_verified.py --log "$RUNNER_TEMP/download-verification/TEST-DownloadVerifiedTest.xml"
+
+      - name: Prepare the verified Gradle distribution
+        run: python3 .github/scripts/prepare-gradle.py "$RUNNER_TEMP/gradle-distribution"
+
       - name: Verify documentation contract
         run: python3 scripts/verify-documentation.py
 
@@ -45,6 +51,15 @@ jobs:
         with:
           name: documentation-verification-intact
           path: build/documentation-verification/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Upload archive download verification
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: documentation-download-verification
+          path: ${{ runner.temp }}/download-verification/
           if-no-files-found: warn
           retention-days: 14
 
@@ -70,6 +85,9 @@ jobs:
         with:
           distribution: temurin
           java-version: 11
+
+      - name: Prepare the verified Gradle distribution
+        run: python3 .github/scripts/prepare-gradle.py "$RUNNER_TEMP/gradle-distribution"
 
       - name: Remove only the Javadoc alias dependency for the reversal control
         run: |

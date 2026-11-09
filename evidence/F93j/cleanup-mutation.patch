@@ -1,0 +1,10 @@
+--- jvm-libp2p/libp2p/src/test/kotlin/io/libp2p/transport/ConnectionCloseRetryTest.kt	2026-11-09 17:20:04.323327006 +0000
++++ /tmp/F93j-cleanup-mutation-src2/ConnectionCloseRetryTest.kt	2026-11-09 17:19:12.630066010 +0000
+@@ -109,6 +109,7 @@
+             }
+             assertSame(failure, retryCloseFailure(connection.retryClose()))
+             assertSame(failure, retryCloseFailure(reentered.get()))
++            connection.transport().close()
+             assertEquals(1, requests.get(), "First-dispatch re-entry must not issue another physical close.")
+             connection.retryClose().get(5, TimeUnit.SECONDS)
+             connection.closeFuture().get(5, TimeUnit.SECONDS)

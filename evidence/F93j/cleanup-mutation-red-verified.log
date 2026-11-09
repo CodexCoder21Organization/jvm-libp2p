@@ -1,0 +1,35 @@
+OBSERVED slot wait seconds=0 count=2
+
+Thanks for using JUnit! Support its development at https://junit.org/sponsoring
+
+
+Failures (1):
+  JUnit Jupiter:ConnectionCloseRetryTest:firstRetryPublishesOwnershipBeforeItsPhysicalHandlerReenters()
+    MethodSource [className = 'io.libp2p.transport.ConnectionCloseRetryTest', methodName = 'firstRetryPublishesOwnershipBeforeItsPhysicalHandlerReenters', methodParameterTypes = '']
+    => java.util.concurrent.ExecutionException: java.io.IOException: Cannot close test connection: physical close attempt 1 failed.
+       java.base/java.util.concurrent.CompletableFuture.reportGet(CompletableFuture.java:396)
+       java.base/java.util.concurrent.CompletableFuture.get(CompletableFuture.java:2096)
+       io.libp2p.transport.ConnectionCloseRetryTestKt$withRetryConnection$1.invoke(ConnectionCloseRetryTest.kt:345)
+       io.libp2p.transport.ConnectionCloseRetryTestKt$withRetryConnection$1.invoke(ConnectionCloseRetryTest.kt:344)
+       io.libp2p.transport.ConnectionCloseRetryTestKt.withRetryConnection(ConnectionCloseRetryTest.kt:364)
+       [...]
+     Caused by: java.io.IOException: Cannot close test connection: physical close attempt 1 failed.
+       io.libp2p.transport.ConnectionCloseRetryTest$firstRetryPublishesOwnershipBeforeItsPhysicalHandlerReenters$1.invoke(ConnectionCloseRetryTest.kt:100)
+       io.libp2p.transport.ConnectionCloseRetryTest$firstRetryPublishesOwnershipBeforeItsPhysicalHandlerReenters$1.invoke(ConnectionCloseRetryTest.kt:97)
+       io.libp2p.transport.ConnectionCloseRetryTestKt.withRetryConnection(ConnectionCloseRetryTest.kt:359)
+       [...]
+
+Test run finished after 477 ms
+[         4 containers found      ]
+[         0 containers skipped    ]
+[         4 containers started    ]
+[         0 containers aborted    ]
+[         4 containers successful ]
+[         0 containers failed     ]
+[         1 tests found           ]
+[         0 tests skipped         ]
+[         1 tests started         ]
+[         0 tests aborted         ]
+[         0 tests successful      ]
+[         1 tests failed          ]
+

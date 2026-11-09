@@ -4,3 +4,7 @@ INFER: Invariant rows: child is created by QUIC connection setup and owned by tr
 OBSERVED: Callback tests3/3red at intended assertion; product correction saved in callback-fix.patch, green compilation started. Product branch unchanged remotely. Restore tests from evidence directory and apply patch to resume.
 
 OBSERVED: Product9b44e3b9acb04026bd272c5e61ec0677335fa5c5verified pushed. Callback red/green/revert-red3/3each (2routes);2held-stage controls+original rebind3/3green,0retries. Cleanup restoration in working tree, mutation proof in preparation.2gap test drafts delegated; factual boundary inventory delegated, neither starts JVMs.
+
+OBSERVED: Shared cleanup10/10green, valid unexpected transport.close mutation1/1red at original-success cleanup,0retries/skips. Product cleanup commit pushed pending receipt. New gap tests for callback physical-parent failure and open rejected parent drafted, not yet counted.
+
+OBSERVED: Product cleanup8948ed721f5e45701b16f83378aaad87f0ee86e4verified pushed. Current product head includes callback fix and cleanup restoration as2commits. G8callback complete; G5open-parent new test currently being strengthened to avoid finally masking. G1/G2drafts delegated; G7descriptor/work-count guard delegated, does not claim Java history bounded. G3/G6public dependency boundary constraints recorded but not refuted.

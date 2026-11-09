@@ -81,8 +81,7 @@ abstract class MuxHandler(
             result.forward(controller)
         }
         controller.whenComplete { _, _ ->
-            if (controller.isCancelled) {
-                muxChannel.cancel(false)
+            if (controller.isCancelled && muxChannel.cancel(false)) {
                 controller.channel?.close()
             }
         }

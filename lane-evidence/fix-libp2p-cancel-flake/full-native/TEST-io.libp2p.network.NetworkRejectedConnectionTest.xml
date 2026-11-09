@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.libp2p.network.NetworkRejectedConnectionTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-11-09T05:12:40.676Z" hostname="7a67d01e3568" time="0.125">
+  <properties/>
+  <testcase name="reuse excludes a duplicate whose physical close is pending()" classname="io.libp2p.network.NetworkRejectedConnectionTest" time="0.125"/>
+  <system-out><![CDATA[05:12:40.791 [libp2p-nio-worker-3-13] [?[33mWARN?[m] io.libp2p.network.ConnectionSelection - Keeping duplicate P2PChannelOverNetty(nettyChannel=[id: 0xfe4f9b65, L:/127.0.0.1:37420 ! R:/127.0.0.2:42559], isInitiator=true) because remote retirement could not be confirmed
+io.libp2p.core.ConnectionClosedException: Channel closed [id: 0xfe4f9b65/1, L:Mux[/127.0.0.1:37420-f2606afffeabbf7d-0032965b-00000371-b0442120b5d5cc37-fe4f9b65/1] ! R:Mux[/127.0.0.2:42559-f2606afffeabbf7d-0032965b-00000371-b0442120b5d5cc37-fe4f9b65/1]]
+	at io.libp2p.multistream.ProtocolSelect.channelUnregistered(ProtocolSelect.kt:105)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelUnregistered(AbstractChannelHandlerContext.java:191)
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.channelUnregistered(DefaultChannelPipeline.java:1420)
+	at io.netty.channel.DefaultChannelPipeline.fireChannelUnregistered(DefaultChannelPipeline.java:793)
+	at io.libp2p.etc.util.netty.AbstractChildChannel.completeTeardown(AbstractChildChannel.kt:200)
+	at io.libp2p.etc.util.netty.AbstractChildChannel.doClose(AbstractChildChannel.kt:171)
+	at io.libp2p.etc.util.netty.mux.MuxChannel.doClose(MuxChannel.kt:301)
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.doClose0(AbstractChannel.java:617)
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.close(AbstractChannel.java:594)
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.close(AbstractChannel.java:489)
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.close(DefaultChannelPipeline.java:1384)
+	at io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:633)
+	at io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:453)
+	at io.netty.channel.DefaultChannelPipeline.close(DefaultChannelPipeline.java:991)
+	at io.netty.channel.Channel.close(Channel.java:312)
+	at io.libp2p.etc.util.netty.AbstractChildChannel.closeImpl(AbstractChildChannel.kt:64)
+	at io.libp2p.etc.util.netty.AbstractChildChannel.parentCloseListener$lambda$0(AbstractChildChannel.kt:35)
+	at io.netty.util.concurrent.DefaultPromise.notifyListener0(DefaultPromise.java:604)
+	at io.netty.util.concurrent.DefaultPromise.notifyListeners0(DefaultPromise.java:597)
+	at io.netty.util.concurrent.DefaultPromise.notifyListenersNow(DefaultPromise.java:573)
+	at io.netty.util.concurrent.DefaultPromise.notifyListeners(DefaultPromise.java:506)
+	at io.netty.util.concurrent.DefaultPromise.setValue0(DefaultPromise.java:650)
+	at io.netty.util.concurrent.DefaultPromise.setSuccess0(DefaultPromise.java:639)
+	at io.netty.util.concurrent.DefaultPromise.trySuccess(DefaultPromise.java:119)
+	at io.netty.channel.DefaultChannelPromise.trySuccess(DefaultChannelPromise.java:84)
+	at io.netty.channel.AbstractChannel$CloseFuture.setClosed(AbstractChannel.java:1044)
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.doClose0(AbstractChannel.java:618)
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.close(AbstractChannel.java:594)
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.close(AbstractChannel.java:489)
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.close(DefaultChannelPipeline.java:1384)
+	at io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:633)
+	at io.netty.channel.CombinedChannelDuplexHandler$DelegatingChannelHandlerContext.close(CombinedChannelDuplexHandler.java:503)
+	at io.netty.channel.ChannelOutboundHandlerAdapter.close(ChannelOutboundHandlerAdapter.java:77)
+	at io.netty.channel.CombinedChannelDuplexHandler.close(CombinedChannelDuplexHandler.java:314)
+	at io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:635)
+	at io.netty.channel.AbstractChannelHandlerContext.lambda$close$6(AbstractChannelHandlerContext.java:649)
+	at io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:148)
+	at io.netty.util.concurrent.AbstractEventExecutor.safeExecute(AbstractEventExecutor.java:141)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.runAllTasks(SingleThreadEventExecutor.java:535)
+	at io.netty.channel.SingleThreadIoEventLoop.run(SingleThreadIoEventLoop.java:201)
+	at io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:1195)
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

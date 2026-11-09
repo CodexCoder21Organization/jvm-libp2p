@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.libp2p.transport.CapacityResetQueueOccupancyTest" tests="8" skipped="0" failures="0" errors="0" timestamp="2026-11-09T05:20:15.123Z" hostname="7a67d01e3568" time="23.86">
+  <properties/>
+  <testcase name="[1] capacity, true" classname="io.libp2p.transport.CapacityResetQueueOccupancyTest" time="4.258"/>
+  <testcase name="[2] capacity, false" classname="io.libp2p.transport.CapacityResetQueueOccupancyTest" time="2.911"/>
+  <testcase name="[3] rejected, true" classname="io.libp2p.transport.CapacityResetQueueOccupancyTest" time="2.874"/>
+  <testcase name="[4] rejected, false" classname="io.libp2p.transport.CapacityResetQueueOccupancyTest" time="2.671"/>
+  <testcase name="[5] parent, true" classname="io.libp2p.transport.CapacityResetQueueOccupancyTest" time="2.944"/>
+  <testcase name="[6] parent, false" classname="io.libp2p.transport.CapacityResetQueueOccupancyTest" time="2.806"/>
+  <testcase name="[7] parent-failure, true" classname="io.libp2p.transport.CapacityResetQueueOccupancyTest" time="2.811"/>
+  <testcase name="[8] parent-failure, false" classname="io.libp2p.transport.CapacityResetQueueOccupancyTest" time="2.574"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[Exception in thread "TestChannel-interconnect-executor-62" io.netty.handler.codec.DecoderException: io.netty.handler.ssl.ReferenceCountedOpenSslEngine$OpenSslHandshakeException: error:10000438:SSL routines:OPENSSL_internal:TLSV1_ALERT_INTERNAL_ERROR
+	at io.netty.handler.codec.ByteToMessageDecoder.callDecode(ByteToMessageDecoder.java:515)
+	at io.netty.handler.codec.ByteToMessageDecoder.channelRead(ByteToMessageDecoder.java:296)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:357)
+	at io.libp2p.multistream.ProtocolSelect.channelRead(ProtocolSelect.kt:46)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:357)
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.channelRead(DefaultChannelPipeline.java:1442)
+	at io.netty.channel.DefaultChannelPipeline.fireChannelRead(DefaultChannelPipeline.java:931)
+	at io.netty.channel.embedded.EmbeddedChannel.writeInbound(EmbeddedChannel.java:369)
+	at io.libp2p.tools.TestChannel.send$lambda$1(TestChannel.kt:83)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1144)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+Caused by: io.netty.handler.ssl.ReferenceCountedOpenSslEngine$OpenSslHandshakeException: error:10000438:SSL routines:OPENSSL_internal:TLSV1_ALERT_INTERNAL_ERROR
+	at io.netty.handler.ssl.ReferenceCountedOpenSslEngine.newSSLExceptionForError(ReferenceCountedOpenSslEngine.java:1414)
+	at io.netty.handler.ssl.ReferenceCountedOpenSslEngine.shutdownWithError(ReferenceCountedOpenSslEngine.java:1123)
+	at io.netty.handler.ssl.ReferenceCountedOpenSslEngine.sslReadErrorResult(ReferenceCountedOpenSslEngine.java:1435)
+	at io.netty.handler.ssl.ReferenceCountedOpenSslEngine.unwrap(ReferenceCountedOpenSslEngine.java:1361)
+	at io.netty.handler.ssl.ReferenceCountedOpenSslEngine.unwrap(ReferenceCountedOpenSslEngine.java:1461)
+	at io.netty.handler.ssl.ReferenceCountedOpenSslEngine.unwrap(ReferenceCountedOpenSslEngine.java:1504)
+	at io.netty.handler.ssl.SslHandler$SslEngineType$1.unwrap(SslHandler.java:219)
+	at io.netty.handler.ssl.SslHandler.unwrap(SslHandler.java:1502)
+	at io.netty.handler.ssl.SslHandler.decodeNonJdkCompatible(SslHandler.java:1406)
+	at io.netty.handler.ssl.SslHandler.decode(SslHandler.java:1446)
+	at io.netty.handler.codec.ByteToMessageDecoder.decodeRemovalReentryProtection(ByteToMessageDecoder.java:545)
+	at io.netty.handler.codec.ByteToMessageDecoder.callDecode(ByteToMessageDecoder.java:484)
+	... 11 more
+Exception in thread "TestChannel-interconnect-executor-64" java.nio.channels.ClosedChannelException
+	at io.netty.channel.embedded.EmbeddedChannel.checkOpen(EmbeddedChannel.java:959)
+	at io.netty.channel.embedded.EmbeddedChannel.ensureOpen(EmbeddedChannel.java:979)
+	at io.netty.channel.embedded.EmbeddedChannel.writeInbound(EmbeddedChannel.java:360)
+	at io.libp2p.tools.TestChannel.send$lambda$1(TestChannel.kt:83)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1144)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+Exception in thread "TestChannel-interconnect-executor-65" java.nio.channels.ClosedChannelException
+	at io.netty.channel.embedded.EmbeddedChannel.checkOpen(EmbeddedChannel.java:959)
+	at io.netty.channel.embedded.EmbeddedChannel.ensureOpen(EmbeddedChannel.java:979)
+	at io.netty.channel.embedded.EmbeddedChannel.writeInbound(EmbeddedChannel.java:360)
+	at io.libp2p.tools.TestChannel.send$lambda$1(TestChannel.kt:83)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1144)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+]]></system-err>
+</testsuite>

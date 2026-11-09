@@ -1,0 +1,1457 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.libp2p.pubsub.gossip.SubscriptionsLimitTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-11-09T07:27:46.487Z" hostname="7a67d01e3568" time="0.515">
+  <properties/>
+  <testcase name="existing peer subscribed to many topics()" classname="io.libp2p.pubsub.gossip.SubscriptionsLimitTest" time="0.244"/>
+  <testcase name="new peer subscribed to many topics()" classname="io.libp2p.pubsub.gossip.SubscriptionsLimitTest" time="0.136"/>
+  <testcase name="new peer subscribed to few topics()" classname="io.libp2p.pubsub.gossip.SubscriptionsLimitTest" time="0.133"/>
+  <system-out><![CDATA[Client started
+Server started
+07:27:46.520 [libp2p-nio-worker-3-2] [?[32mINFO?[m] host-2 - [id: 0x3aa4f24a, L:/127.0.0.1:44893 - R:/127.0.0.1:57854] USER_EVENT: ProtocolNegotiationSucceeded(proto=/mplex/6.7.0)
+07:27:46.520 [libp2p-nio-worker-3-1] [?[32mINFO?[m] host-1 - [id: 0x8b14c273, L:/127.0.0.1:57854 - R:/127.0.0.1:44893] USER_EVENT: ProtocolNegotiationSucceeded(proto=/mplex/6.7.0)
+07:27:46.521 [libp2p-nio-worker-3-2] [?[32mINFO?[m] host-2 - [id: 0x3aa4f24a, L:/127.0.0.1:44893 - R:/127.0.0.1:57854] ACTIVE
+07:27:46.521 [libp2p-nio-worker-3-1] [?[32mINFO?[m] host-1 - [id: 0x8b14c273, L:/127.0.0.1:57854 - R:/127.0.0.1:44893] ACTIVE
+07:27:46.521 [libp2p-nio-worker-3-2] [?[32mINFO?[m] host-2 - [id: 0x3aa4f24a, L:/127.0.0.1:44893 - R:/127.0.0.1:57854] READ COMPLETE
+07:27:46.521 [libp2p-nio-worker-3-1] [?[32mINFO?[m] host-1 - [id: 0x8b14c273, L:/127.0.0.1:57854 - R:/127.0.0.1:44893] READ COMPLETE
+07:27:46.521 [libp2p-nio-worker-3-2] [?[32mINFO?[m] host-2 - [id: 0x3aa4f24a, L:/127.0.0.1:44893 - R:/127.0.0.1:57854] WRITE, MplexFrame(id=f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/true, flag=OPEN(init), data=EmptyByteBufBE), 0B
+07:27:46.521 [libp2p-nio-worker-3-1] [?[32mINFO?[m] host-1 - [id: 0x8b14c273, L:/127.0.0.1:57854 - R:/127.0.0.1:44893] WRITE, MplexFrame(id=f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/true, flag=OPEN(init), data=EmptyByteBufBE), 0B
+07:27:46.521 [libp2p-nio-worker-3-2] [?[32mINFO?[m] host-2 - [id: 0x3aa4f24a, L:/127.0.0.1:44893 - R:/127.0.0.1:57854] FLUSH
+07:27:46.522 [libp2p-nio-worker-3-1] [?[32mINFO?[m] host-1 - [id: 0x8b14c273, L:/127.0.0.1:57854 - R:/127.0.0.1:44893] FLUSH
+07:27:46.523 [libp2p-nio-worker-3-1] [?[32mINFO?[m] host-1 - [id: 0x8b14c273, L:/127.0.0.1:57854 - R:/127.0.0.1:44893] WRITE: MplexFrame(id=f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/true, flag=DATA(init), data=AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 20, cap: 256)), 20B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 13 2f 6d 75 6c 74 69 73 74 72 65 61 6d 2f 31 2e |./multistream/1.|
+|00000010| 30 2e 30 0a                                     |0.0.            |
++--------+-------------------------------------------------+----------------+
+07:27:46.523 [libp2p-nio-worker-3-2] [?[32mINFO?[m] host-2 - [id: 0x3aa4f24a, L:/127.0.0.1:44893 - R:/127.0.0.1:57854] WRITE: MplexFrame(id=f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/true, flag=DATA(init), data=AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 20, cap: 256)), 20B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 13 2f 6d 75 6c 74 69 73 74 72 65 61 6d 2f 31 2e |./multistream/1.|
+|00000010| 30 2e 30 0a                                     |0.0.            |
++--------+-------------------------------------------------+----------------+
+07:27:46.523 [libp2p-nio-worker-3-1] [?[32mINFO?[m] host-1 - [id: 0x8b14c273, L:/127.0.0.1:57854 - R:/127.0.0.1:44893] FLUSH
+07:27:46.523 [libp2p-nio-worker-3-2] [?[32mINFO?[m] host-2 - [id: 0x3aa4f24a, L:/127.0.0.1:44893 - R:/127.0.0.1:57854] FLUSH
+07:27:46.523 [libp2p-nio-worker-3-2] [?[32mINFO?[m] host-2 - [id: 0x3aa4f24a, L:/127.0.0.1:44893 - R:/127.0.0.1:57854] WRITE: MplexFrame(id=f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/true, flag=DATA(init), data=AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 16, cap: 256)), 16B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 0f 2f 6d 65 73 68 73 75 62 2f 31 2e 32 2e 30 0a |./meshsub/1.2.0.|
++--------+-------------------------------------------------+----------------+
+07:27:46.523 [libp2p-nio-worker-3-1] [?[32mINFO?[m] host-1 - [id: 0x8b14c273, L:/127.0.0.1:57854 - R:/127.0.0.1:44893] WRITE: MplexFrame(id=f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/true, flag=DATA(init), data=AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 16, cap: 256)), 16B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 0f 2f 6d 65 73 68 73 75 62 2f 31 2e 32 2e 30 0a |./meshsub/1.2.0.|
++--------+-------------------------------------------------+----------------+
+07:27:46.523 [libp2p-nio-worker-3-2] [?[32mINFO?[m] host-2 - [id: 0x3aa4f24a, L:/127.0.0.1:44893 - R:/127.0.0.1:57854] FLUSH
+07:27:46.523 [libp2p-nio-worker-3-1] [?[32mINFO?[m] host-1 - [id: 0x8b14c273, L:/127.0.0.1:57854 - R:/127.0.0.1:44893] FLUSH
+07:27:46.523 [libp2p-nio-worker-3-2] [?[32mINFO?[m] host-2 - [id: 0x3aa4f24a, L:/127.0.0.1:44893 - R:/127.0.0.1:57854] READ, MplexFrame(id=f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/false, flag=OPEN(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 0, cap: 0/0, unwrapped: UnpooledHeapByteBuf(ridx: 0, widx: 19, cap: 19/19))), 0B
+07:27:46.523 [libp2p-nio-worker-3-1] [?[32mINFO?[m] host-1 - [id: 0x8b14c273, L:/127.0.0.1:57854 - R:/127.0.0.1:44893] READ, MplexFrame(id=f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/false, flag=OPEN(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 0, cap: 0/0, unwrapped: UnpooledHeapByteBuf(ridx: 0, widx: 19, cap: 19/19))), 0B
+07:27:46.524 [libp2p-nio-worker-3-2] [?[32mINFO?[m] host-2 - [id: 0x3aa4f24a, L:/127.0.0.1:44893 - R:/127.0.0.1:57854] WRITE: MplexFrame(id=f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/false, flag=DATA(resp), data=AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 20, cap: 256)), 20B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 13 2f 6d 75 6c 74 69 73 74 72 65 61 6d 2f 31 2e |./multistream/1.|
+|00000010| 30 2e 30 0a                                     |0.0.            |
++--------+-------------------------------------------------+----------------+
+07:27:46.524 [libp2p-nio-worker-3-1] [?[32mINFO?[m] host-1 - [id: 0x8b14c273, L:/127.0.0.1:57854 - R:/127.0.0.1:44893] WRITE: MplexFrame(id=f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/false, flag=DATA(resp), data=AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 20, cap: 256)), 20B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 13 2f 6d 75 6c 74 69 73 74 72 65 61 6d 2f 31 2e |./multistream/1.|
+|00000010| 30 2e 30 0a                                     |0.0.            |
++--------+-------------------------------------------------+----------------+
+07:27:46.524 [libp2p-nio-worker-3-2] [?[32mINFO?[m] host-2 - [id: 0x3aa4f24a, L:/127.0.0.1:44893 - R:/127.0.0.1:57854] FLUSH
+07:27:46.524 [libp2p-nio-worker-3-1] [?[32mINFO?[m] host-1 - [id: 0x8b14c273, L:/127.0.0.1:57854 - R:/127.0.0.1:44893] FLUSH
+07:27:46.525 [libp2p-nio-worker-3-2] [?[32mINFO?[m] host-2 - [id: 0x3aa4f24a, L:/127.0.0.1:44893 - R:/127.0.0.1:57854] READ: MplexFrame(id=f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/false, flag=DATA(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 20, cap: 20/20, unwrapped: UnpooledHeapByteBuf(ridx: 0, widx: 39, cap: 39/39))), 20B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 13 2f 6d 75 6c 74 69 73 74 72 65 61 6d 2f 31 2e |./multistream/1.|
+|00000010| 30 2e 30 0a                                     |0.0.            |
++--------+-------------------------------------------------+----------------+
+07:27:46.525 [libp2p-nio-worker-3-1] [?[32mINFO?[m] host-1 - [id: 0x8b14c273, L:/127.0.0.1:57854 - R:/127.0.0.1:44893] READ: MplexFrame(id=f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/false, flag=DATA(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 20, cap: 20/20, unwrapped: UnpooledHeapByteBuf(ridx: 0, widx: 39, cap: 39/39))), 20B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 13 2f 6d 75 6c 74 69 73 74 72 65 61 6d 2f 31 2e |./multistream/1.|
+|00000010| 30 2e 30 0a                                     |0.0.            |
++--------+-------------------------------------------------+----------------+
+07:27:46.525 [libp2p-nio-worker-3-2] [?[32mINFO?[m] host-2 - [id: 0x3aa4f24a, L:/127.0.0.1:44893 - R:/127.0.0.1:57854] READ: MplexFrame(id=f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/false, flag=DATA(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 16, cap: 16/16, unwrapped: UnpooledHeapByteBuf(ridx: 0, widx: 35, cap: 35/35))), 16B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 0f 2f 6d 65 73 68 73 75 62 2f 31 2e 32 2e 30 0a |./meshsub/1.2.0.|
++--------+-------------------------------------------------+----------------+
+07:27:46.525 [libp2p-nio-worker-3-1] [?[32mINFO?[m] host-1 - [id: 0x8b14c273, L:/127.0.0.1:57854 - R:/127.0.0.1:44893] READ: MplexFrame(id=f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/false, flag=DATA(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 16, cap: 16/16, unwrapped: UnpooledHeapByteBuf(ridx: 0, widx: 35, cap: 35/35))), 16B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 0f 2f 6d 65 73 68 73 75 62 2f 31 2e 32 2e 30 0a |./meshsub/1.2.0.|
++--------+-------------------------------------------------+----------------+
+07:27:46.525 [libp2p-nio-worker-3-2] [?[32mINFO?[m] host-2 - [id: 0x3aa4f24a, L:/127.0.0.1:44893 - R:/127.0.0.1:57854] WRITE: MplexFrame(id=f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/false, flag=DATA(resp), data=AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 16, cap: 256)), 16B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 0f 2f 6d 65 73 68 73 75 62 2f 31 2e 32 2e 30 0a |./meshsub/1.2.0.|
++--------+-------------------------------------------------+----------------+
+07:27:46.525 [libp2p-nio-worker-3-2] [?[32mINFO?[m] host-2 - [id: 0x3aa4f24a, L:/127.0.0.1:44893 - R:/127.0.0.1:57854] FLUSH
+07:27:46.525 [libp2p-nio-worker-3-1] [?[32mINFO?[m] host-1 - [id: 0x8b14c273, L:/127.0.0.1:57854 - R:/127.0.0.1:44893] WRITE: MplexFrame(id=f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/false, flag=DATA(resp), data=AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 16, cap: 256)), 16B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 0f 2f 6d 65 73 68 73 75 62 2f 31 2e 32 2e 30 0a |./meshsub/1.2.0.|
++--------+-------------------------------------------------+----------------+
+07:27:46.525 [libp2p-nio-worker-3-1] [?[32mINFO?[m] host-1 - [id: 0x8b14c273, L:/127.0.0.1:57854 - R:/127.0.0.1:44893] FLUSH
+07:27:46.526 [libp2p-nio-worker-3-2] [?[32mINFO?[m] host-2 - [id: 0x3aa4f24a/16/false, L:Mux[/127.0.0.1:44893-f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/false] - R:Mux[/127.0.0.1:57854-f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/false]] USER_EVENT: ProtocolNegotiationSucceeded(proto=/meshsub/1.2.0)
+07:27:46.526 [libp2p-nio-worker-3-1] [?[32mINFO?[m] host-1 - [id: 0x8b14c273/16/false, L:Mux[/127.0.0.1:57854-f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/false] - R:Mux[/127.0.0.1:44893-f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/false]] USER_EVENT: ProtocolNegotiationSucceeded(proto=/meshsub/1.2.0)
+07:27:46.526 [libp2p-nio-worker-3-2] [?[32mINFO?[m] host-2 - [id: 0x3aa4f24a/16/false, L:Mux[/127.0.0.1:44893-f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/false] - R:Mux[/127.0.0.1:57854-f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/false]] ACTIVE
+07:27:46.526 [libp2p-nio-worker-3-2] [?[32mINFO?[m] host-2 - [id: 0x3aa4f24a, L:/127.0.0.1:44893 - R:/127.0.0.1:57854] READ COMPLETE
+07:27:46.526 [libp2p-nio-worker-3-2] [?[32mINFO?[m] host-2 - [id: 0x3aa4f24a/16/false, L:Mux[/127.0.0.1:44893-f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/false] - R:Mux[/127.0.0.1:57854-f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/false]] READ COMPLETE
+07:27:46.526 [libp2p-nio-worker-3-1] [?[32mINFO?[m] host-1 - [id: 0x8b14c273/16/false, L:Mux[/127.0.0.1:57854-f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/false] - R:Mux[/127.0.0.1:44893-f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/false]] ACTIVE
+07:27:46.526 [libp2p-nio-worker-3-1] [?[32mINFO?[m] host-1 - [id: 0x8b14c273, L:/127.0.0.1:57854 - R:/127.0.0.1:44893] READ COMPLETE
+07:27:46.526 [libp2p-nio-worker-3-1] [?[32mINFO?[m] host-1 - [id: 0x8b14c273/16/false, L:Mux[/127.0.0.1:57854-f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/false] - R:Mux[/127.0.0.1:44893-f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/false]] READ COMPLETE
+07:27:46.526 [libp2p-nio-worker-3-2] [?[32mINFO?[m] host-2 - [id: 0x3aa4f24a, L:/127.0.0.1:44893 - R:/127.0.0.1:57854] READ: MplexFrame(id=f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/true, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 20, cap: 20/20, unwrapped: UnpooledHeapByteBuf(ridx: 0, widx: 39, cap: 39/39))), 20B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 13 2f 6d 75 6c 74 69 73 74 72 65 61 6d 2f 31 2e |./multistream/1.|
+|00000010| 30 2e 30 0a                                     |0.0.            |
++--------+-------------------------------------------------+----------------+
+07:27:46.526 [libp2p-nio-worker-3-1] [?[32mINFO?[m] host-1 - [id: 0x8b14c273, L:/127.0.0.1:57854 - R:/127.0.0.1:44893] READ: MplexFrame(id=f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/true, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 20, cap: 20/20, unwrapped: UnpooledHeapByteBuf(ridx: 0, widx: 39, cap: 39/39))), 20B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 13 2f 6d 75 6c 74 69 73 74 72 65 61 6d 2f 31 2e |./multistream/1.|
+|00000010| 30 2e 30 0a                                     |0.0.            |
++--------+-------------------------------------------------+----------------+
+07:27:46.526 [libp2p-nio-worker-3-2] [?[32mINFO?[m] host-2 - [id: 0x3aa4f24a, L:/127.0.0.1:44893 - R:/127.0.0.1:57854] READ: MplexFrame(id=f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/true, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 16, cap: 16/16, unwrapped: UnpooledHeapByteBuf(ridx: 0, widx: 35, cap: 35/35))), 16B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 0f 2f 6d 65 73 68 73 75 62 2f 31 2e 32 2e 30 0a |./meshsub/1.2.0.|
++--------+-------------------------------------------------+----------------+
+07:27:46.527 [libp2p-nio-worker-3-1] [?[32mINFO?[m] host-1 - [id: 0x8b14c273, L:/127.0.0.1:57854 - R:/127.0.0.1:44893] READ: MplexFrame(id=f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/true, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 16, cap: 16/16, unwrapped: UnpooledHeapByteBuf(ridx: 0, widx: 35, cap: 35/35))), 16B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 0f 2f 6d 65 73 68 73 75 62 2f 31 2e 32 2e 30 0a |./meshsub/1.2.0.|
++--------+-------------------------------------------------+----------------+
+07:27:46.527 [libp2p-nio-worker-3-2] [?[32mINFO?[m] host-2 - [id: 0x3aa4f24a/16/true, L:Mux[/127.0.0.1:44893-f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/true] - R:Mux[/127.0.0.1:57854-f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/true]] USER_EVENT: ProtocolNegotiationSucceeded(proto=/meshsub/1.2.0)
+07:27:46.527 [libp2p-nio-worker-3-1] [?[32mINFO?[m] host-1 - [id: 0x8b14c273/16/true, L:Mux[/127.0.0.1:57854-f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/true] - R:Mux[/127.0.0.1:44893-f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/true]] USER_EVENT: ProtocolNegotiationSucceeded(proto=/meshsub/1.2.0)
+07:27:46.527 [libp2p-nio-worker-3-2] [?[32mINFO?[m] host-2 - [id: 0x3aa4f24a/16/true, L:Mux[/127.0.0.1:44893-f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/true] - R:Mux[/127.0.0.1:57854-f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/true]] ACTIVE
+07:27:46.527 [libp2p-nio-worker-3-1] [?[32mINFO?[m] host-1 - [id: 0x8b14c273/16/true, L:Mux[/127.0.0.1:57854-f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/true] - R:Mux[/127.0.0.1:44893-f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/true]] ACTIVE
+07:27:46.527 [libp2p-nio-worker-3-1] [?[32mINFO?[m] host-1 - [id: 0x8b14c273, L:/127.0.0.1:57854 - R:/127.0.0.1:44893] READ COMPLETE
+07:27:46.527 [libp2p-nio-worker-3-1] [?[32mINFO?[m] host-1 - [id: 0x8b14c273/16/true, L:Mux[/127.0.0.1:57854-f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/true] - R:Mux[/127.0.0.1:44893-f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/true]] READ COMPLETE
+07:27:46.528 [libp2p-nio-worker-3-2] [?[32mINFO?[m] host-2 - [id: 0x3aa4f24a, L:/127.0.0.1:44893 - R:/127.0.0.1:57854] READ COMPLETE
+07:27:46.528 [libp2p-nio-worker-3-2] [?[32mINFO?[m] host-2 - [id: 0x3aa4f24a/16/true, L:Mux[/127.0.0.1:44893-f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/true] - R:Mux[/127.0.0.1:57854-f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/true]] READ COMPLETE
+07:27:46.528 [libp2p-nio-worker-3-1] [?[32mINFO?[m] host-1 - [id: 0x8b14c273/16/true, L:Mux[/127.0.0.1:57854-f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/true] - R:Mux[/127.0.0.1:44893-f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/true]] WRITE: subscriptions {
+  subscribe: true
+  topicid: "test-topic"
+}
+
+07:27:46.528 [libp2p-nio-worker-3-2] [?[32mINFO?[m] host-2 - [id: 0x3aa4f24a/16/true, L:Mux[/127.0.0.1:44893-f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/true] - R:Mux[/127.0.0.1:57854-f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/true]] WRITE: subscriptions {
+  subscribe: true
+  topicid: "test-topic"
+}
+
+07:27:46.528 [libp2p-nio-worker-3-1] [?[32mINFO?[m] host-1 - [id: 0x8b14c273/16/true, L:Mux[/127.0.0.1:57854-f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/true] - R:Mux[/127.0.0.1:44893-f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/true]] FLUSH
+07:27:46.528 [libp2p-nio-worker-3-2] [?[32mINFO?[m] host-2 - [id: 0x3aa4f24a/16/true, L:Mux[/127.0.0.1:44893-f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/true] - R:Mux[/127.0.0.1:57854-f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/true]] FLUSH
+07:27:46.528 [libp2p-nio-worker-3-1] [?[32mINFO?[m] host-1 - [id: 0x8b14c273, L:/127.0.0.1:57854 - R:/127.0.0.1:44893] WRITE: MplexFrame(id=f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/true, flag=DATA(init), data=AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 17, cap: 256)), 17B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 10 0a 0e 08 01 12 0a 74 65 73 74 2d 74 6f 70 69 |.......test-topi|
+|00000010| 63                                              |c               |
++--------+-------------------------------------------------+----------------+
+07:27:46.528 [libp2p-nio-worker-3-2] [?[32mINFO?[m] host-2 - [id: 0x3aa4f24a, L:/127.0.0.1:44893 - R:/127.0.0.1:57854] WRITE: MplexFrame(id=f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/true, flag=DATA(init), data=AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 17, cap: 256)), 17B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 10 0a 0e 08 01 12 0a 74 65 73 74 2d 74 6f 70 69 |.......test-topi|
+|00000010| 63                                              |c               |
++--------+-------------------------------------------------+----------------+
+07:27:46.528 [libp2p-nio-worker-3-2] [?[32mINFO?[m] host-2 - [id: 0x3aa4f24a, L:/127.0.0.1:44893 - R:/127.0.0.1:57854] FLUSH
+07:27:46.528 [libp2p-nio-worker-3-1] [?[32mINFO?[m] host-1 - [id: 0x8b14c273, L:/127.0.0.1:57854 - R:/127.0.0.1:44893] FLUSH
+07:27:46.529 [libp2p-nio-worker-3-1] [?[32mINFO?[m] host-1 - [id: 0x8b14c273, L:/127.0.0.1:57854 - R:/127.0.0.1:44893] READ: MplexFrame(id=f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/false, flag=DATA(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 17, cap: 17/17, unwrapped: UnpooledHeapByteBuf(ridx: 0, widx: 36, cap: 36/36))), 17B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 10 0a 0e 08 01 12 0a 74 65 73 74 2d 74 6f 70 69 |.......test-topi|
+|00000010| 63                                              |c               |
++--------+-------------------------------------------------+----------------+
+07:27:46.529 [libp2p-nio-worker-3-1] [?[32mINFO?[m] host-1 - [id: 0x8b14c273/16/false, L:Mux[/127.0.0.1:57854-f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/false] - R:Mux[/127.0.0.1:44893-f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/false]] READ: subscriptions {
+  subscribe: true
+  topicid: "test-topic"
+}
+
+07:27:46.529 [libp2p-nio-worker-3-1] [?[32mINFO?[m] host-1 - [id: 0x8b14c273, L:/127.0.0.1:57854 - R:/127.0.0.1:44893] READ COMPLETE
+07:27:46.529 [libp2p-nio-worker-3-2] [?[32mINFO?[m] host-2 - [id: 0x3aa4f24a, L:/127.0.0.1:44893 - R:/127.0.0.1:57854] READ: MplexFrame(id=f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/false, flag=DATA(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 17, cap: 17/17, unwrapped: UnpooledHeapByteBuf(ridx: 0, widx: 36, cap: 36/36))), 17B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 10 0a 0e 08 01 12 0a 74 65 73 74 2d 74 6f 70 69 |.......test-topi|
+|00000010| 63                                              |c               |
++--------+-------------------------------------------------+----------------+
+07:27:46.529 [libp2p-nio-worker-3-1] [?[32mINFO?[m] host-1 - [id: 0x8b14c273/16/false, L:Mux[/127.0.0.1:57854-f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/false] - R:Mux[/127.0.0.1:44893-f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/false]] READ COMPLETE
+07:27:46.530 [libp2p-nio-worker-3-2] [?[32mINFO?[m] host-2 - [id: 0x3aa4f24a/16/false, L:Mux[/127.0.0.1:44893-f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/false] - R:Mux[/127.0.0.1:57854-f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/false]] READ: subscriptions {
+  subscribe: true
+  topicid: "test-topic"
+}
+
+07:27:46.530 [libp2p-nio-worker-3-2] [?[32mINFO?[m] host-2 - [id: 0x3aa4f24a, L:/127.0.0.1:44893 - R:/127.0.0.1:57854] READ COMPLETE
+07:27:46.530 [libp2p-nio-worker-3-2] [?[32mINFO?[m] host-2 - [id: 0x3aa4f24a/16/false, L:Mux[/127.0.0.1:44893-f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/false] - R:Mux[/127.0.0.1:57854-f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/false]] READ COMPLETE
+07:27:46.625 [libp2p-nio-worker-3-2] [?[32mINFO?[m] host-2 - [id: 0x3aa4f24a/16/true, L:Mux[/127.0.0.1:44893-f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/true] - R:Mux[/127.0.0.1:57854-f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/true]] WRITE: subscriptions {
+  subscribe: true
+  topicid: "topic-0"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-1"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-2"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-3"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-4"
+}
+
+07:27:46.626 [libp2p-nio-worker-3-2] [?[32mINFO?[m] host-2 - [id: 0x3aa4f24a/16/true, L:Mux[/127.0.0.1:44893-f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/true] - R:Mux[/127.0.0.1:57854-f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/true]] FLUSH
+07:27:46.626 [libp2p-nio-worker-3-2] [?[32mINFO?[m] host-2 - [id: 0x3aa4f24a, L:/127.0.0.1:44893 - R:/127.0.0.1:57854] WRITE: MplexFrame(id=f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/true, flag=DATA(init), data=AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 66, cap: 256)), 66B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 41 0a 0b 08 01 12 07 74 6f 70 69 63 2d 30 0a 0b |A......topic-0..|
+|00000010| 08 01 12 07 74 6f 70 69 63 2d 31 0a 0b 08 01 12 |....topic-1.....|
+|00000020| 07 74 6f 70 69 63 2d 32 0a 0b 08 01 12 07 74 6f |.topic-2......to|
+|00000030| 70 69 63 2d 33 0a 0b 08 01 12 07 74 6f 70 69 63 |pic-3......topic|
+|00000040| 2d 34                                           |-4              |
++--------+-------------------------------------------------+----------------+
+07:27:46.626 [libp2p-nio-worker-3-2] [?[32mINFO?[m] host-2 - [id: 0x3aa4f24a, L:/127.0.0.1:44893 - R:/127.0.0.1:57854] FLUSH
+07:27:46.626 [libp2p-nio-worker-3-1] [?[32mINFO?[m] host-1 - [id: 0x8b14c273/16/true, L:Mux[/127.0.0.1:57854-f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/true] - R:Mux[/127.0.0.1:44893-f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/true]] WRITE: subscriptions {
+  subscribe: true
+  topicid: "topic-0"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-1"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-2"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-3"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-4"
+}
+
+07:27:46.626 [libp2p-nio-worker-3-2] [?[32mINFO?[m] host-2 - [id: 0x3aa4f24a/16/true, L:Mux[/127.0.0.1:44893-f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/true] - R:Mux[/127.0.0.1:57854-f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/true]] WRITE: subscriptions {
+  subscribe: true
+  topicid: "topic-5"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-6"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-7"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-8"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-9"
+}
+
+07:27:46.626 [libp2p-nio-worker-3-1] [?[32mINFO?[m] host-1 - [id: 0x8b14c273/16/true, L:Mux[/127.0.0.1:57854-f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/true] - R:Mux[/127.0.0.1:44893-f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/true]] FLUSH
+07:27:46.627 [libp2p-nio-worker-3-2] [?[32mINFO?[m] host-2 - [id: 0x3aa4f24a/16/true, L:Mux[/127.0.0.1:44893-f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/true] - R:Mux[/127.0.0.1:57854-f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/true]] FLUSH
+07:27:46.627 [libp2p-nio-worker-3-1] [?[32mINFO?[m] host-1 - [id: 0x8b14c273, L:/127.0.0.1:57854 - R:/127.0.0.1:44893] WRITE: MplexFrame(id=f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/true, flag=DATA(init), data=AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 66, cap: 256)), 66B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 41 0a 0b 08 01 12 07 74 6f 70 69 63 2d 30 0a 0b |A......topic-0..|
+|00000010| 08 01 12 07 74 6f 70 69 63 2d 31 0a 0b 08 01 12 |....topic-1.....|
+|00000020| 07 74 6f 70 69 63 2d 32 0a 0b 08 01 12 07 74 6f |.topic-2......to|
+|00000030| 70 69 63 2d 33 0a 0b 08 01 12 07 74 6f 70 69 63 |pic-3......topic|
+|00000040| 2d 34                                           |-4              |
++--------+-------------------------------------------------+----------------+
+07:27:46.627 [libp2p-nio-worker-3-2] [?[32mINFO?[m] host-2 - [id: 0x3aa4f24a, L:/127.0.0.1:44893 - R:/127.0.0.1:57854] WRITE: MplexFrame(id=f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/true, flag=DATA(init), data=AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 66, cap: 256)), 66B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 41 0a 0b 08 01 12 07 74 6f 70 69 63 2d 35 0a 0b |A......topic-5..|
+|00000010| 08 01 12 07 74 6f 70 69 63 2d 36 0a 0b 08 01 12 |....topic-6.....|
+|00000020| 07 74 6f 70 69 63 2d 37 0a 0b 08 01 12 07 74 6f |.topic-7......to|
+|00000030| 70 69 63 2d 38 0a 0b 08 01 12 07 74 6f 70 69 63 |pic-8......topic|
+|00000040| 2d 39                                           |-9              |
++--------+-------------------------------------------------+----------------+
+07:27:46.627 [libp2p-nio-worker-3-1] [?[32mINFO?[m] host-1 - [id: 0x8b14c273, L:/127.0.0.1:57854 - R:/127.0.0.1:44893] FLUSH
+07:27:46.627 [libp2p-nio-worker-3-2] [?[32mINFO?[m] host-2 - [id: 0x3aa4f24a, L:/127.0.0.1:44893 - R:/127.0.0.1:57854] FLUSH
+07:27:46.627 [libp2p-nio-worker-3-2] [?[32mINFO?[m] host-2 - [id: 0x3aa4f24a/16/true, L:Mux[/127.0.0.1:44893-f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/true] - R:Mux[/127.0.0.1:57854-f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/true]] WRITE: subscriptions {
+  subscribe: true
+  topicid: "topic-10"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-11"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-12"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-13"
+}
+
+07:27:46.627 [libp2p-nio-worker-3-2] [?[32mINFO?[m] host-2 - [id: 0x3aa4f24a/16/true, L:Mux[/127.0.0.1:44893-f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/true] - R:Mux[/127.0.0.1:57854-f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/true]] FLUSH
+07:27:46.628 [libp2p-nio-worker-3-1] [?[32mINFO?[m] host-1 - [id: 0x8b14c273/16/true, L:Mux[/127.0.0.1:57854-f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/true] - R:Mux[/127.0.0.1:44893-f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/true]] WRITE: subscriptions {
+  subscribe: true
+  topicid: "topic-5"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-6"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-7"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-8"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-9"
+}
+
+07:27:46.628 [libp2p-nio-worker-3-2] [?[32mINFO?[m] host-2 - [id: 0x3aa4f24a, L:/127.0.0.1:44893 - R:/127.0.0.1:57854] WRITE: MplexFrame(id=f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/true, flag=DATA(init), data=AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 57, cap: 256)), 57B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 38 0a 0c 08 01 12 08 74 6f 70 69 63 2d 31 30 0a |8......topic-10.|
+|00000010| 0c 08 01 12 08 74 6f 70 69 63 2d 31 31 0a 0c 08 |.....topic-11...|
+|00000020| 01 12 08 74 6f 70 69 63 2d 31 32 0a 0c 08 01 12 |...topic-12.....|
+|00000030| 08 74 6f 70 69 63 2d 31 33                      |.topic-13       |
++--------+-------------------------------------------------+----------------+
+07:27:46.628 [libp2p-nio-worker-3-2] [?[32mINFO?[m] host-2 - [id: 0x3aa4f24a, L:/127.0.0.1:44893 - R:/127.0.0.1:57854] FLUSH
+07:27:46.628 [libp2p-nio-worker-3-1] [?[32mINFO?[m] host-1 - [id: 0x8b14c273/16/true, L:Mux[/127.0.0.1:57854-f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/true] - R:Mux[/127.0.0.1:44893-f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/true]] FLUSH
+07:27:46.628 [libp2p-nio-worker-3-1] [?[32mINFO?[m] host-1 - [id: 0x8b14c273, L:/127.0.0.1:57854 - R:/127.0.0.1:44893] WRITE: MplexFrame(id=f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/true, flag=DATA(init), data=AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 66, cap: 256)), 66B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 41 0a 0b 08 01 12 07 74 6f 70 69 63 2d 35 0a 0b |A......topic-5..|
+|00000010| 08 01 12 07 74 6f 70 69 63 2d 36 0a 0b 08 01 12 |....topic-6.....|
+|00000020| 07 74 6f 70 69 63 2d 37 0a 0b 08 01 12 07 74 6f |.topic-7......to|
+|00000030| 70 69 63 2d 38 0a 0b 08 01 12 07 74 6f 70 69 63 |pic-8......topic|
+|00000040| 2d 39                                           |-9              |
++--------+-------------------------------------------------+----------------+
+07:27:46.628 [libp2p-nio-worker-3-1] [?[32mINFO?[m] host-1 - [id: 0x8b14c273, L:/127.0.0.1:57854 - R:/127.0.0.1:44893] FLUSH
+07:27:46.628 [libp2p-nio-worker-3-2] [?[32mINFO?[m] host-2 - [id: 0x3aa4f24a, L:/127.0.0.1:44893 - R:/127.0.0.1:57854] READ: MplexFrame(id=f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/false, flag=DATA(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 66, cap: 66/66, unwrapped: UnpooledHeapByteBuf(ridx: 0, widx: 85, cap: 85/85))), 66B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 41 0a 0b 08 01 12 07 74 6f 70 69 63 2d 30 0a 0b |A......topic-0..|
+|00000010| 08 01 12 07 74 6f 70 69 63 2d 31 0a 0b 08 01 12 |....topic-1.....|
+|00000020| 07 74 6f 70 69 63 2d 32 0a 0b 08 01 12 07 74 6f |.topic-2......to|
+|00000030| 70 69 63 2d 33 0a 0b 08 01 12 07 74 6f 70 69 63 |pic-3......topic|
+|00000040| 2d 34                                           |-4              |
++--------+-------------------------------------------------+----------------+
+07:27:46.629 [libp2p-nio-worker-3-1] [?[32mINFO?[m] host-1 - [id: 0x8b14c273/16/true, L:Mux[/127.0.0.1:57854-f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/true] - R:Mux[/127.0.0.1:44893-f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/true]] WRITE: subscriptions {
+  subscribe: true
+  topicid: "topic-10"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-11"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-12"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-13"
+}
+
+07:27:46.629 [libp2p-nio-worker-3-2] [?[32mINFO?[m] host-2 - [id: 0x3aa4f24a/16/false, L:Mux[/127.0.0.1:44893-f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/false] - R:Mux[/127.0.0.1:57854-f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/false]] READ: subscriptions {
+  subscribe: true
+  topicid: "topic-0"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-1"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-2"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-3"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-4"
+}
+
+07:27:46.629 [libp2p-nio-worker-3-2] [?[32mINFO?[m] host-2 - [id: 0x3aa4f24a, L:/127.0.0.1:44893 - R:/127.0.0.1:57854] READ COMPLETE
+07:27:46.629 [libp2p-nio-worker-3-1] [?[32mINFO?[m] host-1 - [id: 0x8b14c273/16/true, L:Mux[/127.0.0.1:57854-f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/true] - R:Mux[/127.0.0.1:44893-f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/true]] FLUSH
+07:27:46.629 [libp2p-nio-worker-3-2] [?[32mINFO?[m] host-2 - [id: 0x3aa4f24a/16/false, L:Mux[/127.0.0.1:44893-f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/false] - R:Mux[/127.0.0.1:57854-f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/false]] READ COMPLETE
+07:27:46.629 [libp2p-nio-worker-3-1] [?[32mINFO?[m] host-1 - [id: 0x8b14c273, L:/127.0.0.1:57854 - R:/127.0.0.1:44893] WRITE: MplexFrame(id=f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/true, flag=DATA(init), data=AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 57, cap: 256)), 57B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 38 0a 0c 08 01 12 08 74 6f 70 69 63 2d 31 30 0a |8......topic-10.|
+|00000010| 0c 08 01 12 08 74 6f 70 69 63 2d 31 31 0a 0c 08 |.....topic-11...|
+|00000020| 01 12 08 74 6f 70 69 63 2d 31 32 0a 0c 08 01 12 |...topic-12.....|
+|00000030| 08 74 6f 70 69 63 2d 31 33                      |.topic-13       |
++--------+-------------------------------------------------+----------------+
+07:27:46.629 [libp2p-nio-worker-3-2] [?[32mINFO?[m] host-2 - [id: 0x3aa4f24a, L:/127.0.0.1:44893 - R:/127.0.0.1:57854] READ: MplexFrame(id=f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/false, flag=DATA(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 66, cap: 66/66, unwrapped: UnpooledHeapByteBuf(ridx: 0, widx: 85, cap: 85/85))), 66B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 41 0a 0b 08 01 12 07 74 6f 70 69 63 2d 35 0a 0b |A......topic-5..|
+|00000010| 08 01 12 07 74 6f 70 69 63 2d 36 0a 0b 08 01 12 |....topic-6.....|
+|00000020| 07 74 6f 70 69 63 2d 37 0a 0b 08 01 12 07 74 6f |.topic-7......to|
+|00000030| 70 69 63 2d 38 0a 0b 08 01 12 07 74 6f 70 69 63 |pic-8......topic|
+|00000040| 2d 39                                           |-9              |
++--------+-------------------------------------------------+----------------+
+07:27:46.629 [libp2p-nio-worker-3-1] [?[32mINFO?[m] host-1 - [id: 0x8b14c273, L:/127.0.0.1:57854 - R:/127.0.0.1:44893] FLUSH
+07:27:46.629 [libp2p-nio-worker-3-1] [?[32mINFO?[m] host-1 - [id: 0x8b14c273, L:/127.0.0.1:57854 - R:/127.0.0.1:44893] READ: MplexFrame(id=f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/false, flag=DATA(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 66, cap: 66/66, unwrapped: UnpooledHeapByteBuf(ridx: 0, widx: 85, cap: 85/85))), 66B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 41 0a 0b 08 01 12 07 74 6f 70 69 63 2d 30 0a 0b |A......topic-0..|
+|00000010| 08 01 12 07 74 6f 70 69 63 2d 31 0a 0b 08 01 12 |....topic-1.....|
+|00000020| 07 74 6f 70 69 63 2d 32 0a 0b 08 01 12 07 74 6f |.topic-2......to|
+|00000030| 70 69 63 2d 33 0a 0b 08 01 12 07 74 6f 70 69 63 |pic-3......topic|
+|00000040| 2d 34                                           |-4              |
++--------+-------------------------------------------------+----------------+
+07:27:46.630 [libp2p-nio-worker-3-2] [?[32mINFO?[m] host-2 - [id: 0x3aa4f24a/16/false, L:Mux[/127.0.0.1:44893-f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/false] - R:Mux[/127.0.0.1:57854-f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/false]] READ: subscriptions {
+  subscribe: true
+  topicid: "topic-5"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-6"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-7"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-8"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-9"
+}
+
+07:27:46.630 [libp2p-nio-worker-3-2] [?[32mINFO?[m] host-2 - [id: 0x3aa4f24a, L:/127.0.0.1:44893 - R:/127.0.0.1:57854] READ COMPLETE
+07:27:46.630 [libp2p-nio-worker-3-2] [?[32mINFO?[m] host-2 - [id: 0x3aa4f24a/16/false, L:Mux[/127.0.0.1:44893-f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/false] - R:Mux[/127.0.0.1:57854-f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/false]] READ COMPLETE
+07:27:46.630 [libp2p-nio-worker-3-1] [?[32mINFO?[m] host-1 - [id: 0x8b14c273/16/false, L:Mux[/127.0.0.1:57854-f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/false] - R:Mux[/127.0.0.1:44893-f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/false]] READ: subscriptions {
+  subscribe: true
+  topicid: "topic-0"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-1"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-2"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-3"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-4"
+}
+
+07:27:46.630 [libp2p-nio-worker-3-2] [?[32mINFO?[m] host-2 - [id: 0x3aa4f24a, L:/127.0.0.1:44893 - R:/127.0.0.1:57854] READ: MplexFrame(id=f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/false, flag=DATA(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 57, cap: 57/57, unwrapped: UnpooledHeapByteBuf(ridx: 0, widx: 76, cap: 76/76))), 57B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 38 0a 0c 08 01 12 08 74 6f 70 69 63 2d 31 30 0a |8......topic-10.|
+|00000010| 0c 08 01 12 08 74 6f 70 69 63 2d 31 31 0a 0c 08 |.....topic-11...|
+|00000020| 01 12 08 74 6f 70 69 63 2d 31 32 0a 0c 08 01 12 |...topic-12.....|
+|00000030| 08 74 6f 70 69 63 2d 31 33                      |.topic-13       |
++--------+-------------------------------------------------+----------------+
+07:27:46.630 [libp2p-nio-worker-3-1] [?[32mINFO?[m] host-1 - [id: 0x8b14c273, L:/127.0.0.1:57854 - R:/127.0.0.1:44893] READ: MplexFrame(id=f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/false, flag=DATA(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 66, cap: 66/66, unwrapped: UnpooledHeapByteBuf(ridx: 0, widx: 85, cap: 85/85))), 66B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 41 0a 0b 08 01 12 07 74 6f 70 69 63 2d 35 0a 0b |A......topic-5..|
+|00000010| 08 01 12 07 74 6f 70 69 63 2d 36 0a 0b 08 01 12 |....topic-6.....|
+|00000020| 07 74 6f 70 69 63 2d 37 0a 0b 08 01 12 07 74 6f |.topic-7......to|
+|00000030| 70 69 63 2d 38 0a 0b 08 01 12 07 74 6f 70 69 63 |pic-8......topic|
+|00000040| 2d 39                                           |-9              |
++--------+-------------------------------------------------+----------------+
+07:27:46.631 [libp2p-nio-worker-3-2] [?[32mINFO?[m] host-2 - [id: 0x3aa4f24a/16/false, L:Mux[/127.0.0.1:44893-f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/false] - R:Mux[/127.0.0.1:57854-f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/false]] READ: subscriptions {
+  subscribe: true
+  topicid: "topic-10"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-11"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-12"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-13"
+}
+
+07:27:46.631 [libp2p-nio-worker-3-2] [?[32mINFO?[m] host-2 - [id: 0x3aa4f24a, L:/127.0.0.1:44893 - R:/127.0.0.1:57854] READ COMPLETE
+07:27:46.631 [libp2p-nio-worker-3-1] [?[32mINFO?[m] host-1 - [id: 0x8b14c273/16/false, L:Mux[/127.0.0.1:57854-f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/false] - R:Mux[/127.0.0.1:44893-f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/false]] READ: subscriptions {
+  subscribe: true
+  topicid: "topic-5"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-6"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-7"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-8"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-9"
+}
+
+07:27:46.631 [libp2p-nio-worker-3-2] [?[32mINFO?[m] host-2 - [id: 0x3aa4f24a/16/false, L:Mux[/127.0.0.1:44893-f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/false] - R:Mux[/127.0.0.1:57854-f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/false]] READ COMPLETE
+07:27:46.631 [libp2p-nio-worker-3-1] [?[32mINFO?[m] host-1 - [id: 0x8b14c273, L:/127.0.0.1:57854 - R:/127.0.0.1:44893] READ: MplexFrame(id=f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/false, flag=DATA(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 57, cap: 57/57, unwrapped: UnpooledHeapByteBuf(ridx: 0, widx: 76, cap: 76/76))), 57B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 38 0a 0c 08 01 12 08 74 6f 70 69 63 2d 31 30 0a |8......topic-10.|
+|00000010| 0c 08 01 12 08 74 6f 70 69 63 2d 31 31 0a 0c 08 |.....topic-11...|
+|00000020| 01 12 08 74 6f 70 69 63 2d 31 32 0a 0c 08 01 12 |...topic-12.....|
+|00000030| 08 74 6f 70 69 63 2d 31 33                      |.topic-13       |
++--------+-------------------------------------------------+----------------+
+07:27:46.632 [libp2p-nio-worker-3-1] [?[32mINFO?[m] host-1 - [id: 0x8b14c273/16/false, L:Mux[/127.0.0.1:57854-f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/false] - R:Mux[/127.0.0.1:44893-f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/false]] READ: subscriptions {
+  subscribe: true
+  topicid: "topic-10"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-11"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-12"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-13"
+}
+
+07:27:46.632 [libp2p-nio-worker-3-1] [?[32mINFO?[m] host-1 - [id: 0x8b14c273, L:/127.0.0.1:57854 - R:/127.0.0.1:44893] READ COMPLETE
+07:27:46.632 [libp2p-nio-worker-3-1] [?[32mINFO?[m] host-1 - [id: 0x8b14c273/16/false, L:Mux[/127.0.0.1:57854-f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/false] - R:Mux[/127.0.0.1:44893-f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/false]] READ COMPLETE
+07:27:46.729 [libp2p-nio-worker-3-1] [?[32mINFO?[m] host-1 - [id: 0x8b14c273, L:/127.0.0.1:57854 - R:/127.0.0.1:44893] CLOSE
+07:27:46.730 [libp2p-nio-worker-3-2] [?[32mINFO?[m] host-2 - [id: 0x3aa4f24a, L:/127.0.0.1:44893 - R:/127.0.0.1:57854] READ COMPLETE
+07:27:46.730 [libp2p-nio-worker-3-1] [?[32mINFO?[m] host-1 - [id: 0x8b14c273/16/true, L:Mux[/127.0.0.1:57854-f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/true] - R:Mux[/127.0.0.1:44893-f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/true]] CLOSE
+07:27:46.730 [libp2p-nio-worker-3-1] [?[32mINFO?[m] host-1 - [id: 0x8b14c273/16/true, L:Mux[/127.0.0.1:57854-f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/true] - R:Mux[/127.0.0.1:44893-f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/true]] INACTIVE
+07:27:46.730 [libp2p-nio-worker-3-1] [?[32mINFO?[m] host-1 - [id: 0x8b14c273/16/true, L:Mux[/127.0.0.1:57854-f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/true] ! R:Mux[/127.0.0.1:44893-f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/true]] UNREGISTERED
+07:27:46.730 [libp2p-nio-worker-3-2] [?[32mINFO?[m] host-2 - [id: 0x3aa4f24a/16/true, L:Mux[/127.0.0.1:44893-f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/true] - R:Mux[/127.0.0.1:57854-f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/true]] CLOSE
+07:27:46.730 [libp2p-nio-worker-3-1] [?[32mINFO?[m] host-1 - [id: 0x8b14c273/16/false, L:Mux[/127.0.0.1:57854-f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/false] - R:Mux[/127.0.0.1:44893-f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/false]] CLOSE
+07:27:46.730 [libp2p-nio-worker-3-2] [?[32mINFO?[m] host-2 - [id: 0x3aa4f24a/16/true, L:Mux[/127.0.0.1:44893-f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/true] - R:Mux[/127.0.0.1:57854-f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/true]] INACTIVE
+07:27:46.730 [libp2p-nio-worker-3-1] [?[32mINFO?[m] host-1 - [id: 0x8b14c273/16/false, L:Mux[/127.0.0.1:57854-f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/false] - R:Mux[/127.0.0.1:44893-f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/false]] INACTIVE
+07:27:46.730 [libp2p-nio-worker-3-2] [?[32mINFO?[m] host-2 - [id: 0x3aa4f24a/16/true, L:Mux[/127.0.0.1:44893-f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/true] ! R:Mux[/127.0.0.1:57854-f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/true]] UNREGISTERED
+07:27:46.730 [libp2p-nio-worker-3-1] [?[32mINFO?[m] host-1 - [id: 0x8b14c273/16/false, L:Mux[/127.0.0.1:57854-f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/false] ! R:Mux[/127.0.0.1:44893-f2606afffeabbf7d-00356b6c-0000001d-739041024b487b47-8b14c273/16/false]] UNREGISTERED
+07:27:46.730 [libp2p-nio-worker-3-2] [?[32mINFO?[m] host-2 - [id: 0x3aa4f24a/16/false, L:Mux[/127.0.0.1:44893-f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/false] - R:Mux[/127.0.0.1:57854-f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/false]] CLOSE
+07:27:46.730 [libp2p-nio-worker-3-2] [?[32mINFO?[m] host-2 - [id: 0x3aa4f24a/16/false, L:Mux[/127.0.0.1:44893-f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/false] - R:Mux[/127.0.0.1:57854-f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/false]] INACTIVE
+07:27:46.730 [libp2p-nio-worker-3-2] [?[32mINFO?[m] host-2 - [id: 0x3aa4f24a/16/false, L:Mux[/127.0.0.1:44893-f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/false] ! R:Mux[/127.0.0.1:57854-f2606afffeabbf7d-00356b6c-0000001e-432389024b487b48-3aa4f24a/16/false]] UNREGISTERED
+07:27:46.730 [libp2p-nio-worker-3-1] [?[32mINFO?[m] host-1 - [id: 0x8b14c273, L:/127.0.0.1:57854 ! R:/127.0.0.1:44893] INACTIVE
+07:27:46.730 [libp2p-nio-worker-3-1] [?[32mINFO?[m] host-1 - [id: 0x8b14c273, L:/127.0.0.1:57854 ! R:/127.0.0.1:44893] UNREGISTERED
+07:27:46.730 [libp2p-nio-worker-3-2] [?[32mINFO?[m] host-2 - [id: 0x3aa4f24a, L:/127.0.0.1:44893 ! R:/127.0.0.1:57854] INACTIVE
+07:27:46.730 [libp2p-nio-worker-3-2] [?[32mINFO?[m] host-2 - [id: 0x3aa4f24a, L:/127.0.0.1:44893 ! R:/127.0.0.1:57854] UNREGISTERED
+Client Host stopped
+Server Host stopped
+Client started
+Server started
+07:27:46.759 [libp2p-nio-worker-3-4] [?[32mINFO?[m] host-2 - [id: 0xc464a028, L:/127.0.0.1:43411 - R:/127.0.0.1:55346] USER_EVENT: ProtocolNegotiationSucceeded(proto=/mplex/6.7.0)
+07:27:46.759 [libp2p-nio-worker-3-3] [?[32mINFO?[m] host-1 - [id: 0x7d5be310, L:/127.0.0.1:55346 - R:/127.0.0.1:43411] USER_EVENT: ProtocolNegotiationSucceeded(proto=/mplex/6.7.0)
+07:27:46.759 [libp2p-nio-worker-3-4] [?[32mINFO?[m] host-2 - [id: 0xc464a028, L:/127.0.0.1:43411 - R:/127.0.0.1:55346] ACTIVE
+07:27:46.759 [libp2p-nio-worker-3-3] [?[32mINFO?[m] host-1 - [id: 0x7d5be310, L:/127.0.0.1:55346 - R:/127.0.0.1:43411] ACTIVE
+07:27:46.759 [libp2p-nio-worker-3-4] [?[32mINFO?[m] host-2 - [id: 0xc464a028, L:/127.0.0.1:43411 - R:/127.0.0.1:55346] READ COMPLETE
+07:27:46.759 [libp2p-nio-worker-3-3] [?[32mINFO?[m] host-1 - [id: 0x7d5be310, L:/127.0.0.1:55346 - R:/127.0.0.1:43411] READ COMPLETE
+07:27:46.759 [libp2p-nio-worker-3-4] [?[32mINFO?[m] host-2 - [id: 0xc464a028, L:/127.0.0.1:43411 - R:/127.0.0.1:55346] WRITE, MplexFrame(id=f2606afffeabbf7d-00356b6c-00000022-a9685f6a4b487c3a-c464a028/16/true, flag=OPEN(init), data=EmptyByteBufBE), 0B
+07:27:46.759 [libp2p-nio-worker-3-4] [?[32mINFO?[m] host-2 - [id: 0xc464a028, L:/127.0.0.1:43411 - R:/127.0.0.1:55346] FLUSH
+07:27:46.759 [libp2p-nio-worker-3-3] [?[32mINFO?[m] host-1 - [id: 0x7d5be310, L:/127.0.0.1:55346 - R:/127.0.0.1:43411] WRITE, MplexFrame(id=f2606afffeabbf7d-00356b6c-00000021-a4dd576a4b487c39-7d5be310/16/true, flag=OPEN(init), data=EmptyByteBufBE), 0B
+07:27:46.760 [libp2p-nio-worker-3-3] [?[32mINFO?[m] host-1 - [id: 0x7d5be310, L:/127.0.0.1:55346 - R:/127.0.0.1:43411] FLUSH
+07:27:46.760 [libp2p-nio-worker-3-4] [?[32mINFO?[m] host-2 - [id: 0xc464a028, L:/127.0.0.1:43411 - R:/127.0.0.1:55346] WRITE: MplexFrame(id=f2606afffeabbf7d-00356b6c-00000022-a9685f6a4b487c3a-c464a028/16/true, flag=DATA(init), data=AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 20, cap: 256)), 20B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 13 2f 6d 75 6c 74 69 73 74 72 65 61 6d 2f 31 2e |./multistream/1.|
+|00000010| 30 2e 30 0a                                     |0.0.            |
++--------+-------------------------------------------------+----------------+
+07:27:46.760 [libp2p-nio-worker-3-3] [?[32mINFO?[m] host-1 - [id: 0x7d5be310, L:/127.0.0.1:55346 - R:/127.0.0.1:43411] WRITE: MplexFrame(id=f2606afffeabbf7d-00356b6c-00000021-a4dd576a4b487c39-7d5be310/16/true, flag=DATA(init), data=AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 20, cap: 256)), 20B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 13 2f 6d 75 6c 74 69 73 74 72 65 61 6d 2f 31 2e |./multistream/1.|
+|00000010| 30 2e 30 0a                                     |0.0.            |
++--------+-------------------------------------------------+----------------+
+07:27:46.760 [libp2p-nio-worker-3-4] [?[32mINFO?[m] host-2 - [id: 0xc464a028, L:/127.0.0.1:43411 - R:/127.0.0.1:55346] FLUSH
+07:27:46.760 [libp2p-nio-worker-3-3] [?[32mINFO?[m] host-1 - [id: 0x7d5be310, L:/127.0.0.1:55346 - R:/127.0.0.1:43411] FLUSH
+07:27:46.760 [libp2p-nio-worker-3-4] [?[32mINFO?[m] host-2 - [id: 0xc464a028, L:/127.0.0.1:43411 - R:/127.0.0.1:55346] WRITE: MplexFrame(id=f2606afffeabbf7d-00356b6c-00000022-a9685f6a4b487c3a-c464a028/16/true, flag=DATA(init), data=AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 16, cap: 256)), 16B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 0f 2f 6d 65 73 68 73 75 62 2f 31 2e 32 2e 30 0a |./meshsub/1.2.0.|
++--------+-------------------------------------------------+----------------+
+07:27:46.760 [libp2p-nio-worker-3-3] [?[32mINFO?[m] host-1 - [id: 0x7d5be310, L:/127.0.0.1:55346 - R:/127.0.0.1:43411] WRITE: MplexFrame(id=f2606afffeabbf7d-00356b6c-00000021-a4dd576a4b487c39-7d5be310/16/true, flag=DATA(init), data=AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 16, cap: 256)), 16B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 0f 2f 6d 65 73 68 73 75 62 2f 31 2e 32 2e 30 0a |./meshsub/1.2.0.|
++--------+-------------------------------------------------+----------------+
+07:27:46.760 [libp2p-nio-worker-3-4] [?[32mINFO?[m] host-2 - [id: 0xc464a028, L:/127.0.0.1:43411 - R:/127.0.0.1:55346] FLUSH
+07:27:46.761 [libp2p-nio-worker-3-3] [?[32mINFO?[m] host-1 - [id: 0x7d5be310, L:/127.0.0.1:55346 - R:/127.0.0.1:43411] FLUSH
+07:27:46.761 [libp2p-nio-worker-3-4] [?[32mINFO?[m] host-2 - [id: 0xc464a028, L:/127.0.0.1:43411 - R:/127.0.0.1:55346] READ, MplexFrame(id=f2606afffeabbf7d-00356b6c-00000022-a9685f6a4b487c3a-c464a028/16/false, flag=OPEN(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 0, cap: 0/0, unwrapped: UnpooledHeapByteBuf(ridx: 0, widx: 19, cap: 19/19))), 0B
+07:27:46.761 [libp2p-nio-worker-3-3] [?[32mINFO?[m] host-1 - [id: 0x7d5be310, L:/127.0.0.1:55346 - R:/127.0.0.1:43411] READ, MplexFrame(id=f2606afffeabbf7d-00356b6c-00000021-a4dd576a4b487c39-7d5be310/16/false, flag=OPEN(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 0, cap: 0/0, unwrapped: UnpooledHeapByteBuf(ridx: 0, widx: 19, cap: 19/19))), 0B
+07:27:46.761 [libp2p-nio-worker-3-3] [?[32mINFO?[m] host-1 - [id: 0x7d5be310, L:/127.0.0.1:55346 - R:/127.0.0.1:43411] WRITE: MplexFrame(id=f2606afffeabbf7d-00356b6c-00000021-a4dd576a4b487c39-7d5be310/16/false, flag=DATA(resp), data=AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 20, cap: 256)), 20B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 13 2f 6d 75 6c 74 69 73 74 72 65 61 6d 2f 31 2e |./multistream/1.|
+|00000010| 30 2e 30 0a                                     |0.0.            |
++--------+-------------------------------------------------+----------------+
+07:27:46.761 [libp2p-nio-worker-3-4] [?[32mINFO?[m] host-2 - [id: 0xc464a028, L:/127.0.0.1:43411 - R:/127.0.0.1:55346] WRITE: MplexFrame(id=f2606afffeabbf7d-00356b6c-00000022-a9685f6a4b487c3a-c464a028/16/false, flag=DATA(resp), data=AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 20, cap: 256)), 20B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 13 2f 6d 75 6c 74 69 73 74 72 65 61 6d 2f 31 2e |./multistream/1.|
+|00000010| 30 2e 30 0a                                     |0.0.            |
++--------+-------------------------------------------------+----------------+
+07:27:46.761 [libp2p-nio-worker-3-3] [?[32mINFO?[m] host-1 - [id: 0x7d5be310, L:/127.0.0.1:55346 - R:/127.0.0.1:43411] FLUSH
+07:27:46.761 [libp2p-nio-worker-3-4] [?[32mINFO?[m] host-2 - [id: 0xc464a028, L:/127.0.0.1:43411 - R:/127.0.0.1:55346] FLUSH
+07:27:46.762 [libp2p-nio-worker-3-3] [?[32mINFO?[m] host-1 - [id: 0x7d5be310, L:/127.0.0.1:55346 - R:/127.0.0.1:43411] READ: MplexFrame(id=f2606afffeabbf7d-00356b6c-00000021-a4dd576a4b487c39-7d5be310/16/false, flag=DATA(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 20, cap: 20/20, unwrapped: UnpooledHeapByteBuf(ridx: 0, widx: 39, cap: 39/39))), 20B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 13 2f 6d 75 6c 74 69 73 74 72 65 61 6d 2f 31 2e |./multistream/1.|
+|00000010| 30 2e 30 0a                                     |0.0.            |
++--------+-------------------------------------------------+----------------+
+07:27:46.762 [libp2p-nio-worker-3-4] [?[32mINFO?[m] host-2 - [id: 0xc464a028, L:/127.0.0.1:43411 - R:/127.0.0.1:55346] READ: MplexFrame(id=f2606afffeabbf7d-00356b6c-00000022-a9685f6a4b487c3a-c464a028/16/false, flag=DATA(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 20, cap: 20/20, unwrapped: UnpooledHeapByteBuf(ridx: 0, widx: 39, cap: 39/39))), 20B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 13 2f 6d 75 6c 74 69 73 74 72 65 61 6d 2f 31 2e |./multistream/1.|
+|00000010| 30 2e 30 0a                                     |0.0.            |
++--------+-------------------------------------------------+----------------+
+07:27:46.762 [libp2p-nio-worker-3-4] [?[32mINFO?[m] host-2 - [id: 0xc464a028, L:/127.0.0.1:43411 - R:/127.0.0.1:55346] READ COMPLETE
+07:27:46.762 [libp2p-nio-worker-3-3] [?[32mINFO?[m] host-1 - [id: 0x7d5be310, L:/127.0.0.1:55346 - R:/127.0.0.1:43411] READ: MplexFrame(id=f2606afffeabbf7d-00356b6c-00000021-a4dd576a4b487c39-7d5be310/16/false, flag=DATA(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 16, cap: 16/16, unwrapped: UnpooledHeapByteBuf(ridx: 0, widx: 35, cap: 35/35))), 16B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 0f 2f 6d 65 73 68 73 75 62 2f 31 2e 32 2e 30 0a |./meshsub/1.2.0.|
++--------+-------------------------------------------------+----------------+
+07:27:46.762 [libp2p-nio-worker-3-4] [?[32mINFO?[m] host-2 - [id: 0xc464a028, L:/127.0.0.1:43411 - R:/127.0.0.1:55346] READ: MplexFrame(id=f2606afffeabbf7d-00356b6c-00000022-a9685f6a4b487c3a-c464a028/16/false, flag=DATA(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 16, cap: 16/16, unwrapped: UnpooledHeapByteBuf(ridx: 0, widx: 35, cap: 35/35))), 16B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 0f 2f 6d 65 73 68 73 75 62 2f 31 2e 32 2e 30 0a |./meshsub/1.2.0.|
++--------+-------------------------------------------------+----------------+
+07:27:46.762 [libp2p-nio-worker-3-3] [?[32mINFO?[m] host-1 - [id: 0x7d5be310, L:/127.0.0.1:55346 - R:/127.0.0.1:43411] WRITE: MplexFrame(id=f2606afffeabbf7d-00356b6c-00000021-a4dd576a4b487c39-7d5be310/16/false, flag=DATA(resp), data=AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 16, cap: 256)), 16B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 0f 2f 6d 65 73 68 73 75 62 2f 31 2e 32 2e 30 0a |./meshsub/1.2.0.|
++--------+-------------------------------------------------+----------------+
+07:27:46.762 [libp2p-nio-worker-3-3] [?[32mINFO?[m] host-1 - [id: 0x7d5be310, L:/127.0.0.1:55346 - R:/127.0.0.1:43411] FLUSH
+07:27:46.762 [libp2p-nio-worker-3-4] [?[32mINFO?[m] host-2 - [id: 0xc464a028, L:/127.0.0.1:43411 - R:/127.0.0.1:55346] WRITE: MplexFrame(id=f2606afffeabbf7d-00356b6c-00000022-a9685f6a4b487c3a-c464a028/16/false, flag=DATA(resp), data=AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 16, cap: 256)), 16B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 0f 2f 6d 65 73 68 73 75 62 2f 31 2e 32 2e 30 0a |./meshsub/1.2.0.|
++--------+-------------------------------------------------+----------------+
+07:27:46.762 [libp2p-nio-worker-3-4] [?[32mINFO?[m] host-2 - [id: 0xc464a028, L:/127.0.0.1:43411 - R:/127.0.0.1:55346] FLUSH
+07:27:46.763 [libp2p-nio-worker-3-3] [?[32mINFO?[m] host-1 - [id: 0x7d5be310/16/false, L:Mux[/127.0.0.1:55346-f2606afffeabbf7d-00356b6c-00000021-a4dd576a4b487c39-7d5be310/16/false] - R:Mux[/127.0.0.1:43411-f2606afffeabbf7d-00356b6c-00000021-a4dd576a4b487c39-7d5be310/16/false]] USER_EVENT: ProtocolNegotiationSucceeded(proto=/meshsub/1.2.0)
+07:27:46.763 [libp2p-nio-worker-3-3] [?[32mINFO?[m] host-1 - [id: 0x7d5be310/16/false, L:Mux[/127.0.0.1:55346-f2606afffeabbf7d-00356b6c-00000021-a4dd576a4b487c39-7d5be310/16/false] - R:Mux[/127.0.0.1:43411-f2606afffeabbf7d-00356b6c-00000021-a4dd576a4b487c39-7d5be310/16/false]] ACTIVE
+07:27:46.763 [libp2p-nio-worker-3-3] [?[32mINFO?[m] host-1 - [id: 0x7d5be310, L:/127.0.0.1:55346 - R:/127.0.0.1:43411] READ COMPLETE
+07:27:46.763 [libp2p-nio-worker-3-3] [?[32mINFO?[m] host-1 - [id: 0x7d5be310/16/false, L:Mux[/127.0.0.1:55346-f2606afffeabbf7d-00356b6c-00000021-a4dd576a4b487c39-7d5be310/16/false] - R:Mux[/127.0.0.1:43411-f2606afffeabbf7d-00356b6c-00000021-a4dd576a4b487c39-7d5be310/16/false]] READ COMPLETE
+07:27:46.763 [libp2p-nio-worker-3-4] [?[32mINFO?[m] host-2 - [id: 0xc464a028/16/false, L:Mux[/127.0.0.1:43411-f2606afffeabbf7d-00356b6c-00000022-a9685f6a4b487c3a-c464a028/16/false] - R:Mux[/127.0.0.1:55346-f2606afffeabbf7d-00356b6c-00000022-a9685f6a4b487c3a-c464a028/16/false]] USER_EVENT: ProtocolNegotiationSucceeded(proto=/meshsub/1.2.0)
+07:27:46.763 [libp2p-nio-worker-3-3] [?[32mINFO?[m] host-1 - [id: 0x7d5be310, L:/127.0.0.1:55346 - R:/127.0.0.1:43411] READ: MplexFrame(id=f2606afffeabbf7d-00356b6c-00000021-a4dd576a4b487c39-7d5be310/16/true, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 20, cap: 20/20, unwrapped: UnpooledHeapByteBuf(ridx: 0, widx: 39, cap: 39/39))), 20B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 13 2f 6d 75 6c 74 69 73 74 72 65 61 6d 2f 31 2e |./multistream/1.|
+|00000010| 30 2e 30 0a                                     |0.0.            |
++--------+-------------------------------------------------+----------------+
+07:27:46.763 [libp2p-nio-worker-3-4] [?[32mINFO?[m] host-2 - [id: 0xc464a028/16/false, L:Mux[/127.0.0.1:43411-f2606afffeabbf7d-00356b6c-00000022-a9685f6a4b487c3a-c464a028/16/false] - R:Mux[/127.0.0.1:55346-f2606afffeabbf7d-00356b6c-00000022-a9685f6a4b487c3a-c464a028/16/false]] ACTIVE
+07:27:46.763 [libp2p-nio-worker-3-3] [?[32mINFO?[m] host-1 - [id: 0x7d5be310, L:/127.0.0.1:55346 - R:/127.0.0.1:43411] READ: MplexFrame(id=f2606afffeabbf7d-00356b6c-00000021-a4dd576a4b487c39-7d5be310/16/true, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 16, cap: 16/16, unwrapped: UnpooledHeapByteBuf(ridx: 0, widx: 35, cap: 35/35))), 16B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 0f 2f 6d 65 73 68 73 75 62 2f 31 2e 32 2e 30 0a |./meshsub/1.2.0.|
++--------+-------------------------------------------------+----------------+
+07:27:46.763 [libp2p-nio-worker-3-4] [?[32mINFO?[m] host-2 - [id: 0xc464a028, L:/127.0.0.1:43411 - R:/127.0.0.1:55346] READ: MplexFrame(id=f2606afffeabbf7d-00356b6c-00000022-a9685f6a4b487c3a-c464a028/16/true, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 20, cap: 20/20, unwrapped: UnpooledHeapByteBuf(ridx: 0, widx: 39, cap: 39/39))), 20B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 13 2f 6d 75 6c 74 69 73 74 72 65 61 6d 2f 31 2e |./multistream/1.|
+|00000010| 30 2e 30 0a                                     |0.0.            |
++--------+-------------------------------------------------+----------------+
+07:27:46.763 [libp2p-nio-worker-3-4] [?[32mINFO?[m] host-2 - [id: 0xc464a028, L:/127.0.0.1:43411 - R:/127.0.0.1:55346] READ COMPLETE
+07:27:46.763 [libp2p-nio-worker-3-4] [?[32mINFO?[m] host-2 - [id: 0xc464a028/16/false, L:Mux[/127.0.0.1:43411-f2606afffeabbf7d-00356b6c-00000022-a9685f6a4b487c3a-c464a028/16/false] - R:Mux[/127.0.0.1:55346-f2606afffeabbf7d-00356b6c-00000022-a9685f6a4b487c3a-c464a028/16/false]] READ COMPLETE
+07:27:46.763 [libp2p-nio-worker-3-3] [?[32mINFO?[m] host-1 - [id: 0x7d5be310/16/true, L:Mux[/127.0.0.1:55346-f2606afffeabbf7d-00356b6c-00000021-a4dd576a4b487c39-7d5be310/16/true] - R:Mux[/127.0.0.1:43411-f2606afffeabbf7d-00356b6c-00000021-a4dd576a4b487c39-7d5be310/16/true]] USER_EVENT: ProtocolNegotiationSucceeded(proto=/meshsub/1.2.0)
+07:27:46.763 [libp2p-nio-worker-3-3] [?[32mINFO?[m] host-1 - [id: 0x7d5be310/16/true, L:Mux[/127.0.0.1:55346-f2606afffeabbf7d-00356b6c-00000021-a4dd576a4b487c39-7d5be310/16/true] - R:Mux[/127.0.0.1:43411-f2606afffeabbf7d-00356b6c-00000021-a4dd576a4b487c39-7d5be310/16/true]] ACTIVE
+07:27:46.763 [libp2p-nio-worker-3-3] [?[32mINFO?[m] host-1 - [id: 0x7d5be310, L:/127.0.0.1:55346 - R:/127.0.0.1:43411] READ COMPLETE
+07:27:46.763 [libp2p-nio-worker-3-3] [?[32mINFO?[m] host-1 - [id: 0x7d5be310/16/true, L:Mux[/127.0.0.1:55346-f2606afffeabbf7d-00356b6c-00000021-a4dd576a4b487c39-7d5be310/16/true] - R:Mux[/127.0.0.1:43411-f2606afffeabbf7d-00356b6c-00000021-a4dd576a4b487c39-7d5be310/16/true]] READ COMPLETE
+07:27:46.763 [libp2p-nio-worker-3-4] [?[32mINFO?[m] host-2 - [id: 0xc464a028, L:/127.0.0.1:43411 - R:/127.0.0.1:55346] READ: MplexFrame(id=f2606afffeabbf7d-00356b6c-00000022-a9685f6a4b487c3a-c464a028/16/true, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 16, cap: 16/16, unwrapped: UnpooledHeapByteBuf(ridx: 0, widx: 35, cap: 35/35))), 16B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 0f 2f 6d 65 73 68 73 75 62 2f 31 2e 32 2e 30 0a |./meshsub/1.2.0.|
++--------+-------------------------------------------------+----------------+
+07:27:46.764 [libp2p-nio-worker-3-4] [?[32mINFO?[m] host-2 - [id: 0xc464a028/16/true, L:Mux[/127.0.0.1:43411-f2606afffeabbf7d-00356b6c-00000022-a9685f6a4b487c3a-c464a028/16/true] - R:Mux[/127.0.0.1:55346-f2606afffeabbf7d-00356b6c-00000022-a9685f6a4b487c3a-c464a028/16/true]] USER_EVENT: ProtocolNegotiationSucceeded(proto=/meshsub/1.2.0)
+07:27:46.764 [libp2p-nio-worker-3-4] [?[32mINFO?[m] host-2 - [id: 0xc464a028/16/true, L:Mux[/127.0.0.1:43411-f2606afffeabbf7d-00356b6c-00000022-a9685f6a4b487c3a-c464a028/16/true] - R:Mux[/127.0.0.1:55346-f2606afffeabbf7d-00356b6c-00000022-a9685f6a4b487c3a-c464a028/16/true]] ACTIVE
+07:27:46.764 [libp2p-nio-worker-3-4] [?[32mINFO?[m] host-2 - [id: 0xc464a028, L:/127.0.0.1:43411 - R:/127.0.0.1:55346] READ COMPLETE
+07:27:46.764 [libp2p-nio-worker-3-4] [?[32mINFO?[m] host-2 - [id: 0xc464a028/16/true, L:Mux[/127.0.0.1:43411-f2606afffeabbf7d-00356b6c-00000022-a9685f6a4b487c3a-c464a028/16/true] - R:Mux[/127.0.0.1:55346-f2606afffeabbf7d-00356b6c-00000022-a9685f6a4b487c3a-c464a028/16/true]] READ COMPLETE
+07:27:46.764 [libp2p-nio-worker-3-4] [?[32mINFO?[m] host-2 - [id: 0xc464a028/16/true, L:Mux[/127.0.0.1:43411-f2606afffeabbf7d-00356b6c-00000022-a9685f6a4b487c3a-c464a028/16/true] - R:Mux[/127.0.0.1:55346-f2606afffeabbf7d-00356b6c-00000022-a9685f6a4b487c3a-c464a028/16/true]] WRITE: subscriptions {
+  subscribe: true
+  topicid: "topic-0"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-1"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-2"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-3"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-4"
+}
+
+07:27:46.765 [libp2p-nio-worker-3-4] [?[32mINFO?[m] host-2 - [id: 0xc464a028/16/true, L:Mux[/127.0.0.1:43411-f2606afffeabbf7d-00356b6c-00000022-a9685f6a4b487c3a-c464a028/16/true] - R:Mux[/127.0.0.1:55346-f2606afffeabbf7d-00356b6c-00000022-a9685f6a4b487c3a-c464a028/16/true]] FLUSH
+07:27:46.765 [libp2p-nio-worker-3-3] [?[32mINFO?[m] host-1 - [id: 0x7d5be310/16/true, L:Mux[/127.0.0.1:55346-f2606afffeabbf7d-00356b6c-00000021-a4dd576a4b487c39-7d5be310/16/true] - R:Mux[/127.0.0.1:43411-f2606afffeabbf7d-00356b6c-00000021-a4dd576a4b487c39-7d5be310/16/true]] WRITE: subscriptions {
+  subscribe: true
+  topicid: "topic-0"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-1"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-2"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-3"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-4"
+}
+
+07:27:46.765 [libp2p-nio-worker-3-4] [?[32mINFO?[m] host-2 - [id: 0xc464a028, L:/127.0.0.1:43411 - R:/127.0.0.1:55346] WRITE: MplexFrame(id=f2606afffeabbf7d-00356b6c-00000022-a9685f6a4b487c3a-c464a028/16/true, flag=DATA(init), data=AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 66, cap: 256)), 66B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 41 0a 0b 08 01 12 07 74 6f 70 69 63 2d 30 0a 0b |A......topic-0..|
+|00000010| 08 01 12 07 74 6f 70 69 63 2d 31 0a 0b 08 01 12 |....topic-1.....|
+|00000020| 07 74 6f 70 69 63 2d 32 0a 0b 08 01 12 07 74 6f |.topic-2......to|
+|00000030| 70 69 63 2d 33 0a 0b 08 01 12 07 74 6f 70 69 63 |pic-3......topic|
+|00000040| 2d 34                                           |-4              |
++--------+-------------------------------------------------+----------------+
+07:27:46.765 [libp2p-nio-worker-3-3] [?[32mINFO?[m] host-1 - [id: 0x7d5be310/16/true, L:Mux[/127.0.0.1:55346-f2606afffeabbf7d-00356b6c-00000021-a4dd576a4b487c39-7d5be310/16/true] - R:Mux[/127.0.0.1:43411-f2606afffeabbf7d-00356b6c-00000021-a4dd576a4b487c39-7d5be310/16/true]] FLUSH
+07:27:46.765 [libp2p-nio-worker-3-4] [?[32mINFO?[m] host-2 - [id: 0xc464a028, L:/127.0.0.1:43411 - R:/127.0.0.1:55346] FLUSH
+07:27:46.765 [libp2p-nio-worker-3-3] [?[32mINFO?[m] host-1 - [id: 0x7d5be310, L:/127.0.0.1:55346 - R:/127.0.0.1:43411] WRITE: MplexFrame(id=f2606afffeabbf7d-00356b6c-00000021-a4dd576a4b487c39-7d5be310/16/true, flag=DATA(init), data=AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 66, cap: 256)), 66B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 41 0a 0b 08 01 12 07 74 6f 70 69 63 2d 30 0a 0b |A......topic-0..|
+|00000010| 08 01 12 07 74 6f 70 69 63 2d 31 0a 0b 08 01 12 |....topic-1.....|
+|00000020| 07 74 6f 70 69 63 2d 32 0a 0b 08 01 12 07 74 6f |.topic-2......to|
+|00000030| 70 69 63 2d 33 0a 0b 08 01 12 07 74 6f 70 69 63 |pic-3......topic|
+|00000040| 2d 34                                           |-4              |
++--------+-------------------------------------------------+----------------+
+07:27:46.765 [libp2p-nio-worker-3-3] [?[32mINFO?[m] host-1 - [id: 0x7d5be310, L:/127.0.0.1:55346 - R:/127.0.0.1:43411] FLUSH
+07:27:46.765 [libp2p-nio-worker-3-4] [?[32mINFO?[m] host-2 - [id: 0xc464a028/16/true, L:Mux[/127.0.0.1:43411-f2606afffeabbf7d-00356b6c-00000022-a9685f6a4b487c3a-c464a028/16/true] - R:Mux[/127.0.0.1:55346-f2606afffeabbf7d-00356b6c-00000022-a9685f6a4b487c3a-c464a028/16/true]] WRITE: subscriptions {
+  subscribe: true
+  topicid: "topic-5"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-6"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-7"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-8"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-9"
+}
+
+07:27:46.765 [libp2p-nio-worker-3-4] [?[32mINFO?[m] host-2 - [id: 0xc464a028/16/true, L:Mux[/127.0.0.1:43411-f2606afffeabbf7d-00356b6c-00000022-a9685f6a4b487c3a-c464a028/16/true] - R:Mux[/127.0.0.1:55346-f2606afffeabbf7d-00356b6c-00000022-a9685f6a4b487c3a-c464a028/16/true]] FLUSH
+07:27:46.766 [libp2p-nio-worker-3-4] [?[32mINFO?[m] host-2 - [id: 0xc464a028, L:/127.0.0.1:43411 - R:/127.0.0.1:55346] WRITE: MplexFrame(id=f2606afffeabbf7d-00356b6c-00000022-a9685f6a4b487c3a-c464a028/16/true, flag=DATA(init), data=AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 66, cap: 256)), 66B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 41 0a 0b 08 01 12 07 74 6f 70 69 63 2d 35 0a 0b |A......topic-5..|
+|00000010| 08 01 12 07 74 6f 70 69 63 2d 36 0a 0b 08 01 12 |....topic-6.....|
+|00000020| 07 74 6f 70 69 63 2d 37 0a 0b 08 01 12 07 74 6f |.topic-7......to|
+|00000030| 70 69 63 2d 38 0a 0b 08 01 12 07 74 6f 70 69 63 |pic-8......topic|
+|00000040| 2d 39                                           |-9              |
++--------+-------------------------------------------------+----------------+
+07:27:46.766 [libp2p-nio-worker-3-4] [?[32mINFO?[m] host-2 - [id: 0xc464a028, L:/127.0.0.1:43411 - R:/127.0.0.1:55346] FLUSH
+07:27:46.766 [libp2p-nio-worker-3-3] [?[32mINFO?[m] host-1 - [id: 0x7d5be310/16/true, L:Mux[/127.0.0.1:55346-f2606afffeabbf7d-00356b6c-00000021-a4dd576a4b487c39-7d5be310/16/true] - R:Mux[/127.0.0.1:43411-f2606afffeabbf7d-00356b6c-00000021-a4dd576a4b487c39-7d5be310/16/true]] WRITE: subscriptions {
+  subscribe: true
+  topicid: "topic-5"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-6"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-7"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-8"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-9"
+}
+
+07:27:46.766 [libp2p-nio-worker-3-3] [?[32mINFO?[m] host-1 - [id: 0x7d5be310/16/true, L:Mux[/127.0.0.1:55346-f2606afffeabbf7d-00356b6c-00000021-a4dd576a4b487c39-7d5be310/16/true] - R:Mux[/127.0.0.1:43411-f2606afffeabbf7d-00356b6c-00000021-a4dd576a4b487c39-7d5be310/16/true]] FLUSH
+07:27:46.766 [libp2p-nio-worker-3-3] [?[32mINFO?[m] host-1 - [id: 0x7d5be310, L:/127.0.0.1:55346 - R:/127.0.0.1:43411] WRITE: MplexFrame(id=f2606afffeabbf7d-00356b6c-00000021-a4dd576a4b487c39-7d5be310/16/true, flag=DATA(init), data=AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 66, cap: 256)), 66B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 41 0a 0b 08 01 12 07 74 6f 70 69 63 2d 35 0a 0b |A......topic-5..|
+|00000010| 08 01 12 07 74 6f 70 69 63 2d 36 0a 0b 08 01 12 |....topic-6.....|
+|00000020| 07 74 6f 70 69 63 2d 37 0a 0b 08 01 12 07 74 6f |.topic-7......to|
+|00000030| 70 69 63 2d 38 0a 0b 08 01 12 07 74 6f 70 69 63 |pic-8......topic|
+|00000040| 2d 39                                           |-9              |
++--------+-------------------------------------------------+----------------+
+07:27:46.766 [libp2p-nio-worker-3-3] [?[32mINFO?[m] host-1 - [id: 0x7d5be310, L:/127.0.0.1:55346 - R:/127.0.0.1:43411] FLUSH
+07:27:46.766 [libp2p-nio-worker-3-4] [?[32mINFO?[m] host-2 - [id: 0xc464a028/16/true, L:Mux[/127.0.0.1:43411-f2606afffeabbf7d-00356b6c-00000022-a9685f6a4b487c3a-c464a028/16/true] - R:Mux[/127.0.0.1:55346-f2606afffeabbf7d-00356b6c-00000022-a9685f6a4b487c3a-c464a028/16/true]] WRITE: subscriptions {
+  subscribe: true
+  topicid: "topic-10"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-11"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-12"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-13"
+}
+
+07:27:46.766 [libp2p-nio-worker-3-4] [?[32mINFO?[m] host-2 - [id: 0xc464a028/16/true, L:Mux[/127.0.0.1:43411-f2606afffeabbf7d-00356b6c-00000022-a9685f6a4b487c3a-c464a028/16/true] - R:Mux[/127.0.0.1:55346-f2606afffeabbf7d-00356b6c-00000022-a9685f6a4b487c3a-c464a028/16/true]] FLUSH
+07:27:46.766 [libp2p-nio-worker-3-4] [?[32mINFO?[m] host-2 - [id: 0xc464a028, L:/127.0.0.1:43411 - R:/127.0.0.1:55346] WRITE: MplexFrame(id=f2606afffeabbf7d-00356b6c-00000022-a9685f6a4b487c3a-c464a028/16/true, flag=DATA(init), data=AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 57, cap: 256)), 57B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 38 0a 0c 08 01 12 08 74 6f 70 69 63 2d 31 30 0a |8......topic-10.|
+|00000010| 0c 08 01 12 08 74 6f 70 69 63 2d 31 31 0a 0c 08 |.....topic-11...|
+|00000020| 01 12 08 74 6f 70 69 63 2d 31 32 0a 0c 08 01 12 |...topic-12.....|
+|00000030| 08 74 6f 70 69 63 2d 31 33                      |.topic-13       |
++--------+-------------------------------------------------+----------------+
+07:27:46.766 [libp2p-nio-worker-3-4] [?[32mINFO?[m] host-2 - [id: 0xc464a028, L:/127.0.0.1:43411 - R:/127.0.0.1:55346] FLUSH
+07:27:46.766 [libp2p-nio-worker-3-3] [?[32mINFO?[m] host-1 - [id: 0x7d5be310/16/true, L:Mux[/127.0.0.1:55346-f2606afffeabbf7d-00356b6c-00000021-a4dd576a4b487c39-7d5be310/16/true] - R:Mux[/127.0.0.1:43411-f2606afffeabbf7d-00356b6c-00000021-a4dd576a4b487c39-7d5be310/16/true]] WRITE: subscriptions {
+  subscribe: true
+  topicid: "topic-10"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-11"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-12"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-13"
+}
+
+07:27:46.767 [libp2p-nio-worker-3-3] [?[32mINFO?[m] host-1 - [id: 0x7d5be310/16/true, L:Mux[/127.0.0.1:55346-f2606afffeabbf7d-00356b6c-00000021-a4dd576a4b487c39-7d5be310/16/true] - R:Mux[/127.0.0.1:43411-f2606afffeabbf7d-00356b6c-00000021-a4dd576a4b487c39-7d5be310/16/true]] FLUSH
+07:27:46.767 [libp2p-nio-worker-3-4] [?[32mINFO?[m] host-2 - [id: 0xc464a028, L:/127.0.0.1:43411 - R:/127.0.0.1:55346] READ: MplexFrame(id=f2606afffeabbf7d-00356b6c-00000022-a9685f6a4b487c3a-c464a028/16/false, flag=DATA(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 66, cap: 66/66, unwrapped: UnpooledHeapByteBuf(ridx: 0, widx: 85, cap: 85/85))), 66B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 41 0a 0b 08 01 12 07 74 6f 70 69 63 2d 30 0a 0b |A......topic-0..|
+|00000010| 08 01 12 07 74 6f 70 69 63 2d 31 0a 0b 08 01 12 |....topic-1.....|
+|00000020| 07 74 6f 70 69 63 2d 32 0a 0b 08 01 12 07 74 6f |.topic-2......to|
+|00000030| 70 69 63 2d 33 0a 0b 08 01 12 07 74 6f 70 69 63 |pic-3......topic|
+|00000040| 2d 34                                           |-4              |
++--------+-------------------------------------------------+----------------+
+07:27:46.767 [libp2p-nio-worker-3-3] [?[32mINFO?[m] host-1 - [id: 0x7d5be310, L:/127.0.0.1:55346 - R:/127.0.0.1:43411] WRITE: MplexFrame(id=f2606afffeabbf7d-00356b6c-00000021-a4dd576a4b487c39-7d5be310/16/true, flag=DATA(init), data=AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 57, cap: 256)), 57B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 38 0a 0c 08 01 12 08 74 6f 70 69 63 2d 31 30 0a |8......topic-10.|
+|00000010| 0c 08 01 12 08 74 6f 70 69 63 2d 31 31 0a 0c 08 |.....topic-11...|
+|00000020| 01 12 08 74 6f 70 69 63 2d 31 32 0a 0c 08 01 12 |...topic-12.....|
+|00000030| 08 74 6f 70 69 63 2d 31 33                      |.topic-13       |
++--------+-------------------------------------------------+----------------+
+07:27:46.767 [libp2p-nio-worker-3-3] [?[32mINFO?[m] host-1 - [id: 0x7d5be310, L:/127.0.0.1:55346 - R:/127.0.0.1:43411] FLUSH
+07:27:46.767 [libp2p-nio-worker-3-4] [?[32mINFO?[m] host-2 - [id: 0xc464a028/16/false, L:Mux[/127.0.0.1:43411-f2606afffeabbf7d-00356b6c-00000022-a9685f6a4b487c3a-c464a028/16/false] - R:Mux[/127.0.0.1:55346-f2606afffeabbf7d-00356b6c-00000022-a9685f6a4b487c3a-c464a028/16/false]] READ: subscriptions {
+  subscribe: true
+  topicid: "topic-0"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-1"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-2"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-3"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-4"
+}
+
+07:27:46.767 [libp2p-nio-worker-3-4] [?[32mINFO?[m] host-2 - [id: 0xc464a028, L:/127.0.0.1:43411 - R:/127.0.0.1:55346] READ: MplexFrame(id=f2606afffeabbf7d-00356b6c-00000022-a9685f6a4b487c3a-c464a028/16/false, flag=DATA(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 66, cap: 66/66, unwrapped: UnpooledHeapByteBuf(ridx: 0, widx: 85, cap: 85/85))), 66B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 41 0a 0b 08 01 12 07 74 6f 70 69 63 2d 35 0a 0b |A......topic-5..|
+|00000010| 08 01 12 07 74 6f 70 69 63 2d 36 0a 0b 08 01 12 |....topic-6.....|
+|00000020| 07 74 6f 70 69 63 2d 37 0a 0b 08 01 12 07 74 6f |.topic-7......to|
+|00000030| 70 69 63 2d 38 0a 0b 08 01 12 07 74 6f 70 69 63 |pic-8......topic|
+|00000040| 2d 39                                           |-9              |
++--------+-------------------------------------------------+----------------+
+07:27:46.768 [libp2p-nio-worker-3-3] [?[32mINFO?[m] host-1 - [id: 0x7d5be310, L:/127.0.0.1:55346 - R:/127.0.0.1:43411] READ: MplexFrame(id=f2606afffeabbf7d-00356b6c-00000021-a4dd576a4b487c39-7d5be310/16/false, flag=DATA(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 66, cap: 66/66, unwrapped: UnpooledHeapByteBuf(ridx: 0, widx: 85, cap: 85/85))), 66B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 41 0a 0b 08 01 12 07 74 6f 70 69 63 2d 30 0a 0b |A......topic-0..|
+|00000010| 08 01 12 07 74 6f 70 69 63 2d 31 0a 0b 08 01 12 |....topic-1.....|
+|00000020| 07 74 6f 70 69 63 2d 32 0a 0b 08 01 12 07 74 6f |.topic-2......to|
+|00000030| 70 69 63 2d 33 0a 0b 08 01 12 07 74 6f 70 69 63 |pic-3......topic|
+|00000040| 2d 34                                           |-4              |
++--------+-------------------------------------------------+----------------+
+07:27:46.768 [libp2p-nio-worker-3-4] [?[32mINFO?[m] host-2 - [id: 0xc464a028/16/false, L:Mux[/127.0.0.1:43411-f2606afffeabbf7d-00356b6c-00000022-a9685f6a4b487c3a-c464a028/16/false] - R:Mux[/127.0.0.1:55346-f2606afffeabbf7d-00356b6c-00000022-a9685f6a4b487c3a-c464a028/16/false]] READ: subscriptions {
+  subscribe: true
+  topicid: "topic-5"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-6"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-7"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-8"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-9"
+}
+
+07:27:46.768 [libp2p-nio-worker-3-4] [?[32mINFO?[m] host-2 - [id: 0xc464a028, L:/127.0.0.1:43411 - R:/127.0.0.1:55346] READ COMPLETE
+07:27:46.768 [libp2p-nio-worker-3-4] [?[32mINFO?[m] host-2 - [id: 0xc464a028/16/false, L:Mux[/127.0.0.1:43411-f2606afffeabbf7d-00356b6c-00000022-a9685f6a4b487c3a-c464a028/16/false] - R:Mux[/127.0.0.1:55346-f2606afffeabbf7d-00356b6c-00000022-a9685f6a4b487c3a-c464a028/16/false]] READ COMPLETE
+07:27:46.768 [libp2p-nio-worker-3-4] [?[32mINFO?[m] host-2 - [id: 0xc464a028, L:/127.0.0.1:43411 - R:/127.0.0.1:55346] READ: MplexFrame(id=f2606afffeabbf7d-00356b6c-00000022-a9685f6a4b487c3a-c464a028/16/false, flag=DATA(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 57, cap: 57/57, unwrapped: UnpooledHeapByteBuf(ridx: 0, widx: 76, cap: 76/76))), 57B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 38 0a 0c 08 01 12 08 74 6f 70 69 63 2d 31 30 0a |8......topic-10.|
+|00000010| 0c 08 01 12 08 74 6f 70 69 63 2d 31 31 0a 0c 08 |.....topic-11...|
+|00000020| 01 12 08 74 6f 70 69 63 2d 31 32 0a 0c 08 01 12 |...topic-12.....|
+|00000030| 08 74 6f 70 69 63 2d 31 33                      |.topic-13       |
++--------+-------------------------------------------------+----------------+
+07:27:46.769 [libp2p-nio-worker-3-4] [?[32mINFO?[m] host-2 - [id: 0xc464a028/16/false, L:Mux[/127.0.0.1:43411-f2606afffeabbf7d-00356b6c-00000022-a9685f6a4b487c3a-c464a028/16/false] - R:Mux[/127.0.0.1:55346-f2606afffeabbf7d-00356b6c-00000022-a9685f6a4b487c3a-c464a028/16/false]] READ: subscriptions {
+  subscribe: true
+  topicid: "topic-10"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-11"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-12"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-13"
+}
+
+07:27:46.769 [libp2p-nio-worker-3-4] [?[32mINFO?[m] host-2 - [id: 0xc464a028, L:/127.0.0.1:43411 - R:/127.0.0.1:55346] READ COMPLETE
+07:27:46.769 [libp2p-nio-worker-3-4] [?[32mINFO?[m] host-2 - [id: 0xc464a028/16/false, L:Mux[/127.0.0.1:43411-f2606afffeabbf7d-00356b6c-00000022-a9685f6a4b487c3a-c464a028/16/false] - R:Mux[/127.0.0.1:55346-f2606afffeabbf7d-00356b6c-00000022-a9685f6a4b487c3a-c464a028/16/false]] READ COMPLETE
+07:27:46.770 [libp2p-nio-worker-3-3] [?[32mINFO?[m] host-1 - [id: 0x7d5be310/16/false, L:Mux[/127.0.0.1:55346-f2606afffeabbf7d-00356b6c-00000021-a4dd576a4b487c39-7d5be310/16/false] - R:Mux[/127.0.0.1:43411-f2606afffeabbf7d-00356b6c-00000021-a4dd576a4b487c39-7d5be310/16/false]] READ: subscriptions {
+  subscribe: true
+  topicid: "topic-0"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-1"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-2"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-3"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-4"
+}
+
+07:27:46.770 [libp2p-nio-worker-3-3] [?[32mINFO?[m] host-1 - [id: 0x7d5be310, L:/127.0.0.1:55346 - R:/127.0.0.1:43411] READ: MplexFrame(id=f2606afffeabbf7d-00356b6c-00000021-a4dd576a4b487c39-7d5be310/16/false, flag=DATA(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 66, cap: 66/66, unwrapped: UnpooledHeapByteBuf(ridx: 0, widx: 85, cap: 85/85))), 66B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 41 0a 0b 08 01 12 07 74 6f 70 69 63 2d 35 0a 0b |A......topic-5..|
+|00000010| 08 01 12 07 74 6f 70 69 63 2d 36 0a 0b 08 01 12 |....topic-6.....|
+|00000020| 07 74 6f 70 69 63 2d 37 0a 0b 08 01 12 07 74 6f |.topic-7......to|
+|00000030| 70 69 63 2d 38 0a 0b 08 01 12 07 74 6f 70 69 63 |pic-8......topic|
+|00000040| 2d 39                                           |-9              |
++--------+-------------------------------------------------+----------------+
+07:27:46.771 [libp2p-nio-worker-3-3] [?[32mINFO?[m] host-1 - [id: 0x7d5be310/16/false, L:Mux[/127.0.0.1:55346-f2606afffeabbf7d-00356b6c-00000021-a4dd576a4b487c39-7d5be310/16/false] - R:Mux[/127.0.0.1:43411-f2606afffeabbf7d-00356b6c-00000021-a4dd576a4b487c39-7d5be310/16/false]] READ: subscriptions {
+  subscribe: true
+  topicid: "topic-5"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-6"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-7"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-8"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-9"
+}
+
+07:27:46.771 [libp2p-nio-worker-3-3] [?[32mINFO?[m] host-1 - [id: 0x7d5be310, L:/127.0.0.1:55346 - R:/127.0.0.1:43411] READ: MplexFrame(id=f2606afffeabbf7d-00356b6c-00000021-a4dd576a4b487c39-7d5be310/16/false, flag=DATA(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 57, cap: 57/57, unwrapped: UnpooledHeapByteBuf(ridx: 0, widx: 76, cap: 76/76))), 57B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 38 0a 0c 08 01 12 08 74 6f 70 69 63 2d 31 30 0a |8......topic-10.|
+|00000010| 0c 08 01 12 08 74 6f 70 69 63 2d 31 31 0a 0c 08 |.....topic-11...|
+|00000020| 01 12 08 74 6f 70 69 63 2d 31 32 0a 0c 08 01 12 |...topic-12.....|
+|00000030| 08 74 6f 70 69 63 2d 31 33                      |.topic-13       |
++--------+-------------------------------------------------+----------------+
+07:27:46.772 [libp2p-nio-worker-3-3] [?[32mINFO?[m] host-1 - [id: 0x7d5be310/16/false, L:Mux[/127.0.0.1:55346-f2606afffeabbf7d-00356b6c-00000021-a4dd576a4b487c39-7d5be310/16/false] - R:Mux[/127.0.0.1:43411-f2606afffeabbf7d-00356b6c-00000021-a4dd576a4b487c39-7d5be310/16/false]] READ: subscriptions {
+  subscribe: true
+  topicid: "topic-10"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-11"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-12"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-13"
+}
+
+07:27:46.772 [libp2p-nio-worker-3-3] [?[32mINFO?[m] host-1 - [id: 0x7d5be310, L:/127.0.0.1:55346 - R:/127.0.0.1:43411] READ COMPLETE
+07:27:46.772 [libp2p-nio-worker-3-3] [?[32mINFO?[m] host-1 - [id: 0x7d5be310/16/false, L:Mux[/127.0.0.1:55346-f2606afffeabbf7d-00356b6c-00000021-a4dd576a4b487c39-7d5be310/16/false] - R:Mux[/127.0.0.1:43411-f2606afffeabbf7d-00356b6c-00000021-a4dd576a4b487c39-7d5be310/16/false]] READ COMPLETE
+07:27:46.862 [libp2p-nio-worker-3-3] [?[32mINFO?[m] host-1 - [id: 0x7d5be310/16/true, L:Mux[/127.0.0.1:55346-f2606afffeabbf7d-00356b6c-00000021-a4dd576a4b487c39-7d5be310/16/true] - R:Mux[/127.0.0.1:43411-f2606afffeabbf7d-00356b6c-00000021-a4dd576a4b487c39-7d5be310/16/true]] WRITE: publish {
+  data: "\v"
+  seqno: "{m\232\357J\237\244s"
+  topicIDs: "topic-13"
+}
+
+07:27:46.862 [libp2p-nio-worker-3-3] [?[32mINFO?[m] host-1 - [id: 0x7d5be310/16/true, L:Mux[/127.0.0.1:55346-f2606afffeabbf7d-00356b6c-00000021-a4dd576a4b487c39-7d5be310/16/true] - R:Mux[/127.0.0.1:43411-f2606afffeabbf7d-00356b6c-00000021-a4dd576a4b487c39-7d5be310/16/true]] FLUSH
+07:27:46.862 [libp2p-nio-worker-3-3] [?[32mINFO?[m] host-1 - [id: 0x7d5be310, L:/127.0.0.1:55346 - R:/127.0.0.1:43411] WRITE: MplexFrame(id=f2606afffeabbf7d-00356b6c-00000021-a4dd576a4b487c39-7d5be310/16/true, flag=DATA(init), data=AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 26, cap: 256)), 26B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 19 12 17 12 01 0b 1a 08 7b 6d 9a ef 4a 9f a4 73 |........{m..J..s|
+|00000010| 22 08 74 6f 70 69 63 2d 31 33                   |".topic-13      |
++--------+-------------------------------------------------+----------------+
+07:27:46.863 [libp2p-nio-worker-3-3] [?[32mINFO?[m] host-1 - [id: 0x7d5be310, L:/127.0.0.1:55346 - R:/127.0.0.1:43411] FLUSH
+07:27:46.863 [libp2p-nio-worker-3-4] [?[32mINFO?[m] host-2 - [id: 0xc464a028, L:/127.0.0.1:43411 - R:/127.0.0.1:55346] READ: MplexFrame(id=f2606afffeabbf7d-00356b6c-00000022-a9685f6a4b487c3a-c464a028/16/false, flag=DATA(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 26, cap: 26/26, unwrapped: UnpooledHeapByteBuf(ridx: 0, widx: 45, cap: 45/45))), 26B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 19 12 17 12 01 0b 1a 08 7b 6d 9a ef 4a 9f a4 73 |........{m..J..s|
+|00000010| 22 08 74 6f 70 69 63 2d 31 33                   |".topic-13      |
++--------+-------------------------------------------------+----------------+
+07:27:46.864 [libp2p-nio-worker-3-4] [?[32mINFO?[m] host-2 - [id: 0xc464a028/16/false, L:Mux[/127.0.0.1:43411-f2606afffeabbf7d-00356b6c-00000022-a9685f6a4b487c3a-c464a028/16/false] - R:Mux[/127.0.0.1:55346-f2606afffeabbf7d-00356b6c-00000022-a9685f6a4b487c3a-c464a028/16/false]] READ: publish {
+  data: "\v"
+  seqno: "{m\232\357J\237\244s"
+  topicIDs: "topic-13"
+}
+
+07:27:46.864 [libp2p-nio-worker-3-4] [?[32mINFO?[m] host-2 - [id: 0xc464a028, L:/127.0.0.1:43411 - R:/127.0.0.1:55346] READ COMPLETE
+07:27:46.864 [libp2p-nio-worker-3-4] [?[32mINFO?[m] host-2 - [id: 0xc464a028/16/false, L:Mux[/127.0.0.1:43411-f2606afffeabbf7d-00356b6c-00000022-a9685f6a4b487c3a-c464a028/16/false] - R:Mux[/127.0.0.1:55346-f2606afffeabbf7d-00356b6c-00000022-a9685f6a4b487c3a-c464a028/16/false]] READ COMPLETE
+07:27:46.866 [libp2p-nio-worker-3-3] [?[32mINFO?[m] host-1 - [id: 0x7d5be310, L:/127.0.0.1:55346 - R:/127.0.0.1:43411] CLOSE
+07:27:46.866 [libp2p-nio-worker-3-4] [?[32mINFO?[m] host-2 - [id: 0xc464a028, L:/127.0.0.1:43411 - R:/127.0.0.1:55346] READ COMPLETE
+07:27:46.866 [libp2p-nio-worker-3-3] [?[32mINFO?[m] host-1 - [id: 0x7d5be310/16/true, L:Mux[/127.0.0.1:55346-f2606afffeabbf7d-00356b6c-00000021-a4dd576a4b487c39-7d5be310/16/true] - R:Mux[/127.0.0.1:43411-f2606afffeabbf7d-00356b6c-00000021-a4dd576a4b487c39-7d5be310/16/true]] CLOSE
+07:27:46.866 [libp2p-nio-worker-3-3] [?[32mINFO?[m] host-1 - [id: 0x7d5be310/16/true, L:Mux[/127.0.0.1:55346-f2606afffeabbf7d-00356b6c-00000021-a4dd576a4b487c39-7d5be310/16/true] - R:Mux[/127.0.0.1:43411-f2606afffeabbf7d-00356b6c-00000021-a4dd576a4b487c39-7d5be310/16/true]] INACTIVE
+07:27:46.866 [libp2p-nio-worker-3-4] [?[32mINFO?[m] host-2 - [id: 0xc464a028/16/true, L:Mux[/127.0.0.1:43411-f2606afffeabbf7d-00356b6c-00000022-a9685f6a4b487c3a-c464a028/16/true] - R:Mux[/127.0.0.1:55346-f2606afffeabbf7d-00356b6c-00000022-a9685f6a4b487c3a-c464a028/16/true]] CLOSE
+07:27:46.866 [libp2p-nio-worker-3-4] [?[32mINFO?[m] host-2 - [id: 0xc464a028/16/true, L:Mux[/127.0.0.1:43411-f2606afffeabbf7d-00356b6c-00000022-a9685f6a4b487c3a-c464a028/16/true] - R:Mux[/127.0.0.1:55346-f2606afffeabbf7d-00356b6c-00000022-a9685f6a4b487c3a-c464a028/16/true]] INACTIVE
+07:27:46.867 [libp2p-nio-worker-3-4] [?[32mINFO?[m] host-2 - [id: 0xc464a028/16/true, L:Mux[/127.0.0.1:43411-f2606afffeabbf7d-00356b6c-00000022-a9685f6a4b487c3a-c464a028/16/true] ! R:Mux[/127.0.0.1:55346-f2606afffeabbf7d-00356b6c-00000022-a9685f6a4b487c3a-c464a028/16/true]] UNREGISTERED
+07:27:46.867 [libp2p-nio-worker-3-3] [?[32mINFO?[m] host-1 - [id: 0x7d5be310/16/true, L:Mux[/127.0.0.1:55346-f2606afffeabbf7d-00356b6c-00000021-a4dd576a4b487c39-7d5be310/16/true] ! R:Mux[/127.0.0.1:43411-f2606afffeabbf7d-00356b6c-00000021-a4dd576a4b487c39-7d5be310/16/true]] UNREGISTERED
+07:27:46.867 [libp2p-nio-worker-3-4] [?[32mINFO?[m] host-2 - [id: 0xc464a028/16/false, L:Mux[/127.0.0.1:43411-f2606afffeabbf7d-00356b6c-00000022-a9685f6a4b487c3a-c464a028/16/false] - R:Mux[/127.0.0.1:55346-f2606afffeabbf7d-00356b6c-00000022-a9685f6a4b487c3a-c464a028/16/false]] CLOSE
+07:27:46.867 [libp2p-nio-worker-3-4] [?[32mINFO?[m] host-2 - [id: 0xc464a028/16/false, L:Mux[/127.0.0.1:43411-f2606afffeabbf7d-00356b6c-00000022-a9685f6a4b487c3a-c464a028/16/false] - R:Mux[/127.0.0.1:55346-f2606afffeabbf7d-00356b6c-00000022-a9685f6a4b487c3a-c464a028/16/false]] INACTIVE
+07:27:46.867 [libp2p-nio-worker-3-3] [?[32mINFO?[m] host-1 - [id: 0x7d5be310/16/false, L:Mux[/127.0.0.1:55346-f2606afffeabbf7d-00356b6c-00000021-a4dd576a4b487c39-7d5be310/16/false] - R:Mux[/127.0.0.1:43411-f2606afffeabbf7d-00356b6c-00000021-a4dd576a4b487c39-7d5be310/16/false]] CLOSE
+07:27:46.867 [libp2p-nio-worker-3-4] [?[32mINFO?[m] host-2 - [id: 0xc464a028/16/false, L:Mux[/127.0.0.1:43411-f2606afffeabbf7d-00356b6c-00000022-a9685f6a4b487c3a-c464a028/16/false] ! R:Mux[/127.0.0.1:55346-f2606afffeabbf7d-00356b6c-00000022-a9685f6a4b487c3a-c464a028/16/false]] UNREGISTERED
+07:27:46.867 [libp2p-nio-worker-3-3] [?[32mINFO?[m] host-1 - [id: 0x7d5be310/16/false, L:Mux[/127.0.0.1:55346-f2606afffeabbf7d-00356b6c-00000021-a4dd576a4b487c39-7d5be310/16/false] - R:Mux[/127.0.0.1:43411-f2606afffeabbf7d-00356b6c-00000021-a4dd576a4b487c39-7d5be310/16/false]] INACTIVE
+07:27:46.867 [libp2p-nio-worker-3-4] [?[32mINFO?[m] host-2 - [id: 0xc464a028, L:/127.0.0.1:43411 ! R:/127.0.0.1:55346] INACTIVE
+07:27:46.867 [libp2p-nio-worker-3-3] [?[32mINFO?[m] host-1 - [id: 0x7d5be310/16/false, L:Mux[/127.0.0.1:55346-f2606afffeabbf7d-00356b6c-00000021-a4dd576a4b487c39-7d5be310/16/false] ! R:Mux[/127.0.0.1:43411-f2606afffeabbf7d-00356b6c-00000021-a4dd576a4b487c39-7d5be310/16/false]] UNREGISTERED
+07:27:46.867 [libp2p-nio-worker-3-4] [?[32mINFO?[m] host-2 - [id: 0xc464a028, L:/127.0.0.1:43411 ! R:/127.0.0.1:55346] UNREGISTERED
+07:27:46.867 [libp2p-nio-worker-3-3] [?[32mINFO?[m] host-1 - [id: 0x7d5be310, L:/127.0.0.1:55346 ! R:/127.0.0.1:43411] INACTIVE
+07:27:46.867 [libp2p-nio-worker-3-3] [?[32mINFO?[m] host-1 - [id: 0x7d5be310, L:/127.0.0.1:55346 ! R:/127.0.0.1:43411] UNREGISTERED
+Client Host stopped
+Server Host stopped
+Client started
+Server started
+07:27:46.897 [libp2p-nio-worker-3-6] [?[32mINFO?[m] host-2 - [id: 0x23f8e4aa, L:/127.0.0.1:38713 - R:/127.0.0.1:35560] USER_EVENT: ProtocolNegotiationSucceeded(proto=/mplex/6.7.0)
+07:27:46.897 [libp2p-nio-worker-3-5] [?[32mINFO?[m] host-1 - [id: 0x3d822ab0, L:/127.0.0.1:35560 - R:/127.0.0.1:38713] USER_EVENT: ProtocolNegotiationSucceeded(proto=/mplex/6.7.0)
+07:27:46.897 [libp2p-nio-worker-3-6] [?[32mINFO?[m] host-2 - [id: 0x23f8e4aa, L:/127.0.0.1:38713 - R:/127.0.0.1:35560] ACTIVE
+07:27:46.897 [libp2p-nio-worker-3-5] [?[32mINFO?[m] host-1 - [id: 0x3d822ab0, L:/127.0.0.1:35560 - R:/127.0.0.1:38713] ACTIVE
+07:27:46.897 [libp2p-nio-worker-3-6] [?[32mINFO?[m] host-2 - [id: 0x23f8e4aa, L:/127.0.0.1:38713 - R:/127.0.0.1:35560] READ COMPLETE
+07:27:46.897 [libp2p-nio-worker-3-5] [?[32mINFO?[m] host-1 - [id: 0x3d822ab0, L:/127.0.0.1:35560 - R:/127.0.0.1:38713] READ COMPLETE
+07:27:46.897 [libp2p-nio-worker-3-6] [?[32mINFO?[m] host-2 - [id: 0x23f8e4aa, L:/127.0.0.1:38713 - R:/127.0.0.1:35560] WRITE, MplexFrame(id=f2606afffeabbf7d-00356b6c-00000026-da616c7a4b487cc4-23f8e4aa/16/true, flag=OPEN(init), data=EmptyByteBufBE), 0B
+07:27:46.897 [libp2p-nio-worker-3-6] [?[32mINFO?[m] host-2 - [id: 0x23f8e4aa, L:/127.0.0.1:38713 - R:/127.0.0.1:35560] FLUSH
+07:27:46.897 [libp2p-nio-worker-3-5] [?[32mINFO?[m] host-1 - [id: 0x3d822ab0, L:/127.0.0.1:35560 - R:/127.0.0.1:38713] WRITE, MplexFrame(id=f2606afffeabbf7d-00356b6c-00000025-725de47a4b487cc3-3d822ab0/16/true, flag=OPEN(init), data=EmptyByteBufBE), 0B
+07:27:46.897 [libp2p-nio-worker-3-5] [?[32mINFO?[m] host-1 - [id: 0x3d822ab0, L:/127.0.0.1:35560 - R:/127.0.0.1:38713] FLUSH
+07:27:46.898 [libp2p-nio-worker-3-6] [?[32mINFO?[m] host-2 - [id: 0x23f8e4aa, L:/127.0.0.1:38713 - R:/127.0.0.1:35560] WRITE: MplexFrame(id=f2606afffeabbf7d-00356b6c-00000026-da616c7a4b487cc4-23f8e4aa/16/true, flag=DATA(init), data=AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 20, cap: 256)), 20B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 13 2f 6d 75 6c 74 69 73 74 72 65 61 6d 2f 31 2e |./multistream/1.|
+|00000010| 30 2e 30 0a                                     |0.0.            |
++--------+-------------------------------------------------+----------------+
+07:27:46.898 [libp2p-nio-worker-3-6] [?[32mINFO?[m] host-2 - [id: 0x23f8e4aa, L:/127.0.0.1:38713 - R:/127.0.0.1:35560] FLUSH
+07:27:46.899 [libp2p-nio-worker-3-6] [?[32mINFO?[m] host-2 - [id: 0x23f8e4aa, L:/127.0.0.1:38713 - R:/127.0.0.1:35560] WRITE: MplexFrame(id=f2606afffeabbf7d-00356b6c-00000026-da616c7a4b487cc4-23f8e4aa/16/true, flag=DATA(init), data=AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 16, cap: 256)), 16B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 0f 2f 6d 65 73 68 73 75 62 2f 31 2e 32 2e 30 0a |./meshsub/1.2.0.|
++--------+-------------------------------------------------+----------------+
+07:27:46.899 [libp2p-nio-worker-3-6] [?[32mINFO?[m] host-2 - [id: 0x23f8e4aa, L:/127.0.0.1:38713 - R:/127.0.0.1:35560] FLUSH
+07:27:46.899 [libp2p-nio-worker-3-5] [?[32mINFO?[m] host-1 - [id: 0x3d822ab0, L:/127.0.0.1:35560 - R:/127.0.0.1:38713] WRITE: MplexFrame(id=f2606afffeabbf7d-00356b6c-00000025-725de47a4b487cc3-3d822ab0/16/true, flag=DATA(init), data=AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 20, cap: 256)), 20B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 13 2f 6d 75 6c 74 69 73 74 72 65 61 6d 2f 31 2e |./multistream/1.|
+|00000010| 30 2e 30 0a                                     |0.0.            |
++--------+-------------------------------------------------+----------------+
+07:27:46.899 [libp2p-nio-worker-3-5] [?[32mINFO?[m] host-1 - [id: 0x3d822ab0, L:/127.0.0.1:35560 - R:/127.0.0.1:38713] FLUSH
+07:27:46.899 [libp2p-nio-worker-3-6] [?[32mINFO?[m] host-2 - [id: 0x23f8e4aa, L:/127.0.0.1:38713 - R:/127.0.0.1:35560] READ, MplexFrame(id=f2606afffeabbf7d-00356b6c-00000026-da616c7a4b487cc4-23f8e4aa/16/false, flag=OPEN(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 0, cap: 0/0, unwrapped: UnpooledHeapByteBuf(ridx: 0, widx: 19, cap: 19/19))), 0B
+07:27:46.899 [libp2p-nio-worker-3-5] [?[32mINFO?[m] host-1 - [id: 0x3d822ab0, L:/127.0.0.1:35560 - R:/127.0.0.1:38713] WRITE: MplexFrame(id=f2606afffeabbf7d-00356b6c-00000025-725de47a4b487cc3-3d822ab0/16/true, flag=DATA(init), data=AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 16, cap: 256)), 16B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 0f 2f 6d 65 73 68 73 75 62 2f 31 2e 32 2e 30 0a |./meshsub/1.2.0.|
++--------+-------------------------------------------------+----------------+
+07:27:46.899 [libp2p-nio-worker-3-5] [?[32mINFO?[m] host-1 - [id: 0x3d822ab0, L:/127.0.0.1:35560 - R:/127.0.0.1:38713] FLUSH
+07:27:46.899 [libp2p-nio-worker-3-5] [?[32mINFO?[m] host-1 - [id: 0x3d822ab0, L:/127.0.0.1:35560 - R:/127.0.0.1:38713] READ, MplexFrame(id=f2606afffeabbf7d-00356b6c-00000025-725de47a4b487cc3-3d822ab0/16/false, flag=OPEN(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 0, cap: 0/0, unwrapped: UnpooledHeapByteBuf(ridx: 0, widx: 19, cap: 19/19))), 0B
+07:27:46.900 [libp2p-nio-worker-3-6] [?[32mINFO?[m] host-2 - [id: 0x23f8e4aa, L:/127.0.0.1:38713 - R:/127.0.0.1:35560] WRITE: MplexFrame(id=f2606afffeabbf7d-00356b6c-00000026-da616c7a4b487cc4-23f8e4aa/16/false, flag=DATA(resp), data=AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 20, cap: 256)), 20B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 13 2f 6d 75 6c 74 69 73 74 72 65 61 6d 2f 31 2e |./multistream/1.|
+|00000010| 30 2e 30 0a                                     |0.0.            |
++--------+-------------------------------------------------+----------------+
+07:27:46.900 [libp2p-nio-worker-3-6] [?[32mINFO?[m] host-2 - [id: 0x23f8e4aa, L:/127.0.0.1:38713 - R:/127.0.0.1:35560] FLUSH
+07:27:46.900 [libp2p-nio-worker-3-6] [?[32mINFO?[m] host-2 - [id: 0x23f8e4aa, L:/127.0.0.1:38713 - R:/127.0.0.1:35560] READ COMPLETE
+07:27:46.900 [libp2p-nio-worker-3-5] [?[32mINFO?[m] host-1 - [id: 0x3d822ab0, L:/127.0.0.1:35560 - R:/127.0.0.1:38713] WRITE: MplexFrame(id=f2606afffeabbf7d-00356b6c-00000025-725de47a4b487cc3-3d822ab0/16/false, flag=DATA(resp), data=AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 20, cap: 256)), 20B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 13 2f 6d 75 6c 74 69 73 74 72 65 61 6d 2f 31 2e |./multistream/1.|
+|00000010| 30 2e 30 0a                                     |0.0.            |
++--------+-------------------------------------------------+----------------+
+07:27:46.900 [libp2p-nio-worker-3-5] [?[32mINFO?[m] host-1 - [id: 0x3d822ab0, L:/127.0.0.1:35560 - R:/127.0.0.1:38713] FLUSH
+07:27:46.900 [libp2p-nio-worker-3-6] [?[32mINFO?[m] host-2 - [id: 0x23f8e4aa, L:/127.0.0.1:38713 - R:/127.0.0.1:35560] READ: MplexFrame(id=f2606afffeabbf7d-00356b6c-00000026-da616c7a4b487cc4-23f8e4aa/16/false, flag=DATA(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 20, cap: 20/20, unwrapped: UnpooledHeapByteBuf(ridx: 0, widx: 39, cap: 39/39))), 20B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 13 2f 6d 75 6c 74 69 73 74 72 65 61 6d 2f 31 2e |./multistream/1.|
+|00000010| 30 2e 30 0a                                     |0.0.            |
++--------+-------------------------------------------------+----------------+
+07:27:46.900 [libp2p-nio-worker-3-6] [?[32mINFO?[m] host-2 - [id: 0x23f8e4aa, L:/127.0.0.1:38713 - R:/127.0.0.1:35560] READ: MplexFrame(id=f2606afffeabbf7d-00356b6c-00000026-da616c7a4b487cc4-23f8e4aa/16/false, flag=DATA(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 16, cap: 16/16, unwrapped: UnpooledHeapByteBuf(ridx: 0, widx: 35, cap: 35/35))), 16B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 0f 2f 6d 65 73 68 73 75 62 2f 31 2e 32 2e 30 0a |./meshsub/1.2.0.|
++--------+-------------------------------------------------+----------------+
+07:27:46.900 [libp2p-nio-worker-3-5] [?[32mINFO?[m] host-1 - [id: 0x3d822ab0, L:/127.0.0.1:35560 - R:/127.0.0.1:38713] READ: MplexFrame(id=f2606afffeabbf7d-00356b6c-00000025-725de47a4b487cc3-3d822ab0/16/false, flag=DATA(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 20, cap: 20/20, unwrapped: UnpooledHeapByteBuf(ridx: 0, widx: 39, cap: 39/39))), 20B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 13 2f 6d 75 6c 74 69 73 74 72 65 61 6d 2f 31 2e |./multistream/1.|
+|00000010| 30 2e 30 0a                                     |0.0.            |
++--------+-------------------------------------------------+----------------+
+07:27:46.900 [libp2p-nio-worker-3-5] [?[32mINFO?[m] host-1 - [id: 0x3d822ab0, L:/127.0.0.1:35560 - R:/127.0.0.1:38713] READ: MplexFrame(id=f2606afffeabbf7d-00356b6c-00000025-725de47a4b487cc3-3d822ab0/16/false, flag=DATA(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 16, cap: 16/16, unwrapped: UnpooledHeapByteBuf(ridx: 0, widx: 35, cap: 35/35))), 16B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 0f 2f 6d 65 73 68 73 75 62 2f 31 2e 32 2e 30 0a |./meshsub/1.2.0.|
++--------+-------------------------------------------------+----------------+
+07:27:46.900 [libp2p-nio-worker-3-6] [?[32mINFO?[m] host-2 - [id: 0x23f8e4aa, L:/127.0.0.1:38713 - R:/127.0.0.1:35560] WRITE: MplexFrame(id=f2606afffeabbf7d-00356b6c-00000026-da616c7a4b487cc4-23f8e4aa/16/false, flag=DATA(resp), data=AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 16, cap: 256)), 16B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 0f 2f 6d 65 73 68 73 75 62 2f 31 2e 32 2e 30 0a |./meshsub/1.2.0.|
++--------+-------------------------------------------------+----------------+
+07:27:46.901 [libp2p-nio-worker-3-6] [?[32mINFO?[m] host-2 - [id: 0x23f8e4aa, L:/127.0.0.1:38713 - R:/127.0.0.1:35560] FLUSH
+07:27:46.901 [libp2p-nio-worker-3-5] [?[32mINFO?[m] host-1 - [id: 0x3d822ab0, L:/127.0.0.1:35560 - R:/127.0.0.1:38713] WRITE: MplexFrame(id=f2606afffeabbf7d-00356b6c-00000025-725de47a4b487cc3-3d822ab0/16/false, flag=DATA(resp), data=AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 16, cap: 256)), 16B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 0f 2f 6d 65 73 68 73 75 62 2f 31 2e 32 2e 30 0a |./meshsub/1.2.0.|
++--------+-------------------------------------------------+----------------+
+07:27:46.901 [libp2p-nio-worker-3-5] [?[32mINFO?[m] host-1 - [id: 0x3d822ab0, L:/127.0.0.1:35560 - R:/127.0.0.1:38713] FLUSH
+07:27:46.901 [libp2p-nio-worker-3-6] [?[32mINFO?[m] host-2 - [id: 0x23f8e4aa/16/false, L:Mux[/127.0.0.1:38713-f2606afffeabbf7d-00356b6c-00000026-da616c7a4b487cc4-23f8e4aa/16/false] - R:Mux[/127.0.0.1:35560-f2606afffeabbf7d-00356b6c-00000026-da616c7a4b487cc4-23f8e4aa/16/false]] USER_EVENT: ProtocolNegotiationSucceeded(proto=/meshsub/1.2.0)
+07:27:46.901 [libp2p-nio-worker-3-6] [?[32mINFO?[m] host-2 - [id: 0x23f8e4aa/16/false, L:Mux[/127.0.0.1:38713-f2606afffeabbf7d-00356b6c-00000026-da616c7a4b487cc4-23f8e4aa/16/false] - R:Mux[/127.0.0.1:35560-f2606afffeabbf7d-00356b6c-00000026-da616c7a4b487cc4-23f8e4aa/16/false]] ACTIVE
+07:27:46.901 [libp2p-nio-worker-3-6] [?[32mINFO?[m] host-2 - [id: 0x23f8e4aa, L:/127.0.0.1:38713 - R:/127.0.0.1:35560] READ COMPLETE
+07:27:46.901 [libp2p-nio-worker-3-6] [?[32mINFO?[m] host-2 - [id: 0x23f8e4aa/16/false, L:Mux[/127.0.0.1:38713-f2606afffeabbf7d-00356b6c-00000026-da616c7a4b487cc4-23f8e4aa/16/false] - R:Mux[/127.0.0.1:35560-f2606afffeabbf7d-00356b6c-00000026-da616c7a4b487cc4-23f8e4aa/16/false]] READ COMPLETE
+07:27:46.901 [libp2p-nio-worker-3-6] [?[32mINFO?[m] host-2 - [id: 0x23f8e4aa, L:/127.0.0.1:38713 - R:/127.0.0.1:35560] READ: MplexFrame(id=f2606afffeabbf7d-00356b6c-00000026-da616c7a4b487cc4-23f8e4aa/16/true, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 20, cap: 20/20, unwrapped: UnpooledHeapByteBuf(ridx: 0, widx: 39, cap: 39/39))), 20B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 13 2f 6d 75 6c 74 69 73 74 72 65 61 6d 2f 31 2e |./multistream/1.|
+|00000010| 30 2e 30 0a                                     |0.0.            |
++--------+-------------------------------------------------+----------------+
+07:27:46.901 [libp2p-nio-worker-3-5] [?[32mINFO?[m] host-1 - [id: 0x3d822ab0/16/false, L:Mux[/127.0.0.1:35560-f2606afffeabbf7d-00356b6c-00000025-725de47a4b487cc3-3d822ab0/16/false] - R:Mux[/127.0.0.1:38713-f2606afffeabbf7d-00356b6c-00000025-725de47a4b487cc3-3d822ab0/16/false]] USER_EVENT: ProtocolNegotiationSucceeded(proto=/meshsub/1.2.0)
+07:27:46.901 [libp2p-nio-worker-3-5] [?[32mINFO?[m] host-1 - [id: 0x3d822ab0/16/false, L:Mux[/127.0.0.1:35560-f2606afffeabbf7d-00356b6c-00000025-725de47a4b487cc3-3d822ab0/16/false] - R:Mux[/127.0.0.1:38713-f2606afffeabbf7d-00356b6c-00000025-725de47a4b487cc3-3d822ab0/16/false]] ACTIVE
+07:27:46.902 [libp2p-nio-worker-3-6] [?[32mINFO?[m] host-2 - [id: 0x23f8e4aa, L:/127.0.0.1:38713 - R:/127.0.0.1:35560] READ: MplexFrame(id=f2606afffeabbf7d-00356b6c-00000026-da616c7a4b487cc4-23f8e4aa/16/true, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 16, cap: 16/16, unwrapped: UnpooledHeapByteBuf(ridx: 0, widx: 35, cap: 35/35))), 16B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 0f 2f 6d 65 73 68 73 75 62 2f 31 2e 32 2e 30 0a |./meshsub/1.2.0.|
++--------+-------------------------------------------------+----------------+
+07:27:46.902 [libp2p-nio-worker-3-5] [?[32mINFO?[m] host-1 - [id: 0x3d822ab0, L:/127.0.0.1:35560 - R:/127.0.0.1:38713] READ COMPLETE
+07:27:46.902 [libp2p-nio-worker-3-5] [?[32mINFO?[m] host-1 - [id: 0x3d822ab0/16/false, L:Mux[/127.0.0.1:35560-f2606afffeabbf7d-00356b6c-00000025-725de47a4b487cc3-3d822ab0/16/false] - R:Mux[/127.0.0.1:38713-f2606afffeabbf7d-00356b6c-00000025-725de47a4b487cc3-3d822ab0/16/false]] READ COMPLETE
+07:27:46.902 [libp2p-nio-worker-3-6] [?[32mINFO?[m] host-2 - [id: 0x23f8e4aa/16/true, L:Mux[/127.0.0.1:38713-f2606afffeabbf7d-00356b6c-00000026-da616c7a4b487cc4-23f8e4aa/16/true] - R:Mux[/127.0.0.1:35560-f2606afffeabbf7d-00356b6c-00000026-da616c7a4b487cc4-23f8e4aa/16/true]] USER_EVENT: ProtocolNegotiationSucceeded(proto=/meshsub/1.2.0)
+07:27:46.902 [libp2p-nio-worker-3-6] [?[32mINFO?[m] host-2 - [id: 0x23f8e4aa/16/true, L:Mux[/127.0.0.1:38713-f2606afffeabbf7d-00356b6c-00000026-da616c7a4b487cc4-23f8e4aa/16/true] - R:Mux[/127.0.0.1:35560-f2606afffeabbf7d-00356b6c-00000026-da616c7a4b487cc4-23f8e4aa/16/true]] ACTIVE
+07:27:46.902 [libp2p-nio-worker-3-5] [?[32mINFO?[m] host-1 - [id: 0x3d822ab0, L:/127.0.0.1:35560 - R:/127.0.0.1:38713] READ: MplexFrame(id=f2606afffeabbf7d-00356b6c-00000025-725de47a4b487cc3-3d822ab0/16/true, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 20, cap: 20/20, unwrapped: UnpooledHeapByteBuf(ridx: 0, widx: 39, cap: 39/39))), 20B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 13 2f 6d 75 6c 74 69 73 74 72 65 61 6d 2f 31 2e |./multistream/1.|
+|00000010| 30 2e 30 0a                                     |0.0.            |
++--------+-------------------------------------------------+----------------+
+07:27:46.902 [libp2p-nio-worker-3-6] [?[32mINFO?[m] host-2 - [id: 0x23f8e4aa, L:/127.0.0.1:38713 - R:/127.0.0.1:35560] READ COMPLETE
+07:27:46.902 [libp2p-nio-worker-3-6] [?[32mINFO?[m] host-2 - [id: 0x23f8e4aa/16/true, L:Mux[/127.0.0.1:38713-f2606afffeabbf7d-00356b6c-00000026-da616c7a4b487cc4-23f8e4aa/16/true] - R:Mux[/127.0.0.1:35560-f2606afffeabbf7d-00356b6c-00000026-da616c7a4b487cc4-23f8e4aa/16/true]] READ COMPLETE
+07:27:46.902 [libp2p-nio-worker-3-5] [?[32mINFO?[m] host-1 - [id: 0x3d822ab0, L:/127.0.0.1:35560 - R:/127.0.0.1:38713] READ: MplexFrame(id=f2606afffeabbf7d-00356b6c-00000025-725de47a4b487cc3-3d822ab0/16/true, flag=DATA(resp), data=UnpooledSlicedByteBuf(ridx: 0, widx: 16, cap: 16/16, unwrapped: UnpooledHeapByteBuf(ridx: 0, widx: 35, cap: 35/35))), 16B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 0f 2f 6d 65 73 68 73 75 62 2f 31 2e 32 2e 30 0a |./meshsub/1.2.0.|
++--------+-------------------------------------------------+----------------+
+07:27:46.902 [libp2p-nio-worker-3-5] [?[32mINFO?[m] host-1 - [id: 0x3d822ab0/16/true, L:Mux[/127.0.0.1:35560-f2606afffeabbf7d-00356b6c-00000025-725de47a4b487cc3-3d822ab0/16/true] - R:Mux[/127.0.0.1:38713-f2606afffeabbf7d-00356b6c-00000025-725de47a4b487cc3-3d822ab0/16/true]] USER_EVENT: ProtocolNegotiationSucceeded(proto=/meshsub/1.2.0)
+07:27:46.902 [libp2p-nio-worker-3-5] [?[32mINFO?[m] host-1 - [id: 0x3d822ab0/16/true, L:Mux[/127.0.0.1:35560-f2606afffeabbf7d-00356b6c-00000025-725de47a4b487cc3-3d822ab0/16/true] - R:Mux[/127.0.0.1:38713-f2606afffeabbf7d-00356b6c-00000025-725de47a4b487cc3-3d822ab0/16/true]] ACTIVE
+07:27:46.902 [libp2p-nio-worker-3-6] [?[32mINFO?[m] host-2 - [id: 0x23f8e4aa/16/true, L:Mux[/127.0.0.1:38713-f2606afffeabbf7d-00356b6c-00000026-da616c7a4b487cc4-23f8e4aa/16/true] - R:Mux[/127.0.0.1:35560-f2606afffeabbf7d-00356b6c-00000026-da616c7a4b487cc4-23f8e4aa/16/true]] WRITE: subscriptions {
+  subscribe: true
+  topicid: "topic-0"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-1"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-2"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-3"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-4"
+}
+
+07:27:46.903 [libp2p-nio-worker-3-5] [?[32mINFO?[m] host-1 - [id: 0x3d822ab0, L:/127.0.0.1:35560 - R:/127.0.0.1:38713] READ COMPLETE
+07:27:46.903 [libp2p-nio-worker-3-5] [?[32mINFO?[m] host-1 - [id: 0x3d822ab0/16/true, L:Mux[/127.0.0.1:35560-f2606afffeabbf7d-00356b6c-00000025-725de47a4b487cc3-3d822ab0/16/true] - R:Mux[/127.0.0.1:38713-f2606afffeabbf7d-00356b6c-00000025-725de47a4b487cc3-3d822ab0/16/true]] READ COMPLETE
+07:27:46.903 [libp2p-nio-worker-3-6] [?[32mINFO?[m] host-2 - [id: 0x23f8e4aa/16/true, L:Mux[/127.0.0.1:38713-f2606afffeabbf7d-00356b6c-00000026-da616c7a4b487cc4-23f8e4aa/16/true] - R:Mux[/127.0.0.1:35560-f2606afffeabbf7d-00356b6c-00000026-da616c7a4b487cc4-23f8e4aa/16/true]] FLUSH
+07:27:46.903 [libp2p-nio-worker-3-6] [?[32mINFO?[m] host-2 - [id: 0x23f8e4aa, L:/127.0.0.1:38713 - R:/127.0.0.1:35560] WRITE: MplexFrame(id=f2606afffeabbf7d-00356b6c-00000026-da616c7a4b487cc4-23f8e4aa/16/true, flag=DATA(init), data=AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 66, cap: 256)), 66B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 41 0a 0b 08 01 12 07 74 6f 70 69 63 2d 30 0a 0b |A......topic-0..|
+|00000010| 08 01 12 07 74 6f 70 69 63 2d 31 0a 0b 08 01 12 |....topic-1.....|
+|00000020| 07 74 6f 70 69 63 2d 32 0a 0b 08 01 12 07 74 6f |.topic-2......to|
+|00000030| 70 69 63 2d 33 0a 0b 08 01 12 07 74 6f 70 69 63 |pic-3......topic|
+|00000040| 2d 34                                           |-4              |
++--------+-------------------------------------------------+----------------+
+07:27:46.903 [libp2p-nio-worker-3-6] [?[32mINFO?[m] host-2 - [id: 0x23f8e4aa, L:/127.0.0.1:38713 - R:/127.0.0.1:35560] FLUSH
+07:27:46.905 [libp2p-nio-worker-3-5] [?[32mINFO?[m] host-1 - [id: 0x3d822ab0/16/true, L:Mux[/127.0.0.1:35560-f2606afffeabbf7d-00356b6c-00000025-725de47a4b487cc3-3d822ab0/16/true] - R:Mux[/127.0.0.1:38713-f2606afffeabbf7d-00356b6c-00000025-725de47a4b487cc3-3d822ab0/16/true]] WRITE: subscriptions {
+  subscribe: true
+  topicid: "topic-0"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-1"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-2"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-3"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-4"
+}
+
+07:27:46.905 [libp2p-nio-worker-3-5] [?[32mINFO?[m] host-1 - [id: 0x3d822ab0/16/true, L:Mux[/127.0.0.1:35560-f2606afffeabbf7d-00356b6c-00000025-725de47a4b487cc3-3d822ab0/16/true] - R:Mux[/127.0.0.1:38713-f2606afffeabbf7d-00356b6c-00000025-725de47a4b487cc3-3d822ab0/16/true]] FLUSH
+07:27:46.905 [libp2p-nio-worker-3-5] [?[32mINFO?[m] host-1 - [id: 0x3d822ab0, L:/127.0.0.1:35560 - R:/127.0.0.1:38713] WRITE: MplexFrame(id=f2606afffeabbf7d-00356b6c-00000025-725de47a4b487cc3-3d822ab0/16/true, flag=DATA(init), data=AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 66, cap: 256)), 66B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 41 0a 0b 08 01 12 07 74 6f 70 69 63 2d 30 0a 0b |A......topic-0..|
+|00000010| 08 01 12 07 74 6f 70 69 63 2d 31 0a 0b 08 01 12 |....topic-1.....|
+|00000020| 07 74 6f 70 69 63 2d 32 0a 0b 08 01 12 07 74 6f |.topic-2......to|
+|00000030| 70 69 63 2d 33 0a 0b 08 01 12 07 74 6f 70 69 63 |pic-3......topic|
+|00000040| 2d 34                                           |-4              |
++--------+-------------------------------------------------+----------------+
+07:27:46.905 [libp2p-nio-worker-3-5] [?[32mINFO?[m] host-1 - [id: 0x3d822ab0, L:/127.0.0.1:35560 - R:/127.0.0.1:38713] FLUSH
+07:27:46.906 [libp2p-nio-worker-3-6] [?[32mINFO?[m] host-2 - [id: 0x23f8e4aa, L:/127.0.0.1:38713 - R:/127.0.0.1:35560] READ: MplexFrame(id=f2606afffeabbf7d-00356b6c-00000026-da616c7a4b487cc4-23f8e4aa/16/false, flag=DATA(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 66, cap: 66/66, unwrapped: UnpooledHeapByteBuf(ridx: 0, widx: 85, cap: 85/85))), 66B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 41 0a 0b 08 01 12 07 74 6f 70 69 63 2d 30 0a 0b |A......topic-0..|
+|00000010| 08 01 12 07 74 6f 70 69 63 2d 31 0a 0b 08 01 12 |....topic-1.....|
+|00000020| 07 74 6f 70 69 63 2d 32 0a 0b 08 01 12 07 74 6f |.topic-2......to|
+|00000030| 70 69 63 2d 33 0a 0b 08 01 12 07 74 6f 70 69 63 |pic-3......topic|
+|00000040| 2d 34                                           |-4              |
++--------+-------------------------------------------------+----------------+
+07:27:46.906 [libp2p-nio-worker-3-5] [?[32mINFO?[m] host-1 - [id: 0x3d822ab0, L:/127.0.0.1:35560 - R:/127.0.0.1:38713] READ: MplexFrame(id=f2606afffeabbf7d-00356b6c-00000025-725de47a4b487cc3-3d822ab0/16/false, flag=DATA(init), data=UnpooledSlicedByteBuf(ridx: 0, widx: 66, cap: 66/66, unwrapped: UnpooledHeapByteBuf(ridx: 0, widx: 85, cap: 85/85))), 66B
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 41 0a 0b 08 01 12 07 74 6f 70 69 63 2d 30 0a 0b |A......topic-0..|
+|00000010| 08 01 12 07 74 6f 70 69 63 2d 31 0a 0b 08 01 12 |....topic-1.....|
+|00000020| 07 74 6f 70 69 63 2d 32 0a 0b 08 01 12 07 74 6f |.topic-2......to|
+|00000030| 70 69 63 2d 33 0a 0b 08 01 12 07 74 6f 70 69 63 |pic-3......topic|
+|00000040| 2d 34                                           |-4              |
++--------+-------------------------------------------------+----------------+
+07:27:46.906 [libp2p-nio-worker-3-6] [?[32mINFO?[m] host-2 - [id: 0x23f8e4aa/16/false, L:Mux[/127.0.0.1:38713-f2606afffeabbf7d-00356b6c-00000026-da616c7a4b487cc4-23f8e4aa/16/false] - R:Mux[/127.0.0.1:35560-f2606afffeabbf7d-00356b6c-00000026-da616c7a4b487cc4-23f8e4aa/16/false]] READ: subscriptions {
+  subscribe: true
+  topicid: "topic-0"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-1"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-2"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-3"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-4"
+}
+
+07:27:46.906 [libp2p-nio-worker-3-6] [?[32mINFO?[m] host-2 - [id: 0x23f8e4aa, L:/127.0.0.1:38713 - R:/127.0.0.1:35560] READ COMPLETE
+07:27:46.906 [libp2p-nio-worker-3-6] [?[32mINFO?[m] host-2 - [id: 0x23f8e4aa/16/false, L:Mux[/127.0.0.1:38713-f2606afffeabbf7d-00356b6c-00000026-da616c7a4b487cc4-23f8e4aa/16/false] - R:Mux[/127.0.0.1:35560-f2606afffeabbf7d-00356b6c-00000026-da616c7a4b487cc4-23f8e4aa/16/false]] READ COMPLETE
+07:27:46.906 [libp2p-nio-worker-3-5] [?[32mINFO?[m] host-1 - [id: 0x3d822ab0/16/false, L:Mux[/127.0.0.1:35560-f2606afffeabbf7d-00356b6c-00000025-725de47a4b487cc3-3d822ab0/16/false] - R:Mux[/127.0.0.1:38713-f2606afffeabbf7d-00356b6c-00000025-725de47a4b487cc3-3d822ab0/16/false]] READ: subscriptions {
+  subscribe: true
+  topicid: "topic-0"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-1"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-2"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-3"
+}
+subscriptions {
+  subscribe: true
+  topicid: "topic-4"
+}
+
+07:27:46.906 [libp2p-nio-worker-3-5] [?[32mINFO?[m] host-1 - [id: 0x3d822ab0, L:/127.0.0.1:35560 - R:/127.0.0.1:38713] READ COMPLETE
+07:27:46.906 [libp2p-nio-worker-3-5] [?[32mINFO?[m] host-1 - [id: 0x3d822ab0/16/false, L:Mux[/127.0.0.1:35560-f2606afffeabbf7d-00356b6c-00000025-725de47a4b487cc3-3d822ab0/16/false] - R:Mux[/127.0.0.1:38713-f2606afffeabbf7d-00356b6c-00000025-725de47a4b487cc3-3d822ab0/16/false]] READ COMPLETE
+07:27:46.999 [libp2p-nio-worker-3-5] [?[32mINFO?[m] host-1 - [id: 0x3d822ab0, L:/127.0.0.1:35560 - R:/127.0.0.1:38713] CLOSE
+07:27:47.000 [libp2p-nio-worker-3-6] [?[32mINFO?[m] host-2 - [id: 0x23f8e4aa, L:/127.0.0.1:38713 - R:/127.0.0.1:35560] READ COMPLETE
+07:27:47.000 [libp2p-nio-worker-3-5] [?[32mINFO?[m] host-1 - [id: 0x3d822ab0/16/true, L:Mux[/127.0.0.1:35560-f2606afffeabbf7d-00356b6c-00000025-725de47a4b487cc3-3d822ab0/16/true] - R:Mux[/127.0.0.1:38713-f2606afffeabbf7d-00356b6c-00000025-725de47a4b487cc3-3d822ab0/16/true]] CLOSE
+07:27:47.000 [libp2p-nio-worker-3-5] [?[32mINFO?[m] host-1 - [id: 0x3d822ab0/16/true, L:Mux[/127.0.0.1:35560-f2606afffeabbf7d-00356b6c-00000025-725de47a4b487cc3-3d822ab0/16/true] - R:Mux[/127.0.0.1:38713-f2606afffeabbf7d-00356b6c-00000025-725de47a4b487cc3-3d822ab0/16/true]] INACTIVE
+07:27:47.000 [libp2p-nio-worker-3-5] [?[32mINFO?[m] host-1 - [id: 0x3d822ab0/16/true, L:Mux[/127.0.0.1:35560-f2606afffeabbf7d-00356b6c-00000025-725de47a4b487cc3-3d822ab0/16/true] ! R:Mux[/127.0.0.1:38713-f2606afffeabbf7d-00356b6c-00000025-725de47a4b487cc3-3d822ab0/16/true]] UNREGISTERED
+07:27:47.000 [libp2p-nio-worker-3-6] [?[32mINFO?[m] host-2 - [id: 0x23f8e4aa/16/true, L:Mux[/127.0.0.1:38713-f2606afffeabbf7d-00356b6c-00000026-da616c7a4b487cc4-23f8e4aa/16/true] - R:Mux[/127.0.0.1:35560-f2606afffeabbf7d-00356b6c-00000026-da616c7a4b487cc4-23f8e4aa/16/true]] CLOSE
+07:27:47.000 [libp2p-nio-worker-3-6] [?[32mINFO?[m] host-2 - [id: 0x23f8e4aa/16/true, L:Mux[/127.0.0.1:38713-f2606afffeabbf7d-00356b6c-00000026-da616c7a4b487cc4-23f8e4aa/16/true] - R:Mux[/127.0.0.1:35560-f2606afffeabbf7d-00356b6c-00000026-da616c7a4b487cc4-23f8e4aa/16/true]] INACTIVE
+07:27:47.000 [libp2p-nio-worker-3-6] [?[32mINFO?[m] host-2 - [id: 0x23f8e4aa/16/true, L:Mux[/127.0.0.1:38713-f2606afffeabbf7d-00356b6c-00000026-da616c7a4b487cc4-23f8e4aa/16/true] ! R:Mux[/127.0.0.1:35560-f2606afffeabbf7d-00356b6c-00000026-da616c7a4b487cc4-23f8e4aa/16/true]] UNREGISTERED
+07:27:47.000 [libp2p-nio-worker-3-5] [?[32mINFO?[m] host-1 - [id: 0x3d822ab0/16/false, L:Mux[/127.0.0.1:35560-f2606afffeabbf7d-00356b6c-00000025-725de47a4b487cc3-3d822ab0/16/false] - R:Mux[/127.0.0.1:38713-f2606afffeabbf7d-00356b6c-00000025-725de47a4b487cc3-3d822ab0/16/false]] CLOSE
+07:27:47.000 [libp2p-nio-worker-3-5] [?[32mINFO?[m] host-1 - [id: 0x3d822ab0/16/false, L:Mux[/127.0.0.1:35560-f2606afffeabbf7d-00356b6c-00000025-725de47a4b487cc3-3d822ab0/16/false] - R:Mux[/127.0.0.1:38713-f2606afffeabbf7d-00356b6c-00000025-725de47a4b487cc3-3d822ab0/16/false]] INACTIVE
+07:27:47.000 [libp2p-nio-worker-3-5] [?[32mINFO?[m] host-1 - [id: 0x3d822ab0/16/false, L:Mux[/127.0.0.1:35560-f2606afffeabbf7d-00356b6c-00000025-725de47a4b487cc3-3d822ab0/16/false] ! R:Mux[/127.0.0.1:38713-f2606afffeabbf7d-00356b6c-00000025-725de47a4b487cc3-3d822ab0/16/false]] UNREGISTERED
+07:27:47.000 [libp2p-nio-worker-3-6] [?[32mINFO?[m] host-2 - [id: 0x23f8e4aa/16/false, L:Mux[/127.0.0.1:38713-f2606afffeabbf7d-00356b6c-00000026-da616c7a4b487cc4-23f8e4aa/16/false] - R:Mux[/127.0.0.1:35560-f2606afffeabbf7d-00356b6c-00000026-da616c7a4b487cc4-23f8e4aa/16/false]] CLOSE
+07:27:47.000 [libp2p-nio-worker-3-6] [?[32mINFO?[m] host-2 - [id: 0x23f8e4aa/16/false, L:Mux[/127.0.0.1:38713-f2606afffeabbf7d-00356b6c-00000026-da616c7a4b487cc4-23f8e4aa/16/false] - R:Mux[/127.0.0.1:35560-f2606afffeabbf7d-00356b6c-00000026-da616c7a4b487cc4-23f8e4aa/16/false]] INACTIVE
+07:27:47.000 [libp2p-nio-worker-3-6] [?[32mINFO?[m] host-2 - [id: 0x23f8e4aa/16/false, L:Mux[/127.0.0.1:38713-f2606afffeabbf7d-00356b6c-00000026-da616c7a4b487cc4-23f8e4aa/16/false] ! R:Mux[/127.0.0.1:35560-f2606afffeabbf7d-00356b6c-00000026-da616c7a4b487cc4-23f8e4aa/16/false]] UNREGISTERED
+07:27:47.001 [libp2p-nio-worker-3-6] [?[32mINFO?[m] host-2 - [id: 0x23f8e4aa, L:/127.0.0.1:38713 ! R:/127.0.0.1:35560] INACTIVE
+07:27:47.001 [libp2p-nio-worker-3-5] [?[32mINFO?[m] host-1 - [id: 0x3d822ab0, L:/127.0.0.1:35560 ! R:/127.0.0.1:38713] INACTIVE
+07:27:47.001 [libp2p-nio-worker-3-6] [?[32mINFO?[m] host-2 - [id: 0x23f8e4aa, L:/127.0.0.1:38713 ! R:/127.0.0.1:35560] UNREGISTERED
+07:27:47.001 [libp2p-nio-worker-3-5] [?[32mINFO?[m] host-1 - [id: 0x3d822ab0, L:/127.0.0.1:35560 ! R:/127.0.0.1:38713] UNREGISTERED
+Client Host stopped
+Server Host stopped
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

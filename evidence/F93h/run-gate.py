@@ -7,6 +7,8 @@ build = lane / 'f93h-build'
 name, repeats, *selectors = sys.argv[1:]
 requested_slots = next((x.split('=', 1)[1] for x in selectors if x.startswith('--slots=')), '1' if name.startswith('held-') and int(repeats) == 1 else '2')
 selectors = [x for x in selectors if not x.startswith('--slots=')]
+fixture_overlay = next((x.split('=', 1)[1] for x in selectors if x.startswith('--fixtures=')), None)
+selectors = [x for x in selectors if not x.startswith('--fixtures=')]
 product_overlay = next((x.split('=', 1)[1] for x in selectors if x.startswith('--product=')), None)
 selectors = [x for x in selectors if not x.startswith('--product=')]
 if selectors == ['--pr']:
@@ -14,7 +16,7 @@ if selectors == ['--pr']:
 baseline = '--baseline' in selectors
 if baseline:
     selectors.remove('--baseline')
-classpath = ':'.join(([str(build / 'baseline-main')] if baseline else []) + ([str(build / product_overlay)] if product_overlay else []) + [str(build / 'overlay'), str(build / 'gate'), '/tmp/F93h-junit-console.jar', (build / 'runtime-classpath').read_text()])
+classpath = ':'.join(([str(build / fixture_overlay)] if fixture_overlay else []) + ([str(build / 'baseline-main')] if baseline else []) + ([str(build / product_overlay)] if product_overlay else []) + [str(build / 'overlay'), str(build / 'gate'), '/tmp/F93h-junit-console.jar', (build / 'runtime-classpath').read_text()])
 command = ['/opt/java/bin/java', '-ea', '-cp', classpath, 'F93dGate', str(e / name), repeats] + selectors
 started = time.monotonic()
 with (e / (name + '.log')).open('w') as output:

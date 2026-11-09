@@ -16,4 +16,8 @@ Existing upstream test edits: none. New scenario preparation corrected interface
 
 Evidence: https://github.com/CodexCoder21Organization/jvm-libp2p/tree/381d177dbba276113fee7d847486cc4e16238a59/lane-evidence/fix-libp2p-holds
 
+Published from this PR head as `community.kotlin.libp2p:jvm-libp2p:1.3.0-codexcoder21-snapshot-47`. POM HTTP 200; downloaded jar SHA-256 `f84b6743b36a63ad1e8f323a71837d6a61e72d7c6922d946a8ba2b745264252d`.
+
+Publication evidence: https://github.com/CodexCoder21Organization/jvm-libp2p/tree/wip/fix-libp2p-holds-evidence/lane-evidence/fix-libp2p-holds
+
 🤖 Generated with [Claude Code](https://claude.com/claude-code)

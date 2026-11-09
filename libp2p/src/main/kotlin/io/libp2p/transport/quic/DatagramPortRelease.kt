@@ -62,7 +62,7 @@ internal fun datagramPortReleaseIoFactory(
 ): IoHandlerFactory = object : IoHandlerFactory {
     override fun newHandler(executor: ThreadAwareExecutor): IoHandler {
         lateinit var handler: IoHandler
-        val release = DatagramPortRelease { handler.wakeup(executor) }
+        val release = DatagramPortRelease { handler.wakeup() }
         handler = NioIoHandler.newFactory(
             SelectorProvider.provider(),
             SelectStrategyFactory { release }

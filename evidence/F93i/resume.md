@@ -1,0 +1,2 @@
+OBSERVED 2026-11-09T15:37:26.057177+00:00: Fresh product clone and evidence worktree created; develop remains3b2b6640 and PR was OPEN at68c436af. Candidate3 commits adopted locally; compile is queued/running with1 slot and no daemon. No Addendum headings present. INFER: Next checkpoint is compiled stronger fixtures and exact exceptional-route red.
+OBSERVED: Product checkout jvm-libp2p, evidence checkout jvm-libp2p-evidence; tools adapted from F93h. Existing-test-edits.md contains exact inherited diffs. No product push yet.

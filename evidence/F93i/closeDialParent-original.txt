@@ -1,0 +1,31 @@
+private fun closeDialParent(owner: DialParent): CompletableFuture<Unit> {
+    val childClosed = owner.child?.let { closeNettyChannelOnce(it) } ?: CompletableFuture.completedFuture(Unit)
+    val parentClosed =
+        childClosed.handle { _, _ -> owner.beforeParentClose() }
+            .thenCompose { it }.thenCompose { closeNettyChannelOnce(owner.parent) }
+            .thenCompose { owner.parent.closeFuture().toVoidCompletableFuture() }
+            .thenCompose { owner.portRelease.awaitRelease() }
+    return parentClosed.whenComplete { _, failure ->
+        if (failure == null && !childClosed.isCompletedExceptionally) owner.released()
+    }
+}
+
+/** The registered channel's loop still owns this shutdown-hook call after dispatch rejection. */
+private fun closeRejectedChannelOnLoop(channel: Channel): CompletableFuture<Unit> {
+    val close = closeNettyChannelOnce(channel)
+    if (channel.closeFuture().isDone || !close.isCompletedExceptionally) return close
+    val physical = DefaultChannelPromise(channel, ImmediateEventExecutor.INSTANCE)
+    val outcomes = mutableListOf(close, physical.toVoidCompletableFuture())
+    try {
+        channel.unsafe().close(physical)
+    } catch (failure: Throwable) {
+        physical.tryFailure(failure)
+        val thrown = CompletableFuture<Unit>()
+        thrown.completeExceptionally(failure)
+        outcomes += thrown
+    }
+    return CompletableFuture.allOf(*outcomes.toTypedArray()).handle { _, _ ->
+        transportCloseResult(outcomes)
+        Unit
+    }
+}

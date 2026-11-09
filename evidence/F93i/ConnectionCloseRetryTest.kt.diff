@@ -1,0 +1,47 @@
+diff --git a/libp2p/src/test/kotlin/io/libp2p/transport/ConnectionCloseRetryTest.kt b/libp2p/src/test/kotlin/io/libp2p/transport/ConnectionCloseRetryTest.kt
+index 3f30fa9a..b9fc5f12 100644
+--- a/libp2p/src/test/kotlin/io/libp2p/transport/ConnectionCloseRetryTest.kt
++++ b/libp2p/src/test/kotlin/io/libp2p/transport/ConnectionCloseRetryTest.kt
+@@ -131,6 +131,7 @@ class ConnectionCloseRetryTest {
+             connection.closeFuture().get(5, TimeUnit.SECONDS)
+             assertEquals(2, requests.get(), "Retry must recover a physical close first owned by transport shutdown.")
+             assertSame(failure, retryCloseFailure(connection.close()))
++            assertSame(failure, retryCloseFailure(connection.transport().close()))
+         }
+     }
+ 
+@@ -220,6 +221,7 @@ class ConnectionCloseRetryTest {
+                 connection.retryClose().get(5, TimeUnit.SECONDS)
+                 assertSame(failure, retryCloseFailure(connection.close()))
+                 assertEquals(2, requests.get(), "Success must remain terminal across subsequent retry and ordinary callers.")
++                assertSame(failure, retryCloseFailure(connection.transport().close()))
+             } finally {
+                 workers.shutdownNow()
+                 try {
+@@ -341,7 +343,25 @@ private fun withRetryConnection(body: (ConnectionOverNetty, Connection) -> Unit)
+         try {
+             cleanupRetryConnection(parent, "retry-close-control")
+         } finally {
+-            CompletableFuture.allOf(client.stop(), server.stop()).get(10, TimeUnit.SECONDS)
++            val connection = parent
++            val readiness = connection?.transport()?.ready()
++            assertTrue(readiness == null || readiness.isDone, "The fixture must already have completed transport preparation.")
++            if (readiness == null || !readiness.isCompletedExceptionally) {
++                CompletableFuture.allOf(client.stop(), server.stop()).get(10, TimeUnit.SECONDS)
++            } else {
++                try {
++                    var closed: Throwable = assertThrows(ExecutionException::class.java) { readiness.get(10, TimeUnit.SECONDS) }
++                    while (closed.cause != null) closed = closed.cause!!
++                    assertEquals("Transport is closed", closed.message)
++                    // The scenario already checks this same public result against its local failure object.
++                    val expected = retryCloseFailure(requireNotNull(connection).transport().close())
++                    var reported: Throwable = assertThrows(ExecutionException::class.java) { client.stop().get(10, TimeUnit.SECONDS) }
++                    while (reported.cause != null) reported = reported.cause!!
++                    assertSame(expected, reported, "Host shutdown must retain the same failed transport result after socket cleanup.")
++                } finally {
++                    server.stop().get(10, TimeUnit.SECONDS)
++                }
++            }
+         }
+     }
+ }

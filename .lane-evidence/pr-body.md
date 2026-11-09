@@ -14,7 +14,7 @@ Validation uses first-attempt JUnit XML results, with no retries or skipped case
 | Correction reverted | budget-close method, ten repetitions | 0/10 |
 | Correction restored and neighbours | budget class, prefix-frame failure, write-close ordering | 14/14 |
 
-Full register: delegated to this PR's own CI; no whole-repository suite was run on the shared box. The final evidence records the single checks snapshot required by the brief.
+Full register: PR CI run https://github.com/CodexCoder21Organization/jvm-libp2p/actions/runs/42588001768, pending; passed/total test counts are not yet available. At the single checks snapshot, the two kotlin.build checks had passed and four native/documentation jobs were still running. No whole-repository suite was run on the shared box, and no check was requested again. Local `:libp2p:spotlessKotlinCheck` also passed.
 
 Every existing-test edit is in `budget close fails undelivered in-flight parent write futures`:
 
@@ -24,7 +24,7 @@ Every existing-test edit is in `budget close fails undelivered in-flight parent 
 - A sibling stream is opened before the application writes and carries the same 300-byte second payload.
 - The filler and second payload are submitted in one event-loop operation.
 
-Every existing assertion, the 100-byte first payload, both 300-byte buffers, the 500-byte allowance, timeouts, and fixture cleanup are retained. The other two test methods and all fixture/helper implementations are unchanged. The correction has its own commit titled `Proposed test change: order Yamux budget writes across streams`.
+Every existing assertion, the 100-byte first payload, both 300-byte buffers, the 500-byte allowance, timeouts, and fixture cleanup are retained. The other two test methods and all fixture/helper implementations are unchanged. The correction has its own commit [Proposed test change: order Yamux budget writes across streams](https://github.com/CodexCoder21Organization/jvm-libp2p/commit/61be1a2b3b79c2ba9377704e4d5c3701b143e0bc).
 
 Separate test and code review passes were performed within this lane after reading Testing Architecture, Code Review Red Flags, and Engineering Philosophy in full. Evidence and findings: https://github.com/CodexCoder21Organization/jvm-libp2p/blob/wip/fix-yamux-budget-evidence/.lane-evidence/findings.md
 

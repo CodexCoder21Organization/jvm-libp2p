@@ -11,3 +11,4 @@ for phase in repetition forced-red; do
   head -1 ".lane-scratch/$phase-summary.txt"
   if [ "$rc" -gt 1 ]; then exit "$rc"; fi
  done
+python3 .lane-scratch/proof.py

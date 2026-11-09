@@ -11,7 +11,7 @@ import io.libp2p.transport.tcp.TcpTransport
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.RepeatedTest
 import org.junit.jupiter.api.parallel.Execution
-import org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT
+import org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit.SECONDS
@@ -20,7 +20,7 @@ import java.util.concurrent.atomic.AtomicReference
 
 class NetworkProvisionalMplexCancellationOrderingEvidenceTest {
     @RepeatedTest(10)
-    @Execution(CONCURRENT)
+    @Execution(SAME_THREAD)
     fun testCancelledProvisionalProbeStopsBeforeHeldParentPublishes() {
         val gates = List(2) { CompletableFuture<Unit>() }
         val starts = List(2) { CountDownLatch(1) }

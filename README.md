@@ -486,19 +486,25 @@ import io.libp2p.core.Host
 import io.libp2p.core.newStream
 import io.libp2p.protocol.PingController
 
-fun pingCandidate(host: Host, parent: Connection) {
-    val hold = checkNotNull(host.network.holdConnection(parent).join())
-    try {
+fun pingCandidate(host: Host, parent: Connection): java.util.concurrent.CompletableFuture<Long> {
+    val hold = host.network.holdConnection(parent).getNow(null)
+        ?: return java.util.concurrent.CompletableFuture.failedFuture(
+            IllegalStateException("Cannot hold candidate parent because it is ineligible or its network does not support provisional holds: $parent")
+        )
+    return try {
         val child = host.newStream<PingController>(listOf("/ipfs/ping/1.0.0"), hold)
-        try {
-            val ping = child.controller.join()
-            check(hold.promote())
-            ping.ping().join()
-        } finally {
-            child.stream.thenAccept { it.close() }
+        val result = child.controller.thenCompose { ping ->
+            check(hold.promote()) { "Cannot retain the selected parent because its hold or parent has closed: $parent" }
+            ping.ping()
         }
-    } finally {
+        result.whenComplete { _, _ ->
+            child.stream.thenAccept { it.close() }
+            hold.close()
+        }
+        result
+    } catch (failure: Throwable) {
         hold.close()
+        throw failure
     }
 }
 ```

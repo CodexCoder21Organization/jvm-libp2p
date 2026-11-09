@@ -23,7 +23,7 @@ Develop remains3b2b6640. The previously reviewed7 overlap commits affect README/
 
 Addendum A2 removes the all-touched30 register and assigns remaining work to the orchestrator: pending bd0e430f/9467f665 fixtures, late-child cleanup and failed-history gaps, concurrent waiter/re-entry/destruction coverage, wider repeat gates and publication. No artifact has been published by F93i; no merge, queue, close or deploy action was taken.
 
-Final-head Actions XML is pending collection after this product push. Product commit: https://github.com/CodexCoder21Organization/jvm-libp2p/commit/12cb229eb8f6baf50c060ac9bc29156611301af8
+Final-head native Actions https://github.com/CodexCoder21Organization/jvm-libp2p/actions/runs/42648970326 completed successfully: 1672/1674 first passes, 0 failures, 2 existing skips, 0 retried cases; all278 per-attempt XML files inspected, including33 verification cases outside the native test-results directory. Both stronger selector-release fixtures passed in the native suite. This green sample does not classify the earlier setup failure as inherited. Product commit: https://github.com/CodexCoder21Organization/jvm-libp2p/commit/12cb229eb8f6baf50c060ac9bc29156611301af8
 
 ## Existing default-branch test edits
 

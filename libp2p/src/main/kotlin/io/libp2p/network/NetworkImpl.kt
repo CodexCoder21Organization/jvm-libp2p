@@ -3,6 +3,7 @@ package io.libp2p.network
 import io.libp2p.core.ChannelVisitor
 import io.libp2p.core.Connection
 import io.libp2p.core.ConnectionHandler
+import io.libp2p.core.ConnectionHold
 import io.libp2p.core.Network
 import io.libp2p.core.P2PChannel
 import io.libp2p.core.PeerId
@@ -24,6 +25,9 @@ class NetworkImpl(
      * The connection table.
      */
     override val connections = CopyOnWriteArrayList<Connection>()
+
+    override fun holdConnection(connection: Connection): CompletableFuture<ConnectionHold?> =
+        CompletableFuture.completedFuture(holdConnectionLocally(connection))
 
     override fun reserveConnection(connection: Connection): CompletableFuture<Boolean> =
         if (connectionEligible(connection)) {

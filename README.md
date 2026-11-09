@@ -479,3 +479,51 @@ After the build is complete you may find the library `.jar` file here: `jvm-libp
 
 Dual-licensed under MIT and ASLv2, by way of the [Permissive License
 Stack](https://protocol.ai/blog/announcing-the-permissive-license-stack/).
+
+## Provisional parent holds
+
+`Network.holdConnection(parent)` acquires one caller's provisional hold on an eligible parent,
+or returns `null` when the parent is ineligible or its network does not support holds. It opens
+no stream and completes locally. `host.newStream(protocols, hold)` uses the host's registered
+bindings without making an ordinary lifetime reservation.
+
+Cancel the child controller to abandon pending negotiation. If child creation is still queued,
+cancellation ends that creation before its protocol is offered. Cancellation or failed negotiation
+closes that child and releases its hold. Closing the hold itself leaves accepted children open;
+each child continues to protect the parent until that child closes. Each caller releases only
+its own hold. Once a surplus parent's last provisional use ends, the network coordinates its
+retirement with the peer. Incoming children remain protected by the same ordering.
+
+Call `hold.promote()` before releasing a chosen hold to establish ordinary lifetime retention.
+Promotion returns false after release or parent exclusion. Repeated release has no additional
+effect. Explicit parent close stays terminal, including when pending child initialization finishes
+later. Existing `reserveConnection` and ordinary stream creation keep their lifetime guarantee.
+
+```kotlin
+import io.libp2p.core.Connection
+import io.libp2p.core.Host
+import io.libp2p.core.newStream
+import io.libp2p.protocol.PingController
+
+fun pingCandidate(host: Host, parent: Connection): java.util.concurrent.CompletableFuture<Long> {
+    val hold = host.network.holdConnection(parent).getNow(null)
+        ?: return java.util.concurrent.CompletableFuture.failedFuture(
+            IllegalStateException("Cannot hold candidate parent because it is ineligible or its network does not support provisional holds: $parent")
+        )
+    return try {
+        val child = host.newStream<PingController>(listOf("/ipfs/ping/1.0.0"), hold)
+        val result = child.controller.thenCompose { ping ->
+            check(hold.promote()) { "Cannot retain the selected parent because its hold or parent has closed: $parent" }
+            ping.ping()
+        }
+        result.whenComplete { _, _ ->
+            child.stream.thenAccept { it.close() }
+            hold.close()
+        }
+        result
+    } catch (failure: Throwable) {
+        hold.close()
+        throw failure
+    }
+}
+```

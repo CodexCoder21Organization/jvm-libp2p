@@ -32,6 +32,15 @@ interface Network {
     fun reserveConnection(connection: Connection): CompletableFuture<Boolean>
 
     /**
+     * Acquires an independently owned provisional hold without ordinary lifetime retention.
+     * Returns null if the parent is ineligible or this network does not support provisional holds.
+     * The caller releases the hold with [ConnectionHold.close], or promotes it before release.
+     * This operation opens no stream and completes locally.
+     */
+    fun holdConnection(connection: Connection): CompletableFuture<ConnectionHold?> =
+        CompletableFuture.completedFuture(null)
+
+    /**
      * Starts listening on specified address. The returned future asynchronously
      * notifies on success or error
      * All the incoming connections are handled with [connectionHandler]

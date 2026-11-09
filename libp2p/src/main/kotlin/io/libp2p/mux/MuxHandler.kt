@@ -66,6 +66,10 @@ abstract class MuxHandler(
         val controller = StreamSetupFuture<T>()
         val muxChannel = newStream { channel ->
             controller.channel = channel
+            if (controller.isCancelled) {
+                channel.close()
+                return@newStream
+            }
             channel.closeFuture().addListener {
                 channel.attr(STREAM_SETUP_CAUSE).get()?.let { cause ->
                     controller.completeExceptionally(cause)
@@ -75,6 +79,11 @@ abstract class MuxHandler(
             channel.attr(STREAM_SETUP_RESULT).set(result)
             channel.attr(STREAM_SETUP_CAUSE).get()?.let { result.completeExceptionally(it) }
             result.forward(controller)
+        }
+        controller.whenComplete { _, _ ->
+            if (controller.isCancelled && muxChannel.cancel(false)) {
+                controller.channel?.close()
+            }
         }
         // Observe the owned creation result, independently of the caller's mutable stream future.
         muxChannel.forwardException(controller)

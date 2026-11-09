@@ -18,9 +18,14 @@ open class StreamOverNetty(
     override val connection: Connection,
     initiator: Boolean
 ) : Stream, StreamCapacityReset, P2PChannelOverNetty(ch, initiator) {
+    private var incomingAdmission: ((String) -> Boolean)? = null
+
     init {
         nettyChannel.attr(PROTOCOL).set(StreamSetupFuture<String>().also { it.channel = nettyChannel })
+        if (!initiator) incomingAdmission = (connection as? ConnectionOverNetty)?.selection?.observeIncomingStream(this)
     }
+
+    internal fun admitsSelectedProtocol(protocol: String): Boolean = incomingAdmission?.invoke(protocol) != false
 
     /**
      * Returns the [PeerId] of the remote peer [Connection] which this

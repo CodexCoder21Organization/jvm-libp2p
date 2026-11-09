@@ -116,7 +116,9 @@ class YamuxOutboundBufferBudgetRefCountTest {
                 }
 
                 val firstData = harness.client.alloc().buffer(100).writeZero(100)
-                val inFlightFuture = stream.writeAndFlushWithFuture(firstData)
+                val inFlightFuture = harness.onClientEventLoop {
+                    stream.writeAndFlushWithFuture(firstData)
+                }
                 assertThat(inFlightFuture.isDone).isFalse()
 
                 val secondData = harness.client.alloc().buffer(300).writeZero(300)

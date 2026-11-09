@@ -1,0 +1,130 @@
+[boxrun] slot 1 acquired at 09:48:20 for: timeout 900 ./gradlew --no-daemon --max-workers=2 -Pkotlin.compiler.execution.strategy=in-process :libp2p:spotlessCheck :libp2p:detekt :libp2p:test --tests io.libp2p.core.LargeTlsPing* --tests io.libp2p.protocol.* --tests io.libp2p.core.HostTestJava --tests io.libp2p.security.tls.TlsSecureChannelTest --tests io.libp2p.network.NetworkReservation* --tests io.libp2p.network.NetworkRetirement* --tests io.libp2p.network.NetworkSelectionEofTest --tests io.libp2p.multistream.ProtocolSelectionCloseNotificationTest
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.14.3/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+Build configured without Android submodules.
+    To include Android submodules define a valid SDK location with an ANDROID_HOME environment variable 
+    or by setting the sdk.dir path in your project's local properties file local.properties.
+
+> Configure project :
+    
+    Thank you for enabling Dokka Gradle plugin V2!
+    To learn about migrating read the migration guide https://kotl.in/dokka-gradle-migration
+    
+    We would appreciate your feedback!
+     - Please report any feedback or problems https://kotl.in/dokka-issues
+     - Chat with the community visit #dokka in https://kotlinlang.slack.com/ (To sign up visit https://kotl.in/slack)
+    
+    You can suppress this message by adding
+        org.jetbrains.dokka.experimental.gradle.pluginMode.noWarn=true
+    to your project's `gradle.properties` file.
+    
+
+> Task :spotlessInternalRegisterDependencies UP-TO-DATE
+> Task :libp2p:checkKotlinGradlePluginConfigurationErrors
+> Task :libp2p:extractIncludeProto UP-TO-DATE
+> Task :libp2p:extractProto UP-TO-DATE
+> Task :libp2p:generateProto UP-TO-DATE
+> Task :tools:schedulers:processResources NO-SOURCE
+> Task :libp2p:extractJmhProto UP-TO-DATE
+> Task :libp2p:processResources UP-TO-DATE
+> Task :libp2p:extractTestFixturesProto UP-TO-DATE
+> Task :tools:schedulers:checkKotlinGradlePluginConfigurationErrors
+> Task :tools:schedulers:compileKotlin NO-SOURCE
+> Task :tools:schedulers:compileJava UP-TO-DATE
+> Task :tools:schedulers:classes UP-TO-DATE
+> Task :tools:schedulers:jar UP-TO-DATE
+> Task :libp2p:processTestFixturesResources NO-SOURCE
+> Task :libp2p:extractTestProto UP-TO-DATE
+> Task :libp2p:detekt
+> Task :libp2p:processTestResources UP-TO-DATE
+> Task :libp2p:compileKotlin
+> Task :libp2p:compileJava
+> Task :libp2p:extractIncludeJmhProto UP-TO-DATE
+> Task :libp2p:generateJmhProto NO-SOURCE
+> Task :libp2p:extractIncludeTestFixturesProto UP-TO-DATE
+> Task :libp2p:generateTestFixturesProto NO-SOURCE
+> Task :libp2p:classes
+> Task :libp2p:jar
+> Task :libp2p:compileTestFixturesKotlin
+> Task :libp2p:compileTestFixturesJava UP-TO-DATE
+> Task :libp2p:extractIncludeTestProto UP-TO-DATE
+> Task :libp2p:generateTestProto NO-SOURCE
+> Task :libp2p:spotlessJava
+> Task :libp2p:spotlessJavaCheck
+> Task :libp2p:spotlessKotlin
+> Task :libp2p:spotlessKotlinCheck
+> Task :libp2p:spotlessCheck
+> Task :libp2p:testFixturesClasses UP-TO-DATE
+> Task :libp2p:testFixturesJar UP-TO-DATE
+The Daemon will expire after the build after running out of JVM Metaspace.
+The project memory settings are likely not configured or are configured to an insufficient value.
+The daemon will restart for the next build, which may increase subsequent build times.
+These settings can be adjusted by setting 'org.gradle.jvmargs' in 'gradle.properties'.
+The currently configured max heap space is '2 GiB' and the configured max metaspace is '368 MiB'.
+For more information on how to set these values, please refer to https://docs.gradle.org/8.14.3/userguide/build_environment.html#sec:configuring_jvm_memory in the Gradle documentation.
+To disable this warning, set 'org.gradle.daemon.performance.disable-logging=true'.
+> Task :libp2p:compileTestKotlin
+> Task :libp2p:compileTestJava UP-TO-DATE
+> Task :libp2p:testClasses UP-TO-DATE
+> Task :libp2p:test
+
+Exception in thread "TestChannel-interconnect-executor-13" io.netty.handler.codec.DecoderException: javax.net.ssl.SSLHandshakeException: General OpenSslEngine problem
+	at io.netty.handler.codec.ByteToMessageDecoder.callDecode(ByteToMessageDecoder.java:515)
+	at io.netty.handler.codec.ByteToMessageDecoder.channelRead(ByteToMessageDecoder.java:296)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:357)
+	at io.libp2p.multistream.ProtocolSelect.channelRead(ProtocolSelect.kt:45)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:357)
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.channelRead(DefaultChannelPipeline.java:1442)
+	at io.netty.channel.DefaultChannelPipeline.fireChannelRead(DefaultChannelPipeline.java:931)
+	at io.netty.channel.embedded.EmbeddedChannel.writeInbound(EmbeddedChannel.java:369)
+	at io.libp2p.tools.TestChannel.send$lambda$1(TestChannel.kt:83)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1144)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+Caused by: javax.net.ssl.SSLHandshakeException: General OpenSslEngine problem
+	at io.netty.handler.ssl.ReferenceCountedOpenSslEngine.handshakeException(ReferenceCountedOpenSslEngine.java:1934)
+	at io.netty.handler.ssl.ReferenceCountedOpenSslEngine.wrap(ReferenceCountedOpenSslEngine.java:874)
+	at java.base/javax.net.ssl.SSLEngine.wrap(SSLEngine.java:564)
+	at io.netty.handler.ssl.SslHandler.wrap(SslHandler.java:1160)
+	at io.netty.handler.ssl.SslHandler.wrapNonAppData(SslHandler.java:1007)
+	at io.netty.handler.ssl.SslHandler.unwrap(SslHandler.java:1571)
+	at io.netty.handler.ssl.SslHandler.decodeNonJdkCompatible(SslHandler.java:1406)
+	at io.netty.handler.ssl.SslHandler.decode(SslHandler.java:1446)
+	at io.netty.handler.codec.ByteToMessageDecoder.decodeRemovalReentryProtection(ByteToMessageDecoder.java:545)
+	at io.netty.handler.codec.ByteToMessageDecoder.callDecode(ByteToMessageDecoder.java:484)
+	... 11 more
+Caused by: io.libp2p.security.InvalidRemotePubKey
+	at io.libp2p.security.tls.Libp2pTrustManager.checkClientTrusted(TLSSecureChannel.kt:231)
+	at io.libp2p.security.tls.Libp2pTrustManager.checkServerTrusted(TLSSecureChannel.kt:236)
+	at io.netty.handler.ssl.util.X509TrustManagerWrapper.checkServerTrusted(X509TrustManagerWrapper.java:66)
+	at io.netty.handler.ssl.EnhancingX509ExtendedTrustManager.checkServerTrusted(EnhancingX509ExtendedTrustManager.java:81)
+	at io.netty.handler.ssl.ReferenceCountedOpenSslClientContext$ExtendedTrustManagerVerifyCallback.verify(ReferenceCountedOpenSslClientContext.java:243)
+	at io.netty.handler.ssl.ReferenceCountedOpenSslContext$AbstractCertificateVerifier.verify(ReferenceCountedOpenSslContext.java:855)
+	at io.netty.internal.tcnative.CertificateVerifierTask.runTask(CertificateVerifierTask.java:36)
+	at io.netty.internal.tcnative.SSLTask.run(SSLTask.java:48)
+	at io.netty.internal.tcnative.SSLTask.run(SSLTask.java:42)
+	at io.netty.handler.ssl.ReferenceCountedOpenSslEngine.runAndResetNeedTask(ReferenceCountedOpenSslEngine.java:1552)
+	at io.netty.handler.ssl.ReferenceCountedOpenSslEngine.lambda$getDelegatedTask$0(ReferenceCountedOpenSslEngine.java:1580)
+	at io.netty.handler.ssl.SslHandler.runDelegatedTasks(SslHandler.java:1711)
+	at io.netty.handler.ssl.SslHandler.unwrap(SslHandler.java:1557)
+	... 15 more
+Exception in thread "TestChannel-interconnect-executor-16" java.nio.channels.ClosedChannelException
+	at io.netty.channel.embedded.EmbeddedChannel.checkOpen(EmbeddedChannel.java:959)
+	at io.netty.channel.embedded.EmbeddedChannel.ensureOpen(EmbeddedChannel.java:979)
+	at io.netty.channel.embedded.EmbeddedChannel.writeInbound(EmbeddedChannel.java:360)
+	at io.libp2p.tools.TestChannel.send$lambda$1(TestChannel.kt:83)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1144)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+
+[Incubating] Problems report is available at: file:///code/workspace/fix-largeping/build/reports/problems/problems-report.html
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 9.0.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/8.14.3/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD SUCCESSFUL in 4m 58s
+30 actionable tasks: 13 executed, 17 up-to-date
+[boxrun] slot 1 released at 09:53:19 rc=0

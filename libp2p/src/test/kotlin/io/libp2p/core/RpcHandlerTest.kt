@@ -2,6 +2,7 @@ package io.libp2p.core
 
 import io.libp2p.core.dsl.host
 import io.libp2p.core.multiformats.Multiaddr
+import io.libp2p.core.multiformats.Protocol
 import io.libp2p.core.multistream.ProtocolBinding
 import io.libp2p.core.multistream.ProtocolDescriptor
 import io.libp2p.core.multistream.ProtocolMatcher
@@ -133,7 +134,7 @@ class RpcHandlerTest {
                 +RpcProtocol()
             }
             network {
-                listen("/ip4/0.0.0.0/tcp/40002")
+                listen("/ip4/0.0.0.0/tcp/0")
             }
             debug {
                 muxFramesHandler.addLogger(LogLevel.ERROR, "Host-2")
@@ -147,13 +148,16 @@ class RpcHandlerTest {
         start2.get(5, TimeUnit.SECONDS)
         println("Host #2 started")
 
+        val serverPort = host2.listenAddresses().single().getFirstComponent(Protocol.TCP)!!.stringValue
+        val serverAddress = Multiaddr("/ip4/127.0.0.1/tcp/$serverPort")
+
         var streamCounter1 = 0
         host1.addStreamVisitor { streamCounter1++ }
         var streamCounter2 = 0
         host2.addStreamVisitor { streamCounter2++ }
 
         run {
-            val ctr = host1.newStream<OpController>(listOf(protoPrefix + protoAdd), host2.peerId, Multiaddr("/ip4/127.0.0.1/tcp/40002"))
+            val ctr = host1.newStream<OpController>(listOf(protoPrefix + protoAdd), host2.peerId, serverAddress)
                 .controller.get(5, TimeUnit.SECONDS)
             println("Controller created")
             val res = ctr.calculate(100, 10).get(5, TimeUnit.SECONDS)
@@ -177,7 +181,7 @@ class RpcHandlerTest {
         val connection = host1.network.connections[0]
 
         run {
-            val ctr = host1.newStream<OpController>(listOf(protoPrefix + protoMul), host2.peerId, Multiaddr("/ip4/127.0.0.1/tcp/40002"))
+            val ctr = host1.newStream<OpController>(listOf(protoPrefix + protoMul), host2.peerId, serverAddress)
                 .controller.get(5, TimeUnit.SECONDS)
             println("Controller created")
             val res = ctr.calculate(100, 10).get(5, TimeUnit.SECONDS)

@@ -619,11 +619,22 @@ private class DialParent(val parent: Channel, val beforeParentClose: () -> Compl
 /** A dial releases its parent only after the original child operation settles. */
 private fun closeDialParent(owner: DialParent): CompletableFuture<Unit> {
     val childClosed = owner.child?.let { closeNettyChannelOnce(it) } ?: CompletableFuture.completedFuture(Unit)
-    val parentClosed =
+    val parentClose =
         childClosed.handle { _, _ -> owner.beforeParentClose() }
             .thenCompose { it }.thenCompose { closeNettyChannelOnce(owner.parent) }
-            .thenCompose { owner.parent.closeFuture().toVoidCompletableFuture() }
-            .thenCompose { owner.portRelease.awaitRelease() }
+    val parentReleased =
+        parentClose.handle { _, failure ->
+          if (failure != null && owner.parent.isOpen) {
+            CompletableFuture.completedFuture(Unit)
+          } else {
+            owner.parent.closeFuture().toVoidCompletableFuture()
+                .thenCompose { owner.portRelease.awaitRelease() }
+          }
+        }.thenCompose { it }
+    val parentClosed =
+        CompletableFuture.allOf(parentClose, parentReleased).handle { _, _ ->
+          transportCloseResult(listOf(parentClose, parentReleased))
+        }
     return parentClosed.whenComplete { _, failure ->
         if (failure == null && !childClosed.isCompletedExceptionally) owner.released()
     }

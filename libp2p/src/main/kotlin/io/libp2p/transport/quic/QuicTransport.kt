@@ -34,7 +34,6 @@ import io.netty.buffer.ByteBuf
 import io.netty.channel.*
 import io.netty.channel.epoll.Epoll
 import io.netty.channel.epoll.EpollDatagramChannel
-import io.netty.channel.nio.NioIoHandler
 import io.netty.channel.socket.nio.NioDatagramChannel
 import io.netty.handler.codec.quic.*
 import io.netty.handler.ssl.ClientAuth
@@ -47,6 +46,7 @@ import java.net.SocketAddress
 import java.time.Duration
 import java.util.*
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 
@@ -75,8 +75,10 @@ class QuicTransport(
     // JVM open past the runner's kill — matching PlainNettyTransport. Kept per-instance
     // (shut down in close()) because QUIC is not on the high-fan-out host path that
     // motivated PlainNettyTransport's shared worker group.
+    private val datagramPortReleases = ConcurrentHashMap<Any, DatagramPortRelease>()
+
     private var workerGroup by lazyVar {
-        MultiThreadIoEventLoopGroup(DefaultThreadFactory("libp2p-quic-worker", true), NioIoHandler.newFactory())
+        MultiThreadIoEventLoopGroup(DefaultThreadFactory("libp2p-quic-worker", true), datagramPortReleaseIoFactory(datagramPortReleases))
     }
     private var allocator by lazyVar { AdaptiveByteBufAllocator(true) }
     private var multistreamProtocol: MultistreamProtocol = MultistreamProtocolV1
@@ -301,7 +303,7 @@ class QuicTransport(
                     val owner =
                         DialParent(parent, {
                             if (shutdown.get() == null) CompletableFuture.completedFuture(Unit) else shutdownChildrenSettled
-                        }) {
+                        }, datagramPortReleases.getValue(parent.eventLoop())) {
                             synchronized(this@QuicTransport) { clientDatagramChannels -= parent }
                         }
                     dialOwner.set(owner)
@@ -609,7 +611,7 @@ class QuicTransport(
             .withComponent(QUICV1)
 }
 
-private class DialParent(val parent: Channel, val beforeParentClose: () -> CompletableFuture<Unit>, val released: () -> Unit) {
+private class DialParent(val parent: Channel, val beforeParentClose: () -> CompletableFuture<Unit>, val portRelease: DatagramPortRelease, val released: () -> Unit) {
     @Volatile
     var child: Channel? = null
 }
@@ -620,6 +622,8 @@ private fun closeDialParent(owner: DialParent): CompletableFuture<Unit> {
     val parentClosed =
         childClosed.handle { _, _ -> owner.beforeParentClose() }
             .thenCompose { it }.thenCompose { closeNettyChannelOnce(owner.parent) }
+            .thenCompose { owner.parent.closeFuture().toVoidCompletableFuture() }
+            .thenCompose { owner.portRelease.awaitRelease() }
     return parentClosed.whenComplete { _, failure ->
         if (failure == null && !childClosed.isCompletedExceptionally) owner.released()
     }

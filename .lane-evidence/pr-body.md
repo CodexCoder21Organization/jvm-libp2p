@@ -12,7 +12,7 @@ Validation uses first-attempt JUnit XML results, with no retries or skipped case
 | Repeated reproducer | budget-close method, ten repetitions | 0/10 |
 | Correction | complete budget/reference-count class | 12/12 |
 | Correction reverted | budget-close method, ten repetitions | 0/10 |
-| Correction restored and neighbours | budget class, prefix-frame failure, write-close ordering | PENDING |
+| Correction restored and neighbours | budget class, prefix-frame failure, write-close ordering | 14/14 |
 
 Full register: delegated to this PR's own CI; no whole-repository suite was run on the shared box. The final evidence records the single checks snapshot required by the brief.
 

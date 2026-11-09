@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Prepare a pinned distribution and point the public Gradle wrapper at its local URI."""
 import argparse
-import hashlib
 from pathlib import Path
 import subprocess
 from urllib.parse import urlparse
@@ -21,15 +20,15 @@ def main():
     sources = args.source or [primary, "https://downloads.gradle.org/distributions/" + name]
     args.directory.mkdir(parents=True, exist_ok=True)
     archive = args.directory.resolve() / name
-    result = subprocess.run(["curl", "-q", "--fail", "--silent", "--show-error", "--location",
-                             "--connect-timeout", "10", "--max-time", "10",
-                             "--output", str(archive), "--url", sources[0]], check=False)
+    # Keep the wrapper's existing 10-second network allowance as a total bound per attempt.
+    network_seconds = max(1, min(30, int(properties["networkTimeout"]) // 1000))
+    result = subprocess.run(
+        ["bash", str(Path(__file__).with_name("download-verified.sh")),
+         "--connect-timeout", str(network_seconds), "--max-time", str(network_seconds),
+         str(archive), properties["distributionSha256Sum"], *sources], check=False,
+    )
     if result.returncode:
         return result.returncode
-    with archive.open("rb") as source:
-        actual = hashlib.file_digest(source, "sha256").hexdigest()
-    if actual != properties["distributionSha256Sum"]:
-        raise ValueError(f"Gradle distribution SHA-256 {actual} does not match its wrapper pin")
     replacement = "distributionUrl=" + archive.as_uri().replace(":", "\\:")
     args.properties.write_text("\n".join(replacement if line.startswith("distributionUrl=") else line
                                            for line in original.splitlines()) + "\n")

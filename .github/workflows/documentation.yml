@@ -50,9 +50,16 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: documentation-verification-intact
-          path: |
-            build/documentation-verification/
-            ${{ runner.temp }}/download-verification/
+          path: build/documentation-verification/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Upload archive download verification
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: documentation-download-verification
+          path: ${{ runner.temp }}/download-verification/
           if-no-files-found: warn
           retention-days: 14
 

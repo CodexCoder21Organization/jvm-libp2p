@@ -17,7 +17,8 @@ def main():
     properties = dict(line.split("=", 1) for line in original.splitlines() if "=" in line)
     primary = properties["distributionUrl"].replace("\\:", ":")
     name = Path(urlparse(primary).path).name
-    sources = args.source or [primary, "https://downloads.gradle.org/distributions/" + name]
+    # The alternate endpoint serves the same Gradle 8.14.3 asset as the wrapper URL.
+    sources = args.source or [primary, "https://api.github.com/repos/gradle/gradle-distributions/releases/assets/269969095"]
     args.directory.mkdir(parents=True, exist_ok=True)
     archive = args.directory.resolve() / name
     # Keep the wrapper's existing 10-second network allowance as a total bound per attempt.

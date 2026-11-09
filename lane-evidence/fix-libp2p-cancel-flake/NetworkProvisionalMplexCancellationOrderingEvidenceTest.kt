@@ -45,7 +45,7 @@ class NetworkProvisionalMplexCancellationOrderingEvidenceTest {
                 }
             },
         ) {
-            override fun initChannel(ch: P2PChannel, selectedProtocol: String): CompletableFuture<Unit> {
+            override fun initChannel(ch: P2PChannel, selectedProtocol: String): CompletableFuture<out Unit> {
                 if (!(ch as Stream).isInitiator) {
                     responderEntered.complete(Unit)
                     check(releaseResponder.await(5, SECONDS)) { "The scenario must release the later responder binding" }

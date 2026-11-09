@@ -13,17 +13,30 @@ def record(name):
  s=summary(name); note('OBSERVED', f'{name}: FIRST {s["passed"]}/{s["total"]}, failed={s["failed"]}, skipped={s["skipped"]}; native XML and console at lane-evidence/fix-libp2p-cancel-flake/{name}/. No retries.')
  return s
 def build(name,selectors,parallel=False):
+ run('df','-h','/code')
+ if shutil.disk_usage('/code').free < 8*1024**3: sys.exit('Less than 8 GiB free; stopping heavy work')
  run('git','fetch','origin','develop'); run('git','rebase','--autostash','origin/develop')
  cmd=['timeout','900','./gradlew','--no-daemon','--max-workers=2']
  if parallel: cmd+=['-I','.lane-scratch/parallel.gradle']
  cmd+=[':libp2p:test']
  for selector in selectors: cmd+=['--tests',selector]
- cmd+=['--rerun-tasks']
+ cmd+=['--rerun']
  with (root/'.lane-scratch'/f'{name}.log').open('w') as out: result=subprocess.run(cmd,stdout=out,stderr=subprocess.STDOUT)
  run('python3','.lane-scratch/capture.py',name,stdout=subprocess.DEVNULL)
  s=record(name)
  print(name,result.returncode,{k:s[k] for k in ['passed','failed','skipped','total']},flush=True)
  return result.returncode,s
+rc,repeated=build('repetition',['io.libp2p.network.*CancellationRepetitionEvidenceTest'],True)
+if repeated['total']!=40: sys.exit('The repetition register did not execute all forty cases')
+table=['| Configuration | Muxer | FIRST passed/total | Failures | Failure rate |','| --- | --- | --- | --- | --- |']
+for phase,configuration in [('baseline','Unchanged isolated scenario, default JVM settings'),('repetition','20 repetitions per muxer, four concurrent pairs, 256 MiB, SerialGC'),('forced-red','10 repetitions per muxer, one pair, held responder binding, 256 MiB, SerialGC')]:
+ data=summary(phase)
+ for clazz in sorted({r['class'] for r in data['cases']}):
+  cases=[r for r in data['cases'] if r['class']==clazz]
+  failed=sum(r['result']=='FAIL' for r in cases); passed=sum(r['result']=='PASS' for r in cases)
+  muxer='Mplex' if 'Mplex' in clazz else 'Yamux'
+  table.append(f'| {configuration} | {muxer} | {passed}/{len(cases)} | {failed} | {100*failed/len(cases):.1f}% |')
+(ev/'reproduction-table.md').write_text('\n'.join(table)+'\n')
 s=record('repetition'); s=record('forced-red')
 if not (s['total']==20 and s['failed']==20 and all('expected: <1> but was: <0>' in row.get('message','') for row in s['cases'])):
  checkpoint('Preserve ordering results requiring further analysis'); sys.exit('Forced ordering did not reach the intended assertion in all twenty attempts')

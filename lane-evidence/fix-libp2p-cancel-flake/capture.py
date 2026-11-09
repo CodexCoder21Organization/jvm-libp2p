@@ -5,7 +5,10 @@ name=sys.argv[1]
 out=Path('lane-evidence/fix-libp2p-cancel-flake')/name
 out.mkdir(parents=True,exist_ok=True)
 rows=[]
+log=Path('.lane-scratch')/(name+'.log')
+started=not log.exists() or any(line in ['> Task :libp2p:test', '> Task :libp2p:test FAILED'] for line in log.read_text().splitlines())
 for p in sorted(Path('libp2p/build/test-results/test').glob('TEST-*.xml')):
+ if not started: continue
  shutil.copyfile(p,out/p.name)
  root=ET.parse(p).getroot()
  for c in root.findall('testcase'):

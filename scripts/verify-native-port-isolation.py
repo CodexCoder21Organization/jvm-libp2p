@@ -30,8 +30,10 @@ def main():
         command = [str(root / "gradlew"), "--no-daemon", "--max-workers=2", ":libp2p:test", "--rerun"]
         for selector in selectors:
             command.extend(["--tests", selector])
-        result = subprocess.run(command, cwd=root, timeout=1800, check=False)
         reports = root / "libp2p/build/test-results/test"
+        for old_report in reports.glob("TEST-*.xml"):
+            old_report.unlink()
+        result = subprocess.run(command, cwd=root, timeout=1800, check=False)
         destination = root / "build/native-port-isolation-results"
         destination.mkdir(parents=True, exist_ok=True)
         for old_report in destination.glob("TEST-*.xml"):

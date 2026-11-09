@@ -1,0 +1,40 @@
+<testsuite name="io.libp2p.transport.ConnectionCloseRetryTest" tests="10" skipped="0" failures="2" errors="0" timestamp="2026-11-09T16:25:16.501Z" hostname="bfcee4a4cc5b" time="0.73">
+  <testcase name="explicitRetryClosesRealConnectionAfterFailureAndKeepsOrdinaryResult()" classname="io.libp2p.transport.ConnectionCloseRetryTest" time="0.517" />
+  <testcase name="concurrentRetriesShareHeldAttemptAndIsolateCallerFutureChanges()" classname="io.libp2p.transport.ConnectionCloseRetryTest" time="0.057">
+    <failure message="org.opentest4j.AssertionFailedError: Expected java.util.concurrent.ExecutionException to be thrown, but nothing was thrown." type="org.opentest4j.AssertionFailedError">org.opentest4j.AssertionFailedError: Expected java.util.concurrent.ExecutionException to be thrown, but nothing was thrown.
+	at app//org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:152)
+	at app//org.junit.jupiter.api.AssertThrows.assertThrows(AssertThrows.java:73)
+	at app//org.junit.jupiter.api.AssertThrows.assertThrows(AssertThrows.java:35)
+	at app//org.junit.jupiter.api.Assertions.assertThrows(Assertions.java:3128)
+	at app//io.libp2p.transport.ConnectionCloseRetryTestKt.retryCloseFailure(ConnectionCloseRetryTest.kt:324)
+	at app//io.libp2p.transport.ConnectionCloseRetryTestKt.withRetryConnection(ConnectionCloseRetryTest.kt:357)
+	at app//io.libp2p.transport.ConnectionCloseRetryTestKt.access$withRetryConnection(ConnectionCloseRetryTest.kt:1)
+	at app//io.libp2p.transport.ConnectionCloseRetryTest.concurrentRetriesShareHeldAttemptAndIsolateCallerFutureChanges(ConnectionCloseRetryTest.kt:185)
+	at java.base@21.0.13/java.lang.reflect.Method.invoke(Method.java:580)
+	at java.base@21.0.13/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at java.base@21.0.13/java.util.ArrayList.forEach(ArrayList.java:1596)
+</failure>
+  </testcase>
+  <testcase name="firstRetryPublishesOwnershipBeforeItsPhysicalHandlerReenters()" classname="io.libp2p.transport.ConnectionCloseRetryTest" time="0.014" />
+  <testcase name="retryStartsInitialCloseAndSuccessRemainsTerminal()" classname="io.libp2p.transport.ConnectionCloseRetryTest" time="0.017" />
+  <testcase name="retryFirstStartsOnlyOneAttemptEvenWhenItFailsImmediately()" classname="io.libp2p.transport.ConnectionCloseRetryTest" time="0.016" />
+  <testcase name="failureCallbackAndPhysicalHandlerCanReenterWithoutDuplicatingRetry()" classname="io.libp2p.transport.ConnectionCloseRetryTest" time="0.015" />
+  <testcase name="transportOwnedFailureCanBeRetriedWithoutChangingOrdinaryResult()" classname="io.libp2p.transport.ConnectionCloseRetryTest" time="0.016">
+    <failure message="org.opentest4j.AssertionFailedError: Expected java.util.concurrent.ExecutionException to be thrown, but nothing was thrown." type="org.opentest4j.AssertionFailedError">org.opentest4j.AssertionFailedError: Expected java.util.concurrent.ExecutionException to be thrown, but nothing was thrown.
+	at app//org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:152)
+	at app//org.junit.jupiter.api.AssertThrows.assertThrows(AssertThrows.java:73)
+	at app//org.junit.jupiter.api.AssertThrows.assertThrows(AssertThrows.java:35)
+	at app//org.junit.jupiter.api.Assertions.assertThrows(Assertions.java:3128)
+	at app//io.libp2p.transport.ConnectionCloseRetryTestKt.retryCloseFailure(ConnectionCloseRetryTest.kt:324)
+	at app//io.libp2p.transport.ConnectionCloseRetryTestKt.withRetryConnection(ConnectionCloseRetryTest.kt:357)
+	at app//io.libp2p.transport.ConnectionCloseRetryTestKt.access$withRetryConnection(ConnectionCloseRetryTest.kt:1)
+	at app//io.libp2p.transport.ConnectionCloseRetryTest.transportOwnedFailureCanBeRetriedWithoutChangingOrdinaryResult(ConnectionCloseRetryTest.kt:122)
+	at java.base@21.0.13/java.lang.reflect.Method.invoke(Method.java:580)
+	at java.base@21.0.13/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at java.base@21.0.13/java.util.ArrayList.forEach(ArrayList.java:1596)
+</failure>
+  </testcase>
+  <testcase name="retrySharesPendingInitialCloseAndCanRecoverItsFailure()" classname="io.libp2p.transport.ConnectionCloseRetryTest" time="0.017" />
+  <testcase name="repeatedFailuresReportEachAttemptAndPermitRecovery()" classname="io.libp2p.transport.ConnectionCloseRetryTest" time="0.045" />
+  <testcase name="retryAfterPeerClosedFollowingFailureDoesNotRequestAnotherPhysicalClose()" classname="io.libp2p.transport.ConnectionCloseRetryTest" time="0.013" />
+  </testsuite>

@@ -1,6 +1,8 @@
 from pathlib import Path
-import subprocess,sys,json,shutil
+import subprocess,sys,json,shutil,signal
 from datetime import datetime,timezone
+def stop(signum, frame): raise SystemExit(128+signum)
+signal.signal(signal.SIGTERM, stop)
 root=Path.cwd(); ev=root/'lane-evidence/fix-libp2p-cancel-flake'; src=root/'libp2p/src/test/kotlin/io/libp2p/network'
 def note(kind,txt):
  with (root.parent/'fix-libp2p-cancel-flake-findings.md').open('a') as f: f.write(datetime.now(timezone.utc).isoformat()+' '+kind+': '+txt+'\n')

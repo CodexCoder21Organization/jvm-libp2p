@@ -245,7 +245,7 @@ class YamuxReplacedChildWriteTest {
 
             val next = stream.writeAndFlushWithFuture(Unpooled.buffer(64).writeZero(64))
             channel.runPendingTasks()
-            val c = held.removeFirst()
+            val c = held.removeLast()
             val replacement = c.second.retainedSlice()
             c.second.release()
             c.first.writeAndFlush(replacement, c.third)

@@ -30,7 +30,7 @@ class YamuxReplacedChildWriteTest {
         )
         val channel = TestChannel("replaced-child-write", true, frames, handler)
         try {
-            val stream = handler.createStream(StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) })
+            val stream = handler.createStream(StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) }).also { channel.runPendingTasks() }
                 .stream.get(5, TimeUnit.SECONDS) as StreamOverNetty
             stream.nettyChannel.pipeline().addFirst(object : ChannelOutboundHandlerAdapter() {
                 override fun write(ctx: ChannelHandlerContext, msg: Any, promise: ChannelPromise) {
@@ -89,7 +89,7 @@ class YamuxReplacedChildWriteTest {
             assertThat(boundary.refCnt()).isZero()
 
             // A new control frame with no logical reservations verifies active bytes are zero.
-            val fresh = handler.createStream(StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) })
+            val fresh = handler.createStream(StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) }).also { channel.runPendingTasks() }
             assertThat(fresh.stream.get(5, TimeUnit.SECONDS)).isNotNull()
             // Any positive leftover reservation would reject this exact full-budget unflushed write.
             val wholeBudgetData = Unpooled.buffer(128).writeZero(128)
@@ -117,9 +117,9 @@ class YamuxReplacedChildWriteTest {
         )
         val channel = TestChannel("replacement-terminal", true, frames, handler)
         try {
-            val stream = handler.createStream(StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) })
+            val stream = handler.createStream(StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) }).also { channel.runPendingTasks() }
                 .stream.get(5, TimeUnit.SECONDS) as StreamOverNetty
-            val sibling = handler.createStream(StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) })
+            val sibling = handler.createStream(StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) }).also { channel.runPendingTasks() }
                 .stream.get(5, TimeUnit.SECONDS)
             val replacements = mutableListOf<ByteBuf>()
             stream.nettyChannel.pipeline().addFirst(object : ChannelOutboundHandlerAdapter() {
@@ -213,7 +213,7 @@ class YamuxReplacedChildWriteTest {
         val channel = TestChannel("batched-replacement", true, frames, handler)
         val held = ArrayDeque<Triple<ChannelHandlerContext, ByteBuf, ChannelPromise>>()
         try {
-            val stream = handler.createStream(StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) })
+            val stream = handler.createStream(StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) }).also { channel.runPendingTasks() }
                 .stream.get(5, TimeUnit.SECONDS) as StreamOverNetty
             stream.nettyChannel.pipeline().addFirst(object : ChannelOutboundHandlerAdapter() {
                 override fun write(ctx: ChannelHandlerContext, msg: Any, promise: ChannelPromise) {
@@ -261,7 +261,7 @@ class YamuxReplacedChildWriteTest {
             held.removeFirst()
             b.third.setSuccess()
             assertThat(second).isCompletedWithValue(Unit)
-            val fresh = handler.createStream(StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) })
+            val fresh = handler.createStream(StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) }).also { channel.runPendingTasks() }
             assertThat(fresh.stream.get(5, TimeUnit.SECONDS)).isNotNull()
         } finally {
             held.forEach { (_, data, promise) ->
@@ -283,7 +283,7 @@ class YamuxReplacedChildWriteTest {
         )
         val channel = TestChannel("windowed-replacement", true, frames, handler)
         try {
-            val stream = handler.createStream(StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) })
+            val stream = handler.createStream(StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) }).also { channel.runPendingTasks() }
                 .stream.get(5, TimeUnit.SECONDS) as StreamOverNetty
             stream.nettyChannel.pipeline().addFirst(object : ChannelOutboundHandlerAdapter() {
                 override fun write(ctx: ChannelHandlerContext, msg: Any, promise: ChannelPromise) {
@@ -305,6 +305,19 @@ class YamuxReplacedChildWriteTest {
             channel.runPendingTasks()
             assertThat(write.isDone).isFalse()
             assertThat(data.refCnt()).isPositive()
+            // Retiring even the completed prefix early would count it again as queued bytes:
+            // 64 queued + 32 buffered + this sibling's 44-byte frame would exceed 128.
+            val duringWindow = handler.createStream(StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) }).also { channel.runPendingTasks() }
+                .stream.get(5, TimeUnit.SECONDS)
+            val siblingWrite = duringWindow.writeAndFlushWithFuture(Unpooled.buffer(32).writeZero(32))
+            channel.runPendingTasks()
+            assertThat(siblingWrite.isDone).isFalse()
+            assertThat(frames.held).hasSize(1)
+            assertThat(frames.held.single().first.length).isEqualTo(32)
+            frames.completeNext()
+            channel.runPendingTasks()
+            assertThat(siblingWrite).isCompletedWithValue(Unit)
+            assertThat(write.isDone).isFalse()
             channel.writeInbound(YamuxFrame(id, YamuxType.WINDOW_UPDATE, YamuxFlag.NONE, 32))
             channel.runPendingTasks()
             assertThat(frames.held).hasSize(1)
@@ -314,7 +327,7 @@ class YamuxReplacedChildWriteTest {
             channel.runPendingTasks()
             assertThat(write).isCompletedWithValue(Unit)
             assertThat(data.refCnt()).isZero()
-            val sibling = handler.createStream(StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) })
+            val sibling = handler.createStream(StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) }).also { channel.runPendingTasks() }
                 .stream.get(5, TimeUnit.SECONDS)
             val probe = sibling.writeAndFlushWithFuture(Unpooled.buffer(64).writeZero(64))
             channel.runPendingTasks()
@@ -339,9 +352,9 @@ class YamuxReplacedChildWriteTest {
         )
         val channel = TestChannel("replacement-budget", true, frames, handler)
         try {
-            val stream = handler.createStream(StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) })
+            val stream = handler.createStream(StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) }).also { channel.runPendingTasks() }
                 .stream.get(5, TimeUnit.SECONDS) as StreamOverNetty
-            val overflow = handler.createStream(StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) })
+            val overflow = handler.createStream(StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) }).also { channel.runPendingTasks() }
                 .stream.get(5, TimeUnit.SECONDS)
             val overflowId = frames.opened.last()
             stream.nettyChannel.pipeline().addFirst(object : ChannelOutboundHandlerAdapter() {
@@ -373,6 +386,57 @@ class YamuxReplacedChildWriteTest {
             frames.completeNext()
             channel.runPendingTasks()
             assertThat(second).isCompletedWithValue(Unit)
+        } finally {
+            channel.finishAndReleaseAll()
+        }
+    }
+
+
+    @Test
+    fun `closing a child keeps its active reservation until Netty releases the entry`() {
+        val flushGate = object : ChannelOutboundHandlerAdapter() {
+            var paused = false
+            override fun flush(ctx: ChannelHandlerContext) {
+                if (!paused) ctx.flush()
+            }
+        }
+        val handler = YamuxHandler(
+            MultistreamProtocolV1, 256, null,
+            StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) },
+            true, 256, DEFAULT_ACK_BACKLOG_LIMIT, 1024
+        )
+        val channel = TestChannel("close-reservation-order", true, flushGate, handler)
+        try {
+            val stream = handler.createStream(StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) }).also { channel.runPendingTasks() }
+                .stream.get(5, TimeUnit.SECONDS)
+            val sibling = handler.createStream(StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) }).also { channel.runPendingTasks() }
+                .stream.get(5, TimeUnit.SECONDS)
+            while (true) ReferenceCountUtil.release(channel.readOutbound<YamuxFrame>() ?: break)
+            flushGate.paused = true
+            val active = Unpooled.buffer(64).writeZero(64)
+            val queued = Unpooled.buffer(64).writeZero(64)
+            val first = stream.writeAndFlushWithFuture(active)
+            val second = stream.writeAndFlushWithFuture(queued)
+            channel.runPendingTasks()
+            assertThat(first.isDone).isFalse()
+            assertThat(second.isDone).isFalse()
+            stream.close().get(5, TimeUnit.SECONDS)
+            channel.runPendingTasks()
+            assertThat(first.isCompletedExceptionally).isTrue()
+            assertThat(second.isCompletedExceptionally).isTrue()
+            assertThat(channel.isOpen)
+                .describedAs("The parent's retained frame, queued child payload and reset fit the connection budget")
+                .isTrue()
+            assertThat(queued.refCnt()).isZero()
+            flushGate.paused = false
+            channel.flush()
+            channel.runPendingTasks()
+            while (true) ReferenceCountUtil.release(channel.readOutbound<YamuxFrame>() ?: break)
+            assertThat(active.refCnt()).isZero()
+            val next = sibling.writeAndFlushWithFuture(Unpooled.buffer(64).writeZero(64))
+            channel.runPendingTasks()
+            assertThat(next).isCompletedWithValue(Unit)
+            assertThat(channel.isOpen).isTrue()
         } finally {
             channel.finishAndReleaseAll()
         }

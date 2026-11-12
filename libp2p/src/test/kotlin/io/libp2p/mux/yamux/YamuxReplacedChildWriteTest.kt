@@ -442,6 +442,47 @@ class YamuxReplacedChildWriteTest {
         }
     }
 
+
+    @Test
+    fun `reservation returns before a caller listener registered before the write`() {
+        val frames = HeldReplacementFrames()
+        val handler = YamuxHandler(
+            MultistreamProtocolV1, 256, null,
+            StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) },
+            true, 128, DEFAULT_ACK_BACKLOG_LIMIT, 1024
+        )
+        val channel = TestChannel("pre-registered-completion", true, frames, handler)
+        try {
+            val stream = handler.createStream(StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) })
+                .also { channel.runPendingTasks() }.stream.get(5, TimeUnit.SECONDS) as StreamOverNetty
+            val sibling = handler.createStream(StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) })
+                .also { channel.runPendingTasks() }.stream.get(5, TimeUnit.SECONDS)
+            var reentrant: CompletableFuture<Unit>? = null
+            val caller = stream.nettyChannel.newPromise()
+            caller.addListener {
+                reentrant = sibling.writeAndFlushWithFuture(Unpooled.buffer(116).writeZero(116))
+            }
+            stream.nettyChannel.writeAndFlush(Unpooled.buffer(64).writeZero(64), caller)
+            channel.runPendingTasks()
+            assertThat(caller.isDone).isFalse()
+            frames.completeNext()
+            channel.runPendingTasks()
+            assertThat(caller.isSuccess).isTrue()
+            assertThat(reentrant).isNotNull()
+            val next = checkNotNull(reentrant)
+            assertThat(next.isDone)
+                .describedAs("The pre-registered callback must have the whole returned reservation: %s", next)
+                .isFalse()
+            assertThat(frames.held).hasSize(1)
+            frames.completeNext()
+            channel.runPendingTasks()
+            assertThat(next).isCompletedWithValue(Unit)
+            assertThat(channel.isOpen).isTrue()
+        } finally {
+            channel.finishAndReleaseAll()
+        }
+    }
+
 }
 
 private class HeldReplacementFrames : ChannelOutboundHandlerAdapter() {

@@ -298,6 +298,80 @@ class YamuxSizedReplacementTest {
         }
     }
 
+    @Test
+    fun `entry reservation and active exclusion use the same admitted size`() {
+        val frames = SizedReplacementFrames()
+        val handler = YamuxHandler(
+            MultistreamProtocolV1, 256, null,
+            StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) },
+            true, 64, DEFAULT_ACK_BACKLOG_LIMIT, 1024
+        )
+        val channel = sizedReplacementChannel("admitted-size", frames, handler)
+        AutoCloseable { channel.finishAndReleaseAll() }.use {
+            val stream = handler.createStream(StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) })
+                .also { channel.runPendingTasks() }.stream.get(5, TimeUnit.SECONDS) as StreamOverNetty
+            val sibling = handler.createStream(StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) })
+                .also { channel.runPendingTasks() }.stream.get(5, TimeUnit.SECONDS) as StreamOverNetty
+            val replacements = mutableListOf<ByteBuf>()
+            stream.nettyChannel.pipeline().addFirst(object : ChannelOutboundHandlerAdapter() {
+                var retained: ByteBuf? = null
+                override fun write(ctx: ChannelHandlerContext, msg: Any, promise: ChannelPromise) {
+                    val previous = msg as ByteBuf
+                    val next = Unpooled.wrappedBuffer(ByteArray(64) { it.toByte() })
+                    replacements += next
+                    retained = next.retain()
+                    previous.release()
+                    ctx.write(next, promise)
+                }
+                override fun flush(ctx: ChannelHandlerContext) {
+                    val next = retained
+                    retained = null
+                    if (next == null) {
+                        ctx.flush()
+                    } else {
+                        next.readerIndex(32)
+                        try {
+                            ctx.flush()
+                        } finally {
+                            next.release()
+                        }
+                    }
+                }
+                override fun handlerRemoved(ctx: ChannelHandlerContext) {
+                    retained?.release()
+                    retained = null
+                }
+            })
+            val original = Unpooled.buffer(32).writeZero(32)
+            var completions = 0
+            val caller = stream.nettyChannel.newPromise().also { it.addListener { completions++ } }
+            stream.nettyChannel.write(original, caller)
+            channel.runPendingTasks()
+            assertThat(caller.isDone).isFalse()
+            stream.nettyChannel.flush()
+            channel.runPendingTasks()
+            assertThat(caller.isDone).describedAs("Active exclusion must match the64-byte entry reservation").isFalse()
+            assertThat(frames.held).hasSize(1)
+            assertThat(ByteBufUtil.getBytes(frames.held.single().first.data!!))
+                .containsExactly(*ByteArray(32) { (it + 32).toByte() })
+            frames.completeNext()
+            channel.runPendingTasks()
+            assertThat(caller.isSuccess).isTrue()
+            assertThat(completions).isEqualTo(1)
+            assertThat(original.refCnt()).isZero()
+            assertThat(replacements).hasSize(1).allMatch { it.refCnt() == 0 }
+            val data = Unpooled.buffer(64).writeZero(64)
+            val next = sibling.nettyChannel.write(data)
+            channel.runPendingTasks()
+            assertThat(next.isDone).isFalse()
+            assertThat(next.cancel(false)).isTrue()
+            sibling.nettyChannel.flush()
+            channel.runPendingTasks()
+            assertThat(data.refCnt()).isZero()
+            assertThat(channel.isOpen).isTrue()
+        }
+    }
+
     @ParameterizedTest
     @ValueSource(strings = ["child", "parent"])
     fun `unflushed substituted entry releases on close`(close: String) {

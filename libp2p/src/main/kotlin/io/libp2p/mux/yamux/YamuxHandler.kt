@@ -296,16 +296,16 @@ open class YamuxHandler(
             acknowledgeInboundStreamIfNeeded()
             check(pendingWrite == null) { "A Yamux stream may have only one child write in flight: $id" }
             val dataSize = data.readableBytes()
-            activeChildWriteBytes += dataSize
-            val write = PendingWrite(getChannelHandlerContext(), child)
-            // The pipeline may replace a child buffer or combine writes. Its original
-            // reservation promise does not own this physical write's completion.
-            write.promise.addListener {
+            // The actual child entry owns this lease. The pipeline may replace its
+            // buffer, and a failed mux promise can precede removal of the child entry.
+            child.onCurrentWriteReleased {
                 activeChildWriteBytes -= dataSize
                 check(activeChildWriteBytes >= 0) {
                     "Yamux active child-write accounting underflowed by ${-activeChildWriteBytes} bytes after completing $id"
                 }
             }
+            activeChildWriteBytes += dataSize
+            val write = PendingWrite(getChannelHandlerContext(), child)
             pendingWrite = write
             try {
                 fillBuffer(data)

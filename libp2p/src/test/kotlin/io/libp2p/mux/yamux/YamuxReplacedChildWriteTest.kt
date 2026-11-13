@@ -1,13 +1,13 @@
 package io.libp2p.mux.yamux
 
-import io.libp2p.core.StreamHandler
 import io.libp2p.core.PeerId
+import io.libp2p.core.StreamHandler
+import io.libp2p.core.multistream.MultistreamProtocolV1
 import io.libp2p.core.security.SecureChannel
 import io.libp2p.crypto.keys.unmarshalEd25519PrivateKey
 import io.libp2p.etc.CONNECTION
-import io.libp2p.transport.implementation.ConnectionOverNetty
-import io.libp2p.core.multistream.MultistreamProtocolV1
 import io.libp2p.tools.TestChannel
+import io.libp2p.transport.implementation.ConnectionOverNetty
 import io.libp2p.transport.implementation.StreamOverNetty
 import io.netty.buffer.ByteBuf
 import io.netty.buffer.ByteBufUtil
@@ -31,9 +31,14 @@ class YamuxReplacedChildWriteTest {
     fun `replacement completion returns active bytes before the next queued write`(replacement: String) {
         val frames = HeldReplacementFrames()
         val handler = YamuxHandler(
-            MultistreamProtocolV1, 256, null,
+            MultistreamProtocolV1,
+            256,
+            null,
             StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) },
-            true, 128, DEFAULT_ACK_BACKLOG_LIMIT, 1024
+            true,
+            128,
+            DEFAULT_ACK_BACKLOG_LIMIT,
+            1024
         )
         val channel = TestChannel("replaced-child-write", true, frames, handler)
         try {
@@ -127,9 +132,14 @@ class YamuxReplacedChildWriteTest {
     fun `replacement terminal paths leave the sibling budget usable`(outcome: String) {
         val frames = HeldReplacementFrames()
         val handler = YamuxHandler(
-            MultistreamProtocolV1, 256, null,
+            MultistreamProtocolV1,
+            256,
+            null,
             StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) },
-            true, 128, DEFAULT_ACK_BACKLOG_LIMIT, 1024
+            true,
+            128,
+            DEFAULT_ACK_BACKLOG_LIMIT,
+            1024
         )
         val channel = TestChannel("replacement-terminal", true, frames, handler)
         try {
@@ -151,7 +161,9 @@ class YamuxReplacedChildWriteTest {
             val write = stream.writeAndFlushWithFuture(original)
             val queued = if (outcome == "parent close") {
                 stream.writeAndFlushWithFuture(Unpooled.buffer(64).writeZero(64))
-            } else null
+            } else {
+                null
+            }
             channel.runPendingTasks()
             assertThat(frames.held).hasSize(1)
             assertThat(original.refCnt()).isZero()
@@ -217,14 +229,18 @@ class YamuxReplacedChildWriteTest {
         }
     }
 
-
     @Test
     fun `batched replacement completes independently of the original reservations`() {
         val frames = HeldReplacementFrames()
         val handler = YamuxHandler(
-            MultistreamProtocolV1, 256, null,
+            MultistreamProtocolV1,
+            256,
+            null,
             StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) },
-            true, 128, DEFAULT_ACK_BACKLOG_LIMIT, 1024
+            true,
+            128,
+            DEFAULT_ACK_BACKLOG_LIMIT,
+            1024
         )
         val channel = TestChannel("batched-replacement", true, frames, handler)
         val held = ArrayDeque<Triple<ChannelHandlerContext, ByteBuf, ChannelPromise>>()
@@ -243,7 +259,9 @@ class YamuxReplacedChildWriteTest {
             val a = held.first()
             val b = held.last()
             val composite = Unpooled.compositeBuffer(2).addComponents(
-                true, a.second.retainedSlice(), b.second.retainedSlice()
+                true,
+                a.second.retainedSlice(),
+                b.second.retainedSlice()
             )
             val physical = a.first.writeAndFlush(composite)
             channel.runPendingTasks()
@@ -288,14 +306,18 @@ class YamuxReplacedChildWriteTest {
         }
     }
 
-
     @Test
     fun `replacement stays active until its flow controlled suffix completes`() {
         val frames = HeldReplacementFrames()
         val handler = YamuxHandler(
-            MultistreamProtocolV1, 256, null,
+            MultistreamProtocolV1,
+            256,
+            null,
             StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) },
-            true, 128, DEFAULT_ACK_BACKLOG_LIMIT, 64
+            true,
+            128,
+            DEFAULT_ACK_BACKLOG_LIMIT,
+            64
         )
         val channel = TestChannel("windowed-replacement", true, frames, handler)
         try {
@@ -305,7 +327,9 @@ class YamuxReplacedChildWriteTest {
                 override fun write(ctx: ChannelHandlerContext, msg: Any, promise: ChannelPromise) {
                     val original = msg as ByteBuf
                     val next = Unpooled.compositeBuffer(2).addComponents(
-                        true, original.retainedSlice(0, 48), original.retainedSlice(48, 48)
+                        true,
+                        original.retainedSlice(0, 48),
+                        original.retainedSlice(48, 48)
                     )
                     original.release()
                     ctx.write(next, promise)
@@ -357,14 +381,18 @@ class YamuxReplacedChildWriteTest {
         }
     }
 
-
     @Test
     fun `replacement reservations still reject one byte over the connection budget`() {
         val frames = HeldReplacementFrames()
         val handler = YamuxHandler(
-            MultistreamProtocolV1, 256, null,
+            MultistreamProtocolV1,
+            256,
+            null,
             StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) },
-            true, 128, DEFAULT_ACK_BACKLOG_LIMIT, 1024
+            true,
+            128,
+            DEFAULT_ACK_BACKLOG_LIMIT,
+            1024
         )
         val channel = TestChannel("replacement-budget", true, frames, handler)
         try {
@@ -407,7 +435,6 @@ class YamuxReplacedChildWriteTest {
         }
     }
 
-
     @ParameterizedTest
     @ValueSource(strings = ["original control", "before parent drain", "window buffered", "replacement before parent drain", "replacement window buffered"])
     fun `closing a child keeps its active reservation until Netty releases the entry`(mode: String) {
@@ -421,10 +448,14 @@ class YamuxReplacedChildWriteTest {
             }
         }
         val handler = YamuxHandler(
-            MultistreamProtocolV1, 256, null,
+            MultistreamProtocolV1,
+            256,
+            null,
             StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) },
-            true, if (beforeParentDrain) 512 else 256,
-            DEFAULT_ACK_BACKLOG_LIMIT, if (windowBuffered) 64 else 1024
+            true,
+            if (beforeParentDrain) 512 else 256,
+            DEFAULT_ACK_BACKLOG_LIMIT,
+            if (windowBuffered) 64 else 1024
         )
         val channel = TestChannel("close-reservation-order", true, flushGate, handler)
         val localKey = unmarshalEd25519PrivateKey(ByteArray(32) { 1 }).publicKey()
@@ -481,7 +512,9 @@ class YamuxReplacedChildWriteTest {
                 channel.runPendingTasks()
                 assertThat(write.isDone).describedAs("Retired child entries must not remain active: %s", write).isFalse()
                 write
-            } else null
+            } else {
+                null
+            }
             flushGate.paused = false
             channel.flush()
             channel.runPendingTasks()
@@ -517,9 +550,14 @@ class YamuxReplacedChildWriteTest {
     fun `reservation returns before a caller listener registered before the write`() {
         val frames = HeldReplacementFrames()
         val handler = YamuxHandler(
-            MultistreamProtocolV1, 256, null,
+            MultistreamProtocolV1,
+            256,
+            null,
             StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) },
-            true, 128, DEFAULT_ACK_BACKLOG_LIMIT, 1024
+            true,
+            128,
+            DEFAULT_ACK_BACKLOG_LIMIT,
+            1024
         )
         val channel = TestChannel("pre-registered-completion", true, frames, handler)
         try {
@@ -553,14 +591,18 @@ class YamuxReplacedChildWriteTest {
         }
     }
 
-
     @Test
     fun `custom ByteBuf size estimator keeps child writability accounting`() {
         val frames = HeldReplacementFrames()
         val handler = YamuxHandler(
-            MultistreamProtocolV1, 256, null,
+            MultistreamProtocolV1,
+            256,
+            null,
             StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) },
-            true, 256, DEFAULT_ACK_BACKLOG_LIMIT, 1024
+            true,
+            256,
+            DEFAULT_ACK_BACKLOG_LIMIT,
+            1024
         )
         val channel = TestChannel("custom-size-estimator", true, frames, handler)
         try {
@@ -592,14 +634,18 @@ class YamuxReplacedChildWriteTest {
         }
     }
 
-
     @Test
     fun `empty child payload releases its entry before the next write`() {
         val frames = HeldReplacementFrames()
         val handler = YamuxHandler(
-            MultistreamProtocolV1, 256, null,
+            MultistreamProtocolV1,
+            256,
+            null,
             StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) },
-            true, 128, DEFAULT_ACK_BACKLOG_LIMIT, 1024
+            true,
+            128,
+            DEFAULT_ACK_BACKLOG_LIMIT,
+            1024
         )
         val channel = TestChannel("empty-child-entry", true, frames, handler)
         try {
@@ -622,7 +668,6 @@ class YamuxReplacedChildWriteTest {
             channel.finishAndReleaseAll()
         }
     }
-
 }
 
 private class HeldReplacementFrames : ChannelOutboundHandlerAdapter() {

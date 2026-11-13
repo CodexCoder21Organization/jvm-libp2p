@@ -17,6 +17,7 @@ import io.netty.channel.ChannelOutboundHandlerAdapter
 import io.netty.channel.ChannelPromise
 import io.netty.util.ReferenceCountUtil
 import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource
@@ -48,7 +49,22 @@ class YamuxSizedReplacementTest {
             })
             val original = Unpooled.buffer(originalSize).writeZero(originalSize)
             var completions = 0
-            val caller = stream.nettyChannel.newPromise().also { it.addListener { completions++ } }
+            var releasedAtCompletion: List<Int>? = null
+            var callbackProbePending: Boolean? = null
+            var callbackProbeCancelled: Boolean? = null
+            var callbackData: ByteBuf? = null
+            val caller = stream.nettyChannel.newPromise().also {
+                it.addListener {
+                    completions++
+                    releasedAtCompletion = replacements.map { replacement -> replacement.refCnt() }
+                    val data = Unpooled.buffer(128).writeZero(128)
+                    callbackData = data
+                    val probe = sibling.nettyChannel.write(data)
+                    callbackProbePending = !probe.isDone
+                    callbackProbeCancelled = probe.cancel(false)
+                    sibling.nettyChannel.flush()
+                }
+            }
             // The empty replacement remains queued while its sibling uses the entire frame budget.
             stream.nettyChannel.write(original, caller)
             if (replacementSize > 0) stream.nettyChannel.flush()
@@ -73,6 +89,11 @@ class YamuxSizedReplacementTest {
             channel.runPendingTasks()
             assertThat(caller.isSuccess).isTrue()
             assertThat(completions).isEqualTo(1)
+            assertThat(releasedAtCompletion).containsExactly(0)
+            assertThat(callbackProbePending).isTrue()
+            assertThat(callbackProbeCancelled).isTrue()
+            assertThat(callbackData).isNotNull()
+            assertThat(checkNotNull(callbackData).refCnt()).isZero()
             assertThat(replacements).hasSize(1).allMatch { it.refCnt() == 0 }
             assertThat(channel.isOpen).isTrue()
             // Exact payload admission proves no reservation survives completion.
@@ -120,6 +141,11 @@ class YamuxSizedReplacementTest {
             channel.runPendingTasks()
             assertThat(first.isDone).isFalse()
             assertThat(second.isDone).describedAs("Final payloads totaling exactly 128 bytes must be admitted").isFalse()
+            val expectedBudgetFailure =
+                "Yamux parent outbound buffer exceeded configured budget; " +
+                    "peer=${(channel.attr(CONNECTION).get() as ConnectionOverNetty).secureSession().remoteId}, " +
+                    "pendingBytes=0, attemptedFrameBytes=12, projectedPendingBytes=140, " +
+                    "budgetBytes=128, overBudgetDurationMillis=0, channel=$channel. Closing stalled connection."
             val extra = Unpooled.buffer(1).writeByte(1)
             val rejected = overflow.nettyChannel.write(extra)
             channel.runPendingTasks()
@@ -128,6 +154,10 @@ class YamuxSizedReplacementTest {
                 .isInstanceOf(io.libp2p.mux.WriteBufferOverflowMuxerException::class.java)
                 .hasMessage("Overflowed send buffer (129/128). Last stream attempting to write: $overflowId")
             assertThat(extra.refCnt()).isZero()
+            assertThatThrownBy { channel.checkException() }
+                .isInstanceOf(io.libp2p.mux.YamuxOutboundBufferExceededException::class.java)
+                .hasMessage(expectedBudgetFailure)
+            assertThat(channel.isOpen).isFalse()
             // The reset frame may close a connection whose entire payload budget is queued.
             channel.close().get(5, TimeUnit.SECONDS)
             channel.runPendingTasks()

@@ -26,7 +26,7 @@ class YamuxSizedReplacementTest {
         val frames = SizedReplacementFrames()
         val handler = sizedReplacementMux()
         val channel = TestChannel("sized-replacement", true, frames, handler)
-        try {
+        AutoCloseable { channel.finishAndReleaseAll() }.use {
             val stream = handler.createStream(StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) })
                 .also { channel.runPendingTasks() }.stream.get(5, TimeUnit.SECONDS) as StreamOverNetty
             val sibling = handler.createStream(StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) })
@@ -81,8 +81,6 @@ class YamuxSizedReplacementTest {
             assertThat(budget.refCnt()).isZero()
             assertThat(frames.held).isEmpty()
             assertThat(completions).isEqualTo(1)
-        } finally {
-            channel.finishAndReleaseAll()
         }
     }
 
@@ -92,7 +90,7 @@ class YamuxSizedReplacementTest {
         val frames = SizedReplacementFrames()
         val handler = sizedReplacementMux()
         val channel = TestChannel("sized-queue-boundary", true, frames, handler)
-        try {
+        AutoCloseable { channel.finishAndReleaseAll() }.use {
             val stream = handler.createStream(StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) })
                 .also { channel.runPendingTasks() }.stream.get(5, TimeUnit.SECONDS) as StreamOverNetty
             val sibling = handler.createStream(StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) })
@@ -136,8 +134,61 @@ class YamuxSizedReplacementTest {
             assertThat(remaining.refCnt()).isZero()
             assertThat(replacements).hasSize(1).allMatch { it.refCnt() == 0 }
             assertThat(frames.held).isEmpty()
-        } finally {
-            channel.finishAndReleaseAll()
+        }
+    }
+
+    @Test
+    fun `grown replacement rejected at admission releases both buffers once`() {
+        val frames = SizedReplacementFrames()
+        val handler = sizedReplacementMux()
+        val channel = TestChannel("grown-admission-overflow", true, frames, handler)
+        AutoCloseable { channel.finishAndReleaseAll() }.use {
+            val stream = handler.createStream(StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) })
+                .also { channel.runPendingTasks() }.stream.get(5, TimeUnit.SECONDS) as StreamOverNetty
+            val streamId = frames.opened.last()
+            val sibling = handler.createStream(StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) })
+                .also { channel.runPendingTasks() }.stream.get(5, TimeUnit.SECONDS) as StreamOverNetty
+            val replacements = mutableListOf<ByteBuf>()
+            stream.nettyChannel.pipeline().addFirst(object : ChannelOutboundHandlerAdapter() {
+                override fun write(ctx: ChannelHandlerContext, msg: Any, promise: ChannelPromise) {
+                    val original = msg as ByteBuf
+                    val next = Unpooled.buffer(65).writeZero(65)
+                    replacements += next
+                    original.release()
+                    ctx.write(next, promise)
+                }
+            })
+            val queuedData = Unpooled.buffer(64).writeZero(64)
+            val queued = sibling.nettyChannel.write(queuedData)
+            var completions = 0
+            val caller = stream.nettyChannel.newPromise().also { it.addListener { completions++ } }
+            val original = Unpooled.buffer(32).writeZero(32)
+            stream.nettyChannel.write(original, caller)
+            channel.runPendingTasks()
+            assertThat(caller.isDone).describedAs("64 queued + 65 substituted bytes must fail before flush").isTrue()
+            assertThat(caller.cause())
+                .isInstanceOf(io.libp2p.mux.WriteBufferOverflowMuxerException::class.java)
+                .hasMessage("Overflowed send buffer (129/128). Last stream attempting to write: $streamId")
+            assertThat(completions).isEqualTo(1)
+            assertThat(original.refCnt()).isZero()
+            assertThat(replacements).hasSize(1).allMatch { it.refCnt() == 0 }
+            assertThat(stream.nettyChannel.isOpen).isFalse()
+            assertThat(channel.isOpen).isTrue()
+            assertThat(queued.isDone).isFalse()
+            assertThat(queued.cancel(false)).isTrue()
+            sibling.nettyChannel.flush()
+            channel.runPendingTasks()
+            assertThat(queuedData.refCnt()).isZero()
+            val data = Unpooled.buffer(116).writeZero(116)
+            val next = sibling.writeAndFlushWithFuture(data)
+            channel.runPendingTasks()
+            assertThat(next.isDone).isFalse()
+            assertThat(frames.held).hasSize(1)
+            frames.completeNext()
+            channel.runPendingTasks()
+            assertThat(next).isCompletedWithValue(Unit)
+            assertThat(data.refCnt()).isZero()
+            assertThat(completions).isEqualTo(1)
         }
     }
 
@@ -150,7 +201,7 @@ class YamuxSizedReplacementTest {
             true, 128, DEFAULT_ACK_BACKLOG_LIMIT, 64
         )
         val channel = TestChannel("grown-window-replacement", true, frames, handler)
-        try {
+        AutoCloseable { channel.finishAndReleaseAll() }.use {
             val stream = handler.createStream(StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) })
                 .also { channel.runPendingTasks() }.stream.get(5, TimeUnit.SECONDS) as StreamOverNetty
             val sibling = handler.createStream(StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) })
@@ -178,7 +229,7 @@ class YamuxSizedReplacementTest {
             frames.completeNext()
             channel.runPendingTasks()
             assertThat(caller.isDone).describedAs("The replacement's last 32 bytes still need window credit").isFalse()
-            val siblingWrite = sibling.writeAndFlushWithFuture(Unpooled.buffer(64).writeZero(64))
+            val siblingWrite = sibling.writeAndFlushWithFuture(Unpooled.buffer(32).writeZero(32))
             channel.runPendingTasks()
             assertThat(siblingWrite.isDone).isFalse()
             assertThat(frames.held).hasSize(1)
@@ -198,8 +249,6 @@ class YamuxSizedReplacementTest {
             assertThat(original.refCnt()).isZero()
             assertThat(replacements).hasSize(1).allMatch { it.refCnt() == 0 }
             assertThat(channel.isOpen).isTrue()
-        } finally {
-            channel.finishAndReleaseAll()
         }
     }
 
@@ -209,7 +258,7 @@ class YamuxSizedReplacementTest {
         val frames = SizedReplacementFrames()
         val handler = sizedReplacementMux()
         val channel = TestChannel("unflushed-substitution-close", true, frames, handler)
-        try {
+        AutoCloseable { channel.finishAndReleaseAll() }.use {
             val stream = handler.createStream(StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) })
                 .also { channel.runPendingTasks() }.stream.get(5, TimeUnit.SECONDS) as StreamOverNetty
             val sibling = handler.createStream(StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) })
@@ -264,6 +313,13 @@ class YamuxSizedReplacementTest {
                 assertThat(data.refCnt()).isZero()
             } else {
                 assertThat(channel.isOpen).isFalse()
+                assertThat(stream.nettyChannel.isOpen).isFalse()
+                val targetData = Unpooled.buffer(128).writeZero(128)
+                val targetRejected = stream.nettyChannel.writeAndFlush(targetData)
+                channel.runPendingTasks()
+                assertThat(targetRejected.isDone).isTrue()
+                assertThat(targetRejected.isSuccess).isFalse()
+                assertThat(targetData.refCnt()).isZero()
                 assertThat(sibling.nettyChannel.isOpen).isFalse()
                 val data = Unpooled.buffer(128).writeZero(128)
                 val rejected = sibling.nettyChannel.writeAndFlush(data)
@@ -274,8 +330,6 @@ class YamuxSizedReplacementTest {
             }
             assertThat(completions).isEqualTo(1)
             assertThat(frames.held).isEmpty()
-        } finally {
-            channel.finishAndReleaseAll()
         }
     }
 
@@ -285,7 +339,7 @@ class YamuxSizedReplacementTest {
         val frames = SizedReplacementFrames()
         val handler = sizedReplacementMux()
         val channel = TestChannel("replacement-chain", true, frames, handler)
-        try {
+        AutoCloseable { channel.finishAndReleaseAll() }.use {
             val stream = handler.createStream(StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) })
                 .also { channel.runPendingTasks() }.stream.get(5, TimeUnit.SECONDS) as StreamOverNetty
             val sibling = handler.createStream(StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) })
@@ -356,8 +410,6 @@ class YamuxSizedReplacementTest {
             channel.runPendingTasks()
             assertThat(next).isCompletedWithValue(Unit)
             assertThat(completions).isEqualTo(1)
-        } finally {
-            channel.finishAndReleaseAll()
         }
     }
 }

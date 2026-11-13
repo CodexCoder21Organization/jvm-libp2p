@@ -1,6 +1,11 @@
 package io.libp2p.mux.yamux
 
 import io.libp2p.core.StreamHandler
+import io.libp2p.core.PeerId
+import io.libp2p.core.security.SecureChannel
+import io.libp2p.crypto.keys.unmarshalEd25519PrivateKey
+import io.libp2p.etc.CONNECTION
+import io.libp2p.transport.implementation.ConnectionOverNetty
 import io.libp2p.core.multistream.MultistreamProtocolV1
 import io.libp2p.tools.TestChannel
 import io.libp2p.transport.implementation.StreamOverNetty
@@ -413,6 +418,11 @@ class YamuxReplacedChildWriteTest {
             DEFAULT_ACK_BACKLOG_LIMIT, if (windowBuffered) 64 else 1024
         )
         val channel = TestChannel("close-reservation-order", true, flushGate, handler)
+        val localKey = unmarshalEd25519PrivateKey(ByteArray(32) { 1 }).publicKey()
+        val remoteKey = unmarshalEd25519PrivateKey(ByteArray(32) { 2 }).publicKey()
+        (channel.attr(CONNECTION).get() as ConnectionOverNetty).setSecureSession(
+            SecureChannel.Session(PeerId.fromPubKey(localKey), PeerId.fromPubKey(remoteKey), remoteKey, null)
+        )
         var bodyFailure: Throwable? = null
         try {
             val stream = handler.createStream(StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) })

@@ -62,46 +62,44 @@ class MuxChannel<TData>(
     override fun remoteAddress0() =
         MultiplexSocketAddress(parent.getChannelHandlerContext().channel().remoteAddress(), id)
 
-    override fun filterOutboundMessage(msg: Any): Any =
-        if (msg is ByteBuf) ChildWriteBuffer(msg) else msg
+    override fun filterOutboundMessage(msg: Any): Any {
+        if (msg !is ByteBuf) return msg
+        @Suppress("UNCHECKED_CAST")
+        val data = msg as TData
+        val dataSize = parent.pendingChildWriteSize(data) ?: return ChildWriteBuffer(msg)
+        parent.onPendingChildWrite(this, dataSize)?.let { throw it }
+        var transferred = false
+        try {
+            return ChildWriteBuffer(msg, dataSize) {
+                parent.onPendingChildWriteComplete(this, data, dataSize)
+            }.also { transferred = true }
+        } finally {
+            if (!transferred) parent.onPendingChildWriteComplete(this, data, dataSize)
+        }
+    }
 
-    internal fun onCurrentWriteReleased(action: () -> Unit) {
+    internal fun onCurrentWriteReleased(action: (Int) -> Unit): Int {
         val entry = checkNotNull(currentWriteBuffer) {
             "No child outbound buffer entry is active for stream $id"
         }
-        entry.onRelease(action)
+        val size = entry.accountedSize
+        entry.onRelease { action(size) }
+        return size
     }
 
     override fun initChildPipeline() {
-        pipeline().addFirst(PendingWriteAccountingHandler())
+        pipeline().addFirst(AcceptedWriteHandler())
         initializer(this)
     }
 
-    private inner class PendingWriteAccountingHandler : ChannelOutboundHandlerAdapter() {
+    private inner class AcceptedWriteHandler : ChannelOutboundHandlerAdapter() {
         override fun write(ctx: ChannelHandlerContext, msg: Any, promise: ChannelPromise) {
             if (localDisconnectRequested || localDisconnected) {
                 ReferenceCountUtil.release(msg)
                 promise.tryFailure(ConnectionClosedException("The stream was closed for writing locally: $id"))
                 return
             }
-            @Suppress("UNCHECKED_CAST")
-            val data = msg as TData
-            val dataSize = parent.pendingChildWriteSize(data)
-            if (dataSize == null) {
-                writeAccepted(ctx, msg, promise)
-                return
-            }
-            val writePromise = promise.unvoid()
-            val failure = parent.onPendingChildWrite(this@MuxChannel, dataSize)
-            if (failure != null) {
-                ReferenceCountUtil.release(msg)
-                writePromise.tryFailure(failure)
-                return
-            }
-
-            writeAccepted(ctx, msg, writePromise) {
-                parent.onPendingChildWriteComplete(this@MuxChannel, data, dataSize)
-            }
+            writeAccepted(ctx, msg, promise)
         }
 
         override fun flush(ctx: ChannelHandlerContext) {
@@ -113,8 +111,7 @@ class MuxChannel<TData>(
     private fun writeAccepted(
         ctx: ChannelHandlerContext,
         msg: Any,
-        promise: ChannelPromise,
-        onComplete: (() -> Unit)? = null
+        promise: ChannelPromise
     ) {
         ensureAcceptedWriteTerminationOwner()
         retainedWriteCount.incrementAndGet()
@@ -126,9 +123,6 @@ class MuxChannel<TData>(
                 acceptedWriteShutdown?.let(::dispatchLoopCompletion)
             }
         }
-        // This private promise notifies accounting before it forwards the result to callers,
-        // including callers whose listeners were registered before the write.
-        if (onComplete != null) bufferPromise.addListener { onComplete() }
         ctx.write(msg, bufferPromise)
         retireAcceptedWriteOwnerIfDrained()
     }
@@ -347,7 +341,11 @@ class MuxChannel<TData>(
 }
 
 /** A child entry owns one reference, separately from references handed to the parent. */
-private class ChildWriteBuffer(val data: ByteBuf) : CompositeByteBuf(data.alloc(), data.isDirect, 1) {
+private class ChildWriteBuffer(
+    val data: ByteBuf,
+    val accountedSize: Int = data.readableBytes(),
+    private var reservationCompletion: (() -> Unit)? = null
+) : CompositeByteBuf(data.alloc(), data.isDirect, 1) {
     private var completion: (() -> Unit)? = null
 
     init {
@@ -363,11 +361,17 @@ private class ChildWriteBuffer(val data: ByteBuf) : CompositeByteBuf(data.alloc(
 
     override fun deallocate() {
         val action = completion
+        val reservation = reservationCompletion
         completion = null
+        reservationCompletion = null
         try {
             super.deallocate()
         } finally {
-            action?.invoke()
+            try {
+                action?.invoke()
+            } finally {
+                reservation?.invoke()
+            }
         }
     }
 }

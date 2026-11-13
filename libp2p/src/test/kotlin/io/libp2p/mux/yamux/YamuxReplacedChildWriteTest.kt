@@ -15,7 +15,6 @@ import io.netty.channel.WriteBufferWaterMark
 import io.netty.util.ReferenceCountUtil
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertDoesNotThrow
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
 import java.util.concurrent.CompletableFuture
@@ -396,73 +395,102 @@ class YamuxReplacedChildWriteTest {
 
 
     @ParameterizedTest
-    @ValueSource(strings = ["original control", "before parent drain", "window buffered"])
+    @ValueSource(strings = ["original control", "before parent drain", "window buffered", "replacement before parent drain", "replacement window buffered"])
     fun `closing a child keeps its active reservation until Netty releases the entry`(mode: String) {
-        assertDoesNotThrow {
-            val flushGate = object : ChannelOutboundHandlerAdapter() {
-                var paused = false
-                override fun flush(ctx: ChannelHandlerContext) {
-                    if (!paused) ctx.flush()
-                }
+        val windowBuffered = mode.endsWith("window buffered")
+        val beforeParentDrain = mode.endsWith("before parent drain")
+        val replacesBuffer = mode.startsWith("replacement ")
+        val flushGate = object : ChannelOutboundHandlerAdapter() {
+            var paused = false
+            override fun flush(ctx: ChannelHandlerContext) {
+                if (!paused) ctx.flush()
             }
-            val handler = YamuxHandler(
-                MultistreamProtocolV1, 256, null,
-                StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) },
-                true, if (mode == "before parent drain") 512 else 256,
-                DEFAULT_ACK_BACKLOG_LIMIT, if (mode == "window buffered") 64 else 1024
-            )
-            val channel = TestChannel("close-reservation-order", true, flushGate, handler)
+        }
+        val handler = YamuxHandler(
+            MultistreamProtocolV1, 256, null,
+            StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) },
+            true, if (beforeParentDrain) 512 else 256,
+            DEFAULT_ACK_BACKLOG_LIMIT, if (windowBuffered) 64 else 1024
+        )
+        val channel = TestChannel("close-reservation-order", true, flushGate, handler)
+        var bodyFailure: Throwable? = null
+        try {
+            val stream = handler.createStream(StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) })
+                .also { channel.runPendingTasks() }.stream.get(5, TimeUnit.SECONDS)
+            val sibling = handler.createStream(StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) })
+                .also { channel.runPendingTasks() }.stream.get(5, TimeUnit.SECONDS)
+            val replacements = mutableListOf<ByteBuf>()
+            if (replacesBuffer) {
+                (stream as StreamOverNetty).nettyChannel.pipeline().addFirst(object : ChannelOutboundHandlerAdapter() {
+                    override fun write(ctx: ChannelHandlerContext, msg: Any, promise: ChannelPromise) {
+                        val original = msg as ByteBuf
+                        val copy = original.copy()
+                        replacements += copy
+                        original.release()
+                        ctx.write(copy, promise)
+                    }
+                })
+            }
+            while (true) ReferenceCountUtil.release(channel.readOutbound<YamuxFrame>() ?: break)
+            flushGate.paused = true
+            val activeSize = if (windowBuffered) 96 else 64
+            val queuedSize = 128 - activeSize
+            val active = Unpooled.buffer(activeSize).writeZero(activeSize)
+            val queued = Unpooled.buffer(queuedSize).writeZero(queuedSize)
+            val first = stream.writeAndFlushWithFuture(active)
+            val second = stream.writeAndFlushWithFuture(queued)
+            channel.runPendingTasks()
+            assertThat(first.isDone).isFalse()
+            assertThat(second.isDone).isFalse()
+            if (replacesBuffer) assertThat(replacements).hasSize(2)
+            val close = stream.close()
+            channel.runPendingTasks()
+            assertThat(close).describedAs("Child close must keep the reset within its budget: %s", close)
+                .isCompletedWithValue(Unit)
+            assertThat(first.isCompletedExceptionally).isTrue()
+            assertThat(second.isCompletedExceptionally).isTrue()
+            assertThat(channel.isOpen)
+                .describedAs("The parent's retained frame, queued child payload and reset fit the connection budget")
+                .isTrue()
+            assertThat(queued.refCnt()).isZero()
+            if (replacesBuffer) {
+                assertThat(replacements.first().refCnt()).isPositive()
+                assertThat(replacements.last().refCnt()).isZero()
+            }
+            val beforeDrain = if (beforeParentDrain) {
+                val write = sibling.writeAndFlushWithFuture(Unpooled.buffer(64).writeZero(64))
+                channel.runPendingTasks()
+                assertThat(write.isDone).describedAs("Retired child entries must not remain active: %s", write).isFalse()
+                write
+            } else null
+            flushGate.paused = false
+            channel.flush()
+            channel.runPendingTasks()
+            while (true) ReferenceCountUtil.release(channel.readOutbound<YamuxFrame>() ?: break)
+            assertThat(active.refCnt()).isZero()
+            assertThat(replacements).allMatch { it.refCnt() == 0 }
+            val next = if (beforeParentDrain) {
+                checkNotNull(beforeDrain)
+            } else {
+                sibling.writeAndFlushWithFuture(Unpooled.buffer(64).writeZero(64))
+            }
+            channel.runPendingTasks()
+            assertThat(next).isCompletedWithValue(Unit)
+            assertThat(channel.isOpen).isTrue()
+        } catch (failure: Throwable) {
+            bodyFailure = failure
+            throw failure
+        } finally {
             try {
-                val stream = handler.createStream(StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) }).also { channel.runPendingTasks() }
-                    .stream.get(5, TimeUnit.SECONDS)
-                val sibling = handler.createStream(StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) }).also { channel.runPendingTasks() }
-                    .stream.get(5, TimeUnit.SECONDS)
-                while (true) ReferenceCountUtil.release(channel.readOutbound<YamuxFrame>() ?: break)
-                flushGate.paused = true
-                val activeSize = if (mode == "window buffered") 96 else 64
-                val queuedSize = 128 - activeSize
-                val active = Unpooled.buffer(activeSize).writeZero(activeSize)
-                val queued = Unpooled.buffer(queuedSize).writeZero(queuedSize)
-                val first = stream.writeAndFlushWithFuture(active)
-                val second = stream.writeAndFlushWithFuture(queued)
-                channel.runPendingTasks()
-                assertThat(first.isDone).isFalse()
-                assertThat(second.isDone).isFalse()
-                val close = stream.close()
-                channel.runPendingTasks()
-                assertThat(close).describedAs("Child close must keep the reset within its budget: %s", close)
-                    .isCompletedWithValue(Unit)
-                assertThat(first.isCompletedExceptionally).isTrue()
-                assertThat(second.isCompletedExceptionally).isTrue()
-                assertThat(channel.isOpen)
-                    .describedAs("The parent's retained frame, queued child payload and reset fit the connection budget")
-                    .isTrue()
-                assertThat(queued.refCnt()).isZero()
-                val beforeDrain = if (mode == "before parent drain") {
-                    val write = sibling.writeAndFlushWithFuture(Unpooled.buffer(64).writeZero(64))
-                    channel.runPendingTasks()
-                    assertThat(write.isDone).describedAs("Retired child entries must not remain active: %s", write).isFalse()
-                    write
-                } else null
-                flushGate.paused = false
-                channel.flush()
-                channel.runPendingTasks()
-                while (true) ReferenceCountUtil.release(channel.readOutbound<YamuxFrame>() ?: break)
-                assertThat(active.refCnt()).isZero()
-                val next = if (mode == "before parent drain") {
-                    checkNotNull(beforeDrain)
-                } else {
-                    sibling.writeAndFlushWithFuture(Unpooled.buffer(64).writeZero(64))
-                }
-                channel.runPendingTasks()
-                assertThat(next).isCompletedWithValue(Unit)
-                assertThat(channel.isOpen).isTrue()
-            } finally {
                 channel.finishAndReleaseAll()
+            } catch (cleanupFailure: Throwable) {
+                val failure = bodyFailure
+                if (failure == null) throw cleanupFailure
+                // Preserve the public failure and retain any cleanup failure in its report.
+                if (cleanupFailure !== failure) failure.addSuppressed(cleanupFailure)
             }
         }
     }
-
 
     @Test
     fun `reservation returns before a caller listener registered before the write`() {

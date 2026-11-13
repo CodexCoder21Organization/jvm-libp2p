@@ -242,9 +242,14 @@ class YamuxSizedReplacementTest {
     fun `grown replacement waits for actual payload window credit`() {
         val frames = SizedReplacementFrames()
         val handler = YamuxHandler(
-            MultistreamProtocolV1, 256, null,
+            MultistreamProtocolV1,
+            256,
+            null,
             StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) },
-            true, 128, DEFAULT_ACK_BACKLOG_LIMIT, 64
+            true,
+            128,
+            DEFAULT_ACK_BACKLOG_LIMIT,
+            64
         )
         val channel = sizedReplacementChannel("grown-window-replacement", frames, handler)
         AutoCloseable { channel.finishAndReleaseAll() }.use {
@@ -302,9 +307,14 @@ class YamuxSizedReplacementTest {
     fun `entry reservation and active exclusion use the same admitted size`() {
         val frames = SizedReplacementFrames()
         val handler = YamuxHandler(
-            MultistreamProtocolV1, 256, null,
+            MultistreamProtocolV1,
+            256,
+            null,
             StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) },
-            true, 64, DEFAULT_ACK_BACKLOG_LIMIT, 1024
+            true,
+            64,
+            DEFAULT_ACK_BACKLOG_LIMIT,
+            1024
         )
         val channel = sizedReplacementChannel("admitted-size", frames, handler)
         AutoCloseable { channel.finishAndReleaseAll() }.use {
@@ -474,7 +484,9 @@ class YamuxSizedReplacementTest {
                             "copy" -> previous.copy()
                             "slice" -> previous.retainedSlice()
                             else -> Unpooled.compositeBuffer(2).addComponents(
-                                true, previous.retainedSlice(0, 32), previous.retainedSlice(32, 32)
+                                true,
+                                previous.retainedSlice(0, 32),
+                                previous.retainedSlice(32, 32)
                             )
                         }
                         replacements += next

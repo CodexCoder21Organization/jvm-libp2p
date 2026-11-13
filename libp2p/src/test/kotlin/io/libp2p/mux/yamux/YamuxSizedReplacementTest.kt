@@ -193,6 +193,47 @@ class YamuxSizedReplacementTest {
     }
 
     @Test
+    fun `failed child entry creation leaves the connection budget available`() {
+        val frames = SizedReplacementFrames()
+        val handler = sizedReplacementMux()
+        val channel = TestChannel("failed-entry-creation", true, frames, handler)
+        AutoCloseable { channel.finishAndReleaseAll() }.use {
+            val stream = handler.createStream(StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) })
+                .also { channel.runPendingTasks() }.stream.get(5, TimeUnit.SECONDS) as StreamOverNetty
+            val sibling = handler.createStream(StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) })
+                .also { channel.runPendingTasks() }.stream.get(5, TimeUnit.SECONDS) as StreamOverNetty
+            val released = Unpooled.buffer(1).writeByte(1)
+            assertThat(released.release()).isTrue()
+            var completions = 0
+            val caller = stream.nettyChannel.newPromise().also { it.addListener { completions++ } }
+            stream.nettyChannel.write(released, caller)
+            channel.runPendingTasks()
+            assertThat(caller.isDone).isTrue()
+            assertThat(caller.cause()).isInstanceOf(io.netty.util.IllegalReferenceCountException::class.java)
+                .hasMessage("refCnt: 0, decrement: 1")
+            assertThat(completions).isEqualTo(1)
+            assertThat(released.refCnt()).isZero()
+            assertThat(channel.isOpen).isTrue()
+            val budget = Unpooled.buffer(128).writeZero(128)
+            val probe = sibling.nettyChannel.write(budget)
+            channel.runPendingTasks()
+            assertThat(probe.isDone).describedAs("A rejected entry must not retain a reservation").isFalse()
+            assertThat(probe.cancel(false)).isTrue()
+            sibling.nettyChannel.flush()
+            channel.runPendingTasks()
+            assertThat(budget.refCnt()).isZero()
+            val next = sibling.writeAndFlushWithFuture(Unpooled.buffer(116).writeZero(116))
+            channel.runPendingTasks()
+            assertThat(next.isDone).isFalse()
+            assertThat(frames.held).hasSize(1)
+            frames.completeNext()
+            channel.runPendingTasks()
+            assertThat(next).isCompletedWithValue(Unit)
+            assertThat(completions).isEqualTo(1)
+        }
+    }
+
+    @Test
     fun `grown replacement waits for actual payload window credit`() {
         val frames = SizedReplacementFrames()
         val handler = YamuxHandler(

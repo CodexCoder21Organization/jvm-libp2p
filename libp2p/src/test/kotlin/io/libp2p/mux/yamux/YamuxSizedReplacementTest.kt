@@ -350,7 +350,7 @@ class YamuxSizedReplacementTest {
             assertThat(caller.isDone).isFalse()
             stream.nettyChannel.flush()
             channel.runPendingTasks()
-            assertThat(caller.isDone).describedAs("Active exclusion must match the64-byte entry reservation").isFalse()
+            assertThat(caller.isDone).describedAs("Active exclusion must match the admitted entry size of 64 bytes").isFalse()
             assertThat(frames.held).hasSize(1)
             assertThat(ByteBufUtil.getBytes(frames.held.single().first.data!!))
                 .containsExactly(*ByteArray(32) { (it + 32).toByte() })

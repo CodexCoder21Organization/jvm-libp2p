@@ -4,7 +4,7 @@ import io.libp2p.core.ConnectionClosedException
 import io.libp2p.etc.util.netty.AbstractChildChannel
 import io.netty.buffer.ByteBuf
 import io.netty.buffer.Unpooled
-import io.netty.buffer.DefaultByteBufHolder
+import io.netty.buffer.CompositeByteBuf
 import io.netty.channel.Channel
 import io.netty.channel.ChannelFuture
 import io.netty.channel.ChannelHandlerContext
@@ -196,7 +196,7 @@ class MuxChannel<TData>(
                 buf.remove()
                 continue
             }
-            val msg = (entry as? ChildWriteBuffer)?.content() ?: entry
+            val msg = (entry as? ChildWriteBuffer)?.data ?: entry
             if (localDisconnected) {
                 // Must not throw from doWrite — exceptions escape uncaught to the Netty event loop.
                 // Wrap buf.remove() defensively: in some Netty versions promise listeners triggered
@@ -347,23 +347,25 @@ class MuxChannel<TData>(
 }
 
 /** A child entry owns one reference, separately from references handed to the parent. */
-private class ChildWriteBuffer(data: ByteBuf) : DefaultByteBufHolder(data) {
-    private var released = false
+private class ChildWriteBuffer(val data: ByteBuf) : CompositeByteBuf(data.alloc(), data.isDirect, 1) {
     private var completion: (() -> Unit)? = null
 
+    init {
+        addComponent(true, data)
+    }
+
     fun onRelease(action: () -> Unit) {
-        check(!released && completion == null) { "Child outbound entry already released or has a completion owner" }
+        check(refCnt() > 0 && completion == null) {
+            "Cannot register child-write completion: entry refCnt=${refCnt()}, completionRegistered=${completion != null}"
+        }
         completion = action
     }
 
-    override fun release(): Boolean = release(1)
-
-    override fun release(decrement: Int): Boolean {
+    override fun deallocate() {
         val action = completion
         completion = null
-        released = true
         try {
-            return content().release(decrement)
+            super.deallocate()
         } finally {
             action?.invoke()
         }

@@ -108,6 +108,15 @@ class YamuxReplacedChildWriteTest {
             channel.runPendingTasks()
             assertThat(wholeBudgetData.refCnt()).isZero()
             assertThat(frames.held).isEmpty()
+            val afterCancelData = Unpooled.buffer(128).writeZero(128)
+            val afterCancel = stream.nettyChannel.write(afterCancelData)
+            channel.runPendingTasks()
+            assertThat(afterCancel.isDone).isFalse()
+            assertThat(afterCancel.cancel(false)).isTrue()
+            stream.nettyChannel.flush()
+            channel.runPendingTasks()
+            assertThat(afterCancelData.refCnt()).isZero()
+            assertThat(frames.held).isEmpty()
         } finally {
             channel.finishAndReleaseAll()
         }
@@ -489,17 +498,19 @@ class YamuxReplacedChildWriteTest {
             assertThat(channel.isOpen).isTrue()
         } catch (failure: Throwable) {
             bodyFailure = failure
-            throw failure
         } finally {
             try {
                 channel.finishAndReleaseAll()
             } catch (cleanupFailure: Throwable) {
                 val failure = bodyFailure
-                if (failure == null) throw cleanupFailure
-                // Preserve the public failure and retain any cleanup failure in its report.
-                if (cleanupFailure !== failure) failure.addSuppressed(cleanupFailure)
+                if (failure == null) {
+                    bodyFailure = cleanupFailure
+                } else if (cleanupFailure !== failure) {
+                    failure.addSuppressed(cleanupFailure)
+                }
             }
         }
+        bodyFailure?.let { throw it }
     }
 
     @Test

@@ -185,6 +185,12 @@ Yamux enforces the `maxBufferedConnectionWrites` setting across the complete con
 
 When child-stream payloads would cross that connection-wide budget, Yamux resets the offending stream and fails its retained writes. When a Yamux frame would push the parent transport past the budget, jvm-libp2p deliberately closes the connection and fails affected writes with a descriptive `YamuxOutboundBufferExceededException` that includes the peer, pending bytes, attempted frame bytes, projected bytes, budget, duration, and channel. Together these gates prevent a stalled peer from retaining unbounded outbound `ByteBuf`s before or after Yamux framing.
 
+An outbound handler may replace a child write's `ByteBuf` with retained slices,
+a composite, or a copy of the same payload while forwarding the same promise. The write still waits for every
+parent frame and any remaining Yamux window credit. Completed writes return their capacity
+before completion callbacks can start another write. Releasing the original buffer reference
+after creating the replacement does not change these guarantees.
+
 This budget gate is Yamux-only. Mplex does not currently enforce an equivalent parent outbound-buffer budget, so applications that need this hard stalled-peer protection should configure Yamux rather than assuming the setting applies to every muxer.
 
 ## Stream half-close

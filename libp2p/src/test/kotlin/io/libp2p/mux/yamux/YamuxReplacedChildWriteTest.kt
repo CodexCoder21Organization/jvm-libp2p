@@ -524,6 +524,37 @@ class YamuxReplacedChildWriteTest {
         }
     }
 
+
+    @Test
+    fun `empty child payload releases its entry before the next write`() {
+        val frames = HeldReplacementFrames()
+        val handler = YamuxHandler(
+            MultistreamProtocolV1, 256, null,
+            StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) },
+            true, 128, DEFAULT_ACK_BACKLOG_LIMIT, 1024
+        )
+        val channel = TestChannel("empty-child-entry", true, frames, handler)
+        try {
+            val stream = handler.createStream(StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) })
+                .also { channel.runPendingTasks() }.stream.get(5, TimeUnit.SECONDS)
+            val empty = Unpooled.buffer(1)
+            val emptyWrite = stream.writeAndFlushWithFuture(empty)
+            channel.runPendingTasks()
+            assertThat(emptyWrite).isCompletedWithValue(Unit)
+            assertThat(empty.refCnt()).isZero()
+            assertThat(frames.held).isEmpty()
+            val next = stream.writeAndFlushWithFuture(Unpooled.buffer(116).writeZero(116))
+            channel.runPendingTasks()
+            assertThat(next.isDone).isFalse()
+            assertThat(frames.held).hasSize(1)
+            frames.completeNext()
+            channel.runPendingTasks()
+            assertThat(next).isCompletedWithValue(Unit)
+        } finally {
+            channel.finishAndReleaseAll()
+        }
+    }
+
 }
 
 private class HeldReplacementFrames : ChannelOutboundHandlerAdapter() {

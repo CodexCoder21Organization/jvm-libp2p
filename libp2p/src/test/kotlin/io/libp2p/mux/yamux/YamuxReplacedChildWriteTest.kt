@@ -10,6 +10,8 @@ import io.netty.buffer.Unpooled
 import io.netty.channel.ChannelHandlerContext
 import io.netty.channel.ChannelOutboundHandlerAdapter
 import io.netty.channel.ChannelPromise
+import io.netty.channel.MessageSizeEstimator
+import io.netty.channel.WriteBufferWaterMark
 import io.netty.util.ReferenceCountUtil
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
@@ -478,6 +480,45 @@ class YamuxReplacedChildWriteTest {
             channel.runPendingTasks()
             assertThat(next).isCompletedWithValue(Unit)
             assertThat(channel.isOpen).isTrue()
+        } finally {
+            channel.finishAndReleaseAll()
+        }
+    }
+
+
+    @Test
+    fun `custom ByteBuf size estimator keeps child writability accounting`() {
+        val frames = HeldReplacementFrames()
+        val handler = YamuxHandler(
+            MultistreamProtocolV1, 256, null,
+            StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) },
+            true, 256, DEFAULT_ACK_BACKLOG_LIMIT, 1024
+        )
+        val channel = TestChannel("custom-size-estimator", true, frames, handler)
+        try {
+            val stream = handler.createStream(StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) })
+                .also { channel.runPendingTasks() }.stream.get(5, TimeUnit.SECONDS) as StreamOverNetty
+            val sizes = mutableListOf<Int>()
+            stream.nettyChannel.config().messageSizeEstimator = MessageSizeEstimator {
+                MessageSizeEstimator.Handle { message ->
+                    val size = (message as ByteBuf).readableBytes()
+                    sizes += size
+                    size
+                }
+            }
+            stream.nettyChannel.config().writeBufferWaterMark = WriteBufferWaterMark(32, 64)
+            val data = Unpooled.buffer(64).writeZero(64)
+            val write = stream.writeAndFlushWithFuture(data)
+            channel.runPendingTasks()
+            assertThat(write.isDone).describedAs("The configured ByteBuf estimator must accept this write: %s", write).isFalse()
+            assertThat(sizes).containsExactly(64)
+            assertThat(stream.nettyChannel.isWritable).isFalse()
+            assertThat(frames.held).hasSize(1)
+            frames.completeNext()
+            channel.runPendingTasks()
+            assertThat(write).isCompletedWithValue(Unit)
+            assertThat(stream.nettyChannel.isWritable).isTrue()
+            assertThat(data.refCnt()).isZero()
         } finally {
             channel.finishAndReleaseAll()
         }

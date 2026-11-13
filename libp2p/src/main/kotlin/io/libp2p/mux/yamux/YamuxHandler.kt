@@ -22,7 +22,6 @@ import io.netty.channel.ChannelPromise
 import io.netty.util.ReferenceCountUtil
 import io.netty.util.concurrent.PromiseCombiner
 import org.slf4j.LoggerFactory
-import java.util.IdentityHashMap
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
@@ -296,11 +295,14 @@ open class YamuxHandler(
             }
             acknowledgeInboundStreamIfNeeded()
             check(pendingWrite == null) { "A Yamux stream may have only one child write in flight: $id" }
-            val dataSize = data.readableBytes()
-            check(activeChildWrites.put(data, dataSize) == null) {
-                "Yamux child write became active more than once: $id"
+            // The actual child entry owns this lease. The pipeline may replace its
+            // buffer, and a failed mux promise can precede removal of the child entry.
+            activeChildWriteBytes += child.onCurrentWriteReleased { dataSize ->
+                activeChildWriteBytes -= dataSize
+                check(activeChildWriteBytes >= 0) {
+                    "Yamux active child-write accounting underflowed by ${-activeChildWriteBytes} bytes after completing $id"
+                }
             }
-            activeChildWriteBytes += dataSize
             val write = PendingWrite(getChannelHandlerContext(), child)
             pendingWrite = write
             try {
@@ -365,7 +367,6 @@ open class YamuxHandler(
     private val streamHandlers: MutableMap<MuxId, YamuxStreamHandler> = ConcurrentHashMap()
     private var pendingChildWriteBytes = 0L
     private var activeChildWriteBytes = 0L
-    private val activeChildWrites = IdentityHashMap<ByteBuf, Int>()
     private var firstUnwritableNanos: Long? = null
     private var terminalWriteFailure: YamuxOutboundBufferExceededException? = null
 
@@ -610,12 +611,6 @@ open class YamuxHandler(
         pendingChildWriteBytes -= dataSize
         check(pendingChildWriteBytes >= 0) {
             "Yamux child outbound accounting underflowed by ${-pendingChildWriteBytes} bytes after completing ${child.id}"
-        }
-        activeChildWrites.remove(data)?.let { activeSize ->
-            activeChildWriteBytes -= activeSize
-            check(activeChildWriteBytes >= 0) {
-                "Yamux active child-write accounting underflowed by ${-activeChildWriteBytes} bytes after completing ${child.id}"
-            }
         }
     }
 

@@ -377,7 +377,7 @@ abstract class AbstractMuxHandler<TData>(
     internal open fun pendingChildWriteSize(data: TData): Int? = null
 
     /**
-     * Reserves connection-wide capacity before [data] enters the child channel's outbound buffer.
+     * Reserves connection-wide capacity for the final payload before it enters the child outbound buffer.
      * Returning a failure rejects that write without enqueueing it.
      */
     internal open fun onPendingChildWrite(
@@ -385,7 +385,7 @@ abstract class AbstractMuxHandler<TData>(
         dataSize: Int
     ): Throwable? = null
 
-    /** Releases a reservation made by [onPendingChildWrite] when the child promise completes. */
+    /** Releases admitted bytes when the child entry is released or cannot be created. */
     internal open fun onPendingChildWriteComplete(
         child: MuxChannel<TData>,
         data: TData,

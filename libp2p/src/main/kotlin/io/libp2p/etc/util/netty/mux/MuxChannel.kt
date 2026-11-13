@@ -2,6 +2,9 @@ package io.libp2p.etc.util.netty.mux
 
 import io.libp2p.core.ConnectionClosedException
 import io.libp2p.etc.util.netty.AbstractChildChannel
+import io.netty.buffer.ByteBuf
+import io.netty.buffer.CompositeByteBuf
+import io.netty.buffer.Unpooled
 import io.netty.channel.Channel
 import io.netty.channel.ChannelFuture
 import io.netty.channel.ChannelHandlerContext
@@ -34,6 +37,7 @@ class MuxChannel<TData>(
     var localDisconnected = false
     private var localDisconnectRequested = false
     private var waitingForParentWrite = false
+    private var currentWriteBuffer: ChildWriteBuffer? = null
     private var pendingParentWrite: ChannelFuture? = null
     private var parentWriteCompletion: ChildLoopCompletion? = null
 
@@ -58,37 +62,44 @@ class MuxChannel<TData>(
     override fun remoteAddress0() =
         MultiplexSocketAddress(parent.getChannelHandlerContext().channel().remoteAddress(), id)
 
+    override fun filterOutboundMessage(msg: Any): Any {
+        if (msg !is ByteBuf) return msg
+        @Suppress("UNCHECKED_CAST")
+        val data = msg as TData
+        val dataSize = parent.pendingChildWriteSize(data) ?: return ChildWriteBuffer(msg)
+        parent.onPendingChildWrite(this, dataSize)?.let { throw it }
+        var transferred = false
+        try {
+            return ChildWriteBuffer(msg, dataSize) {
+                parent.onPendingChildWriteComplete(this, data, dataSize)
+            }.also { transferred = true }
+        } finally {
+            if (!transferred) parent.onPendingChildWriteComplete(this, data, dataSize)
+        }
+    }
+
+    internal fun onCurrentWriteReleased(action: (Int) -> Unit): Int {
+        val entry = checkNotNull(currentWriteBuffer) {
+            "No child outbound buffer entry is active for stream $id"
+        }
+        val size = entry.accountedSize
+        entry.onRelease { action(size) }
+        return size
+    }
+
     override fun initChildPipeline() {
-        pipeline().addFirst(PendingWriteAccountingHandler())
+        pipeline().addFirst(AcceptedWriteHandler())
         initializer(this)
     }
 
-    private inner class PendingWriteAccountingHandler : ChannelOutboundHandlerAdapter() {
+    private inner class AcceptedWriteHandler : ChannelOutboundHandlerAdapter() {
         override fun write(ctx: ChannelHandlerContext, msg: Any, promise: ChannelPromise) {
             if (localDisconnectRequested || localDisconnected) {
                 ReferenceCountUtil.release(msg)
                 promise.tryFailure(ConnectionClosedException("The stream was closed for writing locally: $id"))
                 return
             }
-            @Suppress("UNCHECKED_CAST")
-            val data = msg as TData
-            val dataSize = parent.pendingChildWriteSize(data)
-            if (dataSize == null) {
-                writeAccepted(ctx, msg, promise)
-                return
-            }
-            val writePromise = promise.unvoid()
-            val failure = parent.onPendingChildWrite(this@MuxChannel, dataSize)
-            if (failure != null) {
-                ReferenceCountUtil.release(msg)
-                writePromise.tryFailure(failure)
-                return
-            }
-
-            writePromise.addListener {
-                parent.onPendingChildWriteComplete(this@MuxChannel, data, dataSize)
-            }
-            writeAccepted(ctx, msg, writePromise)
+            writeAccepted(ctx, msg, promise)
         }
 
         override fun flush(ctx: ChannelHandlerContext) {
@@ -97,7 +108,11 @@ class MuxChannel<TData>(
         }
     }
 
-    private fun writeAccepted(ctx: ChannelHandlerContext, msg: Any, promise: ChannelPromise) {
+    private fun writeAccepted(
+        ctx: ChannelHandlerContext,
+        msg: Any,
+        promise: ChannelPromise
+    ) {
         ensureAcceptedWriteTerminationOwner()
         retainedWriteCount.incrementAndGet()
         val bufferPromise = RetainedWritePromise(this, promise.unvoid()) {
@@ -168,7 +183,14 @@ class MuxChannel<TData>(
         if (waitingForParentWrite) return
 
         while (true) {
-            val msg = buf.current() ?: break
+            val entry = buf.current() ?: break
+            // Netty releases cancelled entries and substitutes this empty marker.
+            // Normal ByteBuf writes, including empty ones, have their own entry wrapper.
+            if (entry === Unpooled.EMPTY_BUFFER) {
+                buf.remove()
+                continue
+            }
+            val msg = (entry as? ChildWriteBuffer)?.data ?: entry
             if (localDisconnected) {
                 // Must not throw from doWrite — exceptions escape uncaught to the Netty event loop.
                 // Wrap buf.remove() defensively: in some Netty versions promise listeners triggered
@@ -182,8 +204,13 @@ class MuxChannel<TData>(
                 // the msg is released by both onChildWrite and buf.remove() so we need to retain
                 // however it is still to be confirmed that no buf leaks happen here TODO
                 ReferenceCountUtil.retain(msg)
+                currentWriteBuffer = entry as? ChildWriteBuffer
                 @Suppress("UNCHECKED_CAST")
-                val parentFuture = parent.onChildWrite(this, msg as TData)
+                val parentFuture = try {
+                    parent.onChildWrite(this, msg as TData)
+                } finally {
+                    currentWriteBuffer = null
+                }
                 // The callback may synchronously close this child and release its buffer.
                 if (!isOpen || unsafe().outboundBuffer() !== buf) return
                 if (parentFuture.isDone) {
@@ -310,6 +337,42 @@ class MuxChannel<TData>(
 
     private fun closeIfBothDisconnected() {
         if (remoteDisconnected && localDisconnected) closeImpl()
+    }
+}
+
+/** A child entry owns one reference, separately from references handed to the parent. */
+private class ChildWriteBuffer(
+    val data: ByteBuf,
+    val accountedSize: Int = data.readableBytes(),
+    private var reservationCompletion: (() -> Unit)? = null
+) : CompositeByteBuf(data.alloc(), data.isDirect, 1) {
+    private var completion: (() -> Unit)? = null
+
+    init {
+        addComponent(true, data)
+    }
+
+    fun onRelease(action: () -> Unit) {
+        check(refCnt() > 0 && completion == null) {
+            "Cannot register child-write completion: entry refCnt=${refCnt()}, completionRegistered=${completion != null}"
+        }
+        completion = action
+    }
+
+    override fun deallocate() {
+        val action = completion
+        val reservation = reservationCompletion
+        completion = null
+        reservationCompletion = null
+        try {
+            super.deallocate()
+        } finally {
+            try {
+                action?.invoke()
+            } finally {
+                reservation?.invoke()
+            }
+        }
     }
 }
 

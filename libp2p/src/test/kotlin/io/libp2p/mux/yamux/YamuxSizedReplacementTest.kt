@@ -1,8 +1,13 @@
 package io.libp2p.mux.yamux
 
+import io.libp2p.core.PeerId
 import io.libp2p.core.StreamHandler
 import io.libp2p.core.multistream.MultistreamProtocolV1
+import io.libp2p.core.security.SecureChannel
+import io.libp2p.crypto.keys.unmarshalEd25519PrivateKey
+import io.libp2p.etc.CONNECTION
 import io.libp2p.tools.TestChannel
+import io.libp2p.transport.implementation.ConnectionOverNetty
 import io.libp2p.transport.implementation.StreamOverNetty
 import io.netty.buffer.ByteBuf
 import io.netty.buffer.ByteBufUtil
@@ -25,7 +30,7 @@ class YamuxSizedReplacementTest {
     fun `final replacement size determines queue frame and returned budget`(originalSize: Int, replacementSize: Int) {
         val frames = SizedReplacementFrames()
         val handler = sizedReplacementMux()
-        val channel = TestChannel("sized-replacement", true, frames, handler)
+        val channel = sizedReplacementChannel("sized-replacement", frames, handler)
         AutoCloseable { channel.finishAndReleaseAll() }.use {
             val stream = handler.createStream(StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) })
                 .also { channel.runPendingTasks() }.stream.get(5, TimeUnit.SECONDS) as StreamOverNetty
@@ -89,7 +94,7 @@ class YamuxSizedReplacementTest {
     fun `unflushed admission charges the final payload and rejects one byte beyond it`(originalSize: Int, replacementSize: Int) {
         val frames = SizedReplacementFrames()
         val handler = sizedReplacementMux()
-        val channel = TestChannel("sized-queue-boundary", true, frames, handler)
+        val channel = sizedReplacementChannel("sized-queue-boundary", frames, handler)
         AutoCloseable { channel.finishAndReleaseAll() }.use {
             val stream = handler.createStream(StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) })
                 .also { channel.runPendingTasks() }.stream.get(5, TimeUnit.SECONDS) as StreamOverNetty
@@ -141,7 +146,7 @@ class YamuxSizedReplacementTest {
     fun `grown replacement rejected at admission releases both buffers once`() {
         val frames = SizedReplacementFrames()
         val handler = sizedReplacementMux()
-        val channel = TestChannel("grown-admission-overflow", true, frames, handler)
+        val channel = sizedReplacementChannel("grown-admission-overflow", frames, handler)
         AutoCloseable { channel.finishAndReleaseAll() }.use {
             val stream = handler.createStream(StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) })
                 .also { channel.runPendingTasks() }.stream.get(5, TimeUnit.SECONDS) as StreamOverNetty
@@ -196,7 +201,7 @@ class YamuxSizedReplacementTest {
     fun `failed child entry creation leaves the connection budget available`() {
         val frames = SizedReplacementFrames()
         val handler = sizedReplacementMux()
-        val channel = TestChannel("failed-entry-creation", true, frames, handler)
+        val channel = sizedReplacementChannel("failed-entry-creation", frames, handler)
         AutoCloseable { channel.finishAndReleaseAll() }.use {
             val stream = handler.createStream(StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) })
                 .also { channel.runPendingTasks() }.stream.get(5, TimeUnit.SECONDS) as StreamOverNetty
@@ -241,7 +246,7 @@ class YamuxSizedReplacementTest {
             StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) },
             true, 128, DEFAULT_ACK_BACKLOG_LIMIT, 64
         )
-        val channel = TestChannel("grown-window-replacement", true, frames, handler)
+        val channel = sizedReplacementChannel("grown-window-replacement", frames, handler)
         AutoCloseable { channel.finishAndReleaseAll() }.use {
             val stream = handler.createStream(StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) })
                 .also { channel.runPendingTasks() }.stream.get(5, TimeUnit.SECONDS) as StreamOverNetty
@@ -298,7 +303,7 @@ class YamuxSizedReplacementTest {
     fun `unflushed substituted entry releases on close`(close: String) {
         val frames = SizedReplacementFrames()
         val handler = sizedReplacementMux()
-        val channel = TestChannel("unflushed-substitution-close", true, frames, handler)
+        val channel = sizedReplacementChannel("unflushed-substitution-close", frames, handler)
         AutoCloseable { channel.finishAndReleaseAll() }.use {
             val stream = handler.createStream(StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) })
                 .also { channel.runPendingTasks() }.stream.get(5, TimeUnit.SECONDS) as StreamOverNetty
@@ -379,7 +384,7 @@ class YamuxSizedReplacementTest {
     fun `copy slice composite replacement chain releases every reference`(outcome: String) {
         val frames = SizedReplacementFrames()
         val handler = sizedReplacementMux()
-        val channel = TestChannel("replacement-chain", true, frames, handler)
+        val channel = sizedReplacementChannel("replacement-chain", frames, handler)
         AutoCloseable { channel.finishAndReleaseAll() }.use {
             val stream = handler.createStream(StreamHandler<Unit> { CompletableFuture.completedFuture(Unit) })
                 .also { channel.runPendingTasks() }.stream.get(5, TimeUnit.SECONDS) as StreamOverNetty
@@ -453,6 +458,16 @@ class YamuxSizedReplacementTest {
             assertThat(completions).isEqualTo(1)
         }
     }
+}
+
+private fun sizedReplacementChannel(name: String, frames: SizedReplacementFrames, handler: YamuxHandler): TestChannel {
+    val channel = TestChannel(name, true, frames, handler)
+    val localKey = unmarshalEd25519PrivateKey(ByteArray(32) { 1 }).publicKey()
+    val remoteKey = unmarshalEd25519PrivateKey(ByteArray(32) { 2 }).publicKey()
+    (channel.attr(CONNECTION).get() as ConnectionOverNetty).setSecureSession(
+        SecureChannel.Session(PeerId.fromPubKey(localKey), PeerId.fromPubKey(remoteKey), remoteKey, null)
+    )
+    return channel
 }
 
 private fun sizedReplacementMux() = YamuxHandler(

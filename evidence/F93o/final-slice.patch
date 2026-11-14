@@ -1,0 +1,269 @@
+diff --git a/libp2p/src/main/kotlin/io/libp2p/transport/implementation/NettyChannelClose.kt b/libp2p/src/main/kotlin/io/libp2p/transport/implementation/NettyChannelClose.kt
+index ca094b79..ccbcc9a3 100644
+--- a/libp2p/src/main/kotlin/io/libp2p/transport/implementation/NettyChannelClose.kt
++++ b/libp2p/src/main/kotlin/io/libp2p/transport/implementation/NettyChannelClose.kt
+@@ -5,11 +5,14 @@ import io.netty.channel.Channel
+ import io.netty.channel.DefaultChannelPromise
+ import io.netty.util.AttributeKey
+ import io.netty.util.concurrent.EventExecutor
++import io.netty.util.concurrent.Future
++import io.netty.util.concurrent.GenericFutureListener
+ import java.util.Collections
+ import java.util.IdentityHashMap
+ import java.util.concurrent.CompletableFuture
+ import java.util.concurrent.CompletionException
+ import java.util.concurrent.RejectedExecutionException
++import java.util.concurrent.atomic.AtomicBoolean
+ import java.util.concurrent.atomic.AtomicInteger
+ import java.util.concurrent.atomic.AtomicReference
+ 
+@@ -87,12 +90,27 @@ private fun requestPhysicalClose(
+             val loop = channel.eventLoop()
+             val completionExecutor = object : EventExecutor by loop {
+                 override fun execute(command: Runnable) {
++                    val claimed = AtomicBoolean()
++                    val termination = loop.terminationFuture()
++                    val onTermination = GenericFutureListener<Future<Any?>> {
++                        if (claimed.compareAndSet(false, true)) command.run()
++                    }
++                    val deliver = Runnable {
++                        if (claimed.compareAndSet(false, true)) {
++                            termination.removeListener(onTermination)
++                            command.run()
++                        }
++                    }
++                    termination.addListener(onTermination)
+                     try {
+-                        loop.execute(command)
++                        loop.execute(deliver)
+                     } catch (_: RejectedExecutionException) {
+                         // A rejected notification still owns delivery of the physical close result.
+-                        command.run()
++                        deliver.run()
+                     }
++                    // Submission may return normally after the loop discarded its final queue.
++                    // The listener covers termination after this read; both paths share the claim.
++                    if (loop.isTerminated) deliver.run()
+                 }
+             }
+             // Preserve the loop's listener order, including its notification-depth boundary.
+diff --git a/libp2p/src/test/kotlin/io/libp2p/transport/F93oCloseCallbackExecutionTest.kt b/libp2p/src/test/kotlin/io/libp2p/transport/F93oCloseCallbackExecutionTest.kt
+new file mode 100644
+index 00000000..efb84ea8
+--- /dev/null
++++ b/libp2p/src/test/kotlin/io/libp2p/transport/F93oCloseCallbackExecutionTest.kt
+@@ -0,0 +1,95 @@
++package io.libp2p.transport
++
++import io.libp2p.core.dsl.host
++import io.libp2p.transport.implementation.ConnectionOverNetty
++import io.libp2p.transport.implementation.NettyTransport
++import io.netty.bootstrap.Bootstrap
++import io.netty.channel.ChannelHandlerContext
++import io.netty.channel.ChannelInboundHandlerAdapter
++import io.netty.channel.ChannelOutboundHandlerAdapter
++import io.netty.channel.ChannelPromise
++import io.netty.channel.DefaultChannelPromise
++import io.netty.channel.SingleThreadIoEventLoop
++import io.netty.channel.nio.NioIoHandler
++import io.netty.channel.socket.nio.NioSocketChannel
++import io.netty.util.concurrent.DefaultThreadFactory
++import io.netty.util.concurrent.ImmediateEventExecutor
++import org.junit.jupiter.api.Assertions.assertEquals
++import org.junit.jupiter.api.Assertions.assertFalse
++import org.junit.jupiter.api.Assertions.assertSame
++import org.junit.jupiter.api.Assertions.assertTrue
++import org.junit.jupiter.api.Test
++import java.net.InetAddress
++import java.net.ServerSocket
++import java.util.concurrent.CompletableFuture
++import java.util.concurrent.CountDownLatch
++import java.util.concurrent.TimeUnit
++import java.util.concurrent.atomic.AtomicInteger
++
++class F93oCloseCallbackExecutionTest {
++    @Test
++    fun liveLoopDeliversInlineOnLoopAndQueuesFromAnotherThread() {
++        for (completeOnLoop in listOf(true, false)) {
++            val owner = host { }
++            val loop = SingleThreadIoEventLoop(null, DefaultThreadFactory("f93o-callback", true), NioIoHandler.newFactory())
++            val held = CompletableFuture<Pair<ChannelHandlerContext, ChannelPromise>>()
++            val allowLoop = CountDownLatch(1)
++            val entered = CompletableFuture<Thread>()
++            val callbackThread = CompletableFuture<Thread>()
++            val callbacks = AtomicInteger()
++            try {
++                ServerSocket(0, 1, InetAddress.getLoopbackAddress()).use { server ->
++                    val channel = Bootstrap().group(loop).channel(NioSocketChannel::class.java)
++                        .handler(ChannelInboundHandlerAdapter()).connect(server.localSocketAddress).sync().channel()
++                    server.accept().use {
++                        val connection = ConnectionOverNetty(channel, owner.network.transports.single() as NettyTransport, true)
++                        val loopThread = loop.submit<Thread> { Thread.currentThread() }.get(10, TimeUnit.SECONDS)
++                        loop.submit {
++                            channel.pipeline().addFirst(object : ChannelOutboundHandlerAdapter() {
++                                override fun close(ctx: ChannelHandlerContext, promise: ChannelPromise) {
++                                    check(held.complete(ctx to promise))
++                                }
++                            })
++                        }.get(10, TimeUnit.SECONDS)
++                        val close = connection.close()
++                        val observed = close.thenRun {
++                            callbacks.incrementAndGet()
++                            callbackThread.complete(Thread.currentThread())
++                        }
++                        val request = held.get(10, TimeUnit.SECONDS)
++                        loop.submit {
++                            val physical = DefaultChannelPromise(channel, ImmediateEventExecutor.INSTANCE)
++                            request.first.close(physical)
++                            assertTrue(physical.isSuccess)
++                        }.get(10, TimeUnit.SECONDS)
++                        assertFalse(observed.isDone)
++                        if (completeOnLoop) {
++                            loop.submit {
++                                assertTrue(request.second.trySuccess())
++                                assertTrue(observed.isDone, "An ordinary on-loop close callback must run inline")
++                                assertSame(Thread.currentThread(), callbackThread.getNow(null))
++                            }.get(10, TimeUnit.SECONDS)
++                        } else {
++                            loop.execute {
++                                entered.complete(Thread.currentThread())
++                                check(allowLoop.await(10, TimeUnit.SECONDS))
++                            }
++                            assertSame(loopThread, entered.get(10, TimeUnit.SECONDS))
++                            assertTrue(request.second.trySuccess())
++                            assertFalse(observed.isDone, "An off-loop close callback must wait for the live loop")
++                            allowLoop.countDown()
++                        }
++                        observed.get(10, TimeUnit.SECONDS)
++                        assertSame(loopThread, callbackThread.get(10, TimeUnit.SECONDS))
++                        loop.shutdownGracefully(0, 5, TimeUnit.SECONDS).get(10, TimeUnit.SECONDS)
++                        assertEquals(1, callbacks.get(), "Loop termination must not repeat a delivered close callback")
++                    }
++                }
++            } finally {
++                allowLoop.countDown()
++                loop.shutdownGracefully(0, 5, TimeUnit.SECONDS).get(10, TimeUnit.SECONDS)
++                owner.stop().get(10, TimeUnit.SECONDS)
++            }
++        }
++    }
++}
+diff --git a/libp2p/src/test/kotlin/io/libp2p/transport/F93oQueuedCloseCompletionTest.kt b/libp2p/src/test/kotlin/io/libp2p/transport/F93oQueuedCloseCompletionTest.kt
+new file mode 100644
+index 00000000..88285acd
+--- /dev/null
++++ b/libp2p/src/test/kotlin/io/libp2p/transport/F93oQueuedCloseCompletionTest.kt
+@@ -0,0 +1,84 @@
++package io.libp2p.transport
++
++import io.libp2p.core.Connection
++import io.libp2p.core.dsl.host
++import io.libp2p.core.multiformats.Multiaddr
++import io.libp2p.transport.implementation.ConnectionOverNetty
++import io.netty.channel.ChannelHandlerContext
++import io.netty.channel.ChannelOutboundHandlerAdapter
++import io.netty.channel.ChannelPromise
++import io.netty.channel.DefaultChannelPromise
++import io.netty.channel.SingleThreadIoEventLoop
++import io.netty.util.concurrent.ImmediateEventExecutor
++import org.junit.jupiter.api.Assertions.assertEquals
++import org.junit.jupiter.api.Assertions.assertFalse
++import org.junit.jupiter.api.Assertions.assertTrue
++import org.junit.jupiter.api.Test
++import java.util.concurrent.CompletableFuture
++import java.util.concurrent.CopyOnWriteArrayList
++import java.util.concurrent.CountDownLatch
++import java.util.concurrent.TimeUnit
++import java.util.concurrent.atomic.AtomicInteger
++
++class F93oQueuedCloseCompletionTest {
++    @Test
++    fun queuedCloseCompletesOnceAcrossLoopTermination() {
++        val server = host { network { listen("/ip4/127.0.0.1/tcp/0") } }
++        val client = host { }
++        val accepted = CompletableFuture<Connection>()
++        val held = CompletableFuture<Pair<ChannelHandlerContext, ChannelPromise>>()
++        val hookEntered = CompletableFuture<Unit>()
++        val allowTermination = CountDownLatch(1)
++        val delivered = AtomicInteger()
++        val events = CopyOnWriteArrayList<String>()
++        try {
++            server.addConnectionHandler { accepted.complete(it) }
++            server.start().get(10, TimeUnit.SECONDS)
++            client.start().get(10, TimeUnit.SECONDS)
++            client.network.connect(server.peerId, *server.listenAddresses().toTypedArray())
++                .get(10, TimeUnit.SECONDS)
++            val listener = (accepted.get(10, TimeUnit.SECONDS) as ConnectionOverNetty).nettyChannel.parent()
++            val loop = listener.eventLoop() as SingleThreadIoEventLoop
++            loop.submit {
++                listener.closeFuture().addListener { events += "physical listener" }
++                listener.pipeline().addFirst(
++                    "held-close",
++                    object : ChannelOutboundHandlerAdapter() {
++                        override fun close(ctx: ChannelHandlerContext, promise: ChannelPromise) {
++                            check(held.complete(ctx to promise))
++                        }
++                    }
++                )
++            }.get(10, TimeUnit.SECONDS)
++            val close = server.network.transports.single().unlisten(Multiaddr("/ip4/127.0.0.1/tcp/0"))
++            val observed = close.thenRun {
++                delivered.incrementAndGet()
++                events += "public result"
++            }
++            val request = held.get(10, TimeUnit.SECONDS)
++            loop.submit {
++                loop.addShutdownHook {
++                    val physical = DefaultChannelPromise(listener, ImmediateEventExecutor.INSTANCE)
++                    request.first.close(physical)
++                    check(physical.isSuccess)
++                    hookEntered.complete(Unit)
++                    check(allowTermination.await(10, TimeUnit.SECONDS))
++                }
++            }.get(10, TimeUnit.SECONDS)
++            val terminated = loop.shutdownGracefully(0, 5, TimeUnit.SECONDS)
++            hookEntered.get(10, TimeUnit.SECONDS)
++            assertTrue(loop.isShuttingDown)
++            assertFalse(loop.isShutdown)
++            assertTrue(request.second.trySuccess())
++            assertFalse(close.isDone, "Accepted delivery must remain on the blocked loop")
++            allowTermination.countDown()
++            terminated.get(10, TimeUnit.SECONDS)
++            observed.get(10, TimeUnit.SECONDS)
++            assertEquals(1, delivered.get())
++            assertEquals(listOf("physical listener", "public result"), events)
++        } finally {
++            allowTermination.countDown()
++            CompletableFuture.allOf(client.stop(), server.stop()).get(10, TimeUnit.SECONDS)
++        }
++    }
++}
+diff --git a/libp2p/src/test/kotlin/io/libp2p/transport/R93A4LateOfferDeliveryTest.kt b/libp2p/src/test/kotlin/io/libp2p/transport/R93A4LateOfferDeliveryTest.kt
+index 96faac7c..dba731da 100644
+--- a/libp2p/src/test/kotlin/io/libp2p/transport/R93A4LateOfferDeliveryTest.kt
++++ b/libp2p/src/test/kotlin/io/libp2p/transport/R93A4LateOfferDeliveryTest.kt
+@@ -40,14 +40,19 @@ class R93A4LateOfferDeliveryTest {
+                     .sync().channel()
+                 server.accept().use {
+                     val connection = ConnectionOverNetty(
+-                        channel, transportHost.network.transports.single() as NettyTransport, true
++                        channel,
++                        transportHost.network.transports.single() as NettyTransport,
++                        true
+                     )
+                     loop.submit {
+-                        channel.pipeline().addFirst("hold-original", object : ChannelOutboundHandlerAdapter() {
+-                            override fun close(ctx: ChannelHandlerContext, promise: ChannelPromise) {
+-                                check(held.complete(ctx to promise))
++                        channel.pipeline().addFirst(
++                            "hold-original",
++                            object : ChannelOutboundHandlerAdapter() {
++                                override fun close(ctx: ChannelHandlerContext, promise: ChannelPromise) {
++                                    check(held.complete(ctx to promise))
++                                }
+                             }
+-                        })
++                        )
+                     }.get(10, TimeUnit.SECONDS)
+                     val close = connection.close()
+                     val request = held.get(10, TimeUnit.SECONDS)

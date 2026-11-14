@@ -1,0 +1,65 @@
+ 1:  41b8efce =  1:  fec718fc Reproduce skipped transport group shutdown after channel close failure
+ 2:  2342ad05 =  2:  805d68ba Force delayed close failure and caller mutation before cleanup
+ 3:  883b716f =  3:  38beca47 Always terminate owned transport groups after channel close settles
+ 4:  3aac6196 =  4:  ad9b3735 Use snapshot 45 because fresh snapshot 42 archive bytes differ
+ 5:  f86e715f =  5:  c79f90fc Close owned QUIC UDP parents before terminating transport workers
+ 6:  40313f61 =  6:  eed95ca1 Close owned QUIC UDP parents before their event loop terminates
+ 7:  3304ac87 =  7:  6e9d090e Retain one transport shutdown result across repeated calls
+ 8:  f02991d2 =  8:  f082c2c5 Retain every settled transport close failure
+ 9:  fef17a3f =  9:  45dabfbd Retain secondary close failures when suppression is disabled
+10:  2b76bfec = 10:  dd2495b4 Close QUIC UDP parents on their loop after rejected dispatch
+11:  840cc41d = 11:  3a61282c Assert the graceful shutdown result in the PR terminated-loop test
+12:  ba8dd0b6 = 12:  3af28800 Reject QUIC publication when a dial visitor stops the transport
+13:  3979f575 = 13:  35ddec31 Close QUIC children and retain shutdown failures after loop termination
+14:  43410336 = 14:  efa8076e Format the PR shutdown sources and regression tests
+15:  f5b20d12 = 15:  c86b1487 Schedule shutdown cleanup before readiness callbacks reenter close
+16:  23ad5dd8 = 16:  d94981d5 Assert retained shutdown failures in approved fixture cleanup
+17:  84fcef34 = 17:  6b46e900 Keep unaffected fixture shutdown checks strict and concurrent
+18:  d9ffa22c = 18:  528637f5 Read existing public shutdown state only within fixture cleanup
+22:  6e18f430 ! 19:  b947b269 Keep QUIC context indentation consistent with the Gradle formatter
+    @@
+      ## Metadata ##
+    -Author: CodexCoder21 <codexcoder21@users.noreply.github.com>
+    +Author: Codex <codex@openai.com>
+     
+      ## Commit message ##
+    -    Keep QUIC context indentation consistent with the Gradle formatter
+    +    Match the Gradle formatter for the QUIC context builder
+     
+      ## libp2p/src/main/kotlin/io/libp2p/transport/quic/QuicTransport.kt ##
+     @@ libp2p/src/main/kotlin/io/libp2p/transport/quic/QuicTransport.kt: class QuicTransport(
+20:  69952663 = 20:  bda5c3cf Release owned UDP parents after dial completion and preserve close ordering
+21:  29ff9913 = 21:  ea36ff0a Format the owned dial cleanup and its public regressions
+19:  eb712bab ! 22:  6c1b514c Match the Gradle formatter for the QUIC context builder
+    @@
+      ## Metadata ##
+    -Author: Codex <codex@openai.com>
+    +Author: CodexCoder21 <codexcoder21@users.noreply.github.com>
+     
+      ## Commit message ##
+    -    Match the Gradle formatter for the QUIC context builder
+    +    Keep QUIC context indentation consistent with the Gradle formatter
+     
+      ## libp2p/src/main/kotlin/io/libp2p/transport/quic/QuicTransport.kt ##
+     @@ libp2p/src/main/kotlin/io/libp2p/transport/quic/QuicTransport.kt: class QuicTransport(
+23:  f3ff19d5 = 23:  1aaf51cd Wait for selector cleanup before completing failed UDP dials
+24:  0e573620 = 24:  d9581296 Use the pinned Netty handler wakeup method
+25:  9fda70d7 = 25:  c09fe364 Force physical close ordering and cover failed UDP close results
+26:  1197c6e4 = 26:  2a906ec2 Await UDP selector release after a failed physical close request
+27:  9658d197 = 27:  59526f6a Format the exceptional parent release completion chain
+28:  430edae0 = 28:  7b07285c Await UDP release before publishing callback-closed dials
+29:  b7b338a0 = 29:  bfa37009 Restore successful shared cleanup outside expected failed-close scenarios
+30:  2663c776 = 30:  8e76131b Cover failed UDP parent release after callback closure
+31:  2f26b68d = 31:  4d5ca3a5 Cover callback dial publication during held child close
+32:  dae332e9 = 32:  b3e73921 Cover rejected UDP close while the parent remains open
+33:  34a2e78b = 33:  0f7b737c Cover two UDP releases held on one event loop
+34:  46dc4a9f = 34:  cd1ed761 Cover UDP release callback reentry with a held publication gate
+35:  679bf4fb = 35:  e1a4c021 Cover failed UDP dial resource bounds and later successful dials
+36:  540d17af = 36:  f4060200 Restore the original shared ten second host cleanup envelope
+37:  5c703c53 = 37:  232c9af7 Keep published close failures unchanged during shutdown aggregation
+38:  a32b7345 = 38:  b7033b7c Correct pending review tests to expect owned multi failure results
+39:  452f8b11 = 39:  51e3cb81 Deliver held channel close results after event loop termination
+40:  b3fa5042 = 40:  9ec47015 Correct repeated shutdown test for the owned multi failure result
+41:  1f5abeda = 41:  fa47aedc Reproduce held close completion ordering before changing delivery
+42:  aa68a305 = 42:  f100b249 Keep close notifications ordered while the channel loop accepts delivery
+43:  53de147f = 43:  774a3c7f Format reviewer ordering tests without changing their tokens

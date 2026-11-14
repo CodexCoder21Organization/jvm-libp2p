@@ -57,7 +57,12 @@ if mode != 'compile':
         tree.write(xml, encoding='utf-8', xml_declaration=True)
     summary.update(passed=sum(c['passed'] for c in cases), total=len(cases),
                    skipped=sum(c['skipped'] for c in cases), retries=[], cases=cases)
-    summary['test_sources'] = {name: hashlib.sha256((product / 'libp2p/src/test/kotlin/io/libp2p/transport' / (name.split('#')[0] + '.kt')).read_bytes()).hexdigest() for name in classes}
+    summary['test_sources'] = {}
+    for name in classes:
+        source = product / 'libp2p/src/test/kotlin/io/libp2p/transport' / (name.split('#')[0] + '.kt')
+        if not source.exists():
+            source = evidence / (name.split('#')[0] + '.kt')
+        summary['test_sources'][name] = hashlib.sha256(source.read_bytes()).hexdigest()
 (evidence / (label + '-summary.json')).write_text(json.dumps(summary, indent=2))
 print(json.dumps({k: v for k, v in summary.items() if k not in ('cases', 'test_sources')}))
 sys.exit(result.returncode)

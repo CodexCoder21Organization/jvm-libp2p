@@ -1,15 +1,17 @@
 from pathlib import Path
 import json
 import subprocess
+import sys
 import xml.etree.ElementTree as ET
 
 lane = Path(__file__).resolve().parents[3]
 evidence = Path(__file__).resolve().parent
-root = lane / 'current-native'
+label = sys.argv[1] if len(sys.argv) > 1 else 'current'
+root = lane / (label + '-native')
 paths = subprocess.check_output(['git', 'diff', '--name-only', 'origin/develop', 'HEAD'],
                                 cwd=lane / 'jvm-libp2p', text=True).splitlines()
 touched = {Path(p).stem for p in paths if '/src/test/' in p and p.endswith('.kt')}
-destination = evidence / 'actions-current-xml'
+destination = evidence / ('actions-' + label + '-xml')
 destination.mkdir(exist_ok=True)
 cases = []
 for index, source in enumerate(sorted(root.rglob('*.xml'))):
@@ -34,6 +36,6 @@ summary = dict(xml_count=len(list(root.rglob('*.xml'))), total=len(cases),
                retries=[c for c in cases if c['retry_tags']],
                touched_total=len(selected),
                touched_passed=sum(not c['failed'] and not c['skipped'] for c in selected))
-(evidence / 'actions-current-cases.json').write_text(json.dumps(cases, indent=2))
-(evidence / 'actions-current-summary.json').write_text(json.dumps(summary, indent=2))
+(evidence / ('actions-' + label + '-cases.json')).write_text(json.dumps(cases, indent=2))
+(evidence / ('actions-' + label + '-summary.json')).write_text(json.dumps(summary, indent=2))
 print(json.dumps(summary))

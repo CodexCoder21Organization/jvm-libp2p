@@ -1,0 +1,3 @@
+OBSERVED 2026-11-14 06:17 UTC: Review started; current OPEN head is 34a2e78bb82637e2c970a0be40fe4244c76cb547, base develop. No addendum heading was present at first check.
+INFER: The explicit prohibition on PR-branch edits overrides the general rebase instruction; review the exact fetched head and compare current develop without rewriting it.
+OBSERVED Plan: [in progress] fresh clones, prior evidence, full required reading; [pending] whole-file review and invariants; [pending] targeted public tests and Actions XML; [pending] earlier-findings/test-edit/description verdicts; [pending] evidence push and cleanup. Next checkpoint: evidence and documentation read.

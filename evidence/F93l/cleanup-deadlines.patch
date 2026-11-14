@@ -1,0 +1,48 @@
+diff --git a/libp2p/src/test/kotlin/io/libp2p/transport/ParentCloseOwnershipTest.kt b/libp2p/src/test/kotlin/io/libp2p/transport/ParentCloseOwnershipTest.kt
+--- a/libp2p/src/test/kotlin/io/libp2p/transport/ParentCloseOwnershipTest.kt
++++ b/libp2p/src/test/kotlin/io/libp2p/transport/ParentCloseOwnershipTest.kt
+@@ -118,12 +118,13 @@
+                 parent.nettyChannel.close().get(5, TimeUnit.SECONDS)
+                 parent.nettyChannel.eventLoop().submit {}.get(5, TimeUnit.SECONDS)
+             }
++            val cleanupDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10)
+             try {
+-                var reported: Throwable = assertThrows(ExecutionException::class.java) { client.stop().get(10, TimeUnit.SECONDS) }
++                var reported: Throwable = assertThrows(ExecutionException::class.java) { client.stop().get((cleanupDeadline - System.nanoTime()).coerceAtLeast(0), TimeUnit.NANOSECONDS) }
+                 while (reported.cause != null) reported = reported.cause!!
+                 assertSame(failure, reported, "Host shutdown must retain the original failed parent close after socket cleanup.")
+             } finally {
+-                server.stop().get(10, TimeUnit.SECONDS)
++                server.stop().get((cleanupDeadline - System.nanoTime()).coerceAtLeast(0), TimeUnit.NANOSECONDS)
+             }
+         }
+     }
+diff --git a/libp2p/src/test/kotlin/io/libp2p/transport/ConnectionCloseRetryTest.kt b/libp2p/src/test/kotlin/io/libp2p/transport/ConnectionCloseRetryTest.kt
+--- a/libp2p/src/test/kotlin/io/libp2p/transport/ConnectionCloseRetryTest.kt
++++ b/libp2p/src/test/kotlin/io/libp2p/transport/ConnectionCloseRetryTest.kt
+@@ -121,10 +121,11 @@
+     fun transportOwnedFailureCanBeRetriedWithoutChangingOrdinaryResult() {
+         val failure = IOException("Cannot close test connection: physical close attempt 1 failed.")
+         withRetryConnection(cleanup = { client, server ->
++            val cleanupDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10)
+             try {
+                 assertSame(failure, retryCloseFailure(client.stop().thenApply { Unit }))
+             } finally {
+-                server.stop().get(10, TimeUnit.SECONDS)
++                server.stop().get((cleanupDeadline - System.nanoTime()).coerceAtLeast(0), TimeUnit.NANOSECONDS)
+             }
+         }) { connection, _ ->
+             val requests = AtomicInteger()
+@@ -190,10 +191,11 @@
+     fun concurrentRetriesShareHeldAttemptAndIsolateCallerFutureChanges() {
+         val failure = IOException("Cannot close test connection: physical close attempt 1 failed.")
+         withRetryConnection(cleanup = { client, server ->
++            val cleanupDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10)
+             try {
+                 assertSame(failure, retryCloseFailure(client.stop().thenApply { Unit }))
+             } finally {
+-                server.stop().get(10, TimeUnit.SECONDS)
++                server.stop().get((cleanupDeadline - System.nanoTime()).coerceAtLeast(0), TimeUnit.NANOSECONDS)
+             }
+         }) { connection, _ ->
+             val held = CopyOnWriteArrayList<Pair<ChannelHandlerContext, ChannelPromise>>()

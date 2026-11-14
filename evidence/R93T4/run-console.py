@@ -10,7 +10,7 @@ lane = evidence.parents[2]
 label, overlay, *classes = sys.argv[1:]
 output = evidence / label
 output.mkdir(parents=True, exist_ok=True)
-classpath = (lane / 'build-cp/runtime-classpath').read_text().strip()
+classpath = str(lane / 'jctools.jar') + ':' + (lane / 'build-cp/runtime-classpath').read_text().strip()
 if overlay != '-':
     classpath = ':'.join(str(lane / p) for p in overlay.split(':')) + ':' + classpath
 command = [str(evidence / 'with-slots.sh'), '1', 'timeout', '600',

@@ -12,7 +12,7 @@ output = lane / label
 output.mkdir(exist_ok=True)
 inputs = {s: hashlib.sha256((root / s).read_bytes()).hexdigest() for s in sources}
 (evidence / (label + '-inputs.json')).write_text(json.dumps(inputs, indent=2))
-classpath = (lane / 'build-cp/runtime-classpath').read_text().strip()
+classpath = str(lane / 'jctools.jar') + ':' + (lane / 'build-cp/runtime-classpath').read_text().strip()
 compiler = (lane / 'build-cp/compiler-classpath').read_text().strip()
 command = [str(evidence / 'with-slots.sh'), '1', 'timeout', '600',
            '/opt/java/bin/java', '-cp', compiler,

@@ -1,8 +1,8 @@
-diff --git a/../head/libp2p/src/test/kotlin/io/libp2p/transport/R93T4AcceptedDeliveryTerminationTest.kt b/../head/libp2p/src/test/kotlin/io/libp2p/transport/R93T4AcceptedDeliveryTerminationTest.kt
+diff --git a/libp2p/src/test/kotlin/io/libp2p/transport/R93T4AcceptedDeliveryTerminationTest.kt b/libp2p/src/test/kotlin/io/libp2p/transport/R93T4AcceptedDeliveryTerminationTest.kt
 new file mode 100644
-index 00000000..03e787fb
+index 00000000..51324a0e
 --- /dev/null
-+++ b/../head/libp2p/src/test/kotlin/io/libp2p/transport/R93T4AcceptedDeliveryTerminationTest.kt
++++ b/libp2p/src/test/kotlin/io/libp2p/transport/R93T4AcceptedDeliveryTerminationTest.kt
 @@ -0,0 +1,106 @@
 +package io.libp2p.transport
 +
@@ -18,7 +18,7 @@ index 00000000..03e787fb
 +import io.netty.channel.socket.nio.NioSocketChannel
 +import io.netty.util.concurrent.ImmediateEventExecutor
 +import io.netty.util.concurrent.RejectedExecutionHandlers
-+import io.netty.util.internal.PlatformDependent
++import org.jctools.queues.MpscUnboundedArrayQueue
 +import org.junit.jupiter.api.Assertions.assertFalse
 +import org.junit.jupiter.api.Assertions.assertTrue
 +import org.junit.jupiter.api.Test
@@ -93,7 +93,7 @@ index 00000000..03e787fb
 +)
 +
 +private class R93T4GateQueue : AbstractQueue<Runnable>() {
-+    private val ordinary = PlatformDependent.newMpscQueue<Runnable>()
++    private val ordinary = MpscUnboundedArrayQueue<Runnable>(1024)
 +    val armed = AtomicBoolean()
 +    val entered = CountDownLatch(1)
 +    val release = CountDownLatch(1)

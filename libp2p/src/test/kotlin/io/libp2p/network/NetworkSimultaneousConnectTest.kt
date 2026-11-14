@@ -124,17 +124,19 @@ private fun checkRemoteReturnedParent(
     omitSelectionBinding: Boolean = false
 ) {
     val publication = CompletableFuture<Unit>()
-    withSelectionHosts(muxer, omitSelectionBinding, delayedPublication, publication) { client, server, transport ->
+    val delayedParent = CompletableFuture<Connection>()
+    withSelectionHosts(muxer, omitSelectionBinding, delayedParent, publication) { client, server, transport ->
         val published = CompletableFuture<Unit>()
         server.addConnectionHandler(ConnectionHandler.create { published.complete(Unit) })
         val pending = client.network.connect(server.peerId, *server.listenAddresses().toTypedArray())
         transport.start.complete(Unit)
         transport.secondUpgraded.get(10, TimeUnit.SECONDS)
-        published.get(10, TimeUnit.SECONDS)
-        val remote = server.network.connect(client.peerId).get(10, TimeUnit.SECONDS)
-        // Each endpoint retains a different physical parent, regardless of publication order.
+        // Delay the remote endpoint of the exact parent the client will retain.
         val remoteParent = if (delayedPublication == 1) transport.secondUpgraded.get() else transport.firstUpgraded.get()
         val localParent = if (delayedPublication == 1) transport.firstUpgraded.get() else transport.secondUpgraded.get()
+        delayedParent.complete(localParent)
+        published.get(10, TimeUnit.SECONDS)
+        val remote = server.network.connect(client.peerId).get(10, TimeUnit.SECONDS)
         assertThat(remote.localAddress()).isEqualTo(remoteParent.remoteAddress())
         assertThat(remote.remoteAddress()).isEqualTo(remoteParent.localAddress())
         if (delayedPublication == 1) transport.firstResult.complete(Unit) else transport.secondResult.complete(Unit)
@@ -212,12 +214,12 @@ private fun pingOn(host: Host, parent: Connection) {
 private fun withSelectionHosts(
     muxer: StreamMuxerProtocol = StreamMuxerProtocol.getYamux(),
     omitSelectionBinding: Boolean = false,
-    delayedPublication: Int? = null,
+    delayedParent: CompletableFuture<Connection>? = null,
     publication: CompletableFuture<Unit> = CompletableFuture.completedFuture(Unit),
     body: (Host, Host, SelectionTestTransport) -> Unit
 ) {
     val server = host {
-        if (delayedPublication != null) muxerMultistreamProtocol = SelectionPublicationOrder(delayedPublication, publication)
+        if (delayedParent != null) muxerMultistreamProtocol = SelectionPublicationOrder(delayedParent, publication)
         network {
             listen("/ip4/127.0.0.1/tcp/0")
             listen("/ip4/127.0.0.2/tcp/0")
@@ -244,6 +246,7 @@ private fun withSelectionHosts(
         client.start().get(10, TimeUnit.SECONDS)
         body(client, server, transport)
     } finally {
+        delayedParent?.cancel(false)
         publication.complete(Unit)
         transport.start.complete(Unit)
         transport.firstResult.complete(Unit)
@@ -296,10 +299,9 @@ private class SelectionTestTransport(upgrader: ConnectionUpgrader) : TcpTranspor
 }
 
 private class SelectionPublicationOrder(
-    private val delayed: Int,
+    private val delayed: CompletableFuture<Connection>,
     private val publication: CompletableFuture<Unit>
 ) : MultistreamProtocol {
-    private val count = AtomicInteger()
     override val version = MultistreamProtocolV1.version
     override fun <T> createMultistream(bindings: List<ProtocolBinding<T>>): Multistream<T> {
         val real = MultistreamProtocolV1.createMultistream(bindings)
@@ -307,10 +309,13 @@ private class SelectionPublicationOrder(
             override val bindings = real.bindings
             override fun initChannel(ch: P2PChannel): CompletableFuture<T> =
                 real.initChannel(ch).thenCompose { controller ->
-                    if (count.incrementAndGet() == delayed) {
-                        publication.thenApply { controller }
-                    } else {
-                        CompletableFuture.completedFuture(controller)
+                    delayed.thenCompose { parent ->
+                        val remote = ch as Connection
+                        if (remote.localAddress() == parent.remoteAddress() && remote.remoteAddress() == parent.localAddress()) {
+                            publication.thenApply { controller }
+                        } else {
+                            CompletableFuture.completedFuture(controller)
+                        }
                     }
                 }
         }

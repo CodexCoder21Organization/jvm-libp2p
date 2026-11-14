@@ -1,0 +1,108 @@
+package io.libp2p.transport
+
+import io.libp2p.core.dsl.host
+import io.libp2p.transport.implementation.ConnectionOverNetty
+import io.libp2p.transport.implementation.NettyTransport
+import io.netty.bootstrap.Bootstrap
+import io.netty.channel.ChannelHandlerContext
+import io.netty.channel.ChannelInboundHandlerAdapter
+import io.netty.channel.ChannelOutboundHandlerAdapter
+import io.netty.channel.ChannelPromise
+import io.netty.channel.DefaultChannelPromise
+import io.netty.channel.SingleThreadIoEventLoop
+import io.netty.channel.nio.NioIoHandler
+import io.netty.channel.socket.nio.NioSocketChannel
+import io.netty.util.concurrent.DefaultThreadFactory
+import io.netty.util.concurrent.ImmediateEventExecutor
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
+import java.net.InetAddress
+import java.net.ServerSocket
+import java.util.Queue
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
+
+class R93A4LateOfferDeliveryTest {
+    @Test
+    fun closeNotificationOfferedAcrossFinalDrainStillSettles() {
+        val transportHost = host { }
+        val loop = R93A4GatedLoop()
+        val producer = Executors.newSingleThreadExecutor()
+        val held = CompletableFuture<Pair<ChannelHandlerContext, ChannelPromise>>()
+        try {
+            ServerSocket(0, 1, InetAddress.getLoopbackAddress()).use { server ->
+                val channel = Bootstrap().group(loop).channel(NioSocketChannel::class.java)
+                    .handler(ChannelInboundHandlerAdapter()).connect(server.localSocketAddress)
+                    .sync().channel()
+                server.accept().use {
+                    val connection = ConnectionOverNetty(
+                        channel, transportHost.network.transports.single() as NettyTransport, true
+                    )
+                    loop.submit {
+                        channel.pipeline().addFirst("hold-original", object : ChannelOutboundHandlerAdapter() {
+                            override fun close(ctx: ChannelHandlerContext, promise: ChannelPromise) {
+                                check(held.complete(ctx to promise))
+                            }
+                        })
+                    }.get(10, TimeUnit.SECONDS)
+                    val close = connection.close()
+                    val request = held.get(10, TimeUnit.SECONDS)
+                    loop.submit {
+                        val physical = DefaultChannelPromise(channel, ImmediateEventExecutor.INSTANCE)
+                        request.first.close(physical)
+                        check(physical.isSuccess)
+                    }.get(10, TimeUnit.SECONDS)
+                    assertFalse(close.isDone)
+                    val complete = producer.submit {
+                        loop.primaryQueue.producer.set(Thread.currentThread())
+                        assertTrue(request.second.trySuccess())
+                    }
+                    // A direct notification can already be complete; queued delivery reaches offer.
+                    CompletableFuture.anyOf(loop.primaryQueue.entered, close).get(10, TimeUnit.SECONDS)
+                    // offerTask already admitted this notification, but offer has not published it.
+                    loop.shutdownGracefully(0, 5, TimeUnit.SECONDS).get(10, TimeUnit.SECONDS)
+                    assertTrue(loop.isTerminated)
+                    loop.primaryQueue.allowOffer.countDown()
+                    complete.get(10, TimeUnit.SECONDS)
+                    assertTrue(close.isDone, "A close notification accepted across the final drain must still settle its caller")
+                    close.get(10, TimeUnit.SECONDS)
+                }
+            }
+        } finally {
+            loop.primaryQueue.allowOffer.countDown()
+            producer.shutdown()
+            check(producer.awaitTermination(10, TimeUnit.SECONDS))
+            loop.shutdownGracefully(0, 5, TimeUnit.SECONDS).get(10, TimeUnit.SECONDS)
+            transportHost.stop().get(10, TimeUnit.SECONDS)
+        }
+    }
+}
+
+private class R93A4GatedLoop : SingleThreadIoEventLoop(null, DefaultThreadFactory("r93a4-gated", true), NioIoHandler.newFactory()) {
+    lateinit var primaryQueue: R93A4GatedQueue
+        private set
+
+    override fun newTaskQueue(maxPendingTasks: Int): Queue<Runnable> {
+        val queue = R93A4GatedQueue(super.newTaskQueue(maxPendingTasks))
+        if (!::primaryQueue.isInitialized) primaryQueue = queue
+        return queue
+    }
+}
+
+private class R93A4GatedQueue(private val actual: Queue<Runnable>) : Queue<Runnable> by actual {
+    val producer = AtomicReference<Thread>()
+    val entered = CompletableFuture<Unit>()
+    val allowOffer = CountDownLatch(1)
+
+    override fun offer(task: Runnable): Boolean {
+        if (producer.compareAndSet(Thread.currentThread(), null)) {
+            entered.complete(Unit)
+            check(allowOffer.await(10, TimeUnit.SECONDS))
+        }
+        return actual.offer(task)
+    }
+}

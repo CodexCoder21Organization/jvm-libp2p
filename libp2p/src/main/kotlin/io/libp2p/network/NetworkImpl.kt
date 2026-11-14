@@ -105,7 +105,7 @@ class NetworkImpl(
         }
 
     private fun trackSelectionSupport(connection: Connection) {
-        val selection = connectionSelection(connection) ?: return
+        val selection = connectionSelection(connection)
         val id = connection.secureSession().remoteId
         val closed = connection.closeFuture()
         val support = synchronized(selectionPeers) {
@@ -118,7 +118,7 @@ class NetworkImpl(
             }
             current
         }
-        selection.peerSupport = support
+        selection?.peerSupport = support
         closed.thenRun {
             synchronized(selectionPeers) {
                 support.connections.removeAll { it.isDone }

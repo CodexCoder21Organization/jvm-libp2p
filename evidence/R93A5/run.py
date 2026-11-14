@@ -29,7 +29,7 @@ else:
     classpath = runtime if overlay == '-' else str(lane / 'overlays' / overlay) + ':' + runtime
     reports = evidence / label
     reports.mkdir(exist_ok=True)
-    command = [slot, '1', 'timeout', '600', java, '-cp', classpath + ':' + str(lane / 'junit-console.jar'), 'org.junit.platform.console.ConsoleLauncher', str(lane / 'junit-console.jar'),
+    command = [slot, '1', 'timeout', '600', java, '-cp', classpath + ':' + str(lane / 'junit-console.jar'), 'org.junit.platform.console.ConsoleLauncher',
                'execute', '--disable-banner', '--details=summary',
                '--reports-dir', str(reports)]
     for name in classes:

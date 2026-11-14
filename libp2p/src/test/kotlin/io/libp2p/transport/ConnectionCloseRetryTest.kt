@@ -121,10 +121,11 @@ class ConnectionCloseRetryTest {
     fun transportOwnedFailureCanBeRetriedWithoutChangingOrdinaryResult() {
         val failure = IOException("Cannot close test connection: physical close attempt 1 failed.")
         withRetryConnection(cleanup = { client, server ->
+            val cleanupDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10)
             try {
                 assertSame(failure, retryCloseFailure(client.stop().thenApply { Unit }))
             } finally {
-                server.stop().get(10, TimeUnit.SECONDS)
+                server.stop().get((cleanupDeadline - System.nanoTime()).coerceAtLeast(0), TimeUnit.NANOSECONDS)
             }
         }) { connection, _ ->
             val requests = AtomicInteger()
@@ -190,10 +191,11 @@ class ConnectionCloseRetryTest {
     fun concurrentRetriesShareHeldAttemptAndIsolateCallerFutureChanges() {
         val failure = IOException("Cannot close test connection: physical close attempt 1 failed.")
         withRetryConnection(cleanup = { client, server ->
+            val cleanupDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10)
             try {
                 assertSame(failure, retryCloseFailure(client.stop().thenApply { Unit }))
             } finally {
-                server.stop().get(10, TimeUnit.SECONDS)
+                server.stop().get((cleanupDeadline - System.nanoTime()).coerceAtLeast(0), TimeUnit.NANOSECONDS)
             }
         }) { connection, _ ->
             val held = CopyOnWriteArrayList<Pair<ChannelHandlerContext, ChannelPromise>>()

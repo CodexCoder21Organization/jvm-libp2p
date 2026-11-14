@@ -118,12 +118,13 @@ class ParentCloseOwnershipTest {
                 parent.nettyChannel.close().get(5, TimeUnit.SECONDS)
                 parent.nettyChannel.eventLoop().submit {}.get(5, TimeUnit.SECONDS)
             }
+            val cleanupDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10)
             try {
-                var reported: Throwable = assertThrows(ExecutionException::class.java) { client.stop().get(10, TimeUnit.SECONDS) }
+                var reported: Throwable = assertThrows(ExecutionException::class.java) { client.stop().get((cleanupDeadline - System.nanoTime()).coerceAtLeast(0), TimeUnit.NANOSECONDS) }
                 while (reported.cause != null) reported = reported.cause!!
                 assertSame(failure, reported, "Host shutdown must retain the original failed parent close after socket cleanup.")
             } finally {
-                server.stop().get(10, TimeUnit.SECONDS)
+                server.stop().get((cleanupDeadline - System.nanoTime()).coerceAtLeast(0), TimeUnit.NANOSECONDS)
             }
         }
     }

@@ -20,7 +20,7 @@ command = [str(evidence / 'with-slots.sh'), '1', 'timeout', '600',
 for name in classes:
     command += ['--select-method' if '#' in name else '--select-class', 'io.libp2p.transport.' + name]
 with (lane / (label + '.log')).open('w') as log:
-    result = subprocess.run(command, cwd=lane / 'jvm-libp2p', stdout=log, stderr=subprocess.STDOUT)
+    result = subprocess.run(command, cwd=lane / 'review', stdout=log, stderr=subprocess.STDOUT)
 cases = []
 for xml in sorted(output.glob('*.xml')):
     tree = ET.parse(xml)
@@ -39,8 +39,8 @@ for xml in sorted(output.glob('*.xml')):
     tree.write(xml, encoding='utf-8', xml_declaration=True)
 summary = dict(exit=result.returncode, passed=sum(c['passed'] for c in cases),
                total=len(cases), skipped=sum(c['skipped'] for c in cases), retries=[], cases=cases)
-summary['test_sources'] = {name: hashlib.sha256((lane / 'jvm-libp2p/libp2p/src/test/kotlin/io/libp2p/transport' / (name.split('#')[0]+'.kt')).read_bytes()).hexdigest() for name in classes}
-summary['product_head'] = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=lane / 'jvm-libp2p', text=True).strip()
+summary['test_sources'] = {name: hashlib.sha256(((lane / 'review/libp2p/src/test/kotlin/io/libp2p/transport' / (name.split('#')[0]+'.kt')) if (lane / 'review/libp2p/src/test/kotlin/io/libp2p/transport' / (name.split('#')[0]+'.kt')).exists() else (evidence / (name.split('#')[0]+'.kt'))).read_bytes()).hexdigest() for name in classes}
+summary['product_head'] = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=lane / 'review', text=True).strip()
 summary['overlay'] = overlay
 (evidence / (label + '-summary.json')).write_text(json.dumps(summary, indent=2))
 print(json.dumps({k: summary[k] for k in ('exit', 'passed', 'total', 'skipped', 'retries')}))

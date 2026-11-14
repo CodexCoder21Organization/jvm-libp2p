@@ -18,7 +18,7 @@ command = [str(evidence / 'with-slots.sh'), '1', 'timeout', '600',
            '/opt/java/bin/java', '-cp', compiler,
            'org.jetbrains.kotlin.cli.jvm.K2JVMCompiler', '-no-stdlib', '-no-reflect',
            '-jvm-target', '11', '-language-version', '1.6', '-Xjvm-default=all',
-           '-Xfriend-paths=' + str(lane / 'jvm-libp2p/libp2p/build/classes/kotlin/main'),
+           '-Xfriend-paths=' + str(lane / 'review/libp2p/build/classes/kotlin/main'),
            '-classpath', classpath, '-d', str(output)]
 command += [str(root / s) for s in sources]
 with (evidence / (label + '-compile.log')).open('w') as log:

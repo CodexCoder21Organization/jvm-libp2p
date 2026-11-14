@@ -3,8 +3,8 @@ package io.libp2p.transport
 import io.libp2p.core.Connection
 import io.libp2p.core.Host
 import io.libp2p.core.dsl.host
-import io.libp2p.core.mux.StreamMuxerProtocol
 import io.libp2p.core.multiformats.Multiaddr
+import io.libp2p.core.mux.StreamMuxerProtocol
 import io.libp2p.security.noise.NoiseXXSecureChannel
 import io.libp2p.transport.implementation.ConnectionOverNetty
 import io.libp2p.transport.tcp.TcpTransport

@@ -2,7 +2,9 @@ package io.libp2p.transport.implementation
 
 import io.libp2p.etc.types.toVoidCompletableFuture
 import io.netty.channel.Channel
+import io.netty.channel.DefaultChannelPromise
 import io.netty.util.AttributeKey
+import io.netty.util.concurrent.ImmediateEventExecutor
 import java.util.Collections
 import java.util.IdentityHashMap
 import java.util.concurrent.CompletableFuture
@@ -81,7 +83,9 @@ private fun requestPhysicalClose(
                 operation.complete(Unit)
             }
         } else {
-            channel.close().toVoidCompletableFuture().whenComplete { _, failure ->
+            // The operation can settle after its channel loop has stopped accepting notifications.
+            val promise = DefaultChannelPromise(channel, ImmediateEventExecutor.INSTANCE)
+            channel.close(promise).toVoidCompletableFuture().whenComplete { _, failure ->
                 if (failure == null) operation.complete(Unit) else operation.completeExceptionally(failure)
             }
         }

@@ -21,7 +21,7 @@ for source in sources:
 (evidence / (label + '-inputs.json')).write_text(json.dumps(inputs, indent=2))
 classpath = (lane / 'build-cp/runtime-classpath').read_text().strip()
 compiler = (lane / 'build-cp/compiler-classpath').read_text().strip()
-command = [str(evidence / 'with-slots.sh'), '1', 'timeout', '600',
+command = [str(evidence / 'with-slots-v2.sh'), '1', 'timeout', '600',
            '/opt/java/bin/java', '-cp', compiler,
            'org.jetbrains.kotlin.cli.jvm.K2JVMCompiler', '-no-stdlib', '-no-reflect',
            '-jvm-target', '11', '-language-version', '1.6', '-Xjvm-default=all',

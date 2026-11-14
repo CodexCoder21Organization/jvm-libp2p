@@ -13,7 +13,7 @@ output.mkdir(parents=True, exist_ok=True)
 classpath = (lane / 'build-cp/runtime-classpath').read_text().strip()
 if overlay != '-':
     classpath = ':'.join(str(lane / part) for part in overlay.split(':')) + ':' + classpath
-command = [str(evidence / 'with-slots.sh'), '2', 'timeout', '600',
+command = [str(evidence / 'with-slots-v2.sh'), '2', 'timeout', '600',
            '/opt/java/bin/java', '-jar', str(lane / 'junit-console.jar'),
            'execute', '--disable-banner', '--details=summary',
            '--class-path', classpath, '--reports-dir', str(output)]

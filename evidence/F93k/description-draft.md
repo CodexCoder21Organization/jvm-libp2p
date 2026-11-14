@@ -6,18 +6,26 @@ A normally returning connection callback that closes its connection keeps the su
 
 ## F93k draft coverage settlement
 
-Pending controlled first-attempt results; no draft is claimed proven by this draft description.
+Four drafts are added, each in its own commit after single-attempt red/green/reverted-red proof. Two drafts are left out after one honest correction exposed an unrelated incorrect test assumption. No new product defect was established; all production source changes predate F93k.
 
 | Draft | Review finding and intended proof | Settlement |
 | --- | --- | --- |
-| F93jCallbackFailedParentReleaseTest | R93T F6 / R93A R1: normal callback closure with a failed parent-close result still waits for UDP release | Pending |
-| F93jCallbackPendingChildReleaseTest | R93T F6 / R93A R1: a callback close request remains pending while physical child closure is held | Pending |
-| F93jQuicReleaseReentryTest | R93T F1 G2 / R93A Gap2: B cleanup started from A's release callback belongs to the next selector batch | Pending |
-| R93ARejectedOpenParentDialTest | R93T F3 G5: rejected close with a physically open parent does not await impossible release | Pending |
-| F93jQuicSameLoopReleaseTest | R93T F1 G1 / R93A Gap1: two parents on one actual loop both await release | Pending |
-| F93jQuicFailedDialResourceTest | R93T F5 G7 / R93A Gap4: native-resource and close-work guard during 128 failed dials on one live transport | Pending; no Java-history bound claimed |
+| F93jCallbackFailedParentReleaseTest | R93T F6 / R93A R1: normal callback closure with a failed parent-close result still waits for UDP release | Added; 1 intended red at61, 1 green, 1 reverted-red at61 |
+| F93jCallbackPendingChildReleaseTest | R93T F6 / R93A R1: a callback close request remains pending while physical child closure is held | Added; 1 intended red at53, 1 green, 1 reverted-red at53 |
+| F93jQuicReleaseReentryTest | R93T F1 G2 / R93A Gap2: B cleanup started from A's release callback belongs to the next selector batch | Left out; unsupported callback error-wrapper identity assertion after one publication-gate correction |
+| R93ARejectedOpenParentDialTest | R93T F3 G5: rejected close with a physically open parent does not await impossible release | Added; 1 intended timeout red at48, 1 green, 1 reverted-red at48 |
+| F93jQuicSameLoopReleaseTest | R93T F1 G1 / R93A Gap1: two parents on one actual loop both await release | Added; 1 intended pending-result red at97, 1 green, 1 reverted-red at97 |
+| F93jQuicFailedDialResourceTest | R93T F5 G7 / R93A Gap4: native-resource and close-work guard during 128 failed dials on one live transport | Left out; the successful probe's success handler always throws, even after one held-loop correction |
 
-Controls, exact results, source hashes and review findings: https://github.com/CodexCoder21Organization/jvm-libp2p/tree/wip/F93k-evidence-20261114/evidence/F93k . Each accepted test must pass once on the product head and fail twice with its relevant product behavior removed, with no retries.
+All accepted cases ran once per source variant, with no retries/skips and matching test-source hashes. Callback controls remove only the successful callback cleanup join. G1 removes selector release waiting; G5 removes the physically-open failed-close guard. Formatting affected only the new G1/G5 draft source. The README note explains the callback and open-parent completion contract.
+
+G5's first control completed its intended assertion failure and wrote complete XML, but the outer slot wrapper received TERM during the seven-slot launcher transition and returned143 afterward. The test JVM completed; that is the single first-red attempt and was not repeated. The green and reverted-red wrappers returned their normal0/1 statuses.
+
+G2's original control failed on its raw callback identity assertion. The one corrected version forces observation at B publication: the control fails its port rebind, while the head passes both port checks and then fails the unrelated identity assertion. Java permits dependent callback failures to be wrapped in CompletionException while get() exposes the original cause. The test would need to assert that cause identity and repeat fresh red/green/red; changing transport behavior to satisfy raw wrapper identity would impose an unsupported contract. See https://github.com/CodexCoder21Organization/jvm-libp2p/blob/wip/F93k-evidence-20261114/evidence/F93k/g2-exclusion.md and the [JDK contract](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/concurrent/CompletableFuture.html).
+
+G7's original control fails its deregistration observation. After the one held-loop correction, the control fails the pending-dial check, and the head passes that ordering before its successful probe invokes the test's always-failing normal connection handler. It needs a normally returning success handler and fresh proof with all128cycles/failure/resource assertions retained. This is not evidence of a transport probe failure; the descriptor guard also establishes no bound on retained Java failure history. See https://github.com/CodexCoder21Organization/jvm-libp2p/blob/wip/F93k-evidence-20261114/evidence/F93k/g7-exclusion.md .
+
+Controls, exact XML, source hashes, both excluded drafts and correction patches: https://github.com/CodexCoder21Organization/jvm-libp2p/tree/wip/F93k-evidence-20261114/evidence/F93k . No second correction was applied to either excluded draft.
 
 ## Existing default-branch test edits and ruling
 
@@ -32,8 +40,10 @@ Exact inherited before/after patch: https://github.com/CodexCoder21Organization/
 
 ## Current develop and verification
 
-Rebased the 29 PR commits onto develop `e7c79098`, whose one new commit since `3b2b6640` changes Yamux replacement-write accounting. It touches none of the four PR production paths and contains no equivalent UDP release or owned-group fix. Other sessions advanced the pinned snapshot to 49; F93k publishes nothing.
+Rebased the 29 PR commits onto develop [e7c79098](https://github.com/CodexCoder21Organization/jvm-libp2p/commit/e7c79098db289f6a08c8dd467f4bedeb4fd7d168), whose one new commit since [3b2b6640](https://github.com/CodexCoder21Organization/jvm-libp2p/commit/3b2b66400d7a9c6fa0c3cdc420565368f726be1c) changes Yamux replacement-write accounting. It touches none of the four PR production paths and contains no equivalent UDP release or owned-group fix. A fresh fetch before the final gate found zero further develop commits. Other sessions advanced the pinned snapshot to49; F93k publishes nothing.
 
-Touched-class single-attempt and final-head Actions counts pending. Informational remote build checks are excluded under this campaign's rule; no remote suite was submitted and no check was re-requested. An earlier TCP connection-setup failure at head `68c436af` remains unclassified; newer green UDP results do not establish its mechanism or show it fixed.
+Final [head34a2e78b](https://github.com/CodexCoder21Organization/jvm-libp2p/commit/34a2e78bb82637e2c970a0be40fe4244c76cb547): all35touched classes passed60/60 first-attempt cases in one Gradle run, with0failures,0skips and0retry entries. Gradle used --no-daemon, one build slot, two test slots, max-workers1 and one test fork; no JVM tuning flags were added. Compilation, formatting and static analysis passed. Final-head [native Actions](https://github.com/CodexCoder21Organization/jvm-libp2p/actions/runs/43563295235) is running on attempt1; case counts pending.
+
+The rebased baseline before the four additions passed1709/1711 first attempts, with2existing skips,0failures/retries and56/56touched cases, in [native Actions](https://github.com/CodexCoder21Organization/jvm-libp2p/actions/runs/43559075231). These are baseline counts, not the final-head verdict. Informational remote checks are excluded under this campaign's rule; no remote suite was submitted and no check was re-requested. An earlier TCP connection-setup failure at [head68c436af](https://github.com/CodexCoder21Organization/jvm-libp2p/commit/68c436af) remains unclassified; newer green UDP results do not establish its mechanism or show it fixed.
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)

@@ -316,7 +316,8 @@ has published them. An explicit protocol-unsupported reply is normal: this host 
 once per peer while any connection to that peer remains open, opens no further retirement
 negotiations to that peer, and logs one INFO line with the peer ID and protocol name without a
 stack trace. Closing the last connection forgets that result, so a reconnect can discover an
-upgraded peer. Resets, timeouts and other failures do not establish lack of protocol support. With a non-coordinating peer, surplus duplicates are closed by that peer's own
+upgraded peer. Resets, timeouts and other failures do not establish lack of protocol support.
+With a non-coordinating peer, surplus duplicates are closed by that peer's own
 logic, never by this side's duplicate decision. Older peers using the original selection logic
 close their surplus socket at both endpoints; this host observes that close and removes the local
 entry. If the peer keeps both parents, this side preserves both until explicit close, transport

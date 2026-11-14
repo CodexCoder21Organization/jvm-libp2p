@@ -44,17 +44,21 @@ class ConnectionSelectionUnsupportedPeerTest {
             assertThat(fixture.incoming.get()).describedAs("Negotiation streams received by the real unsupported peer").isEqualTo(1)
             fixture.assertAbsenceLog(peer)
             assertThat(parents.count { !it.closeFuture().isDone }).isEqualTo(31)
+            val probed = fixture.controlParents.single()
+            val preserved = parents.last { it !== probed && it !== parents.first() }
+            probed.close().get(10, TimeUnit.SECONDS)
+            // Knowledge survives the loss of the parent on which it was learned.
             // Release uses serially: each release observes the absence learned by the first probe.
             repeat(30) {
-                val hold = fixture.a.network.holdConnection(parents.last()).get(10, TimeUnit.SECONDS)
+                val hold = fixture.a.network.holdConnection(preserved).get(10, TimeUnit.SECONDS)
                 assertThat(hold).isNotNull()
                 hold!!.close()
             }
             fixture.awaitControls()
             assertThat(fixture.incoming.get()).isEqualTo(1)
             fixture.assertAbsenceLog(peer)
-            assertThat(fixture.a.network.reserveConnection(parents.last()).get(10, TimeUnit.SECONDS)).isTrue()
-            val echo = fixture.a.newStream<EchoController>(listOf("/test/echo"), parents.last())
+            assertThat(fixture.a.network.reserveConnection(preserved).get(10, TimeUnit.SECONDS)).isTrue()
+            val echo = fixture.a.newStream<EchoController>(listOf("/test/echo"), preserved)
             assertThat(echo.controller.get(10, TimeUnit.SECONDS).echo("preserved duplicate").get(10, TimeUnit.SECONDS))
                 .isEqualTo("preserved duplicate")
         }
@@ -144,6 +148,7 @@ private class UnsupportedFixture(private val width: Int) : AutoCloseable {
     }
     private val peers = CopyOnWriteArrayList<Host>()
     private val controls = CopyOnWriteArrayList<CompletableFuture<Unit>>()
+    val controlParents = CopyOnWriteArrayList<Connection>()
     private lateinit var transport: UnsupportedBurstTransport
     val a = host {
         transports { add { upgrader -> UnsupportedBurstTransport(upgrader).also { transport = it } } }
@@ -158,6 +163,7 @@ private class UnsupportedFixture(private val width: Int) : AutoCloseable {
         a.addStreamVisitor(ChannelVisitor { stream ->
             val closed = CompletableFuture<Unit>()
             controls.add(closed)
+            controlParents.add(stream.connection)
             stream.pushHandler(object : ChannelInboundHandlerAdapter() {
                 override fun channelUnregistered(ctx: ChannelHandlerContext) {
                     ctx.fireChannelUnregistered()

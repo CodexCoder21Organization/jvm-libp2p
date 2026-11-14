@@ -18,13 +18,14 @@ Prior finding table and reviews: https://github.com/CodexCoder21Organization/jvm
 
 ## Existing tests and binding rulings
 
-F93m edits **zero default-branch tests**. Six tests added by this PR change expected values in the dedicated commit “Correct pending review tests to expect owned multi failure results” because multiple failures now use an owned aggregate:
+F93m edits **zero default-branch tests**. Seven tests added by this PR change expected values in dedicated commits because multiple failures now use an owned aggregate:
 
 - `F93bQuicSecondaryCloseFailureTest`: child identity moves from the result root to its cause; parent identity moves from the child's suppressed list to the aggregate's. It also checks the full aggregate message and unchanged child error.
 - `F93cQuicMultipleCloseFailuresTest`: the first child remains the aggregate's cause; repeated shutdown retains the exact aggregate; all eight original errors remain in the graph and unchanged.
 - `F93hQuicDatagramReleaseTest` and `R93ARejectedOpenParentDialTest`: visitor identity moves to the aggregate cause, parent-close identity to its suppressed entry; visitor suppressed state must stay empty.
 - `F93jQuicFailedDialResourceTest`: the same aggregate observation correction applies to all 129 failures, with every resource/workload assertion preserved and an added unchanged-visitor assertion.
 - `QuicTransportFailedDatagramCloseTest`: the two-error branch checks the original child under the aggregate; the single-error branch still requires the original root identity.
+- `F93bRepeatedQuicShutdownFailureTest`: the same two-error correction retains the original child under the aggregate; repeated shutdown must still return the exact same aggregate, with every physical-cleanup assertion preserved. The first touched-class gate exposed this remaining old expectation (63/64 passed); its corrected two-case targeted register passes 2/2 without retry.
 
 No existing assertion, timeout or iteration count was weakened or removed. Formatting also reordered one import in the new published-failure test.
 
@@ -42,7 +43,11 @@ Fresh clone verified OPEN at starting head https://github.com/CodexCoder21Organi
 
 A1 proof: 0/1 red, 1/1 green, 0/1 reverted-red; neighbors 10/10. G4 new-defect proof: 0/1 head red, 1/1 fixed green, 0/1 promise reverted-red, plus the separate 0/1 no-terminal-drain control. All valid proofs use single attempts with zero retries/skips. Early fixture construction/compile errors reached zero target assertions and are separately recorded, not counted as proof. Dedicated test and adversarial self-reviews read CODE_REVIEW.md, TESTING.md and PHILOSOPHY.md in full; no extra model was used.
 
-Final 39 touched classes: Gradle --no-daemon single-attempt gate pending. Initial-head native Actions https://github.com/CodexCoder21Organization/jvm-libp2p/actions/runs/43570021988 succeeded on workflow attempt 1: 1715/1717 first-attempt passes, 2 existing skips (`EchoSampleTest.connect1`, `QuicServerTestJava.checkConnectionIsNotClosedByTimeout`), retries none. Final-head Actions will be recorded after push; informational remote checks are not the campaign gate. No suite/check was re-requested, no remote run was submitted, and no merge, enqueue, publication or deployment was performed.
+Final product head: https://github.com/CodexCoder21Organization/jvm-libp2p/commit/b3fa50420fe578cfa17abef8342f75f6592ce12d . All 39 touched classes passed **64/64**, exactly 64 first attempts, zero failures/errors/skips/retry entries, in one final Gradle --no-daemon run; local spotlessCheck also passed. The earlier pre-correction gate was 63/64 and exposed the seventh expected-value correction described above; its two-case targeted check passed 2/2 before this final run.
+
+The `documentation` job on interim head a32b7345 failed only the new A1 test's import order: https://github.com/CodexCoder21Organization/jvm-libp2p/actions/runs/43574153552/job/132384615265 . The formatting correction is included in the final head and its local spotlessCheck passes; no documentation/API-signature defect was reported by that job. Initial-head native Actions https://github.com/CodexCoder21Organization/jvm-libp2p/actions/runs/43570021988 succeeded on workflow attempt 1: 1715/1717 first-attempt passes, 2 existing skips (`EchoSampleTest.connect1`, `QuicServerTestJava.checkConnectionIsNotClosedByTimeout`), retries none. Final-head Actions will be recorded after push; informational remote checks are not the campaign gate. No suite/check was re-requested, no remote run was submitted, and no merge, enqueue, publication or deployment was performed.
+
+Final-head native Actions https://github.com/CodexCoder21Organization/jvm-libp2p/actions/runs/43575715930 and documentation https://github.com/CodexCoder21Organization/jvm-libp2p/actions/runs/43575715998 are pending on workflow attempt 1 at the 08:25 UTC read; the native run has no result artifacts yet, so final-head Actions case/retry counts are unavailable. The requested local/proof/classification bar is met and no further CI wait is performed.
 
 An earlier TCP setup failure at https://github.com/CodexCoder21Organization/jvm-libp2p/commit/68c436af remains unclassified; newer UDP results do not establish its mechanism or claim it fixed.
 

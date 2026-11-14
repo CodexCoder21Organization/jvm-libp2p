@@ -11,7 +11,7 @@ classes = ['io.libp2p.transport.' + Path(p).stem for p in files if p.endswith('.
 command = [str(evidence / 'with-slots.sh'), '3', 'timeout', '1200', str(repo / 'gradlew'),
            '--no-daemon', '--max-workers=1', '-Pkotlin.compiler.execution.strategy=in-process',
            '-I', str(evidence / 'reused/gradle-control.gradle'),
-           '-Dr93t.xml=' + str(lane / 'touched-gradle-raw'), ':libp2p:test']
+           '-Dr93t.xml=' + str(lane / 'touched-gradle-raw'), ':libp2p:spotlessCheck', ':libp2p:test']
 for name in classes:
     command += ['--tests', name]
 (evidence / 'touched-classes.json').write_text(json.dumps(classes, indent=2))

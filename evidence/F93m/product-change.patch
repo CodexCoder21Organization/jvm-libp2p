@@ -92,6 +92,19 @@ index f94eecd3..2366979b 100644
              }
              assertEquals(1, parentCloseCount.get(), "Transport shutdown must request the owned UDP parent's close exactly once")
              assertTrue(childCloseFuture.isDone, "The QUIC child physical close future must settle before shutdown returns")
+diff --git a/libp2p/src/test/kotlin/io/libp2p/transport/F93bRepeatedQuicShutdownFailureTest.kt b/libp2p/src/test/kotlin/io/libp2p/transport/F93bRepeatedQuicShutdownFailureTest.kt
+index 17ef3281..e460263e 100644
+--- a/libp2p/src/test/kotlin/io/libp2p/transport/F93bRepeatedQuicShutdownFailureTest.kt
++++ b/libp2p/src/test/kotlin/io/libp2p/transport/F93bRepeatedQuicShutdownFailureTest.kt
+@@ -99,7 +99,7 @@ class F93bRepeatedQuicShutdownFailureTest {
+                 }
+             assertSame(
+                 if (childAlsoFails) childFailure else parentFailure,
+-                error.cause,
++                if (childAlsoFails) error.cause!!.cause else error.cause,
+                 "Transport close must retain the child failure first, otherwise the UDP parent failure"
+             )
+             val secondError =
 diff --git a/libp2p/src/test/kotlin/io/libp2p/transport/F93cQuicMultipleCloseFailuresTest.kt b/libp2p/src/test/kotlin/io/libp2p/transport/F93cQuicMultipleCloseFailuresTest.kt
 index 4ca1599b..b4930860 100644
 --- a/libp2p/src/test/kotlin/io/libp2p/transport/F93cQuicMultipleCloseFailuresTest.kt

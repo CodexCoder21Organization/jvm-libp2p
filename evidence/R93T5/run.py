@@ -27,8 +27,8 @@ if mode == 'compile':
 else:
     overlay, *classes = items
     classpath = runtime if overlay == '-' else str(lane / 'overlays' / overlay) + ':' + runtime
-    reports = evidence / label
-    reports.mkdir(exist_ok=True)
+    reports = lane / 'raw-reports' / label
+    reports.mkdir(parents=True, exist_ok=True)
     command = [slot, '1', 'timeout', '600', java, '-jar', str(lane / 'junit-console.jar'),
                'execute', '--disable-banner', '--details=summary', '--class-path', classpath,
                '--reports-dir', str(reports)]
@@ -54,7 +54,9 @@ if mode != 'compile':
             for child in list(parent):
                 if child.tag in ('properties', 'system-out', 'system-err'):
                     parent.remove(child)
-        tree.write(xml, encoding='utf-8', xml_declaration=True)
+        destination = evidence / label
+        destination.mkdir(exist_ok=True)
+        tree.write(destination / xml.name, encoding='utf-8', xml_declaration=True)
     summary.update(passed=sum(c['passed'] for c in cases), total=len(cases),
                    skipped=sum(c['skipped'] for c in cases), retries=[], cases=cases)
     summary['test_sources'] = {}

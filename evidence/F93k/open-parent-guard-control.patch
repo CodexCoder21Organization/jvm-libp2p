@@ -1,0 +1,13 @@
+diff --git a/libp2p/src/main/kotlin/io/libp2p/transport/quic/QuicTransport.kt b/libp2p/src/main/kotlin/io/libp2p/transport/quic/QuicTransport.kt
+index b5fe2617..b7a5c5de 100644
+--- a/libp2p/src/main/kotlin/io/libp2p/transport/quic/QuicTransport.kt
++++ b/libp2p/src/main/kotlin/io/libp2p/transport/quic/QuicTransport.kt
+@@ -624,7 +624,7 @@ private fun closeDialParent(owner: DialParent): CompletableFuture<Unit> {
+             .thenCompose { it }.thenCompose { closeNettyChannelOnce(owner.parent) }
+     val parentReleased =
+         parentClose.handle { _, failure ->
+-            if (failure != null && owner.parent.isOpen) {
++            if (false) {
+                 CompletableFuture.completedFuture(Unit)
+             } else {
+                 owner.parent.closeFuture().toVoidCompletableFuture()

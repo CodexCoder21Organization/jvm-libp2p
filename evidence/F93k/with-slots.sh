@@ -8,10 +8,15 @@ release() { for slot in "${held[@]}"; do rm -rf "$slot_root/jvm-slot-$slot"; don
 trap release EXIT
 trap 'exit 143' TERM INT
 started=$SECONDS
+wait_file="$slot_root/F93k-slot-wait-seconds"
+previous_wait=0
+if [[ -f "$wait_file" ]]; then
+  previous_wait=$(awk '{sum += $1} END {print sum+0}' "$wait_file")
+fi
 for ((i=0;i<count;i++)); do
   acquired=false
   deadline=$((SECONDS+1500))
-  while ((SECONDS<deadline && SECONDS-started<3600)); do
+  while ((SECONDS<deadline && previous_wait+SECONDS-started<3600)); do
     for n in 1 2 3 4 5; do
       if mkdir "$slot_root/jvm-slot-$n" 2>/dev/null; then
         echo F93k > "$slot_root/jvm-slot-$n/owner"
@@ -23,7 +28,12 @@ for ((i=0;i<count;i++)); do
     if "$acquired"; then break; fi
     sleep 30
   done
-  if ! "$acquired"; then echo 'PROBLEM: slot acquisition limit reached'; exit 75; fi
+  if ! "$acquired"; then
+    echo "$((SECONDS-started))" >> "$wait_file"
+    echo 'PROBLEM: slot acquisition limit reached'
+    exit 75
+  fi
 done
+echo "$((SECONDS-started))" >> "$wait_file"
 echo "OBSERVED slot wait seconds=$((SECONDS-started)) count=$count"
 "$@"

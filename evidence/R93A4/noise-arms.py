@@ -7,17 +7,18 @@ import xml.etree.ElementTree as ET
 
 evidence = Path(__file__).resolve().parent
 lane = evidence.parents[2]
-arm, overlay = sys.argv[1:]
+arm, overlay = sys.argv[1:3]
 classpath = (lane / 'build-cp/runtime-classpath').read_text().strip()
 if overlay != '-':
     classpath = str(lane / overlay) + ':' + classpath
 classpath += ':' + str(lane / 'junit-console.jar')
 deadline = time.monotonic() + 1500
-results = []
-for index in range(1, 11):
+summary_path = evidence / ('noise-' + arm + '-summary.json')
+results = json.loads(summary_path.read_text()) if summary_path.exists() else []
+for index in range(len(results) + 1, 11):
     output = evidence / ('noise-' + arm) / ('run-%02d' % index)
     output.mkdir(parents=True, exist_ok=True)
-    command = [str(evidence / 'with-slots.sh'), '3', 'timeout', '180',
+    command = [str(evidence / 'with-slots-set.sh'), '3', 'timeout', '180',
                '/opt/java/bin/java', '-cp', classpath,
                'org.junit.platform.console.ConsoleLauncher', 'execute', '--disable-banner',
                '--details=summary', '--reports-dir', str(output),

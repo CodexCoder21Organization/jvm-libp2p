@@ -1,0 +1,40 @@
+diff --git a/libp2p/src/main/kotlin/io/libp2p/transport/implementation/NettyChannelClose.kt b/libp2p/src/main/kotlin/io/libp2p/transport/implementation/NettyChannelClose.kt
+index 23daaae0..ca094b79 100644
+--- a/libp2p/src/main/kotlin/io/libp2p/transport/implementation/NettyChannelClose.kt
++++ b/libp2p/src/main/kotlin/io/libp2p/transport/implementation/NettyChannelClose.kt
+@@ -4,11 +4,12 @@ import io.libp2p.etc.types.toVoidCompletableFuture
+ import io.netty.channel.Channel
+ import io.netty.channel.DefaultChannelPromise
+ import io.netty.util.AttributeKey
+-import io.netty.util.concurrent.ImmediateEventExecutor
++import io.netty.util.concurrent.EventExecutor
+ import java.util.Collections
+ import java.util.IdentityHashMap
+ import java.util.concurrent.CompletableFuture
+ import java.util.concurrent.CompletionException
++import java.util.concurrent.RejectedExecutionException
+ import java.util.concurrent.atomic.AtomicInteger
+ import java.util.concurrent.atomic.AtomicReference
+ 
+@@ -83,8 +84,19 @@ private fun requestPhysicalClose(
+                 operation.complete(Unit)
+             }
+         } else {
+-            // The operation can settle after its channel loop has stopped accepting notifications.
+-            val promise = DefaultChannelPromise(channel, ImmediateEventExecutor.INSTANCE)
++            val loop = channel.eventLoop()
++            val completionExecutor = object : EventExecutor by loop {
++                override fun execute(command: Runnable) {
++                    try {
++                        loop.execute(command)
++                    } catch (_: RejectedExecutionException) {
++                        // A rejected notification still owns delivery of the physical close result.
++                        command.run()
++                    }
++                }
++            }
++            // Preserve the loop's listener order, including its notification-depth boundary.
++            val promise = DefaultChannelPromise(channel, completionExecutor)
+             channel.close(promise).toVoidCompletableFuture().whenComplete { _, failure ->
+                 if (failure == null) operation.complete(Unit) else operation.completeExceptionally(failure)
+             }

@@ -6,6 +6,7 @@ import io.libp2p.core.ConnectionHandler
 import io.libp2p.core.Host
 import io.libp2p.core.P2PChannel
 import io.libp2p.core.Stream
+import io.libp2p.core.crypto.PrivKey
 import io.libp2p.core.dsl.host
 import io.libp2p.core.multiformats.Multiaddr
 import io.libp2p.core.multistream.StrictProtocolBinding
@@ -29,7 +30,6 @@ import org.junit.jupiter.api.Test
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
 private const val ABSENT_SELECTION = "/libp2p/connection-selection/1.0.0"
@@ -63,16 +63,17 @@ class ConnectionSelectionUnsupportedPeerTest {
     @Test
     fun `last close forgets absence and an upgraded peer can retire duplicates`() {
         UnsupportedFixture(3).use { fixture ->
-            val upgraded = AtomicBoolean()
-            val peer = fixture.peer(upgraded)
+            val peer = fixture.peer()
             fixture.burst(peer, 3)
             fixture.awaitControls()
             assertThat(fixture.incoming.get()).isEqualTo(1)
             fixture.assertAbsenceLog(peer)
             fixture.closeConnections(peer)
-            upgraded.set(true)
+            peer.stop().get(10, TimeUnit.SECONDS)
+            val upgraded = fixture.peer(support = true, key = peer.privKey)
+            assertThat(upgraded.peerId).isEqualTo(peer.peerId)
             val before = fixture.incoming.get()
-            val parents = fixture.burst(peer, 3)
+            val parents = fixture.burst(upgraded, 3)
             fixture.awaitControls()
             parents.drop(1).forEach { it.closeFuture().get(10, TimeUnit.SECONDS) }
             assertThat(fixture.incoming.get() - before).isEqualTo(2)
@@ -102,9 +103,8 @@ class ConnectionSelectionUnsupportedPeerTest {
     @Test
     fun `twenty unsupported and twenty supporting peers have independent connection lifetimes`() {
         UnsupportedFixture(3).use { fixture ->
-            val upgraded = List(20) { AtomicBoolean() }
-            val unsupported = upgraded.map { fixture.peer(it) }
-            val supporting = List(20) { fixture.peer(AtomicBoolean(true)) }
+            val unsupported = List(20) { fixture.peer() }
+            val supporting = List(20) { fixture.peer(support = true) }
             val futures = (unsupported + supporting).map { peer ->
                 CompletableFuture.supplyAsync { peer to fixture.burst(peer, 3) }
             }
@@ -118,15 +118,18 @@ class ConnectionSelectionUnsupportedPeerTest {
             }
             (unsupported + supporting).forEach { fixture.closeConnections(it) }
             assertThat(fixture.a.network.connections).isEmpty()
-            upgraded.forEach { it.set(true) }
+            val replacements = (unsupported + supporting).map { peer ->
+                peer.stop().get(10, TimeUnit.SECONDS)
+                fixture.peer(support = true, key = peer.privKey).also { assertThat(it.peerId).isEqualTo(peer.peerId) }
+            }
             val before = fixture.incoming.get()
-            val reconnects = (unsupported + supporting).map { peer ->
+            val reconnects = replacements.map { peer ->
                 CompletableFuture.supplyAsync { fixture.burst(peer, 3) }
             }.map { it.get(10, TimeUnit.SECONDS) }
             fixture.awaitControls()
             reconnects.forEach { parents -> parents.drop(1).forEach { it.closeFuture().get(10, TimeUnit.SECONDS) } }
             assertThat(fixture.incoming.get() - before).isEqualTo(80)
-            (unsupported + supporting).forEach { fixture.closeConnections(it) }
+            replacements.forEach { fixture.closeConnections(it) }
             assertThat(fixture.a.network.connections).isEmpty()
         }
     }
@@ -165,13 +168,14 @@ private class UnsupportedFixture(private val width: Int) : AutoCloseable {
         a.start().get(10, TimeUnit.SECONDS)
     }
 
-    fun peer(support: AtomicBoolean = AtomicBoolean(), reset: Boolean = false): Host {
+    fun peer(support: Boolean = false, reset: Boolean = false, key: PrivKey? = null): Host {
         val peer = host {
+            if (key != null) identity { factory = { key } }
             network { repeat(width) { listen("/ip4/127.0.0.${it + 1}/tcp/0") } }
             secureChannels { add(::NoiseXXSecureChannel) }
             muxers {
                 add(StreamMuxerProtocol { multistream, protocols ->
-                    val offered = if (support.get()) protocols else protocols.filterNot {
+                    val offered = if (support) protocols else protocols.filterNot {
                         it.protocolDescriptor.matchesAny(listOf(ABSENT_SELECTION))
                     }
                     val resetBinding = object : StrictProtocolBinding<Unit>(ABSENT_SELECTION, object : ProtocolHandler<Unit>(1, 1) {

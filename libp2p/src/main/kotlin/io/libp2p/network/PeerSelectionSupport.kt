@@ -2,7 +2,7 @@ package io.libp2p.network
 
 import io.libp2p.core.NoSuchRemoteProtocolException
 import io.libp2p.core.PeerId
-import io.libp2p.etc.types.completedExceptionally
+import io.libp2p.core.StreamPromise
 import org.slf4j.LoggerFactory
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
@@ -19,16 +19,15 @@ internal class PeerSelectionSupport(private val peer: PeerId) {
     @Synchronized
     fun lacksProtocol(): Boolean = unsupported
 
-    fun request(open: () -> CompletableFuture<Boolean>): CompletableFuture<Boolean> {
+    fun request(open: () -> StreamPromise<Boolean>): CompletableFuture<Boolean> {
         val mine = CompletableFuture<Unit>()
         val previous = synchronized(this) {
             if (unsupported) return CompletableFuture.completedFuture(false)
             if (supported) null else probe.also { if (it == null) probe = mine }
         }
         if (previous != null) return previous.thenCompose { request(open) }
-        val result = CompletableFuture<Boolean>()
-        val source = try { open() } catch (failure: Exception) { completedExceptionally<Boolean>(failure) }
-        source.whenComplete { accepted, failure ->
+        val source = open()
+        return source.stream.thenCompose { it.getProtocol() }.handle { _, failure ->
             val absent = selectionProtocolUnsupported(failure)
             val learned = synchronized(this) {
                 val first = absent && !unsupported
@@ -43,15 +42,12 @@ internal class PeerSelectionSupport(private val peer: PeerId) {
                     peer
                 )
             }
-            when {
-                absent -> result.complete(false)
-                failure != null -> result.completeExceptionally(failure)
-                else -> result.complete(accepted)
-            }
-            // Publish capability before waking queued decisions; each still owns its own parent.
+            // Support is known at negotiation, independently of a pending retirement reply.
             mine.complete(Unit)
+            absent
+        }.thenCompose { absent ->
+            if (absent) CompletableFuture.completedFuture(false) else source.controller
         }
-        return result
     }
 }
 

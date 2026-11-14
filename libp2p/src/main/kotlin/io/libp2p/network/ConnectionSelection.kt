@@ -117,7 +117,7 @@ internal class ConnectionSelection(
             if (retained || provisionalUses != 0L || !eligible() || peerSupport?.lacksProtocol() == true) return
             exclude()
         }
-        val retirement = peerSupport?.request { requestRetirement() } ?: requestRetirement()
+        val retirement = peerSupport?.request { requestRetirement() } ?: requestRetirement().controller
         retirement.whenComplete { accepted, failure ->
             if (failure != null || accepted != true) {
                 // No remote authorization: this may be a published parent at the peer.
@@ -277,16 +277,16 @@ internal class ConnectionSelection(
         }
     }
 
-    private fun requestRetirement(): CompletableFuture<Boolean> {
+    private fun requestRetirement(): StreamPromise<Boolean> {
         val promise = try {
             session.createStream(SelectionBinding())
         } catch (failure: Exception) {
-            return completedExceptionally(failure)
+            return StreamPromise(completedExceptionally<Stream>(failure), completedExceptionally<Boolean>(failure))
         }
         promise.controller.whenComplete { _, _ ->
             promise.stream.thenAccept { it.close() }
         }
-        return promise.controller
+        return promise
     }
 
     override fun <T> createStream(protocols: List<ProtocolBinding<T>>): StreamPromise<T> {

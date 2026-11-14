@@ -12,12 +12,15 @@ import io.libp2p.core.multiformats.Multiaddr
 import io.libp2p.core.multistream.StrictProtocolBinding
 import io.libp2p.core.mux.StreamMuxerProtocol
 import io.libp2p.protocol.ProtocolHandler
+import io.libp2p.protocol.ProtocolMessageHandler
 import io.libp2p.security.noise.NoiseXXSecureChannel
 import io.libp2p.tools.Echo
 import io.libp2p.tools.EchoController
 import io.libp2p.transport.ConnectionUpgrader
 import io.libp2p.transport.implementation.ConnectionOverNetty
 import io.libp2p.transport.tcp.TcpTransport
+import io.netty.buffer.ByteBuf
+import io.netty.buffer.Unpooled
 import io.netty.channel.ChannelHandlerContext
 import io.netty.channel.ChannelInboundHandlerAdapter
 import org.apache.logging.log4j.Level
@@ -29,6 +32,7 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -105,6 +109,27 @@ class ConnectionSelectionUnsupportedPeerTest {
     }
 
     @Test
+    fun `a supporting peer receives another request before its first retirement reply`() {
+        UnsupportedFixture(3).use { fixture ->
+            val reply = CompletableFuture<Unit>()
+            val requests = LinkedBlockingQueue<Stream>()
+            val peer = fixture.peer(replyGate = reply, requests = requests)
+            try {
+                fixture.burst(peer, 3)
+                assertThat(requests.poll(10, TimeUnit.SECONDS)).isNotNull()
+                assertThat(requests.poll(10, TimeUnit.SECONDS))
+                    .describedAs("A supporting peer must receive the second retirement request while its first reply is held")
+                    .isNotNull()
+                assertThat(reply.isDone).isFalse()
+            } finally {
+                reply.complete(Unit)
+            }
+            fixture.awaitControls()
+            assertThat(fixture.incoming.get()).isEqualTo(2)
+        }
+    }
+
+    @Test
     fun `twenty unsupported and twenty supporting peers have independent connection lifetimes`() {
         UnsupportedFixture(3).use { fixture ->
             val unsupported = List(20) { fixture.peer() }
@@ -174,7 +199,13 @@ private class UnsupportedFixture(private val width: Int) : AutoCloseable {
         a.start().get(10, TimeUnit.SECONDS)
     }
 
-    fun peer(support: Boolean = false, reset: Boolean = false, key: PrivKey? = null): Host {
+    fun peer(
+        support: Boolean = false,
+        reset: Boolean = false,
+        key: PrivKey? = null,
+        replyGate: CompletableFuture<Unit>? = null,
+        requests: LinkedBlockingQueue<Stream> = LinkedBlockingQueue()
+    ): Host {
         val peer = host {
             if (key != null) identity { factory = { key } }
             network { repeat(width) { listen("/ip4/127.0.0.${it + 1}/tcp/0") } }
@@ -190,7 +221,27 @@ private class UnsupportedFixture(private val width: Int) : AutoCloseable {
                             return CompletableFuture.completedFuture(Unit)
                         }
                     }) {}
-                    StreamMuxerProtocol.getYamux().createMuxer(multistream, if (reset) offered + resetBinding else offered)
+                    val requestCount = AtomicInteger()
+                    val heldBinding = object : StrictProtocolBinding<Unit>(ABSENT_SELECTION, object : ProtocolHandler<Unit>(1, 1) {
+                        override fun onStartResponder(stream: Stream): CompletableFuture<Unit> {
+                            stream.pushHandler(object : ProtocolMessageHandler<ByteBuf> {
+                                override fun onMessage(stream: Stream, msg: ByteBuf) {
+                                    assertThat(msg.readableBytes()).isEqualTo(1)
+                                    assertThat(msg.readUnsignedByte().toInt()).isEqualTo(2)
+                                    requests.add(stream)
+                                    val ready = if (requestCount.incrementAndGet() == 1) replyGate!! else CompletableFuture.completedFuture(Unit)
+                                    ready.thenRun { stream.writeAndFlush(Unpooled.buffer(1).writeByte(0)) }
+                                }
+                            })
+                            return CompletableFuture.completedFuture(Unit)
+                        }
+                    }) {}
+                    val bindings = when {
+                        replyGate != null -> offered + heldBinding
+                        reset -> offered + resetBinding
+                        else -> offered
+                    }
+                    StreamMuxerProtocol.getYamux().createMuxer(multistream, bindings)
                 })
             }
             protocols { add(Echo()) }

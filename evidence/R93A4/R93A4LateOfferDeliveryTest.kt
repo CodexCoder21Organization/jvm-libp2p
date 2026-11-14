@@ -61,7 +61,8 @@ class R93A4LateOfferDeliveryTest {
                         loop.primaryQueue.producer.set(Thread.currentThread())
                         assertTrue(request.second.trySuccess())
                     }
-                    loop.primaryQueue.entered.get(10, TimeUnit.SECONDS)
+                    // A direct notification can already be complete; queued delivery reaches offer.
+                    CompletableFuture.anyOf(loop.primaryQueue.entered, close).get(10, TimeUnit.SECONDS)
                     // offerTask already admitted this notification, but offer has not published it.
                     loop.shutdownGracefully(0, 5, TimeUnit.SECONDS).get(10, TimeUnit.SECONDS)
                     assertTrue(loop.isTerminated)

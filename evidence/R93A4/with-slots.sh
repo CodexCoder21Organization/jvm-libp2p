@@ -2,6 +2,8 @@
 set -euo pipefail
 count=$1
 shift
+# This class has a parent test JVM, a harness JVM, and a nested caller JVM.
+if [[ "$*" == *NoiseHandshakeOffEventLoopTest* ]]; then count=3; fi
 slot_root=/tmp/claude-501/-code/eff1f329-f18f-4c39-ad01-4fe1302ac178/scratchpad/out
 held=()
 release() { for slot in "${held[@]}"; do rm -rf "$slot_root/jvm-slot-$slot"; done; }

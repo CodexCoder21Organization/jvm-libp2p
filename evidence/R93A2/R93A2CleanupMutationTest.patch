@@ -1,0 +1,19 @@
+--- workspace/jvm-libp2p/libp2p/src/test/kotlin/io/libp2p/transport/ConnectionCloseRetryTest.kt
++++ tooling/R93A2CleanupMutationTest.kt
+@@ -27,7 +27,7 @@
+ import java.util.concurrent.atomic.AtomicInteger
+ import java.util.concurrent.atomic.AtomicReference
+ 
+-class ConnectionCloseRetryTest {
++class R93A2CleanupMutationTest {
+     // Netty 4.2 exposes explicit handler execution only through this deprecated overload.
+     @Suppress("DEPRECATION")
+     @Test
+@@ -110,6 +110,7 @@
+             assertSame(failure, retryCloseFailure(connection.retryClose()))
+             assertSame(failure, retryCloseFailure(reentered.get()))
+             assertEquals(1, requests.get(), "First-dispatch re-entry must not issue another physical close.")
++            assertSame(failure, retryCloseFailure(connection.transport().close()))
+             connection.retryClose().get(5, TimeUnit.SECONDS)
+             connection.closeFuture().get(5, TimeUnit.SECONDS)
+             assertEquals(2, requests.get())

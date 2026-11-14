@@ -304,6 +304,12 @@ private class UnsupportedFixture(private val width: Int) : AutoCloseable {
         val local = a.network.connections.filter { it.secureSession().remoteId == peer.peerId }
         val remote = peer.network.connections.toList()
         (local + remote).map { it.close() }.forEach { it.get(10, TimeUnit.SECONDS) }
+        // The physical close result can precede public close notification. Wait for that
+        // notification and drain its event-loop callbacks before asserting table cleanup.
+        (local + remote).forEach {
+            it.closeFuture().get(10, TimeUnit.SECONDS)
+            (it as ConnectionOverNetty).nettyChannel.eventLoop().submit {}.get(10, TimeUnit.SECONDS)
+        }
         assertThat(peer.network.connections).isEmpty()
         assertThat(a.network.connections.filter { it.secureSession().remoteId == peer.peerId }).isEmpty()
     }

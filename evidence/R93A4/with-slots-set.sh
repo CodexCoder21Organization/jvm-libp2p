@@ -9,9 +9,9 @@ trap release EXIT
 trap 'exit 143' TERM INT
 started=$SECONDS
 deadline=$((SECONDS+1500))
+last_start_epoch=$(date -u -d '2026-11-14 11:17:00 UTC' +%s)
 # Give already-waiting class arms a chance before requesting the next full set.
-sleep 30
-while ((SECONDS<deadline)); do
+while ((SECONDS<deadline && $(date -u +%s)<last_start_epoch)); do
   for n in 1 2 3 4 5 6 7; do
     if ((n>5)); then
       anonymous_bytes=$(awk '$1 == "anon" {print $2}' /sys/fs/cgroup/memory.stat)

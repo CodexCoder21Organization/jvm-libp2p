@@ -91,7 +91,11 @@ class ConnectionSelectionIdentityOwnershipTest {
                 val id = it.parent.secureSession().remoteId
                 if (seen.put(id, true) == null) id.bytes[0] = (id.bytes[0].toInt() xor 1).toByte()
             }
-            initial.filterNot { it === legacy }.forEach { it.parent.close().get(10, SECONDS) }
+            initial.filterNot { it === legacy }.forEach {
+                it.parent.close().get(10, SECONDS)
+                it.parent.closeFuture().get(10, SECONDS)
+                (it.parent as ConnectionOverNetty).nettyChannel.eventLoop().submit {}.get(10, SECONDS)
+            }
             assertThat(a.network.connections).containsExactly(legacy.parent)
             transport.lastStart.complete(Unit)
             val last = transport.lastDelivered.get(10, SECONDS)

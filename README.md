@@ -317,6 +317,11 @@ once per peer while any connection to that peer remains open, opens no further r
 negotiations to that peer, and logs one INFO line with the peer ID and protocol name without a
 stack trace. Closing the last connection forgets that result, so a reconnect can discover an
 upgraded peer. Resets, timeouts and other failures do not establish lack of protocol support.
+A supporting connection that arrives before the last existing connection closes extends the same
+connected lifetime and therefore preserves the earlier unsupported result, even after all original
+connections have gone. There is no expiry or per-peer duplicate cap. Initially unknown peers share
+one capability negotiation; supporting peers proceed independently as soon as protocol agreement
+succeeds, without waiting for the first retirement reply.
 With a non-coordinating peer, surplus duplicates are closed by that peer's own
 logic, never by this side's duplicate decision. Older peers using the original selection logic
 close their surplus socket at both endpoints; this host observes that close and removes the local

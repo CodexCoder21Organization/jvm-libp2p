@@ -86,7 +86,11 @@ class ConnectionSelectionMixedTransportTest {
             initial.forEach { (it.parent as ConnectionOverNetty).nettyChannel.eventLoop().submit {}.get(10, SECONDS) }
             closedControls.toList().forEach { it.get(10, SECONDS) }
             assertThat(received.get()).isEqualTo(1)
-            initial.filterNot { it === legacy }.forEach { it.parent.close().get(10, SECONDS) }
+            initial.filterNot { it === legacy }.forEach {
+                it.parent.close().get(10, SECONDS)
+                it.parent.closeFuture().get(10, SECONDS)
+                (it.parent as ConnectionOverNetty).nettyChannel.eventLoop().submit {}.get(10, SECONDS)
+            }
             assertThat(a.network.connections).containsExactly(legacy.parent)
             transport.lastStart.complete(Unit)
             val last = transport.lastDelivered.get(10, SECONDS)

@@ -109,6 +109,188 @@ class ConnectionSelectionUnsupportedPeerTest {
     }
 
     @Test
+    fun `reset before protocol agreement is not remembered as absence`() {
+        UnsupportedFixture(3).use { fixture ->
+            val peer = fixture.peer(support = true)
+            val requests = LinkedBlockingQueue<Stream>()
+            peer.addStreamVisitor(
+                ChannelVisitor { stream ->
+                    requests.add(stream)
+                    stream.reset()
+                }
+            )
+            val parents = fixture.burst(peer, 3)
+            repeat(2) { assertThat(requests.poll(10, TimeUnit.SECONDS)).isNotNull() }
+            fixture.awaitControls()
+            assertThat(fixture.incoming.get()).isEqualTo(2)
+            fixture.a.network.holdConnection(parents.last()).get(10, TimeUnit.SECONDS)!!.close()
+            assertThat(requests.poll(10, TimeUnit.SECONDS)).isNotNull()
+            fixture.awaitControls()
+            assertThat(fixture.incoming.get()).isEqualTo(3)
+            assertThat(fixture.events.filter { it.level == Level.INFO }).isEmpty()
+            assertThat(fixture.events).hasSize(3)
+            assertThat(fixture.events.all { it.level == Level.WARN && it.thrown != null }).isTrue()
+            parents.forEach { assertThat(fixture.a.network.reserveConnection(it).get(10, TimeUnit.SECONDS)).isTrue() }
+        }
+    }
+
+    @Test
+    fun `ordinary child close before agreement is not remembered as absence`() {
+        UnsupportedFixture(3).use { fixture ->
+            val peer = fixture.peer(support = true)
+            val requests = LinkedBlockingQueue<Stream>()
+            peer.addStreamVisitor(
+                ChannelVisitor { stream ->
+                    requests.add(stream)
+                    stream.close()
+                }
+            )
+            val parents = fixture.burst(peer, 3)
+            repeat(2) { assertThat(requests.poll(10, TimeUnit.SECONDS)).isNotNull() }
+            fixture.awaitControls()
+            fixture.a.network.holdConnection(parents.last()).get(10, TimeUnit.SECONDS)!!.close()
+            assertThat(requests.poll(10, TimeUnit.SECONDS)).isNotNull()
+            fixture.awaitControls()
+            assertThat(fixture.incoming.get()).isEqualTo(3)
+            assertThat(fixture.events.filter { it.level == Level.INFO }).isEmpty()
+            assertThat(fixture.events).hasSize(3)
+            assertThat(fixture.events.all { it.level == Level.WARN && it.thrown != null }).isTrue()
+        }
+    }
+
+    @Test
+    fun `parent close before agreement does not establish absence`() {
+        UnsupportedFixture(3).use { fixture ->
+            val peer = fixture.peer(support = true)
+            val requests = LinkedBlockingQueue<Stream>()
+            val closer = ChannelVisitor<Stream> { stream ->
+                requests.add(stream)
+                stream.connection.close()
+            }
+            peer.addStreamVisitor(closer)
+            val parents = fixture.burst(peer, 3)
+            repeat(2) { assertThat(requests.poll(10, TimeUnit.SECONDS)).isNotNull() }
+            fixture.awaitControls()
+            parents.drop(1).forEach {
+                it.closeFuture().get(10, TimeUnit.SECONDS)
+                (it as ConnectionOverNetty).nettyChannel.eventLoop().submit {}.get(10, TimeUnit.SECONDS)
+            }
+            assertThat(fixture.incoming.get()).isEqualTo(2)
+            assertThat(fixture.events.filter { it.level == Level.INFO }).isEmpty()
+            assertThat(fixture.events).hasSize(2)
+            assertThat(fixture.events.all { it.level == Level.WARN && it.thrown != null }).isTrue()
+            assertThat(fixture.a.network.connect(peer.peerId).get(10, TimeUnit.SECONDS)).isSameAs(parents.first())
+            peer.removeStreamVisitor(closer)
+            val echo = fixture.a.newStream<EchoController>(listOf("/test/echo"), parents.first())
+            assertThat(echo.controller.get(10, TimeUnit.SECONDS).echo("surviving parent").get(10, TimeUnit.SECONDS))
+                .isEqualTo("surviving parent")
+        }
+    }
+
+    @Test
+    fun `real negotiation timeout does not establish absence`() {
+        UnsupportedFixture(3).use { fixture ->
+            val peer = fixture.peer(support = true)
+            val local = LinkedBlockingQueue<Stream>()
+            fixture.a.addStreamVisitor(ChannelVisitor { local.add(it) })
+            val releaseRemoteClose = CompletableFuture<Unit>()
+            peer.addStreamVisitor(
+                ChannelVisitor { stream ->
+                    stream.pushHandler(object : io.netty.channel.ChannelDuplexHandler() {
+                        override fun close(ctx: ChannelHandlerContext, promise: io.netty.channel.ChannelPromise) {
+                            // Keep the peer's own timeout from sending a close before the caller's
+                            // default timer fires. Both timers retain their normal ten-second setting.
+                            releaseRemoteClose.thenRun { ctx.executor().execute { ctx.close(promise) } }
+                        }
+                        override fun channelRead(ctx: ChannelHandlerContext, msg: Any) {
+                            // The real peer receives bytes but deliberately never answers the proposal.
+                            io.netty.util.ReferenceCountUtil.release(msg)
+                        }
+                    })
+                }
+            )
+            try {
+                val parents = fixture.burst(peer, 3)
+                val failures = mutableListOf<Throwable>()
+                // These new waits cover the existing ten-second protocol timer; no timer is changed.
+                repeat(2) {
+                    val stream = local.poll(10, TimeUnit.SECONDS)
+                    assertThat(stream).isNotNull()
+                    val failure = stream!!.getProtocol().handle { _, error -> error }.get(30, TimeUnit.SECONDS)
+                    assertThat(failure).isNotNull()
+                    failures.add(failure)
+                    assertThat(failure).isNotInstanceOf(io.libp2p.core.NoSuchRemoteProtocolException::class.java)
+                }
+                fixture.awaitControls()
+                assertThat(fixture.incoming.get()).isEqualTo(2)
+                assertThat(fixture.events.filter { it.level == Level.INFO }).isEmpty()
+                assertThat(fixture.events).hasSize(2)
+                failures.forEach { assertThat(it).isInstanceOf(io.libp2p.etc.util.netty.TotalTimeoutException::class.java) }
+                assertThat(
+                    fixture.events.any {
+                        generateSequence(it.thrown) { cause -> cause.cause }
+                            .any { cause -> cause is io.libp2p.etc.util.netty.TotalTimeoutException }
+                    }
+                ).isTrue()
+                parents.forEach { assertThat(fixture.a.network.reserveConnection(it).get(10, TimeUnit.SECONDS)).isTrue() }
+            } finally {
+                releaseRemoteClose.complete(Unit)
+            }
+        }
+    }
+
+    @Test
+    fun `one hundred application dials reuse a usable unsupported peer connection`() {
+        UnsupportedFixture(2).use { fixture ->
+            val peer = fixture.peer()
+            val arrivals = AtomicInteger()
+            peer.addConnectionHandler(ConnectionHandler.create { arrivals.incrementAndGet() })
+            val parents = fixture.burst(peer, 2)
+            fixture.awaitControls()
+            assertThat(fixture.incoming.get()).isEqualTo(1)
+            // Sequential calls deliberately model repeated application use of an established parent.
+            repeat(100) {
+                assertThat(
+                    fixture.a.network.connect(peer.peerId, *peer.listenAddresses().toTypedArray())
+                        .get(10, TimeUnit.SECONDS)
+                ).isSameAs(parents.first())
+            }
+            fixture.awaitControls()
+            assertThat(fixture.incoming.get()).isEqualTo(1)
+            assertThat(fixture.a.network.connections).containsExactlyInAnyOrderElementsOf(parents)
+            assertThat(peer.network.connections).hasSize(2)
+            assertThat(arrivals.get()).isEqualTo(2)
+            fixture.assertAbsenceLog(peer)
+        }
+    }
+
+    @Test
+    fun `thirty incoming application child closures revisit the same duplicate`() {
+        UnsupportedFixture(2).use { fixture ->
+            val peer = fixture.peer()
+            val parents = fixture.burst(peer, 2)
+            fixture.awaitControls()
+            assertThat(fixture.incoming.get()).isEqualTo(1)
+            val duplicate = parents.last()
+            val remote = peer.network.connections.single {
+                it.localAddress() == duplicate.remoteAddress() && it.remoteAddress() == duplicate.localAddress()
+            }
+            // Each completed incoming use is a fresh decision on the same physical duplicate.
+            repeat(30) { index ->
+                val child = peer.newStream<EchoController>(listOf("/test/echo"), remote)
+                val payload = "same physical parent $index"
+                assertThat(child.controller.get(10, TimeUnit.SECONDS).echo(payload).get(10, TimeUnit.SECONDS)).isEqualTo(payload)
+                child.stream.get(10, TimeUnit.SECONDS).close().get(10, TimeUnit.SECONDS)
+                fixture.awaitControls()
+            }
+            assertThat(fixture.incoming.get()).isEqualTo(1)
+            assertThat(fixture.a.network.connections).containsExactlyInAnyOrderElementsOf(parents)
+            assertThat(parents.all { !it.closeFuture().isDone }).isTrue()
+            fixture.assertAbsenceLog(peer)
+        }
+    }
+
+    @Test
     fun `a supporting peer receives another request before its first retirement reply`() {
         UnsupportedFixture(3).use { fixture ->
             val reply = CompletableFuture<Unit>()

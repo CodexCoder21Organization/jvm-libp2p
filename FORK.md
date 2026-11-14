@@ -12,6 +12,7 @@ CodexCoder21 production depends on a set of jvm-libp2p fixes that are **not yet 
 
 ## What this fork carries
 
+- **Owned transport shutdown after failed channel close** (snapshot-45) — TCP and WebSocket always terminate their private acceptor group after channel close settles, including failed listener or connection closes. QUIC closes its separately owned outbound UDP parents before terminating its private worker group, including when a QUIC child close fails or the child already closed. The original channel failure remains the returned failure after cleanup, and caller cancellation/completion cannot stop cleanup. Public connection and Netty group/thread tests cover refused, thrown and delayed close results as well as caller mutation.
 
 On top of the upstream `develop` snapshot (which already provides the #412 thread-shutdown fix), this fork adds the following fixes. Each is meant to go upstream; nothing here is a long-term divergence.
 

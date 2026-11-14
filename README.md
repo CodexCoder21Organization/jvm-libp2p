@@ -350,6 +350,10 @@ parent channel. Repeated calls wait for that operation and report its original f
 fails; they do not issue another close. Completing or cancelling one caller's returned future
 does not complete the operation or another caller's shutdown future.
 
+When shutdown reports multiple distinct close failures, it returns an aggregate whose cause
+is the first failure and whose suppressed entries retain the later failures. Errors already
+returned by an operation remain unchanged. A single failure is still returned directly.
+
 An already-closed connection can report its close result from unrelated nested promise
 callbacks without another listener dispatch. A synchronous callback on the connection's
 `closeFuture()` keeps earlier physical-close listeners ahead of its `close()` result,
@@ -373,6 +377,18 @@ fun retryConnectionClose(connection: Connection): CompletableFuture<Unit> =
 
 Other `Connection` implementations inherit a default that delegates to their `close()` operation.
 An implementation that retains failed close results must override `retryClose()` to support a new attempt.
+
+TCP, WebSocket and QUIC transport shutdown always waits for the event-loop groups owned by
+that transport to terminate, including when a listener or connection close fails. The returned
+future retains the original channel-close failure after cleanup. Cancelling or completing that
+future does not stop the owned cleanup. TCP and WebSocket leave their shared worker group running
+for other transports. QUIC also closes every UDP parent it allocated for an outbound dial,
+including parents whose QUIC child has already closed, before terminating its worker group.
+
+When a QUIC dial's connection callback or visitor closes the connection and returns normally,
+the successful dial result waits for its UDP parent to release its port. A live successful dial
+keeps its UDP parent. A failed close request that leaves the parent open reports its failure
+without waiting for a port release that has not started; transport shutdown still owns cleanup.
 
 ## Gossip simulator
 

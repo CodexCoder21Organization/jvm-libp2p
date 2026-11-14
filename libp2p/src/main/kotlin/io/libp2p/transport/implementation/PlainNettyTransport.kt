@@ -33,6 +33,7 @@ import java.time.Duration
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * A plain `NettyTransport` without embedded security and muxer
@@ -45,6 +46,8 @@ abstract class PlainNettyTransport(
     // that read it under-lock — see the comment on close() for why both are needed.
     @Volatile
     private var closed = false
+
+    private val shutdown = AtomicReference<CompletableFuture<Unit>?>()
     var connectTimeout = Duration.ofSeconds(15)
 
     // `listeners` and `channels` are mutated by listen()/dial() under
@@ -137,6 +140,10 @@ abstract class PlainNettyTransport(
         if (closed) completedExceptionally(Libp2pException("Transport is closed")) else preparation.thenApply { }
 
     override fun close(): CompletableFuture<Unit> {
+        val completion = CompletableFuture<Unit>()
+        // Claim shutdown before taking inventory or invoking callbacks that can re-enter.
+        if (!shutdown.compareAndSet(null, completion)) return shutdown.get()!!.thenApply { Unit }
+
         // Take a consistent snapshot of the listener and child-channel collections
         // under the same monitor that listen() / dial() / registerChannel() use to
         // mutate them.
@@ -170,55 +177,65 @@ abstract class PlainNettyTransport(
             channelsToClose = channels.toList()
         }
 
-        // Complete outside the monitor: readiness callbacks can re-enter transport operations.
-        readiness.completeExceptionally(Libp2pException("Transport is closed"))
+        val unbindsCompleted =
+            listenersToClose
+                .map { closeNettyChannelOnce(it) }
 
-        val unbindsCompleted = listenersToClose
-            .map { closeNettyChannelOnce(it) }
-
-        val channelsClosed = channelsToClose
-            .map { closeNettyChannelOnce(it) }
+        val channelsClosed =
+            channelsToClose
+                .map { closeNettyChannelOnce(it) }
 
         val everythingThatNeedsToClose = unbindsCompleted.union(channelsClosed)
         val allClosed = CompletableFuture.allOf(*everythingThatNeedsToClose.toTypedArray())
 
-        return allClosed.thenCompose {
-            // Use an explicit quietPeriod = 0 instead of relying on Netty's default
-            // (DefaultEventExecutor.DEFAULT_SHUTDOWN_QUIET_PERIOD = 2 SECONDS).
-            //
-            // The quiet period is the time `shutdownGracefully` keeps the event loop
-            // alive AFTER its last task finished, in case more work is submitted. Once
-            // we have called close() on this transport every existing channel has been
-            // closed, the transport is marked closed (so listen()/dial() throw), and
-            // there is by construction no path that submits new work to either group.
-            // Waiting 2 seconds for "more work that isn't coming" is pure latency.
-            //
-            // For callers that drive many short-lived host lifecycles back-to-back —
-            // for example test fixtures that create-and-tear-down a host per iteration —
-            // the default 2-second quiet period serializes into a per-iteration cost
-            // and any @Timeout-bounded test in the consumer fails after only a handful
-            // of iterations even though every individual close() is correct.
-            //
-            // The 5-second timeout caps how long shutdownGracefully will wait for the
-            // event loop to actually exit (vs. how long it will idle waiting for more
-            // work). That's the meaningful upper bound on close() latency. The future
-            // returned by shutdownGracefully resolves either when the loop exits or
-            // when the timeout elapses, so callers that need to wait for full Netty
-            // termination still get that signal — just without the artificial 2-second
-            // quiet floor.
-            //
-            // See PlainNettyTransportShutdownTimingTest for the regression coverage,
-            // and the discussion in the original CodexCoder21Organization/UrlResolver
-            // run 7f19e875 that surfaced the cumulative latency.
-            // Shut down ONLY the per-instance bossGroup. workerGroup is the shared,
-            // daemon, process-wide singleton (see its declaration) and must outlive any
-            // single transport — a daemon group cannot hold the JVM open, so leaving it
-            // running is safe, and shutting it down here would tear the worker loop out
-            // from under every other live host in the JVM.
-            CompletableFuture.allOf(
+        // Cleanup observes every channel outcome independently of the caller's future.
+        val groupClosed =
+            allClosed.handle { _, _ ->
+                // Use an explicit quietPeriod = 0 instead of relying on Netty's default
+                // (DefaultEventExecutor.DEFAULT_SHUTDOWN_QUIET_PERIOD = 2 SECONDS).
+                //
+                // The quiet period is the time `shutdownGracefully` keeps the event loop
+                // alive AFTER its last task finished, in case more work is submitted. Once
+                // we have called close() on this transport every channel close attempt has
+                // settled, the transport is marked closed (so listen()/dial() throw), and
+                // there is by construction no path that submits new work to either group.
+                // Waiting 2 seconds for "more work that isn't coming" is pure latency.
+                //
+                // For callers that drive many short-lived host lifecycles back-to-back —
+                // for example test fixtures that create-and-tear-down a host per iteration —
+                // the default 2-second quiet period serializes into a per-iteration cost
+                // and any @Timeout-bounded test in the consumer fails after only a handful
+                // of iterations even though every individual close() is correct.
+                //
+                // The 5-second timeout caps how long shutdownGracefully will wait for the
+                // event loop to actually exit (vs. how long it will idle waiting for more
+                // work). That's the meaningful upper bound on close() latency. The future
+                // returned by shutdownGracefully resolves either when the loop exits or
+                // when the timeout elapses, so callers that need to wait for full Netty
+                // termination still get that signal — just without the artificial 2-second
+                // quiet floor.
+                //
+                // See PlainNettyTransportShutdownTimingTest for the regression coverage,
+                // and the discussion in the original CodexCoder21Organization/UrlResolver
+                // run 7f19e875 that surfaced the cumulative latency.
+                // Shut down ONLY the per-instance bossGroup. workerGroup is the shared,
+                // daemon, process-wide singleton (see its declaration) and must outlive any
+                // single transport — a daemon group cannot hold the JVM open, so leaving it
+                // running is safe, and shutting it down here would tear the worker loop out
+                // from under every other live host in the JVM.
                 bossGroup.shutdownGracefully(0, 5, TimeUnit.SECONDS).toVoidCompletableFuture()
-            ).thenApply { }
+            }.thenCompose { it }
+        groupClosed.handle { _, _ ->
+            transportCloseResult(everythingThatNeedsToClose.toList() + groupClosed)
+            Unit
+        }.whenComplete { _, failure ->
+            if (failure == null) completion.complete(Unit) else completion.completeExceptionally(failure)
         }
+        // Completing an already-settled readiness future can drain its remaining callbacks.
+        // Install all cleanup first, so a readiness callback can await a reentrant close
+        // without preventing the first shutdown from scheduling that cleanup.
+        readiness.completeExceptionally(Libp2pException("Transport is closed"))
+        return completion.thenApply { Unit }
     } // close
 
     override fun listen(
@@ -244,29 +261,31 @@ abstract class PlainNettyTransport(
         // owning channel to close. See close() for the matching read-under-lock
         // and the regression test PlainNettyTransportConcurrentListenCloseTest
         // for the deterministic reproduction.
-        val bindComplete = synchronized(this@PlainNettyTransport) {
-            if (closed) throw Libp2pException("Transport is closed")
+        val bindComplete =
+            synchronized(this@PlainNettyTransport) {
+                if (closed) throw Libp2pException("Transport is closed")
 
-            val connectionBuilder = makeConnectionBuilder(connHandler, false, preHandler = preHandler)
-            val channelHandler = serverTransportBuilder(connectionBuilder, addr) ?: connectionBuilder
+                val connectionBuilder = makeConnectionBuilder(connHandler, false, preHandler = preHandler)
+                val channelHandler = serverTransportBuilder(connectionBuilder, addr) ?: connectionBuilder
 
-            val listener = server.clone()
-                .childHandler(
-                    nettyInitializer { init ->
-                        registerChannel(init.channel)
-                        init.addLastLocal(channelHandler)
+                val listener =
+                    server.clone()
+                        .childHandler(
+                            nettyInitializer { init ->
+                                registerChannel(init.channel)
+                                init.addLastLocal(channelHandler)
+                            }
+                        )
+
+                val cf = listener.bind(fromMultiaddr(addr))
+                listeners += addr to cf.channel()
+                cf.channel().closeFuture().addListener {
+                    synchronized(this@PlainNettyTransport) {
+                        listeners -= addr
                     }
-                )
-
-            val cf = listener.bind(fromMultiaddr(addr))
-            listeners += addr to cf.channel()
-            cf.channel().closeFuture().addListener {
-                synchronized(this@PlainNettyTransport) {
-                    listeners -= addr
                 }
+                cf
             }
-            cf
-        }
 
         return bindComplete.toVoidCompletableFuture()
     } // listener
@@ -297,10 +316,11 @@ abstract class PlainNettyTransport(
         val connectionBuilder = makeConnectionBuilder(connHandler, true, remotePeerId, preHandler)
         val channelHandler = clientTransportBuilder(connectionBuilder, addr) ?: connectionBuilder
 
-        val chanFuture = client.clone()
-            .handler(channelHandler)
-            .connect(fromMultiaddr(addr))
-            .also { registerChannel(it.channel()) }
+        val chanFuture =
+            client.clone()
+                .handler(channelHandler)
+                .connect(fromMultiaddr(addr))
+                .also { registerChannel(it.channel()) }
 
         return chanFuture.toCompletableFuture()
             .thenCompose { connectionBuilder.connectionEstablished }
@@ -348,8 +368,7 @@ abstract class PlainNettyTransport(
         preHandler
     )
 
-    protected fun handlesHost(addr: Multiaddr) =
-        addr.hasAny(Protocol.IP4, Protocol.IP6, Protocol.DNS4, Protocol.DNS6, Protocol.DNSADDR)
+    protected fun handlesHost(addr: Multiaddr) = addr.hasAny(Protocol.IP4, Protocol.IP6, Protocol.DNS4, Protocol.DNS6, Protocol.DNSADDR)
 
     protected fun hostFromMultiaddr(addr: Multiaddr): String {
         val resolvedAddresses = MultiaddrDns.resolve(addr)
@@ -373,6 +392,7 @@ abstract class PlainNettyTransport(
     } // fromMultiaddr
 
     override fun localAddress(nettyChannel: Channel): Multiaddr = toMultiaddr(nettyChannel.localAddress())
+
     override fun remoteAddress(nettyChannel: Channel): Multiaddr = toMultiaddr(nettyChannel.remoteAddress())
 
     abstract fun toMultiaddr(addr: SocketAddress): Multiaddr

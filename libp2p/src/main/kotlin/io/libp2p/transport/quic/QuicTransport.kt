@@ -27,47 +27,58 @@ import io.libp2p.security.tls.verifyAndExtractPeerId
 import io.libp2p.transport.implementation.ConnectionOverNetty
 import io.libp2p.transport.implementation.NettyTransport
 import io.libp2p.transport.implementation.closeNettyChannelOnce
+import io.libp2p.transport.implementation.transportCloseResult
 import io.netty.bootstrap.Bootstrap
 import io.netty.buffer.AdaptiveByteBufAllocator
 import io.netty.buffer.ByteBuf
 import io.netty.channel.*
 import io.netty.channel.epoll.Epoll
 import io.netty.channel.epoll.EpollDatagramChannel
-import io.netty.channel.nio.NioIoHandler
 import io.netty.channel.socket.nio.NioDatagramChannel
 import io.netty.handler.codec.quic.*
 import io.netty.handler.ssl.ClientAuth
 import io.netty.util.concurrent.DefaultThreadFactory
+import io.netty.util.concurrent.ImmediateEventExecutor
+import io.netty.util.concurrent.SingleThreadEventExecutor
 import org.slf4j.LoggerFactory
 import java.net.InetSocketAddress
 import java.net.SocketAddress
 import java.time.Duration
 import java.util.*
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 
 class QuicTransport(
     private val localKey: PrivKey,
     private val certAlgorithm: String,
     private val protocols: List<ProtocolBinding<*>>
 ) : NettyTransport {
-
     private val logger = LoggerFactory.getLogger(QuicTransport::class.java)
 
+    @Volatile
     private var closed = false
+
+    private val shutdown = AtomicReference<CompletableFuture<Unit>?>()
+    private val shutdownChildrenSettled = CompletableFuture<Unit>()
 
     private val connectTimeout = Duration.ofSeconds(15)
 
     private val listeners = mutableMapOf<Multiaddr, Channel>()
     private val channels = mutableListOf<Channel>()
+    private val clientDatagramChannels = mutableMapOf<Channel, DialParent>()
+    private val terminationCloses = mutableListOf<CompletableFuture<Unit>>()
 
     // DAEMON event-loop threads (via an explicit DefaultThreadFactory) so a worker
     // that is slow to exit its run loop under CI starvation cannot hold the forked
     // JVM open past the runner's kill — matching PlainNettyTransport. Kept per-instance
     // (shut down in close()) because QUIC is not on the high-fan-out host path that
     // motivated PlainNettyTransport's shared worker group.
+    private val datagramPortReleases = ConcurrentHashMap<Any, DatagramPortRelease>()
+
     private var workerGroup by lazyVar {
-        MultiThreadIoEventLoopGroup(DefaultThreadFactory("libp2p-quic-worker", true), NioIoHandler.newFactory())
+        MultiThreadIoEventLoopGroup(DefaultThreadFactory("libp2p-quic-worker", true), datagramPortReleaseIoFactory(datagramPortReleases))
     }
     private var allocator by lazyVar { AdaptiveByteBufAllocator(true) }
     private var multistreamProtocol: MultistreamProtocol = MultistreamProtocolV1
@@ -75,16 +86,26 @@ class QuicTransport(
 
     companion object {
         @JvmStatic
-        fun Ed25519(k: PrivKey, p: List<ProtocolBinding<*>>): QuicTransport {
+        fun Ed25519(
+            k: PrivKey,
+            p: List<ProtocolBinding<*>>
+        ): QuicTransport {
             return QuicTransport(k, "Ed25519", p)
         }
 
         @JvmStatic
-        fun ECDSA(k: PrivKey, p: List<ProtocolBinding<*>>): QuicTransport {
+        fun ECDSA(
+            k: PrivKey,
+            p: List<ProtocolBinding<*>>
+        ): QuicTransport {
             return QuicTransport(k, "ECDSA", p)
         }
 
-        private fun createStream(channel: QuicStreamChannel, connection: Connection, initiator: Boolean): Stream {
+        private fun createStream(
+            channel: QuicStreamChannel,
+            connection: Connection,
+            initiator: Boolean
+        ): Stream {
             val stream = QuicStream(channel, connection, initiator)
             channel.attr(STREAM).set(stream)
             return stream
@@ -129,28 +150,59 @@ class QuicTransport(
     }
 
     override fun close(): CompletableFuture<Unit> {
-        closed = true
+        val completion = CompletableFuture<Unit>()
+        // Claim shutdown before taking inventory or invoking callbacks that can re-enter.
+        if (!shutdown.compareAndSet(null, completion)) return shutdown.get()!!.thenApply { Unit }
 
-        val unbindsCompleted = listeners
-            .map { (_, ch) -> ch }
-            .map { closeNettyChannelOnce(it) }
+        val (listenerSnapshot, channelSnapshot, datagramSnapshot) =
+            synchronized(this@QuicTransport) {
+                closed = true
+                Triple(
+                    listeners.values.toList(),
+                    (channels + clientDatagramChannels.values.mapNotNull { it.child }).distinct(),
+                    clientDatagramChannels.values.toList()
+                )
+            }
 
-        val channelsClosed = channels
-            .toMutableList() // need a copy to avoid potential co-modification problems
-            .map { closeNettyChannelOnce(it) }
+        val unbindsCompleted = listenerSnapshot.map { closeNettyChannelOnce(it) }
+        val channelsClosed = channelSnapshot.map { closeNettyChannelOnce(it) }
 
         val everythingThatNeedsToClose = unbindsCompleted.union(channelsClosed)
         val allClosed = CompletableFuture.allOf(*everythingThatNeedsToClose.toTypedArray())
 
-        return allClosed.thenCompose {
-            // See PlainNettyTransport.close() for the full rationale: the no-arg
-            // shutdownGracefully() falls through to Netty's default 2-second
-            // quietPeriod, which adds 2 s of pure latency to every close() once
-            // the chained future is awaited. quietPeriod=0 makes the loop exit
-            // as soon as it notices the shutdown flag; the 5-second timeout caps
-            // how long shutdownGracefully will wait for that exit.
-            workerGroup.shutdownGracefully(0, 5, TimeUnit.SECONDS).toVoidCompletableFuture()
+        // A dial owns its UDP parent separately from the QUIC child. Close those parents
+        // after every child outcome, including failure or a child closed before this call.
+        val datagramOperations =
+            allClosed.handle { _, _ ->
+                shutdownChildrenSettled.complete(Unit)
+                Unit
+            }.thenApply {
+                datagramSnapshot.map { closeDialParent(it) }
+            }
+        val datagramsClosed =
+            datagramOperations.thenCompose { operations ->
+                CompletableFuture.allOf(*operations.toTypedArray())
+            }
+
+        // Cleanup observes every channel outcome independently of the caller's future.
+        val groupClosed =
+            datagramsClosed.handle { _, _ ->
+                // See PlainNettyTransport.close() for the full rationale: the no-arg
+                // shutdownGracefully() falls through to Netty's default 2-second
+                // quietPeriod, which adds 2 s of pure latency to every close() once
+                // the chained future is awaited. quietPeriod=0 makes the loop exit
+                // as soon as it notices the shutdown flag; the 5-second timeout caps
+                // how long shutdownGracefully will wait for that exit.
+                workerGroup.shutdownGracefully(0, 5, TimeUnit.SECONDS).toVoidCompletableFuture()
+            }.thenCompose { it }
+        groupClosed.handle { _, _ ->
+            val nativeCloses = synchronized(this@QuicTransport) { terminationCloses.toList() }
+            transportCloseResult(everythingThatNeedsToClose.toList() + datagramOperations.join() + nativeCloses + groupClosed)
+            Unit
+        }.whenComplete { _, failure ->
+            if (failure == null) completion.complete(Unit) else completion.completeExceptionally(failure)
         }
+        return completion.thenApply { Unit }
     }
 
     override fun listen(
@@ -162,26 +214,27 @@ class QuicTransport(
 
         val channelHandler = serverTransportBuilder(connHandler, preHandler)
 
-        val listener = server.clone()
-            .handler(
-                nettyInitializer {
-                    registerChannel(it.channel)
-                    it.addLastLocal(channelHandler)
-                }
-            )
+        val listener =
+            server.clone()
+                .handler(
+                    nettyInitializer {
+                        registerChannel(it.channel)
+                        it.addLastLocal(channelHandler)
+                    }
+                )
 
-        val bindComplete = listener.bind(fromMultiaddr(addr))
-
-        bindComplete.also {
+        val bindComplete =
             synchronized(this@QuicTransport) {
-                listeners += addr to it.channel()
-                it.channel().closeFuture().addListener {
+                if (closed) throw Libp2pException("Transport is closed")
+                val bind = listener.bind(fromMultiaddr(addr))
+                listeners += addr to bind.channel()
+                bind.channel().closeFuture().addListener {
                     synchronized(this@QuicTransport) {
                         listeners -= addr
                     }
                 }
+                bind
             }
-        }
 
         return bindComplete.toVoidCompletableFuture().thenApply {
             logger.info("Quic server listening on {}", addr)
@@ -200,79 +253,179 @@ class QuicTransport(
     ): CompletableFuture<Connection> {
         if (closed) throw Libp2pException("Transport is closed")
 
+        val dialOwner = AtomicReference<DialParent>()
         val trustManager = Libp2pTrustManager(Optional.ofNullable(addr.getPeerId()))
         val sslContext = quicSslContext(true, trustManager)
-        val requestsHandler = QuicClientCodecBuilder()
-            .sslEngineProvider { q -> sslContext.newEngine(q.alloc()) }
-            .sslTaskExecutor(workerGroup)
-            .initialMaxData(1 shl 20)
-            .initialMaxStreamsBidirectional(64)
-            .initialMaxStreamDataBidirectionalRemote(1 shl 18)
-            .initialMaxStreamDataBidirectionalLocal(1 shl 18)
-            .build()
+        val requestsHandler =
+            QuicClientCodecBuilder()
+                .sslEngineProvider { q -> sslContext.newEngine(q.alloc()) }
+                .sslTaskExecutor(workerGroup)
+                .initialMaxData(1 shl 20)
+                .initialMaxStreamsBidirectional(64)
+                .initialMaxStreamDataBidirectionalRemote(1 shl 18)
+                .initialMaxStreamDataBidirectionalLocal(1 shl 18)
+                .build()
 
-        return client.clone()
-            .handler(requestsHandler)
-            .bind(0)
-            .toCompletableFuture()
-            .thenCompose {
-                QuicChannel.newBootstrap(it)
-                    .streamOption(ChannelOption.ALLOCATOR, allocator)
-                    .option(ChannelOption.AUTO_READ, true)
-                    .option(ChannelOption.ALLOCATOR, allocator)
-                    .remoteAddress(fromMultiaddr(addr))
-                    .streamHandler(InboundStreamHandler(multistreamProtocol, protocols))
-                    .connect()
-                    .toCompletableFuture()
-            }
-            .thenApply {
-                registerChannel(it)
-                val connection = ConnectionOverNetty(it, this@QuicTransport, true)
-
-                connection.setMuxerSession(QuicMuxerSession(it, connection))
-
-                val pubHash = Multihash.of(addr.getPeerId()!!.bytes.toByteBuf())
-                val remotePubKey = if (pubHash.desc.digest == Multihash.Digest.Identity) {
-                    unmarshalPublicKey(pubHash.bytes.toByteArray())
-                } else {
-                    getPublicKeyFromCert(arrayOf(trustManager.remoteCert!!))
-                }
-                connection.setSecureSession(
-                    SecureChannel.Session(
-                        PeerId.fromPubKey(localKey.publicKey()),
-                        addr.getPeerId()!!,
-                        remotePubKey,
-                        null
-                    )
+        val dial: CompletableFuture<Connection> =
+            client.clone()
+                .handler(
+                    nettyInitializer { context ->
+                        val parent = context.channel
+                        val loop = parent.eventLoop() as SingleThreadEventExecutor
+                        // Retain a close owner on the loop before bind can publish the UDP socket.
+                        // Once the loop has terminated no close dispatch can release that socket.
+                        val closeAtTermination =
+                            Runnable {
+                                val children =
+                                    synchronized(this@QuicTransport) {
+                                        (channels + listOfNotNull(clientDatagramChannels[parent]?.child))
+                                            .filter { it.parent() === parent }.distinct()
+                                    }
+                                val childCloses = children.map { closeRejectedChannelOnLoop(it) }
+                                val childrenClosed = CompletableFuture.allOf(*childCloses.toTypedArray())
+                                val parentClosed =
+                                    childrenClosed.handle { _, _ ->
+                                        closeRejectedChannelOnLoop(parent)
+                                    }.thenCompose { it }
+                                synchronized(this@QuicTransport) {
+                                    terminationCloses += childCloses
+                                    terminationCloses += parentClosed
+                                }
+                            }
+                        loop.addShutdownHook(closeAtTermination)
+                        parent.closeFuture().addListener { loop.removeShutdownHook(closeAtTermination) }
+                        context.addLastLocal(requestsHandler)
+                    }
                 )
+                .bind(0)
+                .also { bind ->
+                    val parent = bind.channel()
+                    val owner =
+                        DialParent(parent, {
+                            if (shutdown.get() == null) CompletableFuture.completedFuture(Unit) else shutdownChildrenSettled
+                        }, datagramPortReleases.getValue(parent.eventLoop())) {
+                            synchronized(this@QuicTransport) { clientDatagramChannels -= parent }
+                        }
+                    dialOwner.set(owner)
+                    val closeImmediately =
+                        synchronized(this@QuicTransport) {
+                            if (closed) {
+                                true
+                            } else {
+                                clientDatagramChannels[parent] = owner
+                                false
+                            }
+                        }
+                    if (closeImmediately) closeDialParent(owner)
+                }
+                .toCompletableFuture()
+                .handle { channel, failure ->
+                    if (closed) {
+                        throw Libp2pException("Transport is closed").apply {
+                            if (failure != null) initCause(failure)
+                        }
+                    }
+                    if (failure != null) throw java.util.concurrent.CompletionException(failure)
+                    channel
+                }
+                .thenCompose {
+                    if (closed) throw Libp2pException("Transport is closed")
+                    QuicChannel.newBootstrap(it)
+                        .streamOption(ChannelOption.ALLOCATOR, allocator)
+                        .option(ChannelOption.AUTO_READ, true)
+                        .option(ChannelOption.ALLOCATOR, allocator)
+                        .remoteAddress(fromMultiaddr(addr))
+                        .streamHandler(InboundStreamHandler(multistreamProtocol, protocols))
+                        .connect()
+                        .toCompletableFuture()
+                }
+                .thenApply {
+                    if (!registerChannel(it)) throw Libp2pException("Transport is closed")
+                    val owner = requireNotNull(dialOwner.get())
+                    owner.child = it
+                    it.closeFuture().addListener {
+                        if (!closed) closeDialParent(owner)
+                    }
+                    val connection = ConnectionOverNetty(it, this@QuicTransport, true)
 
-                preHandler?.also { visitor -> visitor.visit(connection) }
-                connHandler.handleConnection(connection)
+                    connection.setMuxerSession(QuicMuxerSession(it, connection))
 
-                it.attr(CONNECTION).set(connection)
+                    val pubHash = Multihash.of(addr.getPeerId()!!.bytes.toByteBuf())
+                    val remotePubKey =
+                        if (pubHash.desc.digest == Multihash.Digest.Identity) {
+                            unmarshalPublicKey(pubHash.bytes.toByteArray())
+                        } else {
+                            getPublicKeyFromCert(arrayOf(trustManager.remoteCert!!))
+                        }
+                    connection.setSecureSession(
+                        SecureChannel.Session(
+                            PeerId.fromPubKey(localKey.publicKey()),
+                            addr.getPeerId()!!,
+                            remotePubKey,
+                            null
+                        )
+                    )
 
-                connection
-            }
-    }
+                    preHandler?.also { visitor -> visitor.visit(connection) }
+                    if (closed) throw Libp2pException("Transport is closed")
+                    connHandler.handleConnection(connection)
 
-    private fun registerChannel(ch: Channel) {
-        if (closed) {
-            closeNettyChannelOnce(ch)
-            return
-        }
+                    it.attr(CONNECTION).set(connection)
 
-        synchronized(this@QuicTransport) {
-            channels += ch
-            ch.closeFuture().addListener {
-                synchronized(this@QuicTransport) {
-                    channels -= ch
+                    connection
+                }
+        return dial.handle { connection, failure ->
+            if (failure == null) {
+                val owner = dialOwner.get()
+                val closing = (connection as ConnectionOverNetty).closeWasRequested() ||
+                    !connection.nettyChannel.isOpen || closed
+                if (owner != null && closing) {
+                    // Keep the callback's successful result; shutdown retains cleanup failures.
+                    closeDialParent(owner).handle<Connection> { _, _ -> connection }
+                } else {
+                    CompletableFuture.completedFuture<Connection>(connection)
+                }
+            } else {
+                val original = if (failure is java.util.concurrent.CompletionException) failure.cause ?: failure else failure
+                val reported = if (closed) Libp2pException("Transport is closed").apply { initCause(original) } else original
+                val failed = completedExceptionally<Connection>(reported)
+                val owner = dialOwner.get()
+                if (owner == null) {
+                    failed
+                } else {
+                    val cleanup = closeDialParent(owner)
+                    cleanup.handle { _, _ ->
+                        transportCloseResult(listOfNotNull(failed, owner.child?.let { closeNettyChannelOnce(it) }, cleanup))
+                        Unit
+                    }.thenCompose { failed }
                 }
             }
-        }
+        }.thenCompose { it }
     }
 
-    private fun handlesHost(addr: Multiaddr) =
-        addr.hasAny(IP4, IP6, DNS4, DNS6, DNSADDR)
+    private fun registerChannel(ch: Channel): Boolean {
+        val registered =
+            synchronized(this@QuicTransport) {
+                if (closed) {
+                    false
+                } else {
+                    channels += ch
+                    true
+                }
+            }
+        if (!registered) {
+            closeNettyChannelOnce(ch)
+            return false
+        }
+        ch.closeFuture().addListener {
+            synchronized(this@QuicTransport) {
+                channels -= ch
+            }
+        }
+        return true
+    }
+
+    private fun handlesHost(addr: Multiaddr) = addr.hasAny(IP4, IP6, DNS4, DNS6, DNSADDR)
 
     private fun hostFromMultiaddr(addr: Multiaddr): String {
         val resolvedAddresses = MultiaddrDns.resolve(addr)
@@ -291,7 +444,10 @@ class QuicTransport(
             addr.has(QUICV1) &&
             !addr.has(WS)
 
-    fun quicSslContext(isClient: Boolean, trustManager: Libp2pTrustManager): QuicSslContext {
+    fun quicSslContext(
+        isClient: Boolean,
+        trustManager: Libp2pTrustManager
+    ): QuicSslContext {
         val connectionKeys = if (certAlgorithm == "ECDSA") generateEcdsaKeyPair() else generateEd25519KeyPair()
         val javaPrivateKey = getJavaKey(connectionKeys.first)
         val cert = buildCert(localKey, connectionKeys.first)
@@ -363,7 +519,10 @@ class QuicTransport(
                             }
 
                             @Deprecated("Deprecated in Java")
-                            override fun exceptionCaught(ctx: ChannelHandlerContext, cause: Throwable) {
+                            override fun exceptionCaught(
+                                ctx: ChannelHandlerContext,
+                                cause: Throwable
+                            ) {
                                 logger.error("An error during handshake", cause)
                                 ctx.close()
                             }
@@ -383,7 +542,6 @@ class QuicTransport(
         val ch: QuicChannel,
         val connection: ConnectionOverNetty
     ) : StreamMuxer.Session {
-
         override fun <T> createStream(protocols: List<ProtocolBinding<T>>): StreamPromise<T> {
             val multistreamProtocol: MultistreamProtocol = MultistreamProtocolV1
             val streamMultistreamProtocol: MultistreamProtocol by lazyVar { multistreamProtocol }
@@ -391,18 +549,19 @@ class QuicTransport(
 
             val controller = CompletableFuture<T>()
 
-            val stream = ch.createStream(
-                QuicStreamType.BIDIRECTIONAL,
-                nettyInitializer {
-                    val stream = createStream(it.channel as QuicStreamChannel, connection, true)
-                    val streamHandler = multi.toStreamHandler()
-                    streamHandler.handleStream(stream).forward(controller)
-                }
-            ).toCompletableFuture()
-                .thenApply {
-                    it.attr(STREAM).get()
-                }
-                .forwardException(controller)
+            val stream =
+                ch.createStream(
+                    QuicStreamType.BIDIRECTIONAL,
+                    nettyInitializer {
+                        val stream = createStream(it.channel as QuicStreamChannel, connection, true)
+                        val streamHandler = multi.toStreamHandler()
+                        streamHandler.handleStream(stream).forward(controller)
+                    }
+                ).toCompletableFuture()
+                    .thenApply {
+                        it.attr(STREAM).get()
+                    }
+                    .forwardException(controller)
 
             return StreamPromise(stream, controller)
         }
@@ -421,11 +580,18 @@ class QuicTransport(
     }
 
     class NoTokenHandler : QuicTokenHandler {
-        override fun writeToken(out: ByteBuf?, dcid: ByteBuf?, address: InetSocketAddress?): Boolean {
+        override fun writeToken(
+            out: ByteBuf?,
+            dcid: ByteBuf?,
+            address: InetSocketAddress?
+        ): Boolean {
             return false
         }
 
-        override fun validateToken(token: ByteBuf?, address: InetSocketAddress?): Int {
+        override fun validateToken(
+            token: ByteBuf?,
+            address: InetSocketAddress?
+        ): Int {
             return -1
         }
 
@@ -444,13 +610,60 @@ class QuicTransport(
         return InetSocketAddress(host, port)
     }
 
-    override fun localAddress(nettyChannel: Channel): Multiaddr =
-        toMultiaddr((nettyChannel as QuicChannel).localSocketAddress()!!)
+    override fun localAddress(nettyChannel: Channel): Multiaddr = toMultiaddr((nettyChannel as QuicChannel).localSocketAddress()!!)
 
-    override fun remoteAddress(nettyChannel: Channel): Multiaddr =
-        toMultiaddr((nettyChannel as QuicChannel).remoteSocketAddress()!!)
+    override fun remoteAddress(nettyChannel: Channel): Multiaddr = toMultiaddr((nettyChannel as QuicChannel).remoteSocketAddress()!!)
 
     fun toMultiaddr(addr: SocketAddress): Multiaddr =
         MultiaddrUtils.inetSocketAddressToUdpMultiaddr(addr as InetSocketAddress)
             .withComponent(QUICV1)
+}
+
+private class DialParent(val parent: Channel, val beforeParentClose: () -> CompletableFuture<Unit>, val portRelease: DatagramPortRelease, val released: () -> Unit) {
+    @Volatile
+    var child: Channel? = null
+}
+
+/** A dial releases its parent only after the original child operation settles. */
+private fun closeDialParent(owner: DialParent): CompletableFuture<Unit> {
+    val childClosed = owner.child?.let { closeNettyChannelOnce(it) } ?: CompletableFuture.completedFuture(Unit)
+    val parentClose =
+        childClosed.handle { _, _ -> owner.beforeParentClose() }
+            .thenCompose { it }.thenCompose { closeNettyChannelOnce(owner.parent) }
+    val parentReleased =
+        parentClose.handle { _, failure ->
+            if (failure != null && owner.parent.isOpen) {
+                CompletableFuture.completedFuture(Unit)
+            } else {
+                owner.parent.closeFuture().toVoidCompletableFuture()
+                    .thenCompose { owner.portRelease.awaitRelease() }
+            }
+        }.thenCompose { it }
+    val parentClosed =
+        CompletableFuture.allOf(parentClose, parentReleased).handle { _, _ ->
+            transportCloseResult(listOf(parentClose, parentReleased))
+        }
+    return parentClosed.whenComplete { _, failure ->
+        if (failure == null && !childClosed.isCompletedExceptionally) owner.released()
+    }
+}
+
+/** The registered channel's loop still owns this shutdown-hook call after dispatch rejection. */
+private fun closeRejectedChannelOnLoop(channel: Channel): CompletableFuture<Unit> {
+    val close = closeNettyChannelOnce(channel)
+    if (channel.closeFuture().isDone || !close.isCompletedExceptionally) return close
+    val physical = DefaultChannelPromise(channel, ImmediateEventExecutor.INSTANCE)
+    val outcomes = mutableListOf(close, physical.toVoidCompletableFuture())
+    try {
+        channel.unsafe().close(physical)
+    } catch (failure: Throwable) {
+        physical.tryFailure(failure)
+        val thrown = CompletableFuture<Unit>()
+        thrown.completeExceptionally(failure)
+        outcomes += thrown
+    }
+    return CompletableFuture.allOf(*outcomes.toTypedArray()).handle { _, _ ->
+        transportCloseResult(outcomes)
+        Unit
+    }
 }

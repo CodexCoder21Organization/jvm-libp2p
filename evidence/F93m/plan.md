@@ -1,0 +1,10 @@
+OBSERVED: 2026-11-14 08:02 UTC — Plan 1/6 DONE: fresh clone, prior resume/findings and current PR state read; OPEN at 540d17af7343e709fcbf42d67ac6da81f179efd0, develop e7c79098db289f6a08c8dd467f4bedeb4fd7d168 already ancestor, rebase unchanged; newer base commits 0, equivalent new fixes 0.
+OBSERVED: Plan 2/6 IN PROGRESS: A1 published-failure ownership reproduction, fix, green, reverted-red, separate commit and push; inspect other aggregation sites.
+OBSERVED: Plan 3/6 PENDING: adapt F93l G4 to established ECDSA route; force two pending releases at destruction without a selector pass; red/green/red or exact API limitation; commit and push.
+OBSERVED: Plan 4/6 PENDING: minimal Ed25519 two-host connection on develop and head, one attempt each, classify inherited/introduced; evidence only.
+OBSERVED: Plan 5/6 PENDING: touched test classes once through Gradle --no-daemon; dedicated test and code reviews; Actions final and initial heads at five-minute cadence, available first-attempt/retry registers.
+OBSERVED: Plan 6/6 PENDING: why-first PR body PATCH with capital F and exact readback; verified product/evidence receipts, refreshed resume, process cleanup and final report within 90 minutes of launch.
+INFER: Invariants 1/3: each caller owns its returned observation, never a shared failure object; published failures remain unchanged, later cleanup errors need a new result that retains both causes.
+INFER: Invariants 2/3: transport owns UDP parents/worker termination; pending release waiters remain owned until captured selection or terminal loop destruction settles them; registration during/after destruction must terminate without selector work.
+INFER: Invariants 3/3: held dependency close promises model in-flight physical closure; caller future completion/cancellation owns no cleanup; all test-owned loops/channels/hosts close in finally.
+OBSERVED: Addendum A1 read in full at 08:02 UTC; no other addenda present. Additional model/agent invocations 0; prohibited merge/enqueue/publish/deploy/handoff actions 0.

@@ -1,0 +1,1 @@
+OBSERVED: F93m started from product 540d17af7343e709fcbf42d67ac6da81f179efd0 and develop e7c79098db289f6a08c8dd467f4bedeb4fd7d168. Read plan.md and findings.md. Addendum A1 requires the published-failure ownership fix before G4. No product edit yet; reproduction is next. Prior F93l record is available on wip/F93l-evidence-20261114, evidence/F93l.

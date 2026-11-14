@@ -28,11 +28,14 @@ class R93A3HeldCloseOrderingTest {
             val loop = channel.eventLoop()
             loop.submit {
                 channel.closeFuture().addListener { events += "physical close listener" }
-                channel.pipeline().addFirst("hold-original-close", object : ChannelOutboundHandlerAdapter() {
-                    override fun close(ctx: ChannelHandlerContext, promise: ChannelPromise) {
-                        check(held.complete(ctx to promise)) { "Only one close may reach this handler" }
+                channel.pipeline().addFirst(
+                    "hold-original-close",
+                    object : ChannelOutboundHandlerAdapter() {
+                        override fun close(ctx: ChannelHandlerContext, promise: ChannelPromise) {
+                            check(held.complete(ctx to promise)) { "Only one close may reach this handler" }
+                        }
                     }
-                })
+                )
             }.get(10, TimeUnit.SECONDS)
             val operation = connection.close()
             val completed = operation.thenRun { events += "close operation" }
@@ -48,8 +51,11 @@ class R93A3HeldCloseOrderingTest {
             completed.get(10, TimeUnit.SECONDS)
             connection.closeFuture().get(10, TimeUnit.SECONDS)
             loop.submit {}.get(10, TimeUnit.SECONDS)
-            assertEquals(listOf("physical close listener", "close operation"), events,
-                "An earlier physical-close listener must remain ahead of the held close result")
+            assertEquals(
+                listOf("physical close listener", "close operation"),
+                events,
+                "An earlier physical-close listener must remain ahead of the held close result"
+            )
         } finally {
             held.getNow(null)?.let { (ctx, promise) -> if (!promise.isDone) ctx.close(promise) }
             CompletableFuture.allOf(client.stop(), server.stop()).get(10, TimeUnit.SECONDS)

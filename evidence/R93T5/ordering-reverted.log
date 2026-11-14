@@ -1,0 +1,42 @@
+OBSERVED slot wait seconds=0 count=1
+
+Failures (2):
+  JUnit Jupiter:R93A3HeldCloseOrderingTest:heldCloseKeepsEarlierPhysicalListenersAheadOfItsCompletion()
+    MethodSource [className = 'io.libp2p.transport.R93A3HeldCloseOrderingTest', methodName = 'heldCloseKeepsEarlierPhysicalListenersAheadOfItsCompletion', methodParameterTypes = '']
+    => org.opentest4j.AssertionFailedError: An earlier physical-close listener must remain ahead of the held close result ==> expected: <[physical close listener, close operation]> but was: <[close operation, physical close listener]>
+       org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+       org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+       org.junit.jupiter.api.AssertEquals.failNotEqual(AssertEquals.java:197)
+       org.junit.jupiter.api.AssertEquals.assertEquals(AssertEquals.java:182)
+       org.junit.jupiter.api.Assertions.assertEquals(Assertions.java:1156)
+       io.libp2p.transport.R93A3HeldCloseOrderingTest.heldCloseKeepsEarlierPhysicalListenersAheadOfItsCompletion(R93A3HeldCloseOrderingTest.kt:54)
+       java.base/java.lang.reflect.Method.invoke(Method.java:580)
+       java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+       java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+  JUnit Jupiter:R93A3ReentrantHeldCloseOrderingTest:reentrantCloseKeepsEarlierPhysicalListenersAheadOfItsCompletion()
+    MethodSource [className = 'io.libp2p.transport.R93A3ReentrantHeldCloseOrderingTest', methodName = 'reentrantCloseKeepsEarlierPhysicalListenersAheadOfItsCompletion', methodParameterTypes = '']
+    => org.opentest4j.AssertionFailedError: A reentrant close must remain behind previously registered physical-close listeners ==> expected: <[early listener, later listener, reentrant close operation]> but was: <[early listener, reentrant close operation, later listener]>
+       org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+       org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+       org.junit.jupiter.api.AssertEquals.failNotEqual(AssertEquals.java:197)
+       org.junit.jupiter.api.AssertEquals.assertEquals(AssertEquals.java:182)
+       org.junit.jupiter.api.Assertions.assertEquals(Assertions.java:1156)
+       io.libp2p.transport.R93A3ReentrantHeldCloseOrderingTest.reentrantCloseKeepsEarlierPhysicalListenersAheadOfItsCompletion(R93A3ReentrantHeldCloseOrderingTest.kt:58)
+       java.base/java.lang.reflect.Method.invoke(Method.java:580)
+       java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+       java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+
+Test run finished after 1091 ms
+[         5 containers found      ]
+[         0 containers skipped    ]
+[         5 containers started    ]
+[         0 containers aborted    ]
+[         5 containers successful ]
+[         0 containers failed     ]
+[         2 tests found           ]
+[         0 tests skipped         ]
+[         2 tests started         ]
+[         0 tests aborted         ]
+[         0 tests successful      ]
+[         2 tests failed          ]
+

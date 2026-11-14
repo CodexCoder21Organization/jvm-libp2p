@@ -46,8 +46,10 @@ class R93ARejectedOpenParentDialTest {
             )
             val bound = addressSeen.get(10, TimeUnit.SECONDS)
             val failure = assertThrows(ExecutionException::class.java) { dial.get(10, TimeUnit.SECONDS) }
-            assertSame(expected, failure.cause)
-            assertSame(closeFailure, expected.suppressed.single())
+            assertEquals("Transport shutdown reported multiple failures", failure.cause!!.message)
+            assertSame(expected, failure.cause!!.cause)
+            assertSame(closeFailure, failure.cause!!.suppressed.single())
+            assertTrue(expected.suppressed.isEmpty())
             assertTrue(parentSeen.get(10, TimeUnit.SECONDS).isOpen, "A rejected close must still leave its parent open here")
             assertThrows(BindException::class.java) {
                 DatagramSocket(null as java.net.SocketAddress?).use { socket -> socket.bind(bound) }

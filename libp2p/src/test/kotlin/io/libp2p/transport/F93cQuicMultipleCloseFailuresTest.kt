@@ -137,14 +137,18 @@ class F93cQuicMultipleCloseFailuresTest {
             val primaryFailure = requireNotNull(shutdownError.cause) { "Transport shutdown must report its close failure" }
             assertSame(
                 childFailures.first(),
-                primaryFailure,
+                primaryFailure.cause,
                 "The first outbound child close failure must remain primary"
             )
             assertSame(
-                childFailures.first(),
+                primaryFailure,
                 repeatedShutdownError.cause,
                 "Repeated transport shutdown must report the same original primary failure"
             )
+            assertEquals("Transport shutdown reported multiple failures", primaryFailure.message)
+            (childFailures + parentFailures).forEach {
+                assertTrue(it.suppressed.isEmpty(), "Each channel error must remain unchanged")
+            }
 
             val expectedFailures = Collections.newSetFromMap(IdentityHashMap<Throwable, Boolean>())
             expectedFailures.addAll(childFailures)

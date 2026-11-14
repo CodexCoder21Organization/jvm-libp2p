@@ -124,9 +124,11 @@ class F93jQuicFailedDialResourceTest {
             val dialFailure = assertThrows(ExecutionException::class.java) {
                 dial.get(10, TimeUnit.SECONDS)
             }
-            assertSame(expectedVisitorFailure, dialFailure.cause, "$label must preserve the original visitor failure")
-            assertEquals(1, expectedVisitorFailure.suppressed.size, "$label must report one secondary parent-close failure")
-            assertSame(closeFailure, expectedVisitorFailure.suppressed.single(), "$label must preserve the parent-close failure identity")
+            assertEquals("Transport shutdown reported multiple failures", dialFailure.cause!!.message)
+            assertSame(expectedVisitorFailure, dialFailure.cause!!.cause, "$label must preserve the original visitor failure")
+            assertEquals(1, dialFailure.cause!!.suppressed.size, "$label must report one secondary parent-close failure")
+            assertSame(closeFailure, dialFailure.cause!!.suppressed.single(), "$label must preserve the parent-close failure identity")
+            assertTrue(expectedVisitorFailure.suppressed.isEmpty(), "$label must leave the caller's visitor error unchanged")
 
             assertPhysicalClosure(resources, label)
             assertEquals(1, closeRequests.get(), "$label must issue exactly one parent close request")

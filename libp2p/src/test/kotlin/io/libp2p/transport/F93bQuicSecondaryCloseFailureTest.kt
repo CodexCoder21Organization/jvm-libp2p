@@ -99,16 +99,18 @@ class F93bQuicSecondaryCloseFailureTest {
                 }
             assertSame(
                 if (childAlsoFails) childFailure else parentFailure,
-                error.cause,
+                if (childAlsoFails) error.cause!!.cause else error.cause,
                 "Transport close must retain the child failure first, otherwise the UDP parent failure"
             )
             if (childAlsoFails) {
                 assertTrue(
-                    childFailure.suppressed.any {
+                    error.cause!!.suppressed.any {
                         it === parentFailure
                     },
                     "The separately failed UDP close must be reported as a secondary failure instead of disappearing"
                 )
+                assertEquals("Transport shutdown reported multiple failures", error.cause!!.message)
+                assertTrue(childFailure.suppressed.isEmpty(), "A published child error must remain unchanged")
             }
             assertEquals(1, parentCloseCount.get(), "Transport shutdown must request the owned UDP parent's close exactly once")
             assertTrue(childCloseFuture.isDone, "The QUIC child physical close future must settle before shutdown returns")

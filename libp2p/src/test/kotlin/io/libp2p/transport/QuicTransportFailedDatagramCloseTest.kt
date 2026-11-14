@@ -99,7 +99,7 @@ class QuicTransportFailedDatagramCloseTest {
                 }
             assertSame(
                 if (childAlsoFails) childFailure else parentFailure,
-                error.cause,
+                if (childAlsoFails) error.cause!!.cause else error.cause,
                 "Transport close must retain the child failure first, otherwise the UDP parent failure"
             )
             assertEquals(1, parentCloseCount.get(), "Transport shutdown must request the owned UDP parent's close exactly once")

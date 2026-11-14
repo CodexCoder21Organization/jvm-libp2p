@@ -62,8 +62,10 @@ class F93hQuicDatagramReleaseTest {
             assertFalse(dial.isDone, "A failed dial must wait until its UDP parent has deregistered")
             releaseUnregister.countDown()
             val failure = assertThrows(ExecutionException::class.java) { dial.get(10, TimeUnit.SECONDS) }
-            assertSame(expected, failure.cause)
-            assertSame(closeFailure, expected.suppressed.single())
+            assertEquals("Transport shutdown reported multiple failures", failure.cause!!.message)
+            assertSame(expected, failure.cause!!.cause)
+            assertSame(closeFailure, failure.cause!!.suppressed.single())
+            assertTrue(expected.suppressed.isEmpty())
             DatagramSocket(null).use { socket -> socket.bind(bound) }
         } finally {
             releaseUnregister.countDown()

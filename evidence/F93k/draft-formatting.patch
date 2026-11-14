@@ -1,0 +1,98 @@
+--- a/libp2p/src/test/kotlin/io/libp2p/transport/F93jQuicReleaseReentryTest.kt
++++ b/libp2p/src/test/kotlin/io/libp2p/transport/F93jQuicReleaseReentryTest.kt
+@@ -181,20 +181,23 @@
+ 
+ private fun startFailedDialForReentry(client: QuicTransport, remoteAddress: Multiaddr): F93jReentryDial {
+     val attempt = F93jReentryDial(IllegalStateException("The reentry test visitor rejects this dial"))
+-    attempt.dial = client.dial(remoteAddress, ConnectionHandler { connection ->
+-        val parent = (connection as ConnectionOverNetty).nettyChannel.parent()
+-        attempt.parent.complete(parent)
+-        attempt.localAddress.complete(parent.localAddress() as InetSocketAddress)
+-        parent.pipeline().addLast(object : ChannelOutboundHandlerAdapter() {
+-            override fun close(ctx: ChannelHandlerContext, promise: ChannelPromise) {
+-                val request = F93jReentryCloseRequest(ctx, promise)
+-                attempt.closeRequestCount.incrementAndGet()
+-                attempt.closeRequests.add(request)
+-                attempt.closeRequest.complete(request)
+-            }
+-        })
+-        throw attempt.expectedFailure
+-    })
++    attempt.dial = client.dial(
++        remoteAddress,
++        ConnectionHandler { connection ->
++            val parent = (connection as ConnectionOverNetty).nettyChannel.parent()
++            attempt.parent.complete(parent)
++            attempt.localAddress.complete(parent.localAddress() as InetSocketAddress)
++            parent.pipeline().addLast(object : ChannelOutboundHandlerAdapter() {
++                override fun close(ctx: ChannelHandlerContext, promise: ChannelPromise) {
++                    val request = F93jReentryCloseRequest(ctx, promise)
++                    attempt.closeRequestCount.incrementAndGet()
++                    attempt.closeRequests.add(request)
++                    attempt.closeRequest.complete(request)
++                }
++            })
++            throw attempt.expectedFailure
++        }
++    )
+     return attempt
+ }
+ 
+--- a/libp2p/src/test/kotlin/io/libp2p/transport/F93jQuicSameLoopReleaseTest.kt
++++ b/libp2p/src/test/kotlin/io/libp2p/transport/F93jQuicSameLoopReleaseTest.kt
+@@ -180,20 +180,23 @@
+ 
+ private fun startFailedDial(client: QuicTransport, remoteAddress: Multiaddr): F93jSameLoopDial {
+     val attempt = F93jSameLoopDial(IllegalStateException("The same-loop test visitor rejects this dial"))
+-    attempt.dial = client.dial(remoteAddress, ConnectionHandler { connection ->
+-        val parent = (connection as ConnectionOverNetty).nettyChannel.parent()
+-        attempt.parent.complete(parent)
+-        attempt.localAddress.complete(parent.localAddress() as InetSocketAddress)
+-        parent.pipeline().addLast(object : ChannelOutboundHandlerAdapter() {
+-            override fun close(ctx: ChannelHandlerContext, promise: ChannelPromise) {
+-                val request = F93jSameLoopCloseRequest(ctx, promise)
+-                attempt.closeRequestCount.incrementAndGet()
+-                attempt.closeRequests.add(request)
+-                attempt.closeRequest.complete(request)
+-            }
+-        })
+-        throw attempt.expectedFailure
+-    })
++    attempt.dial = client.dial(
++        remoteAddress,
++        ConnectionHandler { connection ->
++            val parent = (connection as ConnectionOverNetty).nettyChannel.parent()
++            attempt.parent.complete(parent)
++            attempt.localAddress.complete(parent.localAddress() as InetSocketAddress)
++            parent.pipeline().addLast(object : ChannelOutboundHandlerAdapter() {
++                override fun close(ctx: ChannelHandlerContext, promise: ChannelPromise) {
++                    val request = F93jSameLoopCloseRequest(ctx, promise)
++                    attempt.closeRequestCount.incrementAndGet()
++                    attempt.closeRequests.add(request)
++                    attempt.closeRequest.complete(request)
++                }
++            })
++            throw attempt.expectedFailure
++        }
++    )
+     return attempt
+ }
+ 
+--- a/libp2p/src/test/kotlin/io/libp2p/transport/R93ARejectedOpenParentDialTest.kt
++++ b/libp2p/src/test/kotlin/io/libp2p/transport/R93ARejectedOpenParentDialTest.kt
+@@ -8,15 +8,12 @@
+ import io.netty.channel.ChannelHandlerContext
+ import io.netty.channel.ChannelOutboundHandlerAdapter
+ import io.netty.channel.ChannelPromise
+-import io.netty.channel.DefaultChannelPromise
+-import io.netty.util.concurrent.ImmediateEventExecutor
+ import org.junit.jupiter.api.Assertions.*
+ import org.junit.jupiter.api.Test
+ import java.net.BindException
+ import java.net.DatagramSocket
+ import java.net.InetSocketAddress
+ import java.util.concurrent.CompletableFuture
+-import java.util.concurrent.CountDownLatch
+ import java.util.concurrent.ExecutionException
+ import java.util.concurrent.TimeUnit
+ 

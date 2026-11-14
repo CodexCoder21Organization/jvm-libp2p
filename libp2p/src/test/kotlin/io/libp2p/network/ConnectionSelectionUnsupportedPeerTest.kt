@@ -272,9 +272,9 @@ private class UnsupportedFixture(private val width: Int) : AutoCloseable {
         val batch = transport.prepare(peer, size)
         val result = a.network.connect(peer.peerId, *peer.listenAddresses().toTypedArray())
         val parents = batch.ready.get(10, TimeUnit.SECONDS)
-        batch.results.first().complete(parents.first())
+        batch.results.getValue(parents.first()).complete(parents.first())
         assertThat(result.get(10, TimeUnit.SECONDS)).isSameAs(parents.first())
-        batch.results.drop(1).zip(parents.drop(1)).forEach { (future, parent) -> future.complete(parent) }
+        parents.drop(1).forEach { parent -> batch.results.getValue(parent).complete(parent) }
         return parents
     }
 
@@ -330,7 +330,7 @@ private class UnsupportedBatch(val size: Int) {
     val ready = CompletableFuture<List<Connection>>()
     val start = CompletableFuture<Unit>()
     val parents = CopyOnWriteArrayList<Connection>()
-    val results = CopyOnWriteArrayList<CompletableFuture<Connection>>()
+    val results = java.util.concurrent.ConcurrentHashMap<Connection, CompletableFuture<Connection>>()
     val count = AtomicInteger()
 }
 
@@ -340,12 +340,12 @@ private class UnsupportedBurstTransport(upgrader: ConnectionUpgrader) : TcpTrans
     override fun dial(addr: Multiaddr, connHandler: ConnectionHandler, preHandler: ChannelVisitor<P2PChannel>?): CompletableFuture<Connection> {
         val batch = batches.getValue(addr.getPeerId()!!.toString())
         val result = CompletableFuture<Connection>()
-        batch.results.add(result)
         batch.start.thenCompose { super.dial(addr, connHandler, preHandler) }.whenComplete { parent, failure ->
             if (failure != null) {
                 batch.ready.completeExceptionally(failure)
                 result.completeExceptionally(failure)
             } else {
+                batch.results[parent] = result
                 batch.parents.add(parent)
                 if (batch.parents.size == batch.size) batch.ready.complete(batch.parents.toList())
             }

@@ -99,7 +99,7 @@ class F93bRepeatedQuicShutdownFailureTest {
                 }
             assertSame(
                 if (childAlsoFails) childFailure else parentFailure,
-                error.cause,
+                if (childAlsoFails) error.cause!!.cause else error.cause,
                 "Transport close must retain the child failure first, otherwise the UDP parent failure"
             )
             val secondError =

@@ -7,6 +7,10 @@ import io.libp2p.core.Host
 import io.libp2p.core.P2PChannel
 import io.libp2p.core.dsl.host
 import io.libp2p.core.multiformats.Multiaddr
+import io.libp2p.core.multistream.Multistream
+import io.libp2p.core.multistream.MultistreamProtocol
+import io.libp2p.core.multistream.MultistreamProtocolV1
+import io.libp2p.core.multistream.ProtocolBinding
 import io.libp2p.core.mux.StreamMuxerProtocol
 import io.libp2p.protocol.Ping
 import io.libp2p.protocol.PingController
@@ -17,6 +21,8 @@ import io.libp2p.transport.ConnectionUpgrader
 import io.libp2p.transport.tcp.TcpTransport
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
@@ -24,19 +30,22 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
 class NetworkSimultaneousConnectTest {
-    @Test
-    fun `remote connection returned before its first stream survives duplicate settlement`() {
-        checkRemoteReturnedParent(StreamMuxerProtocol.getYamux())
+    @ParameterizedTest
+    @ValueSource(ints = [1, 2])
+    fun `remote connection returned before its first stream survives duplicate settlement`(delayedPublication: Int) {
+        checkRemoteReturnedParent(StreamMuxerProtocol.getYamux(), delayedPublication)
     }
 
-    @Test
-    fun `mplex remote connection returned before its first stream survives duplicate settlement`() {
-        checkRemoteReturnedParent(StreamMuxerProtocol.Mplex)
+    @ParameterizedTest
+    @ValueSource(ints = [1, 2])
+    fun `mplex remote connection returned before its first stream survives duplicate settlement`(delayedPublication: Int) {
+        checkRemoteReturnedParent(StreamMuxerProtocol.Mplex, delayedPublication)
     }
 
-    @Test
-    fun `remote retention remains usable when the peer has no selection protocol`() {
-        checkRemoteReturnedParent(StreamMuxerProtocol.getYamux(), omitSelectionBinding = true)
+    @ParameterizedTest
+    @ValueSource(ints = [1, 2])
+    fun `remote retention remains usable when the peer has no selection protocol`(delayedPublication: Int) {
+        checkRemoteReturnedParent(StreamMuxerProtocol.getYamux(), delayedPublication, omitSelectionBinding = true)
     }
 
     @Test
@@ -109,18 +118,32 @@ class NetworkSimultaneousConnectTest {
     }
 }
 
-private fun checkRemoteReturnedParent(muxer: StreamMuxerProtocol, omitSelectionBinding: Boolean = false) {
-    withSelectionHosts(muxer, omitSelectionBinding) { client, server, transport ->
+private fun checkRemoteReturnedParent(
+    muxer: StreamMuxerProtocol,
+    delayedPublication: Int,
+    omitSelectionBinding: Boolean = false
+) {
+    val publication = CompletableFuture<Unit>()
+    withSelectionHosts(muxer, omitSelectionBinding, delayedPublication, publication) { client, server, transport ->
+        val published = CompletableFuture<Unit>()
+        server.addConnectionHandler(ConnectionHandler.create { published.complete(Unit) })
         val pending = client.network.connect(server.peerId, *server.listenAddresses().toTypedArray())
         transport.start.complete(Unit)
         transport.secondUpgraded.get(10, TimeUnit.SECONDS)
-        transport.secondResult.complete(Unit)
-        val local = pending.get(10, TimeUnit.SECONDS)
+        published.get(10, TimeUnit.SECONDS)
         val remote = server.network.connect(client.peerId).get(10, TimeUnit.SECONDS)
-        assertThat(remote.localAddress()).isEqualTo(transport.firstUpgraded.get().remoteAddress())
-        assertThat(remote.remoteAddress()).isEqualTo(transport.firstUpgraded.get().localAddress())
+        // Each endpoint retains a different physical parent, regardless of publication order.
+        val remoteParent = if (delayedPublication == 1) transport.secondUpgraded.get() else transport.firstUpgraded.get()
+        val localParent = if (delayedPublication == 1) transport.firstUpgraded.get() else transport.secondUpgraded.get()
+        assertThat(remote.localAddress()).isEqualTo(remoteParent.remoteAddress())
+        assertThat(remote.remoteAddress()).isEqualTo(remoteParent.localAddress())
+        if (delayedPublication == 1) transport.firstResult.complete(Unit) else transport.secondResult.complete(Unit)
+        val local = pending.get(10, TimeUnit.SECONDS)
+        assertThat(local).isSameAs(localParent)
         // No application stream has used the remote returned parent yet.
+        publication.complete(Unit)
         transport.firstResult.complete(Unit)
+        transport.secondResult.complete(Unit)
         pingOn(server, remote)
         pingOn(client, local)
         assertThat(client.network.connect(server.peerId).get(10, TimeUnit.SECONDS)).isSameAs(local)
@@ -189,9 +212,12 @@ private fun pingOn(host: Host, parent: Connection) {
 private fun withSelectionHosts(
     muxer: StreamMuxerProtocol = StreamMuxerProtocol.getYamux(),
     omitSelectionBinding: Boolean = false,
+    delayedPublication: Int? = null,
+    publication: CompletableFuture<Unit> = CompletableFuture.completedFuture(Unit),
     body: (Host, Host, SelectionTestTransport) -> Unit
 ) {
     val server = host {
+        if (delayedPublication != null) muxerMultistreamProtocol = SelectionPublicationOrder(delayedPublication, publication)
         network {
             listen("/ip4/127.0.0.1/tcp/0")
             listen("/ip4/127.0.0.2/tcp/0")
@@ -218,6 +244,7 @@ private fun withSelectionHosts(
         client.start().get(10, TimeUnit.SECONDS)
         body(client, server, transport)
     } finally {
+        publication.complete(Unit)
         transport.start.complete(Unit)
         transport.firstResult.complete(Unit)
         transport.secondResult.complete(Unit)
@@ -266,4 +293,26 @@ private class SelectionTestTransport(upgrader: ConnectionUpgrader) : TcpTranspor
             }
             else -> error("The fixture expected exactly two transport dials")
         }
+}
+
+private class SelectionPublicationOrder(
+    private val delayed: Int,
+    private val publication: CompletableFuture<Unit>
+) : MultistreamProtocol {
+    private val count = AtomicInteger()
+    override val version = MultistreamProtocolV1.version
+    override fun <T> createMultistream(bindings: List<ProtocolBinding<T>>): Multistream<T> {
+        val real = MultistreamProtocolV1.createMultistream(bindings)
+        return object : Multistream<T> {
+            override val bindings = real.bindings
+            override fun initChannel(ch: P2PChannel): CompletableFuture<T> =
+                real.initChannel(ch).thenCompose { controller ->
+                    if (count.incrementAndGet() == delayed) {
+                        publication.thenApply { controller }
+                    } else {
+                        CompletableFuture.completedFuture(controller)
+                    }
+                }
+        }
+    }
 }

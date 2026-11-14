@@ -1,0 +1,129 @@
+diff --git a/libp2p/src/test/kotlin/io/libp2p/transport/F93bQuicSecondaryCloseFailureTest.kt b/libp2p/src/test/kotlin/io/libp2p/transport/F93bQuicSecondaryCloseFailureTest.kt
+index f94eecd3..2366979b 100644
+--- a/libp2p/src/test/kotlin/io/libp2p/transport/F93bQuicSecondaryCloseFailureTest.kt
++++ b/libp2p/src/test/kotlin/io/libp2p/transport/F93bQuicSecondaryCloseFailureTest.kt
+@@ -99,16 +99,18 @@ class F93bQuicSecondaryCloseFailureTest {
+                 }
+             assertSame(
+                 if (childAlsoFails) childFailure else parentFailure,
+-                error.cause,
++                if (childAlsoFails) error.cause!!.cause else error.cause,
+                 "Transport close must retain the child failure first, otherwise the UDP parent failure"
+             )
+             if (childAlsoFails) {
+                 assertTrue(
+-                    childFailure.suppressed.any {
++                    error.cause!!.suppressed.any {
+                         it === parentFailure
+                     },
+                     "The separately failed UDP close must be reported as a secondary failure instead of disappearing"
+                 )
++                assertEquals("Transport shutdown reported multiple failures", error.cause!!.message)
++                assertTrue(childFailure.suppressed.isEmpty(), "A published child error must remain unchanged")
+             }
+             assertEquals(1, parentCloseCount.get(), "Transport shutdown must request the owned UDP parent's close exactly once")
+             assertTrue(childCloseFuture.isDone, "The QUIC child physical close future must settle before shutdown returns")
+diff --git a/libp2p/src/test/kotlin/io/libp2p/transport/F93bRepeatedQuicShutdownFailureTest.kt b/libp2p/src/test/kotlin/io/libp2p/transport/F93bRepeatedQuicShutdownFailureTest.kt
+index 17ef3281..e460263e 100644
+--- a/libp2p/src/test/kotlin/io/libp2p/transport/F93bRepeatedQuicShutdownFailureTest.kt
++++ b/libp2p/src/test/kotlin/io/libp2p/transport/F93bRepeatedQuicShutdownFailureTest.kt
+@@ -99,7 +99,7 @@ class F93bRepeatedQuicShutdownFailureTest {
+                 }
+             assertSame(
+                 if (childAlsoFails) childFailure else parentFailure,
+-                error.cause,
++                if (childAlsoFails) error.cause!!.cause else error.cause,
+                 "Transport close must retain the child failure first, otherwise the UDP parent failure"
+             )
+             val secondError =
+diff --git a/libp2p/src/test/kotlin/io/libp2p/transport/F93cQuicMultipleCloseFailuresTest.kt b/libp2p/src/test/kotlin/io/libp2p/transport/F93cQuicMultipleCloseFailuresTest.kt
+index 4ca1599b..b4930860 100644
+--- a/libp2p/src/test/kotlin/io/libp2p/transport/F93cQuicMultipleCloseFailuresTest.kt
++++ b/libp2p/src/test/kotlin/io/libp2p/transport/F93cQuicMultipleCloseFailuresTest.kt
+@@ -137,14 +137,18 @@ class F93cQuicMultipleCloseFailuresTest {
+             val primaryFailure = requireNotNull(shutdownError.cause) { "Transport shutdown must report its close failure" }
+             assertSame(
+                 childFailures.first(),
+-                primaryFailure,
++                primaryFailure.cause,
+                 "The first outbound child close failure must remain primary"
+             )
+             assertSame(
+-                childFailures.first(),
++                primaryFailure,
+                 repeatedShutdownError.cause,
+                 "Repeated transport shutdown must report the same original primary failure"
+             )
++            assertEquals("Transport shutdown reported multiple failures", primaryFailure.message)
++            (childFailures + parentFailures).forEach {
++                assertTrue(it.suppressed.isEmpty(), "Each channel error must remain unchanged")
++            }
+ 
+             val expectedFailures = Collections.newSetFromMap(IdentityHashMap<Throwable, Boolean>())
+             expectedFailures.addAll(childFailures)
+diff --git a/libp2p/src/test/kotlin/io/libp2p/transport/F93hQuicDatagramReleaseTest.kt b/libp2p/src/test/kotlin/io/libp2p/transport/F93hQuicDatagramReleaseTest.kt
+index a0963c70..6f8180ca 100644
+--- a/libp2p/src/test/kotlin/io/libp2p/transport/F93hQuicDatagramReleaseTest.kt
++++ b/libp2p/src/test/kotlin/io/libp2p/transport/F93hQuicDatagramReleaseTest.kt
+@@ -62,8 +62,10 @@ class F93hQuicDatagramReleaseTest {
+             assertFalse(dial.isDone, "A failed dial must wait until its UDP parent has deregistered")
+             releaseUnregister.countDown()
+             val failure = assertThrows(ExecutionException::class.java) { dial.get(10, TimeUnit.SECONDS) }
+-            assertSame(expected, failure.cause)
+-            assertSame(closeFailure, expected.suppressed.single())
++            assertEquals("Transport shutdown reported multiple failures", failure.cause!!.message)
++            assertSame(expected, failure.cause!!.cause)
++            assertSame(closeFailure, failure.cause!!.suppressed.single())
++            assertTrue(expected.suppressed.isEmpty())
+             DatagramSocket(null).use { socket -> socket.bind(bound) }
+         } finally {
+             releaseUnregister.countDown()
+diff --git a/libp2p/src/test/kotlin/io/libp2p/transport/F93jQuicFailedDialResourceTest.kt b/libp2p/src/test/kotlin/io/libp2p/transport/F93jQuicFailedDialResourceTest.kt
+index 9f971d63..4fd67878 100644
+--- a/libp2p/src/test/kotlin/io/libp2p/transport/F93jQuicFailedDialResourceTest.kt
++++ b/libp2p/src/test/kotlin/io/libp2p/transport/F93jQuicFailedDialResourceTest.kt
+@@ -124,9 +124,11 @@ class F93jQuicFailedDialResourceTest {
+             val dialFailure = assertThrows(ExecutionException::class.java) {
+                 dial.get(10, TimeUnit.SECONDS)
+             }
+-            assertSame(expectedVisitorFailure, dialFailure.cause, "$label must preserve the original visitor failure")
+-            assertEquals(1, expectedVisitorFailure.suppressed.size, "$label must report one secondary parent-close failure")
+-            assertSame(closeFailure, expectedVisitorFailure.suppressed.single(), "$label must preserve the parent-close failure identity")
++            assertEquals("Transport shutdown reported multiple failures", dialFailure.cause!!.message)
++            assertSame(expectedVisitorFailure, dialFailure.cause!!.cause, "$label must preserve the original visitor failure")
++            assertEquals(1, dialFailure.cause!!.suppressed.size, "$label must report one secondary parent-close failure")
++            assertSame(closeFailure, dialFailure.cause!!.suppressed.single(), "$label must preserve the parent-close failure identity")
++            assertTrue(expectedVisitorFailure.suppressed.isEmpty(), "$label must leave the caller's visitor error unchanged")
+ 
+             assertPhysicalClosure(resources, label)
+             assertEquals(1, closeRequests.get(), "$label must issue exactly one parent close request")
+diff --git a/libp2p/src/test/kotlin/io/libp2p/transport/QuicTransportFailedDatagramCloseTest.kt b/libp2p/src/test/kotlin/io/libp2p/transport/QuicTransportFailedDatagramCloseTest.kt
+index ea5c2723..d62ddc27 100644
+--- a/libp2p/src/test/kotlin/io/libp2p/transport/QuicTransportFailedDatagramCloseTest.kt
++++ b/libp2p/src/test/kotlin/io/libp2p/transport/QuicTransportFailedDatagramCloseTest.kt
+@@ -99,7 +99,7 @@ class QuicTransportFailedDatagramCloseTest {
+                 }
+             assertSame(
+                 if (childAlsoFails) childFailure else parentFailure,
+-                error.cause,
++                if (childAlsoFails) error.cause!!.cause else error.cause,
+                 "Transport close must retain the child failure first, otherwise the UDP parent failure"
+             )
+             assertEquals(1, parentCloseCount.get(), "Transport shutdown must request the owned UDP parent's close exactly once")
+diff --git a/libp2p/src/test/kotlin/io/libp2p/transport/R93ARejectedOpenParentDialTest.kt b/libp2p/src/test/kotlin/io/libp2p/transport/R93ARejectedOpenParentDialTest.kt
+index 082b1389..c743d62d 100644
+--- a/libp2p/src/test/kotlin/io/libp2p/transport/R93ARejectedOpenParentDialTest.kt
++++ b/libp2p/src/test/kotlin/io/libp2p/transport/R93ARejectedOpenParentDialTest.kt
+@@ -46,8 +46,10 @@ class R93ARejectedOpenParentDialTest {
+             )
+             val bound = addressSeen.get(10, TimeUnit.SECONDS)
+             val failure = assertThrows(ExecutionException::class.java) { dial.get(10, TimeUnit.SECONDS) }
+-            assertSame(expected, failure.cause)
+-            assertSame(closeFailure, expected.suppressed.single())
++            assertEquals("Transport shutdown reported multiple failures", failure.cause!!.message)
++            assertSame(expected, failure.cause!!.cause)
++            assertSame(closeFailure, failure.cause!!.suppressed.single())
++            assertTrue(expected.suppressed.isEmpty())
+             assertTrue(parentSeen.get(10, TimeUnit.SECONDS).isOpen, "A rejected close must still leave its parent open here")
+             assertThrows(BindException::class.java) {
+                 DatagramSocket(null as java.net.SocketAddress?).use { socket -> socket.bind(bound) }

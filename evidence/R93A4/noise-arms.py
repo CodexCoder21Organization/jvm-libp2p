@@ -18,7 +18,8 @@ results = json.loads(summary_path.read_text()) if summary_path.exists() else []
 for index in range(len(results) + 1, 11):
     output = evidence / ('noise-' + arm) / ('run-%02d' % index)
     output.mkdir(parents=True, exist_ok=True)
-    command = [str(evidence / 'with-slots-set.sh'), '3', 'timeout', '180',
+    wrapper = 'with-slots.sh' if index == 1 and arm == 'b3fa5042' else 'with-slots-set.sh'
+    command = [str(evidence / wrapper), '3', 'timeout', '180',
                '/opt/java/bin/java', '-cp', classpath,
                'org.junit.platform.console.ConsoleLauncher', 'execute', '--disable-banner',
                '--details=summary', '--reports-dir', str(output),

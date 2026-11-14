@@ -1,0 +1,46 @@
+diff --git a/libp2p/src/main/kotlin/io/libp2p/transport/implementation/NettyChannelClose.kt b/libp2p/src/main/kotlin/io/libp2p/transport/implementation/NettyChannelClose.kt
+--- a/libp2p/src/main/kotlin/io/libp2p/transport/implementation/NettyChannelClose.kt
++++ b/libp2p/src/main/kotlin/io/libp2p/transport/implementation/NettyChannelClose.kt
+@@ -5,10 +5,13 @@
+ import io.netty.channel.DefaultChannelPromise
+ import io.netty.util.AttributeKey
+ import io.netty.util.concurrent.EventExecutor
++import io.netty.util.concurrent.Future
++import io.netty.util.concurrent.GenericFutureListener
+ import java.util.Collections
+ import java.util.IdentityHashMap
+ import java.util.concurrent.CompletableFuture
+ import java.util.concurrent.CompletionException
+ import java.util.concurrent.RejectedExecutionException
++import java.util.concurrent.atomic.AtomicBoolean
+ import java.util.concurrent.atomic.AtomicInteger
+ import java.util.concurrent.atomic.AtomicReference
+@@ -87,11 +90,26 @@
+             val loop = channel.eventLoop()
+             val completionExecutor = object : EventExecutor by loop {
+                 override fun execute(command: Runnable) {
++                    val claimed = AtomicBoolean()
++                    val termination = loop.terminationFuture()
++                    val onTermination = GenericFutureListener<Future<Any?>> {
++                        if (claimed.compareAndSet(false, true)) command.run()
++                    }
++                    val deliver = Runnable {
++                        if (claimed.compareAndSet(false, true)) {
++                            termination.removeListener(onTermination)
++                            command.run()
++                        }
++                    }
++                    termination.addListener(onTermination)
+                     try {
+-                        loop.execute(command)
++                        loop.execute(deliver)
+                     } catch (_: RejectedExecutionException) {
+                         // A rejected notification still owns delivery of the physical close result.
+-                        command.run()
++                        deliver.run()
+                     }
++                    // Submission may return normally after the loop discarded its final queue.
++                    // The listener covers termination after this read; both paths share the claim.
++                    if (loop.isTerminated) deliver.run()
+                 }
+             }

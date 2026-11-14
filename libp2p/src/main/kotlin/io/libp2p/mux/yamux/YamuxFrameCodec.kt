@@ -16,6 +16,10 @@ class YamuxFrameCodec(
     val maxFrameDataLength: Int = DEFAULT_MAX_YAMUX_FRAME_DATA_LENGTH
 ) : ByteToMessageCodec<YamuxFrame>() {
 
+    internal companion object Factory {
+        fun create() = YamuxFrameCodec()
+    }
+
     /**
      * Encodes the given yamux frame into bytes and writes them into the output list.
      * @see [https://github.com/hashicorp/yamux/blob/master/spec.md]

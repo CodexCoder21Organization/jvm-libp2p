@@ -1,0 +1,61 @@
+--- a/libp2p/src/test/kotlin/io/libp2p/transport/F93jQuicFailedDialResourceTest.kt
++++ b/libp2p/src/test/kotlin/io/libp2p/transport/F93jQuicFailedDialResourceTest.kt
+@@ -15,12 +15,14 @@
+ import org.junit.jupiter.api.Assertions.*
+ import org.junit.jupiter.api.Test
+ import java.lang.management.ManagementFactory
++import java.net.BindException
+ import java.net.DatagramSocket
+ import java.net.InetSocketAddress
+ import java.net.SocketAddress
+ import java.util.Collections
+ import java.util.IdentityHashMap
+ import java.util.concurrent.CompletableFuture
++import java.util.concurrent.CountDownLatch
+ import java.util.concurrent.ExecutionException
+ import java.util.concurrent.TimeUnit
+ import java.util.concurrent.atomic.AtomicInteger
+@@ -68,6 +70,8 @@
+             val closeFailure = IllegalStateException("The UDP parent close request fails after physical close $label")
+             val closeRequests = AtomicInteger()
+             val resourcesObserved = CompletableFuture<DialResources>()
++            val closeListenerEntered = CountDownLatch(1)
++            val releaseCloseListener = CountDownLatch(1)
+ 
+             val dial = client.dial(
+                 server.listenAddresses().single().withP2P(PeerId.fromPubKey(key.publicKey())),
+@@ -83,7 +87,14 @@
+                                 val physicalClose = DefaultChannelPromise(parent, ImmediateEventExecutor.INSTANCE)
+                                 physicalClose.addListener { result ->
+                                     check(result.isSuccess) { "The fixture must physically close its UDP parent" }
++                                    check(ctx.executor().inEventLoop()) {
++                                        "The failed-close completion listener must hold its owning event loop"
++                                    }
+                                     promise.tryFailure(closeFailure)
++                                    closeListenerEntered.countDown()
++                                    check(releaseCloseListener.await(10, TimeUnit.SECONDS)) {
++                                        "The failed-close completion gate was not opened"
++                                    }
+                                 }
+                                 ctx.executor().execute { ctx.close(physicalClose) }
+                             }
+@@ -97,6 +108,19 @@
+             )
+ 
+             val resources = resourcesObserved.get(10, TimeUnit.SECONDS)
++            try {
++                assertTrue(
++                    closeListenerEntered.await(10, TimeUnit.SECONDS),
++                    "$label failed-close completion must reach its owner-loop gate",
++                )
++                assertFalse(dial.isDone, "$label dial must remain pending while its owner loop is held")
++                assertThrows(BindException::class.java) {
++                    DatagramSocket(null as SocketAddress?).use { socket -> socket.bind(resources.parentAddress) }
++                }
++            } finally {
++                releaseCloseListener.countDown()
++            }
++
+             val dialFailure = assertThrows(ExecutionException::class.java) {
+                 dial.get(10, TimeUnit.SECONDS)
+             }

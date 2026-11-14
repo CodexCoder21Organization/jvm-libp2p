@@ -1,0 +1,40 @@
+--- a/libp2p/src/test/kotlin/io/libp2p/transport/F93jQuicSameLoopReleaseTest.kt
++++ b/libp2p/src/test/kotlin/io/libp2p/transport/F93jQuicSameLoopReleaseTest.kt
+@@ -180,20 +180,23 @@
+ 
+ private fun startFailedDial(client: QuicTransport, remoteAddress: Multiaddr): F93jSameLoopDial {
+     val attempt = F93jSameLoopDial(IllegalStateException("The same-loop test visitor rejects this dial"))
+-    attempt.dial = client.dial(remoteAddress, ConnectionHandler { connection ->
+-        val parent = (connection as ConnectionOverNetty).nettyChannel.parent()
+-        attempt.parent.complete(parent)
+-        attempt.localAddress.complete(parent.localAddress() as InetSocketAddress)
+-        parent.pipeline().addLast(object : ChannelOutboundHandlerAdapter() {
+-            override fun close(ctx: ChannelHandlerContext, promise: ChannelPromise) {
+-                val request = F93jSameLoopCloseRequest(ctx, promise)
+-                attempt.closeRequestCount.incrementAndGet()
+-                attempt.closeRequests.add(request)
+-                attempt.closeRequest.complete(request)
+-            }
+-        })
+-        throw attempt.expectedFailure
+-    })
++    attempt.dial = client.dial(
++        remoteAddress,
++        ConnectionHandler { connection ->
++            val parent = (connection as ConnectionOverNetty).nettyChannel.parent()
++            attempt.parent.complete(parent)
++            attempt.localAddress.complete(parent.localAddress() as InetSocketAddress)
++            parent.pipeline().addLast(object : ChannelOutboundHandlerAdapter() {
++                override fun close(ctx: ChannelHandlerContext, promise: ChannelPromise) {
++                    val request = F93jSameLoopCloseRequest(ctx, promise)
++                    attempt.closeRequestCount.incrementAndGet()
++                    attempt.closeRequests.add(request)
++                    attempt.closeRequest.complete(request)
++                }
++            })
++            throw attempt.expectedFailure
++        }
++    )
+     return attempt
+ }
+ 

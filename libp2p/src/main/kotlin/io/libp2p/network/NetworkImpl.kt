@@ -36,6 +36,8 @@ class NetworkImpl(
             CompletableFuture.completedFuture(false)
         }
 
+    private val selectionPeers = mutableMapOf<String, PeerSelectionSupport>()
+
     private val pendingDials = ConcurrentHashMap<PendingDialKey, CompletableFuture<Connection>>()
 
     /**
@@ -97,9 +99,34 @@ class NetworkImpl(
     private fun createHookedConnHandler(handler: ConnectionHandler) =
         ConnectionHandler.create { conn ->
             connections += conn
+            trackSelectionSupport(conn)
             conn.closeFuture().thenAccept { connections -= conn }
             handler.handleConnection(conn)
         }
+
+    private fun trackSelectionSupport(connection: Connection) {
+        val selection = connectionSelection(connection)
+        // PeerId exposes its byte array. Own the immutable encoding used for lookup and removal.
+        val id = connection.secureSession().remoteId.toBase58()
+        val closed = connection.closeFuture()
+        val support = synchronized(selectionPeers) {
+            val previous = selectionPeers[id]
+            previous?.connections?.removeAll { it.isDone }
+            val current = previous?.takeIf { it.connections.isNotEmpty() } ?: PeerSelectionSupport(id)
+            if (!closed.isDone) {
+                current.connections.add(closed)
+                selectionPeers[id] = current
+            }
+            current
+        }
+        selection?.peerSupport = support
+        closed.thenRun {
+            synchronized(selectionPeers) {
+                support.connections.removeAll { it.isDone }
+                if (support.connections.isEmpty() && selectionPeers[id] === support) selectionPeers.remove(id)
+            }
+        }
+    }
 
     /**
      * Connects to a peerid with a provided set of {@code Multiaddr}, returning the existing connection if already connected.

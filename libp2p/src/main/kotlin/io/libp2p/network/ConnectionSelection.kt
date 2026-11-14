@@ -28,6 +28,9 @@ internal class ConnectionSelection(
     private val connection: Connection,
     private val session: StreamMuxer.Session
 ) : StreamMuxer.Session {
+    @Volatile
+    var peerSupport: PeerSelectionSupport? = null
+
     // This instance's monitor guards all selection state below.
     private var closing = false
     private var retained = false
@@ -111,10 +114,11 @@ internal class ConnectionSelection(
         if (!connection.isInitiator) return
         val request = synchronized(this) {
             duplicate = true
-            if (retained || provisionalUses != 0L || !eligible()) return
+            if (retained || provisionalUses != 0L || !eligible() || peerSupport?.lacksProtocol() == true) return
             exclude()
         }
-        requestRetirement().whenComplete { accepted, failure ->
+        val retirement = peerSupport?.request { requestRetirement() } ?: requestRetirement().controller
+        retirement.whenComplete { accepted, failure ->
             if (failure != null || accepted != true) {
                 // No remote authorization: this may be a published parent at the peer.
                 restoreAfterFailedRetirement(request)
@@ -273,16 +277,16 @@ internal class ConnectionSelection(
         }
     }
 
-    private fun requestRetirement(): CompletableFuture<Boolean> {
+    private fun requestRetirement(): StreamPromise<Boolean> {
         val promise = try {
             session.createStream(SelectionBinding())
         } catch (failure: Exception) {
-            return completedExceptionally(failure)
+            return StreamPromise(completedExceptionally<Stream>(failure), completedExceptionally<Boolean>(failure))
         }
         promise.controller.whenComplete { _, _ ->
             promise.stream.thenAccept { it.close() }
         }
-        return promise.controller
+        return promise
     }
 
     override fun <T> createStream(protocols: List<ProtocolBinding<T>>): StreamPromise<T> {
@@ -315,7 +319,7 @@ private fun <T> failedProvisionalStream(connection: Connection): StreamPromise<T
     return StreamPromise(completedExceptionally<Stream>(failure), completedExceptionally<T>(failure))
 }
 
-private fun connectionSelection(connection: Connection): ConnectionSelection? =
+internal fun connectionSelection(connection: Connection): ConnectionSelection? =
     if (connection is ConnectionOverNetty) {
         // Before mux setup, the Netty parent already records explicit close requests.
         connection.selection

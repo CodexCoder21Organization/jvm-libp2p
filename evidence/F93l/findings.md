@@ -1,0 +1,15 @@
+OBSERVED: 2026-11-14 07:09 UTC — Fresh clone; PR https://github.com/CodexCoder21Organization/jvm-libp2p/pull/93 OPEN at 34a2e78bb82637e2c970a0be40fe4244c76cb547. develop e7c79098db289f6a08c8dd467f4bedeb4fd7d168 is already its ancestor; newer base commits 0, overlapping new fixes 0. Both review findings and resume files read. No addenda found at launch.
+
+INFER: Five deduplicated findings follow; G7 has two proof obligations. Table is the pre-test plan; next checkpoint is its verified evidence push.
+
+| Finding | Reviews | Scenario | Planned closing test or API assessment |
+|---|---|---|---|
+| G2 | R93T2 C1; R93A2 F1 | Release callback starts B while A completes; B cannot publish before its own selection | Reuse R93A2 g2-probe.kt unchanged as F93kQuicReleaseReentryTest; narrow current-batch control |
+| G3 | R93T2 C1; R93A2 F2 | Selection fails after capture, new waiter arrives, all settle after recovery | Inspect selector dependency boundary; public forced-failure test if supported; otherwise exact API limitation |
+| G4 | R93T2 C2; R93A2 F3 | Two waiters pending at destruction without intervening selection; during/after registration | Inspect public shutdown hooks and loop contract; deterministic pending-destruction test if supported |
+| G6 | R93T2 C3; R93A2 F4 | Real child arrives after shutdown inventory, held/failed physical cleanup | Inspect child creation boundary; deterministic late child test if supported |
+| G7 | R93T2 C4; R93A2 F5 | Repeated failed dials retain native resource bounds/usability; completed history bound | Reuse corrected R93A2 g7-probe.kt unchanged as F93kQuicFailureResourceGuardTest; separately assess hardware-independent history proof through public API |
+
+OBSERVED: Plan 1/5 complete: verify state and read reviews. Plan 2/5 in progress: push this table before test edits. Plan 3/5 pending: G2 then G7 red/green/red, each separately committed/pushed, then remaining API assessments/tests. Plan 4/5 pending: restore 3 shared 10-second cleanup deadlines, audit every other touched test, prove unchanged outcomes. Plan 5/5 pending: touched classes one attempt, independent self-review, why-first description PATCH/readback, Actions first-attempt result or pending URL, final receipts and process cleanup. Delegated/model invocations 0.
+
+INFER: Invariant table for this coverage work: transport creates/owns outbound UDP parents and connected children; close is terminal and owns their cleanup plus private worker termination; caller future mutation owns no cleanup. Per-loop release creates/owns waiters until one selected captured batch or terminal selector destruction completes them; a callback may register another waiter only for a later batch; selection failure preserves original waiters. Failed original results remain observable to later close callers. Tests assert public completion, exact error identity, port occupancy/rebind, dependency close-work counts and owned termination; no internal registry reads, reflection or visibility changes.

@@ -8,12 +8,17 @@ import xml.etree.ElementTree as ET
 
 evidence = Path(__file__).resolve().parent
 workspace = evidence.parents[2]
-label, reference, test = sys.argv[1:]
+label, reference, test, *extra = sys.argv[1:]
 repo = workspace / 'head'
-source_path = 'libp2p/src/main/kotlin/io/libp2p/transport/implementation/NettyChannelClose.kt'
-source = workspace / 'controls' / label / 'NettyChannelClose.kt'
+source_path = extra[0] if extra else 'libp2p/src/main/kotlin/io/libp2p/transport/implementation/NettyChannelClose.kt'
+control_root = workspace / 'controls' / label
+source = control_root / source_path
 source.parent.mkdir(parents=True, exist_ok=True)
 source.write_bytes(subprocess.check_output(['git', 'show', reference + ':' + source_path], cwd=repo))
+if len(extra) > 1:
+    patch = (evidence / extra[1]).resolve()
+    with (evidence / (label + '-patch.log')).open('w') as log:
+        subprocess.run(['git', 'apply', '--recount', '--whitespace=nowarn', str(patch)], cwd=control_root, stdout=log, stderr=subprocess.STDOUT, check=True)
 classes = source.parent / 'classes'
 classes.mkdir(exist_ok=True)
 runtime = (workspace / 'build-cp/runtime-classpath').read_text().strip()
@@ -22,7 +27,8 @@ inputs = {'reference': reference, 'path': source_path, 'sha256': hashlib.sha256(
 (evidence / (label + '-inputs.json')).write_text(json.dumps(inputs, indent=2))
 compile_command = [str(evidence / 'with-slots.sh'), '1', 'timeout', '300', '/opt/java/bin/java', '-cp', compiler,
                    'org.jetbrains.kotlin.cli.jvm.K2JVMCompiler', '-no-stdlib', '-no-reflect', '-jvm-target', '11',
-                   '-language-version', '1.6', '-Xjvm-default=all', '-classpath', runtime, '-d', str(classes), str(source)]
+                   '-language-version', '1.6', '-Xjvm-default=all', '-Xfriend-paths=' + str(repo / 'libp2p/build/classes/kotlin/main'),
+                   '-classpath', runtime, '-d', str(classes), str(source)]
 with (evidence / (label + '-compile.log')).open('w') as log:
     code = subprocess.run(compile_command, cwd=repo, stdout=log, stderr=subprocess.STDOUT).returncode
 if code:

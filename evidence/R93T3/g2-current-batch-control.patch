@@ -1,0 +1,38 @@
+From: F93k draft audit
+Subject: [control] drain reentrant releases after one selector pass
+
+Counterfactual for F93jQuicReleaseReentryTest. Applied to b7b338a06a37ea204690adf816ff1ab7a3741b2b, this selects once, then repeatedly drains waiters added while completing prior waiters. Completion A synchronously starts B's physical close and enqueues B's release while the loop is held; the loop then completes B without another selector pass. The draft's final B-port rebind assertion should fail if the cancelled key still owns the UDP port.
+
+---
+diff --git a/libp2p/src/main/kotlin/io/libp2p/transport/quic/DatagramPortRelease.kt b/libp2p/src/main/kotlin/io/libp2p/transport/quic/DatagramPortRelease.kt
+--- a/libp2p/src/main/kotlin/io/libp2p/transport/quic/DatagramPortRelease.kt
++++ b/libp2p/src/main/kotlin/io/libp2p/transport/quic/DatagramPortRelease.kt
+@@ -32,18 +32,15 @@ internal class DatagramPortRelease(private val wakeup: () -> Unit) : SelectStra
+     }
+ 
+     override fun calculateStrategy(selectSupplier: IntSupplier, hasTasks: Boolean): Int {
+-        val batch = synchronized(this) {
+-            waiting.toList().also { waiting.clear() }
+-        }
+-        if (batch.isEmpty()) return ordinary.calculateStrategy(selectSupplier, hasTasks)
++        if (synchronized(this) { waiting.isEmpty() }) return ordinary.calculateStrategy(selectSupplier, hasTasks)
+ 
+-        val selected = try {
+-            selectSupplier.get()
+-        } catch (failure: Throwable) {
+-            synchronized(this) { waiting.addAll(0, batch) }
+-            throw failure
+-        }
+-        // Re-entry adds to the next batch, after this selector pass has already finished.
+-        batch.forEach { it.complete(Unit) }
++        val selected = selectSupplier.get()
++        while (true) {
++            val batch = synchronized(this) {
++                waiting.toList().also { waiting.clear() }
++            }
++            if (batch.isEmpty()) break
++            batch.forEach { it.complete(Unit) }
++        }
+         return selected
+     }
+*** End Patch

@@ -1,0 +1,25 @@
+From: F93k draft audit
+Subject: [control] omit selector wait after failed close request
+
+Counterfactual for F93jQuicFailedDialResourceTest. Applied to b7b338a06a37ea204690adf816ff1ab7a3741b2b, this preserves the physical close attempt, the wait for the parent's close future, and aggregation of the original close failure. It removes only the selector-key release wait when the close promise failed after the parent physically closed. Successful closes still await selector release, and failed closes that leave the parent open keep the existing non-waiting behavior. The draft's immediate UDP port rebind after a failed close should expose whether the selector still owns the cancelled key.
+
+---
+diff --git a/libp2p/src/main/kotlin/io/libp2p/transport/quic/QuicTransport.kt b/libp2p/src/main/kotlin/io/libp2p/transport/quic/QuicTransport.kt
+--- a/libp2p/src/main/kotlin/io/libp2p/transport/quic/QuicTransport.kt
++++ b/libp2p/src/main/kotlin/io/libp2p/transport/quic/QuicTransport.kt
+@@ -634,8 +634,12 @@ private fun closeDialParent(owner: DialParent): CompletableFuture<Unit> {
+         parentClose.handle { _, failure ->
+             if (failure != null && owner.parent.isOpen) {
+                 CompletableFuture.completedFuture(Unit)
+             } else {
+-                owner.parent.closeFuture().toVoidCompletableFuture()
+-                    .thenCompose { owner.portRelease.awaitRelease() }
++                val physicallyClosed = owner.parent.closeFuture().toVoidCompletableFuture()
++                if (failure != null) {
++                    physicallyClosed
++                } else {
++                    physicallyClosed.thenCompose { owner.portRelease.awaitRelease() }
++                }
+             }
+         }.thenCompose { it }
+*** End Patch

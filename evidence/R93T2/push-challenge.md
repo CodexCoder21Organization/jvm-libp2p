@@ -1,0 +1,4 @@
+OBSERVED: At2026-11-14 06:31UTC the evidence push for commit81fc8c76b26d860aa3122cbd9fd8df4df7a7a5cf returned a remote rejection with only “failed”; the remote branch remained at26db8c17da8d91861fa8cbfa554e6c5f306cea90. This was1failed Git push,0CI retries and0product mutations.
+OBSERVED: Repeating the same evidence push once succeeded; local=remote81fc8c76b26d860aa3122cbd9fd8df4df7a7a5cf verified by ls-remote at06:32UTC. Delay was under2minutes; no evidence was lost.
+INFER: The rejection mechanism is unknown; a server response containing a concrete reason/request identifier would make future diagnosis possible. A successful retry establishes recovery, not a cause.
+OBSERVED: The report-challenge skill was read at /home/leslie/.codex/skills/report-challenge/SKILL.md; its CLI “waits until merged”. This lane prohibits merging/enqueueing and therefore ran0challengeCLI calls; the challenge is recorded only on this authorized evidence branch.

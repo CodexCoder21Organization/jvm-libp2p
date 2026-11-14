@@ -40,14 +40,19 @@ class R93A4LateOfferDeliveryTest {
                     .sync().channel()
                 server.accept().use {
                     val connection = ConnectionOverNetty(
-                        channel, transportHost.network.transports.single() as NettyTransport, true
+                        channel,
+                        transportHost.network.transports.single() as NettyTransport,
+                        true
                     )
                     loop.submit {
-                        channel.pipeline().addFirst("hold-original", object : ChannelOutboundHandlerAdapter() {
-                            override fun close(ctx: ChannelHandlerContext, promise: ChannelPromise) {
-                                check(held.complete(ctx to promise))
+                        channel.pipeline().addFirst(
+                            "hold-original",
+                            object : ChannelOutboundHandlerAdapter() {
+                                override fun close(ctx: ChannelHandlerContext, promise: ChannelPromise) {
+                                    check(held.complete(ctx to promise))
+                                }
                             }
-                        })
+                        )
                     }.get(10, TimeUnit.SECONDS)
                     val close = connection.close()
                     val request = held.get(10, TimeUnit.SECONDS)

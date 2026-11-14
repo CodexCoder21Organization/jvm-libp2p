@@ -1,0 +1,2 @@
+OBSERVED 2026-11-14T12:26:00Z: Stage 1 in progress, published files 0. Source origin/develop at 015631745c61bcbac7e086da756b6551bc246df9. Selected snapshot 52; JAR/POM absent by HTTP 404. Stage 2 not started.
+INFER 2026-11-14T12:26:00Z: Do not upload until checking this publication record and remote paths again; authorization is one new snapshot only. Any path already present or any byte mismatch requires stopping. Next checkpoint: finish publication verification then start fresh consumer clone.

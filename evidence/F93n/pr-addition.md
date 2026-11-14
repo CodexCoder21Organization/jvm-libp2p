@@ -1,0 +1,14 @@
+### Third review: restore held and reentrant close ordering
+
+The third review found that F93m's immediate close-promise notification could put a close result before an earlier physical-close listener while the channel loop was still running. This contradicted the existing reentrant-close contract in README.md and could affect UrlProtocol host shutdown when a close callback requests another close.
+
+The owned close promise now uses the channel loop's normal notification ordering and depth boundary. If that loop rejects a notification, the same notification runs directly, preserving completion after loop termination. Published failure aggregation, UDP port-release waits, owned-group cleanup and the three shared 10-second cleanup deadlines are unchanged.
+
+- The reviewer's ordinary and reentrant held-close tests were added unchanged and each failed on its first attempt. Both pass with the fix and fail again with only the immediate-delivery implementation restored: ordering register 0/2, 2/2, 0/2; no retries or skips.
+- F93mQuicDestroyedLoopReleaseTest passes with the fix and fails at the after-termination registration when only the earlier loop-bound promise implementation is restored: 1/1 green, 0/1 control, one attempt each. F93mPublishedCloseFailureTest also passes unchanged, 1/1.
+- Final Gradle `--no-daemon` gate: 41 touched classes, 66/66 first-attempt passes, no failures, errors, skips or retry entries; `spotlessCheck` passes.
+- The other immediate Netty promise at QuicTransport.kt:655 belongs only to private shutdown-hook cleanup. Its result reaches public shutdown after worker termination; it does not publish a separate close result that can overtake physical-close listeners. Seven other new CompletableFuture completion sites were also checked against their selection, destruction and termination barriers; none replaces a base-branch scheduled promise.
+- Existing test edits in this lane: zero. A separate formatting commit changes whitespace only in the two newly added reviewer tests; their full tokens, including quoted strings, are identical before and after formatting. No default-branch test or assertion changes in this lane.
+- Local full documentation verification requires Android SDK platform 30/build-tools 30.0.3, absent in this checkout's environment. Formatting passed, and the available documentation-laziness check passed 1/1 on its first attempt. The final-head [Documentation contract run](https://github.com/CodexCoder21Organization/jvm-libp2p/actions/runs/43582182505) and [native run](https://github.com/CodexCoder21Organization/jvm-libp2p/actions/runs/43582182565) are pending on attempt 1; full Actions XML counts are not yet available.
+
+Proofs, controls, formatting token comparison and the completion-site inventory: https://github.com/CodexCoder21Organization/jvm-libp2p/tree/wip/F93n-evidence-20261114/evidence/F93n . No publication, merge, queue entry or deployment was performed.

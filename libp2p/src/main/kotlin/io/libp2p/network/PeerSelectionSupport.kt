@@ -1,7 +1,6 @@
 package io.libp2p.network
 
 import io.libp2p.core.NoSuchRemoteProtocolException
-import io.libp2p.core.PeerId
 import io.libp2p.core.StreamPromise
 import org.slf4j.LoggerFactory
 import java.util.concurrent.CompletableFuture
@@ -9,7 +8,7 @@ import java.util.concurrent.CompletionException
 import java.util.concurrent.ExecutionException
 
 /** Capability knowledge for one continuously connected peer, owned by its network. */
-internal class PeerSelectionSupport(private val peer: PeerId) {
+internal class PeerSelectionSupport(private val peer: String) {
     // Membership is guarded by NetworkImpl's peer-map monitor; capability fields by this monitor.
     val connections = mutableSetOf<CompletableFuture<Unit>>()
     private var unsupported = false

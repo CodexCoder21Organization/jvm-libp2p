@@ -36,7 +36,7 @@ class NetworkImpl(
             CompletableFuture.completedFuture(false)
         }
 
-    private val selectionPeers = mutableMapOf<PeerId, PeerSelectionSupport>()
+    private val selectionPeers = mutableMapOf<String, PeerSelectionSupport>()
 
     private val pendingDials = ConcurrentHashMap<PendingDialKey, CompletableFuture<Connection>>()
 
@@ -106,7 +106,8 @@ class NetworkImpl(
 
     private fun trackSelectionSupport(connection: Connection) {
         val selection = connectionSelection(connection)
-        val id = connection.secureSession().remoteId
+        // PeerId exposes its byte array. Own the immutable encoding used for lookup and removal.
+        val id = connection.secureSession().remoteId.toBase58()
         val closed = connection.closeFuture()
         val support = synchronized(selectionPeers) {
             val previous = selectionPeers[id]

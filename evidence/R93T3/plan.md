@@ -2,9 +2,9 @@ OBSERVED: R93T3 began 2026-11-14 about 08:46 UTC. Review only; no other model, p
 
 - [x] Locate repository, clone fresh, verify OPEN head b3fa50420fe578cfa17abef8342f75f6592ce12d and develop e7c79098db289f6a08c8dd467f4bedeb4fd7d168; create evidence branch from develop and rebase it (no-op).
 - [x] Read F93m final/resume and prior F93l/F93k records and both round-two findings.
-- [ ] Read required documents in full and all 45 touched files whole; inspect exercised lifecycle code; record whole-file scope.
-- [ ] Build current and pre-fix scratch trees; run all touched cases once on each; distinguish named-body reds from fixture/cleanup reds and expected controls.
-- [ ] Audit current Actions XML first attempts/retries; check description and every existing-test edit.
+- [x] Read required documents in full and all 45 touched files whole; inspect exercised lifecycle code; record whole-file scope.
+- [x] Build current and pre-fix scratch trees; run all touched cases once on each; distinguish named-body reds from fixture/cleanup reds and expected controls.
+- [x] Audit current Actions XML first attempts/retries; check description and every existing-test edit.
 - [ ] Set explicit dispositions for every earlier finding, both product fixes, seven expectation edits and three cleanup envelopes; write verdict and publication recommendation.
 - [ ] Push evidence with secret scan/remote receipt and confirm owned process/slot cleanup.
 

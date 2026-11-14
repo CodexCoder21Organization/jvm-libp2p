@@ -1,0 +1,31 @@
+<?xml version='1.0' encoding='utf-8'?>
+<testsuite name="io.libp2p.transport.F93cQuicTerminationFailureRetentionTest" tests="1" skipped="0" failures="1" errors="0" timestamp="2026-11-14T08:58:04.450Z" hostname="b2f5e789e583" time="0.097">
+  <testcase name="firstTransportShutdownAfterLoopTerminationRetainsEarlierConnectionRejection()" classname="io.libp2p.transport.F93cQuicTerminationFailureRetentionTest" time="0.097">
+    <failure message="java.util.concurrent.ExecutionException: java.util.concurrent.RejectedExecutionException: event executor terminated" type="java.util.concurrent.ExecutionException">java.util.concurrent.ExecutionException: java.util.concurrent.RejectedExecutionException: event executor terminated
+	at java.base/java.util.concurrent.CompletableFuture.reportGet(CompletableFuture.java:396)
+	at java.base/java.util.concurrent.CompletableFuture.get(CompletableFuture.java:2096)
+	at io.libp2p.transport.F93cQuicTerminationFailureRetentionTest.firstTransportShutdownAfterLoopTerminationRetainsEarlierConnectionRejection(F93cQuicTerminationFailureRetentionTest.kt:119)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+Caused by: java.util.concurrent.RejectedExecutionException: event executor terminated
+	at io.netty.util.concurrent.SingleThreadEventExecutor.reject(SingleThreadEventExecutor.java:1125)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.offerTask(SingleThreadEventExecutor.java:413)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.addTask(SingleThreadEventExecutor.java:406)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.execute(SingleThreadEventExecutor.java:1027)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.execute0(SingleThreadEventExecutor.java:993)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.execute(SingleThreadEventExecutor.java:983)
+	at io.netty.channel.AbstractChannelHandlerContext.safeExecute(AbstractChannelHandlerContext.java:1040)
+	at io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:649)
+	at io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:453)
+	at io.netty.channel.DefaultChannelPipeline.close(DefaultChannelPipeline.java:991)
+	at io.netty.handler.codec.quic.QuicChannel.close(QuicChannel.java:58)
+	at io.libp2p.transport.implementation.NettyChannelCloseKt.requestPhysicalClose(NettyChannelClose.kt:77)
+	at io.libp2p.transport.implementation.NettyChannelCloseKt.closeOperation(NettyChannelClose.kt:51)
+	at io.libp2p.transport.implementation.NettyChannelCloseKt.closeNettyChannelOnce(NettyChannelClose.kt:40)
+	at io.libp2p.transport.implementation.ConnectionOverNetty.close(ConnectionOverNetty.kt:64)
+	at io.libp2p.transport.F93cQuicTerminationFailureRetentionTest.firstTransportShutdownAfterLoopTerminationRetainsEarlierConnectionRejection(F93cQuicTerminationFailureRetentionTest.kt:65)
+	... 3 more
+</failure>
+  </testcase>
+  </testsuite>

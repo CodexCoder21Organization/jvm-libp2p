@@ -93,6 +93,7 @@ private fun requestPhysicalClose(
 /** Every operation has settled before its shutdown result is assembled. */
 internal fun transportCloseResult(operations: List<CompletableFuture<*>>) {
     var primary: Throwable? = null
+    var combined: IllegalStateException? = null
     val seen = Collections.newSetFromMap(IdentityHashMap<Throwable, Boolean>())
     operations.forEach { operation ->
         val failure = operation.handle { _, failure -> failure }.join()
@@ -101,14 +102,13 @@ internal fun transportCloseResult(operations: List<CompletableFuture<*>>) {
             val first = primary
             if (first == null) {
                 primary = original
-            } else if (first !== original && first.suppressed.none { it === original }) {
-                first.addSuppressed(original)
-                if (first.suppressed.none { it === original }) {
-                    primary =
-                        IllegalStateException("Transport shutdown reported multiple failures", first).apply {
-                            addSuppressed(original)
-                        }
+            } else {
+                // Operation failures may already belong to callers of unlisten or connection.close.
+                val aggregate = combined ?: IllegalStateException("Transport shutdown reported multiple failures", first).also {
+                    combined = it
+                    primary = it
                 }
+                aggregate.addSuppressed(original)
             }
         }
     }

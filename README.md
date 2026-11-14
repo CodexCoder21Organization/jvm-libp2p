@@ -350,6 +350,10 @@ parent channel. Repeated calls wait for that operation and report its original f
 fails; they do not issue another close. Completing or cancelling one caller's returned future
 does not complete the operation or another caller's shutdown future.
 
+When shutdown reports multiple distinct close failures, it returns an aggregate whose cause
+is the first failure and whose suppressed entries retain the later failures. Errors already
+returned by an operation remain unchanged. A single failure is still returned directly.
+
 An already-closed connection can report its close result from unrelated nested promise
 callbacks without another listener dispatch. A synchronous callback on the connection's
 `closeFuture()` keeps earlier physical-close listeners ahead of its `close()` result,

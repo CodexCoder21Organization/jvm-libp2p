@@ -1,0 +1,10 @@
+--- a/libp2p/src/main/kotlin/io/libp2p/transport/implementation/NettyChannelClose.kt
++++ b/libp2p/src/main/kotlin/io/libp2p/transport/implementation/NettyChannelClose.kt
+@@ -89,6 +89,7 @@
+                 override fun execute(command: Runnable) {
+                     try {
+                         loop.execute(command)
++                        if (loop.isTerminated) command.run()
+                     } catch (_: RejectedExecutionException) {
+                         // A rejected notification still owns delivery of the physical close result.
+                         command.run()

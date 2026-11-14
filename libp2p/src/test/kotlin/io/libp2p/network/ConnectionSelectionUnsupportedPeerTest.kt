@@ -169,7 +169,9 @@ private class UnsupportedFixture(private val width: Int) : AutoCloseable {
     val events = CopyOnWriteArrayList<LogEvent>()
     private val logger = LogManager.getLogger("io.libp2p.network.ConnectionSelection") as Logger
     private val appender = object : AbstractAppender("selection-absence", null, null, false, null) {
-        override fun append(event: LogEvent) { events.add(event.toImmutable()) }
+        override fun append(event: LogEvent) {
+            events.add(event.toImmutable())
+        }
     }
     private val peers = CopyOnWriteArrayList<Host>()
     private val controls = CopyOnWriteArrayList<CompletableFuture<Unit>>()
@@ -185,17 +187,19 @@ private class UnsupportedFixture(private val width: Int) : AutoCloseable {
     init {
         appender.start()
         logger.addAppender(appender)
-        a.addStreamVisitor(ChannelVisitor { stream ->
-            val closed = CompletableFuture<Unit>()
-            controls.add(closed)
-            controlParents.add(stream.connection)
-            stream.pushHandler(object : ChannelInboundHandlerAdapter() {
-                override fun channelUnregistered(ctx: ChannelHandlerContext) {
-                    ctx.fireChannelUnregistered()
-                    ctx.executor().execute { closed.complete(Unit) }
-                }
-            })
-        })
+        a.addStreamVisitor(
+            ChannelVisitor { stream ->
+                val closed = CompletableFuture<Unit>()
+                controls.add(closed)
+                controlParents.add(stream.connection)
+                stream.pushHandler(object : ChannelInboundHandlerAdapter() {
+                    override fun channelUnregistered(ctx: ChannelHandlerContext) {
+                        ctx.fireChannelUnregistered()
+                        ctx.executor().execute { closed.complete(Unit) }
+                    }
+                })
+            }
+        )
         a.start().get(10, TimeUnit.SECONDS)
     }
 
@@ -211,38 +215,50 @@ private class UnsupportedFixture(private val width: Int) : AutoCloseable {
             network { repeat(width) { listen("/ip4/127.0.0.${it + 1}/tcp/0") } }
             secureChannels { add(::NoiseXXSecureChannel) }
             muxers {
-                add(StreamMuxerProtocol { multistream, protocols ->
-                    val offered = if (support) protocols else protocols.filterNot {
-                        it.protocolDescriptor.matchesAny(listOf(ABSENT_SELECTION))
-                    }
-                    val resetBinding = object : StrictProtocolBinding<Unit>(ABSENT_SELECTION, object : ProtocolHandler<Unit>(1, 1) {
-                        override fun onStartResponder(stream: Stream): CompletableFuture<Unit> {
-                            stream.reset()
-                            return CompletableFuture.completedFuture(Unit)
+                add(
+                    StreamMuxerProtocol { multistream, protocols ->
+                        val offered = if (support) {
+                            protocols
+                        } else {
+                            protocols.filterNot {
+                                it.protocolDescriptor.matchesAny(listOf(ABSENT_SELECTION))
+                            }
                         }
-                    }) {}
-                    val requestCount = AtomicInteger()
-                    val heldBinding = object : StrictProtocolBinding<Unit>(ABSENT_SELECTION, object : ProtocolHandler<Unit>(1, 1) {
-                        override fun onStartResponder(stream: Stream): CompletableFuture<Unit> {
-                            stream.pushHandler(object : ProtocolMessageHandler<ByteBuf> {
-                                override fun onMessage(stream: Stream, msg: ByteBuf) {
-                                    assertThat(msg.readableBytes()).isEqualTo(1)
-                                    assertThat(msg.readUnsignedByte().toInt()).isEqualTo(2)
-                                    requests.add(stream)
-                                    val ready = if (requestCount.incrementAndGet() == 1) replyGate!! else CompletableFuture.completedFuture(Unit)
-                                    ready.thenRun { stream.writeAndFlush(Unpooled.buffer(1).writeByte(0)) }
+                        val resetBinding = object : StrictProtocolBinding<Unit>(
+                            ABSENT_SELECTION,
+                            object : ProtocolHandler<Unit>(1, 1) {
+                                override fun onStartResponder(stream: Stream): CompletableFuture<Unit> {
+                                    stream.reset()
+                                    return CompletableFuture.completedFuture(Unit)
                                 }
-                            })
-                            return CompletableFuture.completedFuture(Unit)
+                            }
+                        ) {}
+                        val requestCount = AtomicInteger()
+                        val heldBinding = object : StrictProtocolBinding<Unit>(
+                            ABSENT_SELECTION,
+                            object : ProtocolHandler<Unit>(1, 1) {
+                                override fun onStartResponder(stream: Stream): CompletableFuture<Unit> {
+                                    stream.pushHandler(object : ProtocolMessageHandler<ByteBuf> {
+                                        override fun onMessage(stream: Stream, msg: ByteBuf) {
+                                            assertThat(msg.readableBytes()).isEqualTo(1)
+                                            assertThat(msg.readUnsignedByte().toInt()).isEqualTo(2)
+                                            requests.add(stream)
+                                            val ready = if (requestCount.incrementAndGet() == 1) replyGate!! else CompletableFuture.completedFuture(Unit)
+                                            ready.thenRun { stream.writeAndFlush(Unpooled.buffer(1).writeByte(0)) }
+                                        }
+                                    })
+                                    return CompletableFuture.completedFuture(Unit)
+                                }
+                            }
+                        ) {}
+                        val bindings = when {
+                            replyGate != null -> offered + heldBinding
+                            reset -> offered + resetBinding
+                            else -> offered
                         }
-                    }) {}
-                    val bindings = when {
-                        replyGate != null -> offered + heldBinding
-                        reset -> offered + resetBinding
-                        else -> offered
+                        StreamMuxerProtocol.getYamux().createMuxer(multistream, bindings)
                     }
-                    StreamMuxerProtocol.getYamux().createMuxer(multistream, bindings)
-                })
+                )
             }
             protocols { add(Echo()) }
         }

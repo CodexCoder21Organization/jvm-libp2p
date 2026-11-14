@@ -48,28 +48,32 @@ class ConnectionSelectionMixedTransportTest {
             network { repeat(4) { listen("/ip4/127.0.0.${it + 1}/tcp/0") } }
             secureChannels { add(::NoiseXXSecureChannel) }
             muxers {
-                add(StreamMuxerProtocol { multistream, protocols ->
-                    StreamMuxerProtocol.getYamux().createMuxer(
-                        multistream,
-                        protocols.filterNot { it.protocolDescriptor.matchesAny(listOf("/libp2p/connection-selection/1.0.0")) }
-                    )
-                })
+                add(
+                    StreamMuxerProtocol { multistream, protocols ->
+                        StreamMuxerProtocol.getYamux().createMuxer(
+                            multistream,
+                            protocols.filterNot { it.protocolDescriptor.matchesAny(listOf("/libp2p/connection-selection/1.0.0")) }
+                        )
+                    }
+                )
             }
             protocols { add(Echo()) }
         }
         val received = AtomicInteger()
         val closedControls = CopyOnWriteArrayList<CompletableFuture<Unit>>()
         b.addStreamVisitor(ChannelVisitor { received.incrementAndGet() })
-        a.addStreamVisitor(ChannelVisitor { stream ->
-            val done = CompletableFuture<Unit>()
-            closedControls.add(done)
-            stream.pushHandler(object : ChannelInboundHandlerAdapter() {
-                override fun channelUnregistered(ctx: ChannelHandlerContext) {
-                    ctx.fireChannelUnregistered()
-                    ctx.executor().execute { done.complete(Unit) }
-                }
-            })
-        })
+        a.addStreamVisitor(
+            ChannelVisitor { stream ->
+                val done = CompletableFuture<Unit>()
+                closedControls.add(done)
+                stream.pushHandler(object : ChannelInboundHandlerAdapter() {
+                    override fun channelUnregistered(ctx: ChannelHandlerContext) {
+                        ctx.fireChannelUnregistered()
+                        ctx.executor().execute { done.complete(Unit) }
+                    }
+                })
+            }
+        )
         try {
             a.start().get(10, SECONDS)
             b.start().get(10, SECONDS)
@@ -100,7 +104,11 @@ class ConnectionSelectionMixedTransportTest {
             try {
                 a.stop().get(10, SECONDS)
             } finally {
-                try { transport.legacy.close().get(10, SECONDS) } finally { b.stop().get(10, SECONDS) }
+                try {
+                    transport.legacy.close().get(10, SECONDS)
+                } finally {
+                    b.stop().get(10, SECONDS)
+                }
             }
             (a.network.transports + b.network.transports + transport.legacy).forEach {
                 assertThat(it.activeConnections).isZero()

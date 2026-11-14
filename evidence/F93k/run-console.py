@@ -1,4 +1,5 @@
 import json
+import hashlib
 from pathlib import Path
 import subprocess
 import sys
@@ -39,6 +40,12 @@ for xml in sorted(output.glob('*.xml')):
 summary = dict(exit=result.returncode, passed=sum(c['passed'] for c in cases),
                total=len(cases), skipped=sum(c['skipped'] for c in cases),
                retries=[], cases=cases)
+summary['test_sources'] = {name: hashlib.sha256(
+    (lane / 'jvm-libp2p/libp2p/src/test/kotlin/io/libp2p/transport' / (name + '.kt')).read_bytes()
+).hexdigest() for name in classes}
+summary['product_head'] = subprocess.check_output(
+    ['git', 'rev-parse', 'HEAD'], cwd=lane / 'jvm-libp2p', text=True).strip()
+summary['overlay'] = overlay
 (evidence / (label + '-summary.json')).write_text(json.dumps(summary, indent=2))
 print(json.dumps({key: summary[key] for key in ('exit', 'passed', 'total', 'skipped', 'retries')}))
 sys.exit(result.returncode)

@@ -1,0 +1,64 @@
+From: F93k draft audit
+Subject: [control] gate B dial publication before checking both UDP ports
+
+Evidence-only correction for the G2 draft. It registers a completion callback on B before release begins. The callback verifies it runs on B’s owning event loop, signals entry, then holds that loop on an existing 10-second wait pattern. After the A callback gate opens, the test waits for B publication and checks both UDP ports while B’s loop is still held; the outer finally opens this gate before any channel cleanup. On the correct snapshot implementation, B publication follows its own selector pass and both ports bind. On the current-batch control, B can publish before that pass and its port remains bound. Existing assertions and loop-count-derived iterations are retained.
+
+---
+diff --git a/libp2p/src/test/kotlin/io/libp2p/transport/F93jQuicReleaseReentryTest.kt b/libp2p/src/test/kotlin/io/libp2p/transport/F93jQuicReleaseReentryTest.kt
+--- a/libp2p/src/test/kotlin/io/libp2p/transport/F93jQuicReleaseReentryTest.kt
++++ b/libp2p/src/test/kotlin/io/libp2p/transport/F93jQuicReleaseReentryTest.kt
+@@ -37,6 +37,8 @@
+         val client = QuicTransport.ECDSA(generateEd25519KeyPair().first, emptyList())
+         val attempts = mutableListOf<F93jReentryDial>()
+         val continueLoop = CountDownLatch(1)
++        val bPublicationEntered = CountDownLatch(1)
++        val releaseBPublication = CountDownLatch(1)
+ 
+         try {
+             server.listen(Multiaddr("/ip4/127.0.0.1/udp/0/quic-v1"), {}, null).get(10, TimeUnit.SECONDS)
+@@ -69,6 +71,18 @@
+             val a = attempts[sameLoopPair!!.first]
+             val b = attempts[sameLoopPair.second]
+             assertSame(a.parent.get(10, TimeUnit.SECONDS).eventLoop(), b.parent.get(10, TimeUnit.SECONDS).eventLoop())
++            val bOwnerLoop = b.parent.getNow(null)!!.eventLoop()
++            val bPublication = b.dial.handle { _, failure ->
++                bPublicationEntered.countDown()
++                check(bOwnerLoop.inEventLoop()) {
++                    "The second dial publication must run on its owning event loop"
++                }
++                check(failure != null) { "The second dial must retain its visitor failure" }
++                check(releaseBPublication.await(10, TimeUnit.SECONDS)) {
++                    "The second dial publication gate was not opened"
++                }
++                failure
++            }
+ 
+             val otherAttempts = attempts.filter { it !== a && it !== b }
+             otherAttempts.forEach { releaseNormally(it) }
+@@ -106,9 +120,18 @@
+             assertEquals(1, a.closeRequestCount.get())
+ 
+             continueLoop.countDown()
++            assertTrue(
++                bPublicationEntered.await(10, TimeUnit.SECONDS),
++                "The second dial must reach its owner-loop publication gate",
++            )
++            assertTrue(b.dial.isDone, "The second dial must be published while its loop is held")
++            assertUdpPortCanBeRebound(a.localAddress.get(10, TimeUnit.SECONDS))
++            assertUdpPortCanBeRebound(b.localAddress.get(10, TimeUnit.SECONDS))
++            releaseBPublication.countDown()
+             aReleaseTask.get(10, TimeUnit.SECONDS).get(10, TimeUnit.SECONDS)
+             assertSame(a.expectedFailure, callbackResult.get(10, TimeUnit.SECONDS))
+             assertDialFailedWithExpectedVisitorFailure(b)
++            assertSame(b.expectedFailure, bPublication.get(10, TimeUnit.SECONDS))
+             assertUdpPortCanBeRebound(a.localAddress.get(10, TimeUnit.SECONDS))
+             assertUdpPortCanBeRebound(b.localAddress.get(10, TimeUnit.SECONDS))
+             otherAttempts.forEach {
+@@ -117,6 +140,7 @@
+             }
+             attempts.forEach { assertEquals(1, it.closeRequestCount.get()) }
+         } finally {
++            releaseBPublication.countDown()
+             continueLoop.countDown()
+             try {
+                 attempts.forEach { releaseIfCaptured(it) }

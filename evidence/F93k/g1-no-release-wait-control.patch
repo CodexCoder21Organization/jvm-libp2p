@@ -1,0 +1,16 @@
+From: F93k draft audit
+Subject: [control] omit only the UDP selector release wait
+
+Counterfactual for F93jQuicSameLoopReleaseTest. Applied to b7b338a06a37ea204690adf816ff1ab7a3741b2b, this keeps child and parent physical close operations, parent close-future waiting, and the original close-failure aggregation. It removes only the selector-key deregistration wait in closeDialParent. The draft holds the event loop after physical closes, so dial completion should become observable before the loop removes the cancelled UDP keys; its pending-result assertion should fail.
+
+---
+diff --git a/libp2p/src/main/kotlin/io/libp2p/transport/quic/QuicTransport.kt b/libp2p/src/main/kotlin/io/libp2p/transport/quic/QuicTransport.kt
+--- a/libp2p/src/main/kotlin/io/libp2p/transport/quic/QuicTransport.kt
++++ b/libp2p/src/main/kotlin/io/libp2p/transport/quic/QuicTransport.kt
+@@ -636,6 +636,5 @@ private fun closeDialParent(owner: DialParent): CompletableFuture<Unit> {
+                 CompletableFuture.completedFuture(Unit)
+             } else {
+                 owner.parent.closeFuture().toVoidCompletableFuture()
+-                    .thenCompose { owner.portRelease.awaitRelease() }
+             }
+         }.thenCompose { it }

@@ -1,0 +1,399 @@
+OBSERVED slots 7 wait_seconds 31
+Compiled from "NettyChannelClose.kt"
+public final class io.libp2p.transport.implementation.NettyChannelCloseKt {
+  private static final io.netty.util.AttributeKey<io.libp2p.transport.implementation.ChannelCloseState> closeOperationKey;
+
+  private static final io.netty.util.AttributeKey<java.util.concurrent.atomic.AtomicInteger> closeNotificationKey;
+
+  public static final java.util.concurrent.CompletableFuture<kotlin.Unit> observeConnectionClose(io.netty.channel.Channel, java.util.concurrent.CompletableFuture<kotlin.Unit>);
+    Code:
+       0: aload_0
+       1: ldc           #10                 // String channel
+       3: invokestatic  #16                 // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+       6: aload_1
+       7: ldc           #18                 // String source
+       9: invokestatic  #16                 // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+      12: new           #20                 // class java/util/concurrent/atomic/AtomicInteger
+      15: dup
+      16: invokespecial #24                 // Method java/util/concurrent/atomic/AtomicInteger."<init>":()V
+      19: astore_2
+      20: aload_0
+      21: getstatic     #28                 // Field closeNotificationKey:Lio/netty/util/AttributeKey;
+      24: invokeinterface #34,  2           // InterfaceMethod io/netty/channel/Channel.attr:(Lio/netty/util/AttributeKey;)Lio/netty/util/Attribute;
+      29: aload_2
+      30: invokeinterface #40,  2           // InterfaceMethod io/netty/util/Attribute.setIfAbsent:(Ljava/lang/Object;)Ljava/lang/Object;
+      35: checkcast     #20                 // class java/util/concurrent/atomic/AtomicInteger
+      38: dup
+      39: ifnonnull     44
+      42: pop
+      43: aload_2
+      44: astore_3
+      45: new           #42                 // class java/util/concurrent/CompletableFuture
+      48: dup
+      49: invokespecial #43                 // Method java/util/concurrent/CompletableFuture."<init>":()V
+      52: astore        4
+      54: aload_1
+      55: new           #45                 // class io/libp2p/transport/implementation/NettyChannelCloseKt$observeConnectionClose$1
+      58: dup
+      59: aload_3
+      60: aload         4
+      62: invokespecial #48                 // Method io/libp2p/transport/implementation/NettyChannelCloseKt$observeConnectionClose$1."<init>":(Ljava/util/concurrent/atomic/AtomicInteger;Ljava/util/concurrent/CompletableFuture;)V
+      65: checkcast     #50                 // class kotlin/jvm/functions/Function2
+      68: invokedynamic #68,  0             // InvokeDynamic #0:accept:(Lkotlin/jvm/functions/Function2;)Ljava/util/function/BiConsumer;
+      73: invokevirtual #72                 // Method java/util/concurrent/CompletableFuture.whenComplete:(Ljava/util/function/BiConsumer;)Ljava/util/concurrent/CompletableFuture;
+      76: pop
+      77: aload         4
+      79: areturn
+
+  public static final java.util.concurrent.CompletableFuture<kotlin.Unit> closeNettyChannelOnce(io.netty.channel.Channel);
+    Code:
+       0: aload_0
+       1: ldc           #10                 // String channel
+       3: invokestatic  #16                 // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+       6: aload_0
+       7: iconst_0
+       8: invokestatic  #85                 // Method closeOperation:(Lio/netty/channel/Channel;Z)Ljava/util/concurrent/CompletableFuture;
+      11: getstatic     #91                 // Field io/libp2p/transport/implementation/NettyChannelCloseKt$closeNettyChannelOnce$1.INSTANCE:Lio/libp2p/transport/implementation/NettyChannelCloseKt$closeNettyChannelOnce$1;
+      14: checkcast     #93                 // class kotlin/jvm/functions/Function1
+      17: invokedynamic #105,  0            // InvokeDynamic #1:apply:(Lkotlin/jvm/functions/Function1;)Ljava/util/function/Function;
+      22: invokevirtual #109                // Method java/util/concurrent/CompletableFuture.thenApply:(Ljava/util/function/Function;)Ljava/util/concurrent/CompletableFuture;
+      25: dup
+      26: ldc           #111                // String closeOperation(channel, …false).thenApply { Unit }
+      28: invokestatic  #114                // Method kotlin/jvm/internal/Intrinsics.checkNotNullExpressionValue:(Ljava/lang/Object;Ljava/lang/String;)V
+      31: areturn
+
+  public static final java.util.concurrent.CompletableFuture<kotlin.Unit> retryNettyChannelClose(io.netty.channel.Channel);
+    Code:
+       0: aload_0
+       1: ldc           #10                 // String channel
+       3: invokestatic  #16                 // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+       6: aload_0
+       7: iconst_1
+       8: invokestatic  #85                 // Method closeOperation:(Lio/netty/channel/Channel;Z)Ljava/util/concurrent/CompletableFuture;
+      11: getstatic     #120                // Field io/libp2p/transport/implementation/NettyChannelCloseKt$retryNettyChannelClose$1.INSTANCE:Lio/libp2p/transport/implementation/NettyChannelCloseKt$retryNettyChannelClose$1;
+      14: checkcast     #93                 // class kotlin/jvm/functions/Function1
+      17: invokedynamic #125,  0            // InvokeDynamic #2:apply:(Lkotlin/jvm/functions/Function1;)Ljava/util/function/Function;
+      22: invokevirtual #109                // Method java/util/concurrent/CompletableFuture.thenApply:(Ljava/util/function/Function;)Ljava/util/concurrent/CompletableFuture;
+      25: dup
+      26: ldc           #127                // String closeOperation(channel, … true).thenApply { Unit }
+      28: invokestatic  #114                // Method kotlin/jvm/internal/Intrinsics.checkNotNullExpressionValue:(Ljava/lang/Object;Ljava/lang/String;)V
+      31: areturn
+
+  private static final java.util.concurrent.CompletableFuture<kotlin.Unit> closeOperation(io.netty.channel.Channel, boolean);
+    Code:
+       0: new           #130                // class io/libp2p/transport/implementation/ChannelCloseState
+       3: dup
+       4: invokespecial #131                // Method io/libp2p/transport/implementation/ChannelCloseState."<init>":()V
+       7: astore_2
+       8: aload_0
+       9: getstatic     #134                // Field closeOperationKey:Lio/netty/util/AttributeKey;
+      12: invokeinterface #34,  2           // InterfaceMethod io/netty/channel/Channel.attr:(Lio/netty/util/AttributeKey;)Lio/netty/util/Attribute;
+      17: aload_2
+      18: invokeinterface #40,  2           // InterfaceMethod io/netty/util/Attribute.setIfAbsent:(Ljava/lang/Object;)Ljava/lang/Object;
+      23: checkcast     #130                // class io/libp2p/transport/implementation/ChannelCloseState
+      26: dup
+      27: ifnonnull     32
+      30: pop
+      31: aload_2
+      32: astore_3
+      33: aload_3
+      34: aload_2
+      35: if_acmpne     51
+      38: aload_0
+      39: aload_3
+      40: invokevirtual #138                // Method io/libp2p/transport/implementation/ChannelCloseState.getOriginal:()Ljava/util/concurrent/CompletableFuture;
+      43: invokestatic  #142                // Method requestPhysicalClose:(Lio/netty/channel/Channel;Ljava/util/concurrent/CompletableFuture;)V
+      46: aload_3
+      47: invokevirtual #138                // Method io/libp2p/transport/implementation/ChannelCloseState.getOriginal:()Ljava/util/concurrent/CompletableFuture;
+      50: areturn
+      51: iload_1
+      52: ifne          60
+      55: aload_3
+      56: invokevirtual #138                // Method io/libp2p/transport/implementation/ChannelCloseState.getOriginal:()Ljava/util/concurrent/CompletableFuture;
+      59: areturn
+      60: nop
+      61: aload_3
+      62: invokevirtual #146                // Method io/libp2p/transport/implementation/ChannelCloseState.getLatest:()Ljava/util/concurrent/atomic/AtomicReference;
+      65: invokevirtual #152                // Method java/util/concurrent/atomic/AtomicReference.get:()Ljava/lang/Object;
+      68: checkcast     #42                 // class java/util/concurrent/CompletableFuture
+      71: astore        4
+      73: aload         4
+      75: invokevirtual #156                // Method java/util/concurrent/CompletableFuture.isCompletedExceptionally:()Z
+      78: ifne          91
+      81: aload         4
+      83: ldc           #158                // String latest
+      85: invokestatic  #114                // Method kotlin/jvm/internal/Intrinsics.checkNotNullExpressionValue:(Ljava/lang/Object;Ljava/lang/String;)V
+      88: aload         4
+      90: areturn
+      91: new           #42                 // class java/util/concurrent/CompletableFuture
+      94: dup
+      95: invokespecial #43                 // Method java/util/concurrent/CompletableFuture."<init>":()V
+      98: astore        5
+     100: aload_3
+     101: invokevirtual #146                // Method io/libp2p/transport/implementation/ChannelCloseState.getLatest:()Ljava/util/concurrent/atomic/AtomicReference;
+     104: aload         4
+     106: aload         5
+     108: invokevirtual #162                // Method java/util/concurrent/atomic/AtomicReference.compareAndSet:(Ljava/lang/Object;Ljava/lang/Object;)Z
+     111: ifeq          60
+     114: aload_0
+     115: aload         5
+     117: invokestatic  #142                // Method requestPhysicalClose:(Lio/netty/channel/Channel;Ljava/util/concurrent/CompletableFuture;)V
+     120: aload         5
+     122: areturn
+
+  private static final void requestPhysicalClose(io.netty.channel.Channel, java.util.concurrent.CompletableFuture<kotlin.Unit>);
+    Code:
+       0: nop
+       1: aload_0
+       2: invokeinterface #174,  1          // InterfaceMethod io/netty/channel/Channel.closeFuture:()Lio/netty/channel/ChannelFuture;
+       7: invokeinterface #179,  1          // InterfaceMethod io/netty/channel/ChannelFuture.isDone:()Z
+      12: ifeq          79
+      15: aload_0
+      16: getstatic     #28                 // Field closeNotificationKey:Lio/netty/util/AttributeKey;
+      19: invokeinterface #34,  2           // InterfaceMethod io/netty/channel/Channel.attr:(Lio/netty/util/AttributeKey;)Lio/netty/util/Attribute;
+      24: invokeinterface #180,  1          // InterfaceMethod io/netty/util/Attribute.get:()Ljava/lang/Object;
+      29: checkcast     #20                 // class java/util/concurrent/atomic/AtomicInteger
+      32: dup
+      33: ifnull        42
+      36: invokevirtual #183                // Method java/util/concurrent/atomic/AtomicInteger.get:()I
+      39: goto          44
+      42: pop
+      43: iconst_0
+      44: ifle          68
+      47: aload_0
+      48: invokeinterface #174,  1          // InterfaceMethod io/netty/channel/Channel.closeFuture:()Lio/netty/channel/ChannelFuture;
+      53: aload_1
+      54: invokedynamic #194,  0            // InvokeDynamic #3:operationComplete:(Ljava/util/concurrent/CompletableFuture;)Lio/netty/util/concurrent/GenericFutureListener;
+      59: invokeinterface #198,  2          // InterfaceMethod io/netty/channel/ChannelFuture.addListener:(Lio/netty/util/concurrent/GenericFutureListener;)Lio/netty/channel/ChannelFuture;
+      64: pop
+      65: goto          159
+      68: aload_1
+      69: getstatic     #203                // Field kotlin/Unit.INSTANCE:Lkotlin/Unit;
+      72: invokevirtual #207                // Method java/util/concurrent/CompletableFuture.complete:(Ljava/lang/Object;)Z
+      75: pop
+      76: goto          159
+      79: aload_0
+      80: invokeinterface #211,  1          // InterfaceMethod io/netty/channel/Channel.eventLoop:()Lio/netty/channel/EventLoop;
+      85: astore_2
+      86: new           #213                // class io/libp2p/transport/implementation/NettyChannelCloseKt$requestPhysicalClose$completionExecutor$1
+      89: dup
+      90: aload_2
+      91: invokespecial #216                // Method io/libp2p/transport/implementation/NettyChannelCloseKt$requestPhysicalClose$completionExecutor$1."<init>":(Lio/netty/channel/EventLoop;)V
+      94: astore_3
+      95: new           #218                // class io/netty/channel/DefaultChannelPromise
+      98: dup
+      99: aload_0
+     100: aload_3
+     101: checkcast     #220                // class io/netty/util/concurrent/EventExecutor
+     104: invokespecial #223                // Method io/netty/channel/DefaultChannelPromise."<init>":(Lio/netty/channel/Channel;Lio/netty/util/concurrent/EventExecutor;)V
+     107: astore        4
+     109: aload_0
+     110: aload         4
+     112: checkcast     #225                // class io/netty/channel/ChannelPromise
+     115: invokeinterface #229,  2          // InterfaceMethod io/netty/channel/Channel.close:(Lio/netty/channel/ChannelPromise;)Lio/netty/channel/ChannelFuture;
+     120: dup
+     121: ldc           #231                // String channel.close(promise)
+     123: invokestatic  #114                // Method kotlin/jvm/internal/Intrinsics.checkNotNullExpressionValue:(Ljava/lang/Object;Ljava/lang/String;)V
+     126: invokestatic  #237                // Method io/libp2p/etc/types/NettyExtKt.toVoidCompletableFuture:(Lio/netty/channel/ChannelFuture;)Ljava/util/concurrent/CompletableFuture;
+     129: new           #239                // class io/libp2p/transport/implementation/NettyChannelCloseKt$requestPhysicalClose$2
+     132: dup
+     133: aload_1
+     134: invokespecial #242                // Method io/libp2p/transport/implementation/NettyChannelCloseKt$requestPhysicalClose$2."<init>":(Ljava/util/concurrent/CompletableFuture;)V
+     137: checkcast     #50                 // class kotlin/jvm/functions/Function2
+     140: invokedynamic #247,  0            // InvokeDynamic #4:accept:(Lkotlin/jvm/functions/Function2;)Ljava/util/function/BiConsumer;
+     145: invokevirtual #72                 // Method java/util/concurrent/CompletableFuture.whenComplete:(Ljava/util/function/BiConsumer;)Ljava/util/concurrent/CompletableFuture;
+     148: pop
+     149: goto          159
+     152: astore_2
+     153: aload_1
+     154: aload_2
+     155: invokevirtual #251                // Method java/util/concurrent/CompletableFuture.completeExceptionally:(Ljava/lang/Throwable;)Z
+     158: pop
+     159: return
+    Exception table:
+       from    to  target type
+           0   149   152   Class java/lang/Throwable
+
+  public static final void transportCloseResult(java.util.List<? extends java.util.concurrent.CompletableFuture<?>>);
+    Code:
+       0: aload_0
+       1: ldc_w         #265                // String operations
+       4: invokestatic  #16                 // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+       7: aconst_null
+       8: astore_1
+       9: aconst_null
+      10: astore_2
+      11: new           #267                // class java/util/IdentityHashMap
+      14: dup
+      15: invokespecial #268                // Method java/util/IdentityHashMap."<init>":()V
+      18: checkcast     #270                // class java/util/Map
+      21: invokestatic  #276                // Method java/util/Collections.newSetFromMap:(Ljava/util/Map;)Ljava/util/Set;
+      24: astore_3
+      25: aload_0
+      26: checkcast     #278                // class java/lang/Iterable
+      29: astore        4
+      31: iconst_0
+      32: istore        5
+      34: aload         4
+      36: invokeinterface #282,  1          // InterfaceMethod java/lang/Iterable.iterator:()Ljava/util/Iterator;
+      41: astore        6
+      43: aload         6
+      45: invokeinterface #287,  1          // InterfaceMethod java/util/Iterator.hasNext:()Z
+      50: ifeq          203
+      53: aload         6
+      55: invokeinterface #290,  1          // InterfaceMethod java/util/Iterator.next:()Ljava/lang/Object;
+      60: astore        7
+      62: aload         7
+      64: checkcast     #42                 // class java/util/concurrent/CompletableFuture
+      67: astore        8
+      69: iconst_0
+      70: istore        9
+      72: aload         8
+      74: invokedynamic #301,  0            // InvokeDynamic #5:apply:()Ljava/util/function/BiFunction;
+      79: invokevirtual #305                // Method java/util/concurrent/CompletableFuture.handle:(Ljava/util/function/BiFunction;)Ljava/util/concurrent/CompletableFuture;
+      82: invokevirtual #308                // Method java/util/concurrent/CompletableFuture.join:()Ljava/lang/Object;
+      85: checkcast     #170                // class java/lang/Throwable
+      88: astore        10
+      90: aload         10
+      92: instanceof    #310                // class java/util/concurrent/CompletionException
+      95: ifeq          113
+      98: aload         10
+     100: invokevirtual #314                // Method java/lang/Throwable.getCause:()Ljava/lang/Throwable;
+     103: dup
+     104: ifnonnull     115
+     107: pop
+     108: aload         10
+     110: goto          115
+     113: aload         10
+     115: astore        11
+     117: aload         11
+     119: ifnull        198
+     122: aload_3
+     123: aload         11
+     125: invokeinterface #319,  2          // InterfaceMethod java/util/Set.add:(Ljava/lang/Object;)Z
+     130: ifeq          198
+     133: aload_1
+     134: checkcast     #170                // class java/lang/Throwable
+     137: astore        12
+     139: aload         12
+     141: ifnonnull     150
+     144: aload         11
+     146: astore_1
+     147: goto          198
+     150: aload_2
+     151: dup
+     152: ifnonnull     186
+     155: pop
+     156: new           #321                // class java/lang/IllegalStateException
+     159: dup
+     160: ldc_w         #323                // String Transport shutdown reported multiple failures
+     163: aload         12
+     165: invokespecial #326                // Method java/lang/IllegalStateException."<init>":(Ljava/lang/String;Ljava/lang/Throwable;)V
+     168: astore        13
+     170: aload         13
+     172: astore        14
+     174: iconst_0
+     175: istore        15
+     177: aload         14
+     179: astore_2
+     180: aload         14
+     182: astore_1
+     183: nop
+     184: aload         13
+     186: astore        16
+     188: aload         16
+     190: checkcast     #170                // class java/lang/Throwable
+     193: aload         11
+     195: invokestatic  #332                // Method kotlin/ExceptionsKt.addSuppressed:(Ljava/lang/Throwable;Ljava/lang/Throwable;)V
+     198: nop
+     199: nop
+     200: goto          43
+     203: nop
+     204: aload_1
+     205: checkcast     #170                // class java/lang/Throwable
+     208: astore        4
+     210: aload         4
+     212: ifnull        232
+     215: aload         4
+     217: astore        6
+     219: iconst_0
+     220: istore        7
+     222: new           #310                // class java/util/concurrent/CompletionException
+     225: dup
+     226: aload         6
+     228: invokespecial #335                // Method java/util/concurrent/CompletionException."<init>":(Ljava/lang/Throwable;)V
+     231: athrow
+     232: return
+
+  private static final void observeConnectionClose$lambda$0(kotlin.jvm.functions.Function2, java.lang.Object, java.lang.Object);
+    Code:
+       0: aload_0
+       1: ldc_w         #358                // String $tmp0
+       4: invokestatic  #16                 // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+       7: aload_0
+       8: aload_1
+       9: aload_2
+      10: invokeinterface #361,  3          // InterfaceMethod kotlin/jvm/functions/Function2.invoke:(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+      15: pop
+      16: return
+
+  private static final kotlin.Unit closeNettyChannelOnce$lambda$1(kotlin.jvm.functions.Function1, java.lang.Object);
+    Code:
+       0: aload_0
+       1: ldc_w         #358                // String $tmp0
+       4: invokestatic  #16                 // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+       7: aload_0
+       8: aload_1
+       9: invokeinterface #366,  2          // InterfaceMethod kotlin/jvm/functions/Function1.invoke:(Ljava/lang/Object;)Ljava/lang/Object;
+      14: checkcast     #200                // class kotlin/Unit
+      17: areturn
+
+  private static final kotlin.Unit retryNettyChannelClose$lambda$2(kotlin.jvm.functions.Function1, java.lang.Object);
+    Code:
+       0: aload_0
+       1: ldc_w         #358                // String $tmp0
+       4: invokestatic  #16                 // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+       7: aload_0
+       8: aload_1
+       9: invokeinterface #366,  2          // InterfaceMethod kotlin/jvm/functions/Function1.invoke:(Ljava/lang/Object;)Ljava/lang/Object;
+      14: checkcast     #200                // class kotlin/Unit
+      17: areturn
+
+  private static final void requestPhysicalClose$lambda$3(java.util.concurrent.CompletableFuture, io.netty.util.concurrent.Future);
+    Code:
+       0: aload_0
+       1: ldc_w         #369                // String $operation
+       4: invokestatic  #16                 // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+       7: aload_0
+       8: getstatic     #203                // Field kotlin/Unit.INSTANCE:Lkotlin/Unit;
+      11: invokevirtual #207                // Method java/util/concurrent/CompletableFuture.complete:(Ljava/lang/Object;)Z
+      14: pop
+      15: return
+
+  private static final void requestPhysicalClose$lambda$4(kotlin.jvm.functions.Function2, java.lang.Object, java.lang.Object);
+    Code:
+       0: aload_0
+       1: ldc_w         #358                // String $tmp0
+       4: invokestatic  #16                 // Method kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+       7: aload_0
+       8: aload_1
+       9: aload_2
+      10: invokeinterface #361,  3          // InterfaceMethod kotlin/jvm/functions/Function2.invoke:(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+      15: pop
+      16: return
+
+  private static final java.lang.Throwable transportCloseResult$lambda$7$lambda$5(java.lang.Object, java.lang.Throwable);
+    Code:
+       0: aload_1
+       1: areturn
+
+  static {};
+    Code:
+       0: ldc_w         #373                // String libp2p.channel.closeOperation
+       3: invokestatic  #379                // Method io/netty/util/AttributeKey.valueOf:(Ljava/lang/String;)Lio/netty/util/AttributeKey;
+       6: putstatic     #134                // Field closeOperationKey:Lio/netty/util/AttributeKey;
+       9: ldc_w         #381                // String libp2p.channel.closeNotificationDepth
+      12: invokestatic  #379                // Method io/netty/util/AttributeKey.valueOf:(Ljava/lang/String;)Lio/netty/util/AttributeKey;
+      15: putstatic     #28                 // Field closeNotificationKey:Lio/netty/util/AttributeKey;
+      18: return
+}

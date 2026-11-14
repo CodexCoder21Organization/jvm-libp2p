@@ -1,0 +1,12 @@
+gradle.projectsEvaluated {
+    def project = gradle.rootProject.project(':libp2p')
+    project.tasks.register('f93hClasspath') {
+        doLast {
+            def destination = new File(System.getProperty('f93h.output'))
+            destination.mkdirs()
+            new File(destination, 'runtime-classpath').text = project.sourceSets.test.runtimeClasspath.asPath
+            new File(destination, 'compile-classpath').text = project.sourceSets.test.compileClasspath.asPath
+            new File(destination, 'compiler-classpath').text = project.configurations.kotlinCompilerClasspath.asPath
+        }
+    }
+}

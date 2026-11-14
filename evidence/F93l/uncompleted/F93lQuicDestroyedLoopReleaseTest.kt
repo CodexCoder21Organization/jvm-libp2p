@@ -1,0 +1,150 @@
+package io.libp2p.transport
+
+import io.libp2p.core.Connection
+import io.libp2p.core.ConnectionHandler
+import io.libp2p.core.PeerId
+import io.libp2p.core.multiformats.Multiaddr
+import io.libp2p.crypto.keys.generateEd25519KeyPair
+import io.libp2p.transport.implementation.ConnectionOverNetty
+import io.libp2p.transport.quic.QuicTransport
+import io.netty.channel.Channel
+import io.netty.channel.ChannelHandlerContext
+import io.netty.channel.ChannelOutboundHandlerAdapter
+import io.netty.channel.ChannelPromise
+import io.netty.channel.DefaultChannelPromise
+import io.netty.channel.SingleThreadIoEventLoop
+import io.netty.util.concurrent.ImmediateEventExecutor
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertSame
+import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
+import java.net.DatagramSocket
+import java.net.InetSocketAddress
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.ExecutionException
+import java.util.concurrent.TimeUnit
+
+class F93lQuicDestroyedLoopReleaseTest {
+    @Test
+    fun pendingAndReentrantAndLaterDialReleasesSettleAfterSelectorDestruction() {
+        val key = generateEd25519KeyPair().first
+        val server = QuicTransport.Ed25519(key, emptyList())
+        val client = QuicTransport.Ed25519(generateEd25519KeyPair().first, emptyList())
+        val attempts = mutableListOf<F93lDestroyDial>()
+        val hookEntered = CompletableFuture<Unit>()
+        val destroyAllowed = CountDownLatch(1)
+        var group: io.netty.channel.EventLoopGroup? = null
+        try {
+            server.listen(Multiaddr("/ip4/127.0.0.1/udp/0/quic-v1"), {}, null).get(10, TimeUnit.SECONDS)
+            val remote = server.listenAddresses().single().withP2P(PeerId.fromPubKey(key.publicKey()))
+            attempts += startDestroyDial(client, remote)
+            val firstParent = attempts.first().parent.get(10, TimeUnit.SECONDS)
+            group = firstParent.eventLoop().parent()
+            val loopCount = group.iterator().asSequence().count()
+            assertTrue(loopCount > 0)
+            // Four on one loop cover two pending releases, reentry during drain, and later registration.
+            repeat(3 * loopCount) { attempts += startDestroyDial(client, remote) }
+            attempts.forEach { it.request.get(10, TimeUnit.SECONDS) }
+            val selected = attempts.groupBy { it.parent.getNow(null).eventLoop() }
+                .values.first { it.size >= 4 }.take(4)
+            val loop = selected.first().parent.getNow(null).eventLoop() as SingleThreadIoEventLoop
+            selected.forEach { assertSame(loop, it.parent.getNow(null).eventLoop()) }
+            attempts.filter { it !in selected }.forEach { attempt ->
+                loopFor(attempt).submit { physicallyCloseDestroyParent(attempt); finishDestroyClose(attempt) }
+                    .get(10, TimeUnit.SECONDS)
+                assertDestroyDialFailure(attempt)
+            }
+            val duringDestruction = selected[0].dial.handle { _, _ ->
+                finishDestroyClose(selected[2])
+                Unit
+            }
+            loop.submit {
+                loop.addShutdownHook {
+                    selected.forEach { physicallyCloseDestroyParent(it) }
+                    finishDestroyClose(selected[0])
+                    finishDestroyClose(selected[1])
+                    assertFalse(selected[0].dial.isDone, "First release must be pending before selector destruction")
+                    assertFalse(selected[1].dial.isDone, "Second release must be pending before selector destruction")
+                    hookEntered.complete(Unit)
+                    check(destroyAllowed.await(10, TimeUnit.SECONDS)) { "The caller must permit selector destruction" }
+                }
+            }.get(10, TimeUnit.SECONDS)
+            // Netty's zero-quiet-period shutdown terminates after hooks, without another I/O pass.
+            val termination = loop.shutdownGracefully(0, 5, TimeUnit.SECONDS)
+            hookEntered.get(10, TimeUnit.SECONDS)
+            assertFalse(selected[0].dial.isDone)
+            assertFalse(selected[1].dial.isDone)
+            destroyAllowed.countDown()
+            termination.get(10, TimeUnit.SECONDS)
+            assertTrue(loop.isTerminated)
+            assertDestroyDialFailure(selected[0])
+            assertDestroyDialFailure(selected[1])
+            duringDestruction.get(10, TimeUnit.SECONDS)
+            assertDestroyDialFailure(selected[2])
+            assertFalse(selected[3].dial.isDone, "Last original close result stays held until after loop termination")
+            finishDestroyClose(selected[3])
+            assertDestroyDialFailure(selected[3])
+            attempts.forEach { attempt ->
+                DatagramSocket(null).use { it.bind(attempt.address.getNow(null)) }
+                assertEquals(1, attempt.requests)
+            }
+            client.close().get(10, TimeUnit.SECONDS)
+            assertTrue(group.isTerminated, "Transport close must terminate every owned loop")
+        } finally {
+            destroyAllowed.countDown()
+            client.close()
+            // Direct group cleanup also releases the fixture when a release-drain control leaves results pending.
+            group?.shutdownGracefully(0, 5, TimeUnit.SECONDS)?.get(10, TimeUnit.SECONDS)
+            server.close().get(10, TimeUnit.SECONDS)
+        }
+    }
+}
+
+private class F93lDestroyDial {
+    val failure = IllegalStateException("The destruction test visitor rejects this dial")
+    val parent = CompletableFuture<Channel>()
+    val address = CompletableFuture<InetSocketAddress>()
+    val request = CompletableFuture<Pair<ChannelHandlerContext, ChannelPromise>>()
+    lateinit var dial: CompletableFuture<Connection>
+    var requests = 0
+}
+
+private fun loopFor(attempt: F93lDestroyDial) = attempt.parent.getNow(null).eventLoop()
+
+private fun startDestroyDial(client: QuicTransport, remote: Multiaddr): F93lDestroyDial {
+    val attempt = F93lDestroyDial()
+    attempt.dial = client.dial(remote, ConnectionHandler { connection ->
+        val parent = (connection as ConnectionOverNetty).nettyChannel.parent()
+        attempt.parent.complete(parent)
+        attempt.address.complete(parent.localAddress() as InetSocketAddress)
+        parent.pipeline().addLast(object : ChannelOutboundHandlerAdapter() {
+            override fun close(ctx: ChannelHandlerContext, promise: ChannelPromise) {
+                attempt.requests++
+                assertTrue(attempt.request.complete(ctx to promise), "The parent must receive one close request")
+            }
+        })
+        throw attempt.failure
+    })
+    return attempt
+}
+
+private fun physicallyCloseDestroyParent(attempt: F93lDestroyDial) {
+    val request = attempt.request.getNow(null)
+    val physical = DefaultChannelPromise(request.first.channel(), ImmediateEventExecutor.INSTANCE)
+    request.first.close(physical)
+    assertTrue(physical.isSuccess, "Physical UDP close must finish on the owning loop")
+    assertTrue(request.first.channel().closeFuture().isSuccess)
+}
+
+private fun finishDestroyClose(attempt: F93lDestroyDial) {
+    val promise = attempt.request.getNow(null).second
+    assertTrue(promise.trySuccess(), "The held original close must complete once")
+}
+
+private fun assertDestroyDialFailure(attempt: F93lDestroyDial) {
+    val failure = assertThrows(ExecutionException::class.java) { attempt.dial.get(10, TimeUnit.SECONDS) }
+    assertSame(attempt.failure, failure.cause)
+}

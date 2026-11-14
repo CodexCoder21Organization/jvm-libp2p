@@ -13,7 +13,7 @@ previous_wait=0
 if [[ -f "$wait_file" ]]; then previous_wait=$(awk '{sum += $1} END {print sum+0}' "$wait_file"); fi
 for ((i=0;i<count;i++)); do
   acquired=false
-  deadline=$((SECONDS+1500))
+  deadline=$((started+1500))
   while ((SECONDS<deadline && previous_wait+SECONDS-started<3600)); do
     for n in 1 2 3 4 5 6 7; do
       if ((n > 5)); then

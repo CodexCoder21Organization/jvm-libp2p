@@ -49,3 +49,14 @@ Status: pending. I will add a loopback TCP test using two in-process libp2p host
 ## Milestone 4 — fix, green run, and PR
 
 Status: pending.
+
+## Milestone 3 — reproducer attempt
+
+Status: test drafted, red/green verification incomplete under the brief's time limit.
+
+- Added `NegotiatorSynchronousCloseTest.kt` with in-process TCP libp2p hosts and public `Host.newStream`, exercising requester-side and responder-side synchronous close during selected-protocol setup. It asserts the controller fails with `ConnectionClosedException` and that the exact `NoSuchElementException` is absent from captured logs.
+- Red command: `./gradlew :libp2p:test --tests io.libp2p.multistream.NegotiatorSynchronousCloseTest --no-daemon`, after replacing only `Negotiator.kt` with exact snapshot-9 source. Gradle reached `:libp2p:compileTestKotlin` but emitted no test result before the 80-minute lane deadline. I sent Ctrl-C; exit code was 130. This is not a red assertion run and does not prove the test compiles.
+- Restored the current guarded `Negotiator.kt` from the pre-run backup and deleted that backup. No Gradle process should remain. No fix was changed in this branch because the root fix already exists in the fork's merged [PR 26](https://github.com/CodexCoder21Organization/jvm-libp2p/pull/26).
+- The lane deadline prevented the green run, full relevant suite, independent review, and a new PR. Do not treat the drafted test as verified.
+
+Documents read in full before adding tests/review: `workspace/DocumentationRepository/architecture/TESTING.md`, `workspace/DocumentationRepository/CODE_REVIEW.md`, and `workspace/DocumentationRepository/PHILOSOPHY.md`.

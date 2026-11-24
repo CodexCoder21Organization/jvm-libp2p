@@ -62,10 +62,12 @@ class NetworkProvisionalStreamOutcomeTest {
             server.start().awaitProvisionalOutcome("Server startup", 10)
             client.start().awaitProvisionalOutcome("Client startup", 10)
             if (outcome == "early-cancel") {
-                client.addConnectionHandler(ConnectionHandler.create { connection ->
-                    earlyParent.complete(connection)
-                    check(release.await(10, SECONDS)) { "The test must release parent publication before stream creation" }
-                })
+                client.addConnectionHandler(
+                    ConnectionHandler.create { connection ->
+                        earlyParent.complete(connection)
+                        check(release.await(10, SECONDS)) { "The test must release parent publication before stream creation" }
+                    }
+                )
             }
             val earlyChild = if (outcome == "early-cancel") {
                 client.newStream<Unit>(listOf(protocol), server.peerId, server.listenAddresses().single())

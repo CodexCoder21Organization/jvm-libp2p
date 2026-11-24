@@ -21,6 +21,7 @@ import io.libp2p.etc.util.netty.mux.MuxChannelInitializer
 import io.libp2p.transport.implementation.StreamOverNetty
 import io.netty.buffer.ByteBuf
 import io.netty.channel.ChannelHandlerContext
+import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
 
 abstract class MuxHandler(
@@ -67,6 +68,7 @@ abstract class MuxHandler(
         val muxChannel = newStream { channel ->
             controller.channel = channel
             if (controller.isCancelled) {
+                channel.attr(STREAM_SETUP_CAUSE).set(CancellationException("Stream creation was cancelled before initialization on connection ${ctx!!.channel()}"))
                 channel.close()
                 return@newStream
             }
@@ -89,7 +91,9 @@ abstract class MuxHandler(
         muxChannel.forwardException(controller)
         val stream = muxChannel.thenApply {
             it.attr(STREAM_SETUP_CAUSE).get()?.let { cause -> throw cause }
-            it.attr(STREAM).get()
+            it.attr(STREAM).get() ?: throw IllegalStateException(
+                "Stream setup completed without a Stream or a setup cause for channel ${it.id()} (peer ${it.remoteAddress()})"
+            )
         }
         return StreamPromise(stream, controller)
     }

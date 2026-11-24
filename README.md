@@ -528,7 +528,9 @@ bindings without making an ordinary lifetime reservation.
 
 Cancel the child controller to abandon pending negotiation. If child creation is still queued,
 cancellation ends that creation before its protocol is offered. Cancellation or failed negotiation
-closes that child and releases its hold. Closing the hold itself leaves accepted children open;
+closes that child and releases its hold. Both futures of a `StreamPromise` settle even if creation
+is cancelled, and its `stream` future completes with a `Stream` or an exception, never `null`.
+Closing the hold itself leaves accepted children open;
 each child continues to protect the parent until that child closes. Each caller releases only
 its own hold. Once a surplus parent's last provisional use ends, the network coordinates its
 retirement with the peer. Incoming children remain protected by the same ordering.

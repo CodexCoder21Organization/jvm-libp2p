@@ -16,8 +16,8 @@ import org.junit.jupiter.params.provider.ValueSource
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.Future
-import java.util.concurrent.TimeoutException
 import java.util.concurrent.TimeUnit.SECONDS
+import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicReference
 
 class MuxStreamResultTest {
@@ -56,13 +56,15 @@ class MuxStreamResultTest {
             server.start().awaitMuxResultStep("Server startup", 10)
             client.start().awaitMuxResultStep("Client startup", 10)
             client.network.connect(server.peerId, server.listenAddresses().single()).awaitMuxResultStep("Parent dial")
-            val promise = session.get().createStream(StreamHandler { stream ->
-                val channel = (stream as StreamOverNetty).nettyChannel
-                childChannel.set(channel)
-                // Exercise the existing channel-attribute API without changing production visibility.
-                channel.attr(STREAM).set(null)
-                CompletableFuture.completedFuture(Unit)
-            })
+            val promise = session.get().createStream(
+                StreamHandler { stream ->
+                    val channel = (stream as StreamOverNetty).nettyChannel
+                    childChannel.set(channel)
+                    // Exercise the existing channel-attribute API without changing production visibility.
+                    channel.attr(STREAM).set(null)
+                    CompletableFuture.completedFuture(Unit)
+                }
+            )
             val failure = assertThrows(ExecutionException::class.java) { promise.stream.awaitMuxResultStep("Missing-attribute stream result") }
             val channel = childChannel.get()
             assertInstanceOf(IllegalStateException::class.java, failure.cause)

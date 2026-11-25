@@ -91,9 +91,14 @@ abstract class MuxHandler(
         muxChannel.forwardException(controller)
         val stream = muxChannel.thenApply {
             it.attr(STREAM_SETUP_CAUSE).get()?.let { cause -> throw cause }
-            it.attr(STREAM).get() ?: throw IllegalStateException(
-                "Stream setup completed without a Stream or a setup cause for channel ${it.id()} (peer ${it.remoteAddress()})"
-            )
+            it.attr(STREAM).get() ?: run {
+                val cause = IllegalStateException(
+                    "Stream setup completed without a Stream or a setup cause for channel ${it.id()} (peer ${it.remoteAddress()})"
+                )
+                it.attr(STREAM_SETUP_CAUSE).set(cause)
+                it.close()
+                throw cause
+            }
         }
         return StreamPromise(stream, controller)
     }

@@ -12,6 +12,7 @@ import io.libp2p.transport.tcp.TcpTransport
 import io.netty.channel.Channel
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.CsvSource
 import org.junit.jupiter.params.provider.ValueSource
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ExecutionException
@@ -60,7 +61,7 @@ class MuxStreamResultTest {
                 StreamHandler { stream ->
                     val channel = (stream as StreamOverNetty).nettyChannel
                     childChannel.set(channel)
-                    // Exercise the existing channel-attribute API without changing production visibility.
+                    // Force this implementation's missing-attribute guard before the stream result is derived.
                     channel.attr(STREAM).set(null)
                     CompletableFuture.completedFuture(Unit)
                 }
@@ -124,7 +125,7 @@ class MuxStreamResultTest {
                 StreamHandler { stream ->
                     val channel = (stream as StreamOverNetty).nettyChannel
                     childChannel.set(channel)
-                    // Exercise the existing channel-attribute API without changing production visibility.
+                    // Force this implementation's missing-attribute guard before the stream result is derived.
                     channel.attr(STREAM).set(null)
                     handlerResult
                 }
@@ -147,6 +148,84 @@ class MuxStreamResultTest {
                 promise.controller.awaitMuxResultStep("Controller after late handler completion")
             }
             assertSame(failure.cause, laterFailure.cause, "A late handler result must preserve the setup failure")
+        } finally {
+            try {
+                client.stop().awaitMuxResultStep("Client shutdown", 10)
+            } finally {
+                server.stop().awaitMuxResultStep("Server shutdown", 10)
+            }
+        }
+    }
+
+    @ParameterizedTest
+    @CsvSource("false,false", "true,false", "false,true", "true,true")
+    fun handlerFailureSettlesBothResults(mplex: Boolean, later: Boolean) {
+        val session = AtomicReference<MuxHandler>()
+        val childChannel = AtomicReference<Channel>()
+        val setupFailure = IllegalStateException("The stream handler failed during setup")
+        val handlerResult = CompletableFuture<Unit>()
+        val muxer = if (mplex) StreamMuxerProtocol.Mplex else StreamMuxerProtocol.getYamux()
+        val observedMuxer = StreamMuxerProtocol { multistream, protocols ->
+            val delegate = muxer.createMuxer(multistream, protocols)
+            object : StreamMuxer by delegate {
+                override fun initChannel(ch: io.libp2p.core.P2PChannel, selectedProtocol: String): CompletableFuture<out StreamMuxer.Session> =
+                    delegate.initChannel(ch, selectedProtocol).thenApply {
+                        session.set(it as MuxHandler)
+                        it
+                    }
+            }
+        }
+        val server = host {
+            identity { random() }
+            transports { +::TcpTransport }
+            secureChannels { add { key, _ -> NoiseXXSecureChannel(key) } }
+            muxers { +muxer }
+            protocols { +Echo() }
+            network { listen("/ip4/127.0.0.1/tcp/0") }
+        }
+        val client = host {
+            identity { random() }
+            transports { +::TcpTransport }
+            secureChannels { add { key, _ -> NoiseXXSecureChannel(key) } }
+            muxers { +observedMuxer }
+            protocols { +Echo() }
+        }
+        try {
+            server.start().awaitMuxResultStep("Server startup", 10)
+            client.start().awaitMuxResultStep("Client startup", 10)
+            client.network.connect(server.peerId, server.listenAddresses().single()).awaitMuxResultStep("Parent dial")
+            val promise = session.get().createStream(
+                StreamHandler { stream ->
+                    val channel = (stream as StreamOverNetty).nettyChannel
+                    childChannel.set(channel)
+                    if (!later) throw setupFailure
+                    handlerResult
+                }
+            )
+            if (later) {
+                val stream = promise.stream.awaitMuxResultStep("Stream before later handler failure")
+                assertFalse(promise.controller.isDone, "The controller must await the handler result")
+                assertTrue(handlerResult.completeExceptionally(setupFailure))
+                val failure = assertThrows(ExecutionException::class.java) {
+                    promise.controller.awaitMuxResultStep("Later handler failure")
+                }
+                assertSame(setupFailure, failure.cause)
+                assertEquals("The stream handler failed during setup", failure.cause?.message)
+                assertSame(stream, promise.stream.awaitMuxResultStep("Preserved created stream"))
+                stream.close().awaitMuxResultStep("Child close after handler failure")
+            } else {
+                for (result in listOf(promise.stream, promise.controller)) {
+                    val failure = assertThrows(ExecutionException::class.java) {
+                        result.awaitMuxResultStep("Synchronous handler failure")
+                    }
+                    assertSame(setupFailure, failure.cause)
+                    assertEquals("The stream handler failed during setup", failure.cause?.message)
+                }
+            }
+            val channel = childChannel.get()
+            assertTrue(channel.closeFuture().await(5, SECONDS), "The failed test child must close")
+            assertFalse(channel.isOpen)
+            assertFalse(channel.parent().closeFuture().isDone, "A handler failure must leave its parent open")
         } finally {
             try {
                 client.stop().awaitMuxResultStep("Client shutdown", 10)

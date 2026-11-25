@@ -530,6 +530,8 @@ Cancel the child controller to abandon pending negotiation. If child creation is
 cancellation ends that creation before its protocol is offered. Cancellation or failed negotiation
 closes that child and releases its hold. Both futures of a `StreamPromise` settle even if creation
 is cancelled, and its `stream` future completes with a `Stream` or an exception, never `null`.
+A failed `stream` future also fails a controller that is still pending;
+a controller that has already completed keeps its outcome.
 Closing the hold itself leaves accepted children open;
 each child continues to protect the parent until that child closes. Each caller releases only
 its own hold. Once a surplus parent's last provisional use ends, the network coordinates its

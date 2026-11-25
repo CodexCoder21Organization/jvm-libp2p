@@ -63,6 +63,7 @@ class MuxStreamResultTest {
                     childChannel.set(channel)
                     // This defensive check uses mux bookkeeping and needs rewriting if that bookkeeping changes.
                     channel.attr(STREAM).set(null)
+                    assertTrue(channel.isOpen, "The child must still be open when its handler returns")
                     CompletableFuture.completedFuture(Unit)
                 }
             )
@@ -74,8 +75,9 @@ class MuxStreamResultTest {
                 failure.cause?.message
             )
             assertEquals(Unit, promise.controller.awaitMuxResultStep("Completed stream handler"), "A completed handler result must keep its outcome")
-            assertTrue(channel.close().await(5, SECONDS), "The test child close must finish")
-            assertTrue(channel.closeFuture().isDone, "The test must close its child channel")
+            assertTrue(channel.closeFuture().await(5, SECONDS), "The library must close the child channel after the guard fails")
+            assertTrue(channel.closeFuture().isDone, "The child close future must finish")
+            assertFalse(channel.isOpen, "The library must leave no half-set-up child open")
         } finally {
             try {
                 client.stop().awaitMuxResultStep("Client shutdown", 10)
@@ -127,6 +129,7 @@ class MuxStreamResultTest {
                     childChannel.set(channel)
                     // This defensive check uses mux bookkeeping and needs rewriting if that bookkeeping changes.
                     channel.attr(STREAM).set(null)
+                    assertTrue(channel.isOpen, "The child must still be open when its handler returns")
                     handlerResult
                 }
             )

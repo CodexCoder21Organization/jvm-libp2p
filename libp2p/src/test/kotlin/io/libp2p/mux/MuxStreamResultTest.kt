@@ -158,6 +158,79 @@ class MuxStreamResultTest {
     }
 
     @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun alreadyClosedChildFailsPendingController(mplex: Boolean) {
+        val session = AtomicReference<MuxHandler>()
+        val childChannel = AtomicReference<Channel>()
+        val handlerResult = CompletableFuture<Unit>()
+        val muxer = if (mplex) StreamMuxerProtocol.Mplex else StreamMuxerProtocol.getYamux()
+        val observedMuxer = StreamMuxerProtocol { multistream, protocols ->
+            val delegate = muxer.createMuxer(multistream, protocols)
+            object : StreamMuxer by delegate {
+                override fun initChannel(ch: io.libp2p.core.P2PChannel, selectedProtocol: String): CompletableFuture<out StreamMuxer.Session> =
+                    delegate.initChannel(ch, selectedProtocol).thenApply {
+                        session.set(it as MuxHandler)
+                        it
+                    }
+            }
+        }
+        val server = host {
+            identity { random() }
+            transports { +::TcpTransport }
+            secureChannels { add { key, _ -> NoiseXXSecureChannel(key) } }
+            muxers { +muxer }
+            protocols { +Echo() }
+            network { listen("/ip4/127.0.0.1/tcp/0") }
+        }
+        val client = host {
+            identity { random() }
+            transports { +::TcpTransport }
+            secureChannels { add { key, _ -> NoiseXXSecureChannel(key) } }
+            muxers { +observedMuxer }
+            protocols { +Echo() }
+        }
+        try {
+            server.start().awaitMuxResultStep("Server startup", 10)
+            client.start().awaitMuxResultStep("Client startup", 10)
+            client.network.connect(server.peerId, server.listenAddresses().single()).awaitMuxResultStep("Parent dial")
+            val promise = session.get().createStream(
+                StreamHandler { stream ->
+                    val channel = (stream as StreamOverNetty).nettyChannel
+                    childChannel.set(channel)
+                    // This defensive check uses mux bookkeeping and needs rewriting if that bookkeeping changes.
+                    channel.attr(STREAM).set(null)
+                    assertTrue(channel.close().isDone, "The handler closes its child before returning")
+                    handlerResult
+                }
+            )
+            val failure = assertThrows(ExecutionException::class.java) { promise.stream.awaitMuxResultStep("Missing-attribute stream result") }
+            val channel = childChannel.get()
+            assertInstanceOf(IllegalStateException::class.java, failure.cause)
+            assertEquals(
+                "Stream setup completed without a Stream or a setup cause for channel ${channel.id()} (peer ${channel.remoteAddress()})",
+                failure.cause?.message
+            )
+            val controllerFailure = assertThrows(ExecutionException::class.java) {
+                promise.controller.awaitMuxResultStep("Missing-attribute controller result")
+            }
+            assertSame(failure.cause, controllerFailure.cause, "Both results must report the same setup failure")
+            assertTrue(channel.closeFuture().await(5, SECONDS), "The guard must close its child channel")
+            assertFalse(channel.isOpen, "The guard must leave no half-set-up child open")
+            handlerResult.complete(Unit)
+            val laterFailure = assertThrows(ExecutionException::class.java) {
+                promise.controller.awaitMuxResultStep("Controller after late handler completion")
+            }
+            assertSame(failure.cause, laterFailure.cause, "A late handler result must preserve the setup failure")
+        } finally {
+            try {
+                client.stop().awaitMuxResultStep("Client shutdown", 10)
+            } finally {
+                server.stop().awaitMuxResultStep("Server shutdown", 10)
+            }
+        }
+    }
+
+    @ParameterizedTest
     @CsvSource("false,false", "true,false", "false,true", "true,true")
     fun handlerFailureSettlesBothResults(mplex: Boolean, later: Boolean) {
         val session = AtomicReference<MuxHandler>()

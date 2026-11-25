@@ -9,7 +9,8 @@ import java.util.concurrent.CompletableFuture
  *          this property is used for low level Stream manipulations (like closing it)
  *
  * @property controller Is completed when the underlying client protocol is initiated.
- *           When the [stream] future is failed this future is also failed
+ *           When the [stream] future fails, a pending controller also fails.
+ *           A controller that has already completed keeps its outcome.
  *           While the [stream] can be created successfully the protocol may fail
  *           to instantiate and this future would fail
  */

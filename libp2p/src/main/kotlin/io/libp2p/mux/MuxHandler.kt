@@ -21,6 +21,7 @@ import io.libp2p.etc.util.netty.mux.MuxChannelInitializer
 import io.libp2p.transport.implementation.StreamOverNetty
 import io.netty.buffer.ByteBuf
 import io.netty.channel.ChannelHandlerContext
+import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
 
 abstract class MuxHandler(
@@ -67,6 +68,7 @@ abstract class MuxHandler(
         val muxChannel = newStream { channel ->
             controller.channel = channel
             if (controller.isCancelled) {
+                channel.attr(STREAM_SETUP_CAUSE).set(CancellationException("Stream creation was cancelled before initialization on connection ${ctx!!.channel()}"))
                 channel.close()
                 return@newStream
             }
@@ -87,10 +89,23 @@ abstract class MuxHandler(
         }
         // Observe the owned creation result, independently of the caller's mutable stream future.
         muxChannel.forwardException(controller)
-        val stream = muxChannel.thenApply {
-            it.attr(STREAM_SETUP_CAUSE).get()?.let { cause -> throw cause }
-            it.attr(STREAM).get()
-        }
+        val stream = CompletableFuture<Stream>()
+        muxChannel.thenAccept { channel ->
+            channel.attr(STREAM_SETUP_CAUSE).get()?.let { cause -> throw cause }
+            val createdStream = channel.attr(STREAM).get()
+            if (createdStream != null) {
+                stream.complete(createdStream)
+            } else {
+                val cause = IllegalStateException(
+                    "Stream setup completed without a Stream or a setup cause for channel ${channel.id()} (peer ${channel.remoteAddress()})"
+                )
+                // Settle both results before cleanup, including when the child is already closed.
+                controller.completeExceptionally(cause)
+                stream.completeExceptionally(cause)
+                channel.attr(STREAM_SETUP_CAUSE).set(cause)
+                if (channel.isOpen) channel.close()
+            }
+        }.forwardException(stream)
         return StreamPromise(stream, controller)
     }
 

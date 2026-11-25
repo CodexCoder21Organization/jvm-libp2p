@@ -89,17 +89,23 @@ abstract class MuxHandler(
         }
         // Observe the owned creation result, independently of the caller's mutable stream future.
         muxChannel.forwardException(controller)
-        val stream = muxChannel.thenApply {
-            it.attr(STREAM_SETUP_CAUSE).get()?.let { cause -> throw cause }
-            it.attr(STREAM).get() ?: run {
+        val stream = CompletableFuture<Stream>()
+        muxChannel.thenAccept { channel ->
+            channel.attr(STREAM_SETUP_CAUSE).get()?.let { cause -> throw cause }
+            val createdStream = channel.attr(STREAM).get()
+            if (createdStream != null) {
+                stream.complete(createdStream)
+            } else {
                 val cause = IllegalStateException(
-                    "Stream setup completed without a Stream or a setup cause for channel ${it.id()} (peer ${it.remoteAddress()})"
+                    "Stream setup completed without a Stream or a setup cause for channel ${channel.id()} (peer ${channel.remoteAddress()})"
                 )
-                it.attr(STREAM_SETUP_CAUSE).set(cause)
-                it.close()
-                throw cause
+                // Settle both results before cleanup, including when the child is already closed.
+                controller.completeExceptionally(cause)
+                stream.completeExceptionally(cause)
+                channel.attr(STREAM_SETUP_CAUSE).set(cause)
+                if (channel.isOpen) channel.close()
             }
-        }
+        }.forwardException(stream)
         return StreamPromise(stream, controller)
     }
 

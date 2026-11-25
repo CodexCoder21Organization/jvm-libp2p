@@ -84,6 +84,8 @@ signing failure is reported during binding construction. The binding captures a 
 `localStaticPrivateKey25519` at construction; later changes to that property affect newly constructed
 bindings. Existing binding and handshake constructors remain available.
 
+A Yamux binding initializes its codec and handler types before host startup. It creates a fresh codec and handler for each connection; preparation opens no connection and invokes no stream or connection callback.
+
 ## Closing a stream during initialization
 
 A `Host.addStreamVisitor` callback may close or reset a newly opened stream. If it closes the stream before protocol negotiation, the stream's protocol future and the caller's controller future complete exceptionally. Closing that child leaves its shared connection and other streams usable.
